@@ -102,12 +102,12 @@ export function PlayerStrip(p: { side: Side; view: CardView; isMe: boolean; onGr
                 ))}
             </div>
             <div className="bd-counts">
-                <span className="bd-cnt" title={t.deck}>
+                <span className="bd-cnt" title={t.deck} data-cg-deck={side}>
                     <Img src={BACK} className="bd-mini" />
                     <em>{t.deck}</em>
                     <b>{pl.deckCount}</b>
                 </span>
-                <span className="bd-cnt hand" title={t.hand}>
+                <span className="bd-cnt hand" title={t.hand} data-cg-hand={side}>
                     {p.isMe ? null : (
                         <span className="bd-fan">
                             {Array.from({
@@ -123,7 +123,7 @@ export function PlayerStrip(p: { side: Side; view: CardView; isMe: boolean; onGr
                     <em>{t.grave}</em>
                     <b>{pl.grave.length}</b>
                 </button>
-                <span className="bd-cnt prizes" title={t.prizes}>
+                <span className="bd-cnt prizes" title={t.prizes} data-cg-prizes={side}>
                     <span className="bd-prizes">
                         {Array.from({
                             length: prizeMax

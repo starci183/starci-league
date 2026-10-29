@@ -1,5 +1,5 @@
 // Twisted Fate (Pháp sư, phép): máu 740 · AD 60 · giáp/kháng 28/30. Lối chơi: KIỂM SOÁT BÀI.
-// Cơ chế: Q đổi màu (nhớ màu lần trước), E lục bộ bài, R xem tay đối thủ (status "see_hand" cho client) + dời đường + đòn kế gấp đôi.
+// Cơ chế: Q đổi màu (mạnh hơn khi đang cầm lá Vàng: thấy được trên tay), E lục bộ bài, R xem tay đối thủ (status "see_hand") và chọn 1 lá cho họ bỏ. Một mục đích: KIỂM SOÁT BỘ BÀI.
 import {
     defineHero, getHero
 } from "../registry"
@@ -10,12 +10,8 @@ import {
     otherSide
 } from "../types"
 
-const LAST = "tfColor" // stack: màu Q lần trước (1 xanh, 2 đỏ, 3 vàng), giữ cả trận
-const COLOR_N = {
-    blue: 1, red: 2, gold: 3
-} as const
-const F_RED = "35 + 20% AD + 35% AP"
-const F_GOLD = "50 + 20% AD + 45% AP"
+const F_RED = "55 + 20% AD + 35% AP"
+const F_GOLD = "75 + 20% AD + 45% AP"
 const BONUS = 1.5
 
 const sig = (c: Card) => `${c.kind}|${c.id}|${c.hero ?? ""}|${c.item ?? ""}`
@@ -23,7 +19,10 @@ const distinct = (cards: Card[]) => { const seen = new Set<string>(); return car
 const isReactCard = (c: Card) => c.kind === "skill" && !!getHero(c.hero ?? "")?.skills[c.id.slice(-1).toUpperCase() as "Q" | "E" | "R"].quick
 
 export default defineHero({
-    id: "twistedfate", name: "Twisted Fate", role: "mage", damage: "magic", hp: 740, atk: 60, armor: 28, mr: 30,
+    id: "twistedfate", name: "Twisted Fate", role: "mage", damage: "magic", hp: 820, atk: 63, armor: 28, mr: 30,
+    skillCopies: {
+        Q: 7, E: 6, R: 2
+    },
     desc: "Não của đội: chọn màu theo tình thế, lục đúng lá combo, xem tay đối thủ để phá thế phản ứng.",
     passive: {
         name: "Bàn Tay Vàng", desc: "Mỗi lần dùng lá Vàng để ghép đồ, thầy rút 1 lá."
@@ -40,7 +39,7 @@ export default defineHero({
     skills: {
         Q: {
             key: "Q", name: "Chọn Bài",
-            desc: `Đổi màu, chọn khi đánh. **Xanh** (bản thân): rút 2 lá. **Đỏ** (mọi tướng địch): {${F_RED}} sát thương phép. **Vàng** (1 tướng địch): {${F_GOLD}} sát thương phép, Choáng 1 lượt, và thầy nhận 1 lá Vàng. **Điều kiện:** chọn **cùng màu với lần Q trước** thì hiệu ứng mạnh thêm 50% (Xanh rút 3 lá, Đỏ/Vàng thêm 50% sát thương).`,
+            desc: `Đổi màu, chọn khi đánh. **Xanh** (bản thân): rút 2 lá. **Đỏ** (mọi tướng địch): {${F_RED}} sát thương phép. **Vàng** (1 tướng địch): {${F_GOLD}} sát thương phép, Choáng 1 lượt, và thầy nhận 1 lá Vàng. **Điều kiện:** trên tay bạn đang có **lá Vàng** thì hiệu ứng mạnh thêm 50% (Xanh rút 3 lá, Đỏ/Vàng thêm 50% sát thương).`,
             target: "none",
             options(c) {
                 const out: PlayArgs[] = [{
@@ -59,12 +58,8 @@ export default defineHero({
             },
             resolve(c) {
                 const color = c.args.color ?? "blue"
-                const same = c.g.stackOf(c.self,
-                    LAST) === COLOR_N[color]
+                const same = c.g.player(c.side).hand.some((x) => x.kind === "support" && x.id === "gold")
                 const m = same ? BONUS : 1
-                c.g.setStack(c.self,
-                    LAST,
-                    COLOR_N[color])
                 if (color === "blue") c.g.draw(c.side,
                     same ? 3 : 2,
                     {
@@ -99,7 +94,7 @@ export default defineHero({
         },
         E: {
             key: "E", name: "Xào Bài", target: "none",
-            desc: "Lục bộ bài lấy 1 lá bất kỳ lên tay, rồi xáo bộ bài. **Điều kiện:** lấy đúng **lá chiêu cuối (R)** thì phải bỏ 1 lá khác trên tay.",
+            desc: "Lục bộ bài lấy 1 lá bất kỳ lên tay, rồi xáo bộ bài; mọi lá **Nấm** (lá đặc biệt địch cài) thấy trong bộ bị huỷ. **Điều kiện:** lấy đúng **lá chiêu cuối (R)** thì phải bỏ 1 lá khác trên tay.",
             options(c) {
                 const out: PlayArgs[] = []
                 const hand = c.g.player(c.side).hand.filter((x) => x.uid !== c.card.uid)
@@ -117,7 +112,15 @@ export default defineHero({
                 }]
             },
             resolve(c) {
-                const deck = c.g.player(c.side).deck
+                const p = c.g.player(c.side)
+                const traps = p.deck.filter((x) => x.kind === "special" && x.side !== c.side)
+                if (traps.length) {
+                    p.deck = p.deck.filter((x) => !traps.includes(x))
+                    for (const x of traps) c.g.emit({
+                        t: "burn", side: c.side, card: x
+                    })
+                }
+                const deck = p.deck
                 const want = deck.find((x) => x.uid === c.args.pick)
                 if (!want) return
                 const isR = want.kind === "skill" && want.id.endsWith("_r")
@@ -129,21 +132,14 @@ export default defineHero({
             },
         },
         R: {
-            key: "R", name: "Định Mệnh", target: ["ally",
-                "lane"],
-            desc: "Xem toàn bộ tay đối thủ tới hết lượt. Chọn 1 tướng mình: chuyển sang đường bất kỳ đang mở (đổi chỗ nếu có đồng đội), đòn đánh kế tiếp của nó gấp đôi sát thương. **Điều kiện:** tay đối thủ có **lá phản ứng** (như Braum Q/E) thì thầy được bỏ 1 lá trong số đó.",
+            key: "R", name: "Định Mệnh", target: "none",
+            desc: "Xem toàn bộ tay đối thủ tới hết lượt và chọn **1 lá bất kỳ** trong đó cho họ bỏ vào mộ. **Điều kiện:** lá bị bỏ là **lá phản ứng** (lá Quick) thì bạn rút 1 lá.",
             options(c) {
-                const reacts = distinct(c.g.player(otherSide(c.side)).hand.filter(isReactCard))
-                const out: PlayArgs[] = []
-                for (const a of c.g.allies(c.self)) for (const l of c.g.openLanes()) {
-                    out.push({
-                        target: a.id, lane: l
-                    })
-                    for (const r of reacts) out.push({
-                        target: a.id, lane: l, pick: r.uid
-                    })
-                }
-                return out
+                const out: PlayArgs[] = distinct(c.g.player(otherSide(c.side)).hand).map((x) => ({
+                    pick: x.uid
+                }))
+                return out.length ? out : [{
+                }]
             },
             resolve(c) {
                 const g = c.g, foe = otherSide(c.side)
@@ -153,16 +149,17 @@ export default defineHero({
                 g.emit({
                     t: "reveal", side: foe, to: c.side, cards: structuredClone(g.player(foe).hand)
                 }) // server gửi tay `side` cho `to` một lần
-                if (c.args.pick) g.discard(foe,
-                    c.args.pick,
+                const card = g.player(foe).hand.find((x) => x.uid === c.args.pick)
+                if (!card) return
+                const react = isReactCard(card)
+                g.discard(foe,
+                    card.uid,
                     "effect")
-                const t = c.target
-                if (!t || t.status !== "board") return
-                if (c.lane !== undefined) g.moveTo(t,
-                    c.lane)
-                t.nextAttack.push({
-                    id: "tf_fate", source: c.self.id, mult: 2
-                })
+                if (react) g.draw(c.side,
+                    1,
+                    {
+                        reason: "skill", by: c.self.id
+                    })
             },
         },
     },

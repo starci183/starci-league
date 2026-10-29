@@ -1,14 +1,26 @@
 # StarCi League: luật bản thẻ bài thuần (bản nháp chờ thầy duyệt)
 
 > **CHỐT MỚI (thay các mục cũ bên dưới nếu khác):**
-> - **Thứ tự lượt: rút bài trước**, rồi mới gọi tướng và đánh lá.
-> - **Tay đầu = 5 lá gốc + 3 thẻ chiêu chung (Q, E, R)** không gắn tướng: đánh ra thì chọn 1 tướng mình đang trên sân và tung chiêu Q/E/R của tướng đó. Giúp lên chiến thuật khi chưa biết sẽ rút được tướng nào. Dùng xong vào mộ như lá chiêu.
+> - **Trợ thủ rút thêm tối đa 1 lá mỗi lượt** (có nhiều Trợ thủ sống cũng chỉ +1).
+> - **GỌI TƯỚNG TRƯỚC, RÚT BÀI SAU (thay "rút bài trước" và thẻ chiêu chung):** mỗi lượt bắt đầu bằng **bước gọi tướng** (phase `summon`): gọi tướng dự bị vào đường mở còn trống (gọi bao nhiêu tuỳ ý, hoặc bỏ qua), rồi bấm **rút bài** (`draw`) mới rút 2 lá (+1 mỗi Trợ thủ). Không gọi được ai thì tự rút. Gọi tướng trong lúc đánh bài vẫn được.
+> - **Mở đầu trận:** không còn tay đầu sẵn và **bỏ hẳn thẻ chiêu chung** (Q/E/R). Lượt đầu của mỗi bên **bắt buộc gọi tướng đầu tiên** (vòng 1 chỉ mở đường 3), lá của tướng đó xáo vào bộ, rồi rút **tay đầu 5 lá** (`RULES.startHand`); lượt đầu không rút thêm 2 lá đầu lượt. Bên B gọi tướng sau khi thấy tướng của A.
+> - **Lá thưởng** chỉ gồm thẻ hỗ trợ (Đánh thường, Vàng, Đồ, Rút Bài, phép bổ trợ), không còn thẻ chiêu chung. Blitzcrank cướp được lá chiêu của đối thủ thì lá đó thành 1 lá Đánh thường.
+> - ~~Thứ tự lượt: rút bài trước~~ (đã đổi: gọi tướng trước, rút sau, xem trên).
+> - ~~Tay đầu = 5 lá gốc + 3 thẻ chiêu chung (Q, E, R)~~ (đã bỏ thẻ chiêu chung) không gắn tướng: đánh ra thì chọn 1 tướng mình đang trên sân và tung chiêu Q/E/R của tướng đó. Giúp lên chiến thuật khi chưa biết sẽ rút được tướng nào. Dùng xong vào mộ như lá chiêu.
 > - **Mục tiêu chiêu do lối chơi từng tướng quyết định** (không ép theo vai); kiểu mục tiêu: tướng đối diện · 1 tướng địch · tối đa N · mọi tướng địch · tướng mình · bản thân.
 > - **Chọn mục tiêu chiêu kiểu Yu-Gi-Oh** (không theo đường): 1 tướng địch · tối đa N tướng địch · mọi tướng địch · 1 / tối đa N / mọi tướng mình · bản thân. Đường chỉ dùng cho đánh thường theo vai và hiệu ứng kéo/đổi chỗ.
 > - **Thẻ thưởng (Prize) kiểu Pokémon:** đầu trận mỗi đội úp **6 lá thưởng** ngẫu nhiên (thẻ hỗ trợ + thẻ chiêu chung Q/E/R, không lấy từ bộ bài chính). Hạ 1 tướng địch thì lật 1 lá thưởng lên tay. **Giữ 7 mạng:** 6 lần hạ đầu mỗi lần lật 1 lá thưởng; lần hạ thứ 7 là thắng trận.
 > - **Quick play** là nhãn của từng chiêu (vd "E · Quick"): chiêu Quick dùng được trong lượt đối thủ để **nối chuỗi** kiểu Yu-Gi-Oh; chuỗi giải quyết từ mắt xích cuối về đầu.
 > - **Ô triệu hồi phụ:** mỗi bên 1 ô ngoài 5 đường cho vật triệu hồi / đồng minh phụ (vd Tibbers làm máu ảo cho Annie: sát thương vào Annie đánh Tibbers trước, hết máu thì Tibbers chết). Không có hiệu ứng vùng tròn; mọi hiệu ứng đặt lên tướng.
-> - **Bỏ hẳn lá phép và lá bẫy.**
+> - **Nhắm vật triệu hồi ở ô phụ:** chỉ **đòn đánh thường của xạ thủ** (lá Đánh thường hoặc đòn miễn phí) chọn được vật triệu hồi làm mục tiêu. Chiêu đơn mục tiêu / tối đa N **không** chọn được vật triệu hồi, trừ khi lá ghi rõ (`targetsTokens`); chiêu "mọi tướng địch" vẫn trúng. Vật triệu hồi có thể **úp mặt** (đối thủ không biết nó là gì tới khi lật, rời sân thì tự lật) và có thể **tự hết hạn** sau N lượt (hiện số lượt còn lại trên token).
+> - **Quick dành cho tướng phản ứng:** lá Quick chỉ cấp cho tướng mà mục đích duy nhất là phản ứng. Đòn lớn đánh trong lượt mình để đối thủ có một lượt đọc bàn và đáp trả.
+> - **Số lá chiêu theo từng tướng** (không cố định 6/6/2): Q 3–10 lá, E 3–10 lá, R 1–3 lá (`HeroDef.skillCopies`, mặc định 6/6/2). Đấu sĩ/tướng đánh tay mang ít lá chiêu (bộ gọn), pháp sư mang nhiều. Số lá cũng là núm cân bằng: chiêu mạnh mỗi lá thì ít bản.
+> - **Bộ gốc tự xếp 20 lá** (thay bộ gốc 10 Đánh thường/6 Vàng/6 Đồ): chỉ thẻ hỗ trợ (Đánh thường ≤8, Rút Bài ≤2, Bổ Trợ ≤2, Bình Máu ≤2), Vàng ≤4 và **mảnh Đồ chọn đích danh** (mỗi mảnh ≤2), xem `packages/shared/src/cardgame/deck.ts`. Thiếu/sai thì dùng bộ mặc định. Tay đầu vẫn rút 5 lá từ bộ gốc + 3 thẻ chiêu chung. Mỗi tướng ra sân vẫn xáo thêm 20 thẻ hỗ trợ của tướng (có thể chỉnh riêng: `HeroDef.supportCopies`) + toàn bộ lá chiêu của tướng.
+> - **Đồ đã đeo không tháo ra được:** không có hành động tháo/chuyển đồ; đồ ở lại trên tướng qua cả lúc chết và hồi sinh.
+> - **Ghép đồ ra lá đồ huyền thoại:** 2 lá Đồ + 1 lá Vàng trên tay ghép thành **1 lá đồ huyền thoại lên tay** (tay đầy thì vào mộ), chưa đeo. Đeo là một lượt đánh riêng: đánh lá đó lên 1 tướng mình trên sân còn ô đồ (tối đa 3 món); khi đeo, máu tối đa/hiện tại tăng theo máu của món.
+> - **Trạng thái chung** (có hiệu ứng riêng trên bàn, mọi tướng dùng chung id): Choáng `stun`, Câm Lặng `silence`, Vết Thương Sâu `grievous` (hồi máu/Khiên nhận vào −50%), Buốt `chill`, Mù `blind`, Khiêu Khích `taunt`, cộng Khiên.
+> - **Phép bổ trợ (8 lá, kiểu LMHT) thay Bình Máu và Bổ Trợ:** Hồi Máu (hồi 150 + 10% máu tối đa) · Tốc Biến (dời 1 tướng mình sang đường mở còn trống) · Thiêu Đốt (địch mất 50 máu đầu mỗi lượt của nó trong 2 lượt, kèm Vết Thương Sâu: hồi máu và Khiên nhận vào giảm 50%) · Kiệt Sức (địch gây ít hơn 40% sát thương tới hết lượt kế của nó) · Lá Chắn (Khiên 120 + 10% máu tối đa) · Thanh Tẩy (gỡ mọi khống chế/hiệu ứng xấu) · Trừng Phạt (400 sát thương chuẩn lên vật triệu hồi ở ô phụ địch: cách để tướng không phải xạ thủ trả lời token) · Dịch Chuyển (1 tướng đang chờ hồi sinh quay lại ngay vào đường mở còn trống với 50% máu). Dùng trong lượt mình (không Quick), dùng xong biến mất. 20 thẻ hỗ trợ của mỗi tướng: 9 Đánh thường, 2 Vàng, 4 Đồ, 2 Rút Bài, 1 Hồi Máu, 1 Lá Chắn, 1 Thanh Tẩy (2 Vàng vì 1 lần ghép tốn 2 Đồ + 1 Vàng) (tướng có thể đổi riêng).
+> - **Bỏ hẳn lá phép và lá bẫy** (của chế độ đấu bài cũ).
 > - **Lá chiêu dùng xong vào mộ bài** (không quay lại bộ). Chỉ chiêu nào ghi rõ (vd Soraka xáo mộ, Viktor Q bậc 3 về tay) mới đưa lá trở lại.
 > - **Hai cách thắng:** hạ đủ **7 mạng** địch, **hoặc** đối thủ **cạn bài**: tới lượt phải rút mà bộ bài hết thì người đó **thua ngay**.
 > - **Mỗi tướng ra sân mang vào bộ bài 34 lá:**
@@ -26,7 +38,7 @@
 > | **Bổ Trợ** | 1 tướng mình +20% sát thương và Khiên {100} tới hết lượt đối thủ |
 >
 > - **Đồ chỉ dùng bảng 8×8:** 8 mảnh (Kiếm Dài, Gậy Quá Khổ, Cung Gỗ, Găng Tay, Giáp Lưới, Áo Choàng, Đai Khổng Lồ, Nước Mắt) → 36 món ghép. Bỏ Pha Lê Lam, Cuốc Chim và các món từ chúng.
-> - Luật pháp sư "×1,5 số lá" bỏ (mọi tướng đều 6/6/2). Đề xuất thay bằng: chiêu của pháp sư mạnh hơn 25%.
+> - Luật pháp sư "×1,5 số lá" bỏ (mọi tướng đều 6/6/2). Thay bằng: chiêu của pháp sư mạnh hơn 40% (`RULES.mageSkillBonus`).
 > - **Viktor:** mỗi lần dùng một chiêu thì chiêu đó +1 điểm; **đủ điểm thì tự cường hoá lên bậc** (Q, E: 3 điểm/bậc; R: 1 điểm/bậc; tối đa bậc 3). Hiệu ứng bậc như trong `TUONG_THE_BAI.md`.
 > - **Mẫu thiết kế chiêu:** hiệu ứng gốc + 1 điều kiện kiểu bài (loại lá rút được, chí mạng, số mạng còn, số lần chết...). Ví dụ:
 >   - **Nami Q:** rút 2 lá; nếu 2 lá **khác loại** thì bỏ 1.

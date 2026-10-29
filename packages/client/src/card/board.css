@@ -92,9 +92,9 @@
 .bd-hp i { position: absolute; top: 0; bottom: 0; transition: width .35s ease, left .35s ease; }
 .bd-hp .hp { left: 0; background: linear-gradient(#5be08a, #2a9a52); }
 .bd-hp.low .hp { background: linear-gradient(#ff7a6a, #b22a2a); }
-.bd-hp .sh { background: linear-gradient(#cfe8ff, #7fb6f0); }
+.bd-hp .sh { background: linear-gradient(#ffffff, #d6dbe3); }
 .bd-hp span { position: absolute; inset: 0; display: grid; place-items: center; font-size: 11px; font-weight: 800; color: #fff; text-shadow: 0 0 3px #000, 0 0 3px #000; white-space: nowrap; }
-.bd-hp span b { color: #cfe8ff; margin-left: 2px; }
+.bd-hp span b { color: #fff; margin-left: 2px; }
 .bd-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3px; flex: none; }
 .bd-stats span { text-align: center; font-size: 12px; font-weight: 800; line-height: 17px; border-radius: 3px; background: rgba(0, 0, 0, .45); border-bottom: 2px solid; }
 .bd-stats .ad { color: #ffb36b; border-color: #ffb36b; } .bd-stats .ap { color: #c79bff; border-color: #c79bff; } .bd-stats .ar { color: #ffe27a; border-color: #ffe27a; } .bd-stats .mr { color: #7fd0ff; border-color: #7fd0ff; }
@@ -106,16 +106,10 @@
 .bd-owner b { color: #c8fff6; }
 
 /* trạng thái, tích điểm, buff */
-.bd-sts { position: absolute; right: 3px; top: 3px; z-index: 2; display: flex; flex-direction: column; gap: 2px; }
-.bd-st { position: relative; width: 22px; height: 22px; border-radius: 4px; background: rgba(0, 0, 0, .75); border: 1px solid var(--gold); display: grid; place-items: center; font-size: 10px; color: var(--gold-hi); }
-.bd-st img { width: 18px; height: 18px; object-fit: contain; }
-.bd-st em { position: absolute; right: -3px; bottom: -3px; min-width: 12px; text-align: center; font-size: 10px; font-style: normal; font-weight: 800; line-height: 12px; border-radius: 6px; background: #000; color: #fff; border: 1px solid var(--gold); }
-.bd-st.st-stun, .bd-st.st-silence, .bd-st.st-bleed { border-color: var(--red); }
-.bd-st.st-empower, .bd-st.st-taunt { border-color: #ffb36b; }
 .bd-stacks { position: absolute; left: 4px; top: 24px; z-index: 2; display: flex; flex-direction: column; gap: 2px; }
 .bd-stacks b { min-width: 18px; text-align: center; font-size: 11px; line-height: 16px; border-radius: 8px; background: rgba(60, 20, 90, .85); border: 1px solid #c79bff; color: #eadcff; }
-.bd-next { position: absolute; left: 4px; bottom: 22px; z-index: 2; width: 18px; height: 18px; display: grid; place-items: center; border-radius: 50%; font-size: 11px; font-weight: 800; background: #6a2a10; border: 1px solid #ffb36b; color: #ffd9b0; box-shadow: 0 0 6px rgba(255, 179, 107, .7); }
-.bd-soak { position: absolute; right: 4px; bottom: 22px; z-index: 2; width: 18px; height: 20px; background: #3fa89a; clip-path: polygon(50% 0, 100% 15%, 100% 60%, 50% 100%, 0 60%, 0 15%); box-shadow: 0 0 6px #3fa89a; }
+.bd-next { position: absolute; left: 4px; bottom: 40px; z-index: 2; width: 18px; height: 18px; display: grid; place-items: center; border-radius: 50%; font-size: 11px; font-weight: 800; background: #6a2a10; border: 1px solid #ffb36b; color: #ffd9b0; box-shadow: 0 0 6px rgba(255, 179, 107, .7); }
+.bd-soak { position: absolute; right: 4px; bottom: 40px; z-index: 2; width: 18px; height: 20px; background: #3fa89a; clip-path: polygon(50% 0, 100% 15%, 100% 60%, 50% 100%, 0 60%, 0 15%); box-shadow: 0 0 6px #3fa89a; }
 .bd-banner { position: absolute; left: 0; right: 0; top: 40%; z-index: 2; text-align: center; font-size: 12px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; padding: 2px 0; background: rgba(240, 88, 76, .8); color: #fff; transform: rotate(-6deg); }
 .bd-banner.sil { background: rgba(120, 80, 200, .8); }
 .bd-unit.stunned .bd-img { filter: grayscale(.7) brightness(.7); animation: bd-dizzy 1.4s ease-in-out infinite; }
@@ -185,5 +179,8 @@
     .bd-name { font-size: 13px; }
     .bd-item { width: 22px; height: 22px; }
     .bd-strip { height: 36px; }
-    .bd-st { width: 20px; height: 20px; }
 }
+
+/* tướng đang được xem ở bảng chỉ số bên phải */
+.bd-unit.sel { outline: 2px solid #f0d27a; outline-offset: 1px; box-shadow: 0 0 14px rgba(240, 210, 122, .65); }
+.bd-unit { cursor: pointer; }

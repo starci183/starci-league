@@ -12,7 +12,8 @@ export const otherSide = (s: Side): Side => (s === "A" ? "B" : "A")
 export type Role = "fighter" | "tank" | "assassin" | "marksman" | "mage" | "support";
 export type DamageKind = "physical" | "magic" | "true";
 export type SkillKey = "Q" | "E" | "R";
-export type SupportId = "basic" | "gold" | "item" | "potion" | "draw" | "buff";
+/** Thẻ hỗ trợ. "spell_<phép>" = phép bổ trợ (spells.ts). potion/buff là lá cũ, không còn trong bộ (giữ để tương thích). */
+export type SupportId = "basic" | "gold" | "item" | "potion" | "draw" | "buff" | "legend" | `spell_${string}`;
 
 /** 8 mảnh đồ dùng trong chế độ thẻ bài (bảng ghép 8x8 = 36 món). Bỏ Pha Lê Lam và Cuốc Chim. */
 export const COMPONENTS = ["kiem_dai",
@@ -37,6 +38,7 @@ export const RULES = {
     /** Tối đa số mắt xích trong một Chuỗi */
     maxChain: 10,
     handMax: 10,
+    /** Tay đầu: rút từ bộ gốc sau khi gọi tướng đầu tiên (không còn thẻ chiêu chung) */
     startHand: 5,
     drawPerTurn: 2,
     respawnRounds: 3,
@@ -55,15 +57,17 @@ export const RULES = {
     baseDeck: {
         basic: 10, gold: 6, item: 6
     } as Partial<Record<SupportId, number>>,
-    /** 20 thẻ hỗ trợ mỗi tướng mang vào bộ */
+    /** 20 thẻ hỗ trợ mỗi tướng mang vào bộ (ghi đè từng khoá: HeroDef.supportCopies) */
     heroSupport: {
-        basic: 6, gold: 4, item: 4, potion: 2, draw: 2, buff: 2
-    } as Record<SupportId, number>,
+        basic: 9, gold: 2, item: 4, draw: 2, spell_heal: 1, spell_barrier: 1, spell_cleanse: 1
+    } as Partial<Record<SupportId, number>>,
     /** Hệ số sát thương của lá Đánh thường theo vai (nhân AD) */
     roleAttack: {
         fighter: 1, tank: 1, assassin: 3.5, marksman: 2, mage: 1, support: 1
     } as Record<Role, number>,
-    mageSkillBonus: 0.25,
+    mageSkillBonus: 0.4,
+    /** Vết Thương Sâu (status "grievous"): hồi máu và Khiên nhận vào giảm bấy nhiêu */
+    grievous: 0.5,
     chillBonus: 0.25,
     shredMult: 0.6,
     potion: {
@@ -89,7 +93,7 @@ export interface Card {
   hero?: string;
   /** Phe sở hữu tướng chủ (lá bị cướp vẫn nhớ chủ gốc) */
   side?: Side;
-  /** Lá Đồ: mảnh nào */
+  /** Lá Đồ: mảnh nào. Lá "legend" (đồ huyền thoại): id món */
   item?: string;
   /** Lá Bóng: sao chép lá chiêu nào (vd "zed_q") */
   copyOf?: string;
@@ -99,7 +103,13 @@ export interface Card {
 }
 
 // ---------------- Tướng trên sân ----------------
-export interface StatusInst { until: number; v: number }
+export interface StatusInst {
+  until: number; v: number;
+  /** id tướng/token đã gắn trạng thái (nếu biết) */
+  src?: string;
+  /** lá/nguồn đã gắn: "<tướng>_<q|e|r>", "spell_<phép>", "basic", "<tướng>_p" (nội tại)... */
+  card?: string;
+}
 /** Buff của đòn đánh kế tiếp (Nami E, Blitz E, TF R...). Tiêu hết khi tướng đánh. */
 export interface NextAttackBuff {
   id: string;
@@ -148,8 +158,23 @@ export interface TokenDef {
   soak?: boolean;
   /** Sát thương thừa khi token vỡ có chảy sang chủ không (sát thương chuẩn). Mặc định false. */
   overflow?: boolean;
+  /** Úp mặt: đối thủ không thấy `secret`/`card` (server lọc) tới khi lật (g.flipToken, hoặc tự lật khi token rời sân) */
+  hidden?: boolean;
+  /** Dữ liệu bí mật của token úp (vd thùng thật/giả) */
+  secret?: Record<string, string | number>;
+  /** Lá bài gắn với token (vd lá dùng để tạo nó), bí mật nếu hidden */
+  card?: Card;
+  /** Tự biến mất sau N lượt của phe chủ (cuối lượt thứ N kể từ lúc gọi; lượt hiện tại tính là 1) */
+  turns?: number;
 }
-export type TokenInfo = Required<Pick<TokenDef, "id" | "name" | "atk" | "armor" | "mr" | "damage" | "role" | "soak" | "overflow">> & { ownerId?: string };
+export type TokenInfo = Required<Pick<TokenDef, "id" | "name" | "atk" | "armor" | "mr" | "damage" | "role" | "soak" | "overflow">> & {
+  ownerId?: string;
+  hidden?: boolean;
+  secret?: Record<string, string | number>;
+  card?: Card;
+  /** turnNo mà token tự biến mất (cuối lượt đó), nếu có */
+  expires?: number;
+};
 export interface Player {
   side: Side;
   heroes: string[];
@@ -213,7 +238,8 @@ export interface Chain {
 export interface GameState {
   seed: number; rng: number; nextUid: number;
   round: number; turnNo: number; active: Side;
-  phase: "main" | "chain" | "over";
+  /** summon = bước GỌI TƯỚNG đầu lượt (trước khi rút); main = đánh bài; chain = đang chờ nối chuỗi */
+  phase: "summon" | "main" | "chain" | "over";
   actionsThisTurn: number;
   players: Record<Side, Player>;
   units: Record<string, Unit>;
@@ -227,6 +253,10 @@ export interface GameState {
   prizes: Record<Side, number>;
   /** Lá thưởng úp (BÍ MẬT với cả hai bên tới khi lật; server không gửi) */
   prizeCards: Record<Side, Card[]>;
+  /** Phe đã rút tay đầu (lượt đầu của mỗi phe: gọi tướng xong mới rút tay đầu) */
+  opened?: Partial<Record<Side, boolean>>;
+  /** Dấu mốc trên đường, công khai: markers[phe][đường 0..4] = danh sách id dấu (vd "dagger"). Thiếu = chưa có dấu nào. */
+  markers?: Record<Side, string[][]>;
   /** Hiệu ứng tạm của lá Quick, áp lên mắt xích ngay dưới nó rồi xoá (xem ReactFx) */
   fx?: ReactFx;
   /** Hiệu ứng tạm do mắt xích ĐANG giải quyết tạo ra cho mắt xích ngay dưới (ghi qua g.chainFx()) */
@@ -255,9 +285,12 @@ export type Action =
   | { t: "summon"; side: Side; hero: string; lane: number }
   | { t: "play"; side: Side; uid: string; args?: PlayArgs }
   | { t: "attack"; side: Side; actor: string; target: string }
-  | { t: "craft"; side: Side; items: [string, string]; gold: string; unit: string }
+  /** Ghép 2 Đồ + 1 Vàng trên tay thành 1 lá ĐỒ HUYỀN THOẠI lên tay (support "legend", card.item = id món). `unit` cũ bị bỏ qua. */
+  | { t: "craft"; side: Side; items: [string, string]; gold: string; unit?: string }
   | { t: "chain"; side: Side; uid: string; args?: PlayArgs }
   | { t: "pass"; side: Side }
+  /** Kết thúc bước gọi tướng đầu lượt rồi rút bài (chỉ hợp lệ khi phase = "summon") */
+  | { t: "draw"; side: Side }
   | { t: "end"; side: Side };
 
 // ---------------- Sự kiện (cho client chơi hiệu ứng / log) ----------------
@@ -273,7 +306,7 @@ export type GameEvent =
   | { t: "damage"; src?: string; target: string; amount: number; hpLost: number; absorbed: number; kind: DamageKind; tag: string; crit?: boolean; hp: number }
   | { t: "heal"; src?: string; target: string; amount: number; hp: number }
   | { t: "shield"; src?: string; target: string; amount: number; shield: number }
-  | { t: "status"; target: string; id: string; turns: number; v: number }
+  | { t: "status"; target: string; id: string; turns: number; v: number; src?: string; card?: string }
   | { t: "statusEnd"; target: string; id: string }
   | { t: "stack"; unit: string; key: string; value: number }
   | { t: "move"; unit: string; from: number; to: number; with?: string }
@@ -287,16 +320,23 @@ export type GameEvent =
   | { t: "steal"; from: Side; to: Side; card: Card }
   | { t: "returnToHand"; side: Side; card: Card }
   | { t: "shuffle"; side: Side; what: "deck" | "graveIntoDeck"; count: number }
-  | { t: "craft"; side: Side; unit: string; item: string }
+  /** Ghép xong (unit = undefined: món nằm trên tay dạng lá "legend"; unit có = rèn thẳng vào tướng, vd Ornn) */
+  | { t: "craft"; side: Side; unit?: string; item: string; card?: Card }
+  /** Đeo món đồ lên tướng (đánh lá "legend" hoặc hiệu ứng rèn thẳng) */
+  | { t: "equip"; side: Side; unit: string; item: string }
   | { t: "chainAdd"; side: Side; n: number; card?: Card; kind: "card" | "attack"; actor?: string; targets: string[] }
   | { t: "chainWindow"; priority: Side; length: number }
   | { t: "chainResolve"; n: number; side: Side; card?: Card }
   | { t: "chainEnd"; length: number }
   | { t: "summonToken"; side: Side; unit: string; name: string; owner?: string }
-  | { t: "tokenEnd"; unit: string; reason: "dead" | "owner" | "replaced" }
+  | { t: "tokenEnd"; unit: string; reason: "dead" | "owner" | "replaced" | "expired" }
+  /** Token úp được lật: lộ lá/dữ liệu bí mật */
+  | { t: "tokenFlip"; unit: string; card?: Card; secret?: Record<string, string | number> }
   | { t: "prize"; side: Side; card: Card; left: number }
   | { t: "pass"; side: Side }
   | { t: "reveal"; side: Side; to: Side; cards: Card[] }
+  /** Dấu mốc trên đường (lane marker) được đặt (on) hoặc gỡ (!on): Dao Găm của Katarina... */
+  | { t: "marker"; side: Side; lane: number; id: string; on: boolean }
   | { t: "log"; text: string }
   | { t: "end"; winner: Side; reason: "lives" | "deck" };
 
@@ -353,6 +393,10 @@ export interface SkillDef {
   quickWhen?(c: OptCtx & { trigger: Trigger }): boolean;
   /** Quick chỉ dùng để nối chuỗi, không đánh được chủ động (resolve dùng ctx.trigger; ctx.target = trigger.target) */
   chainOnly?: boolean;
+  /** Chiêu enemy / enemies_upto được chọn cả vật triệu hồi ở ô phụ của địch (mặc định KHÔNG: chỉ đòn đánh của xạ thủ nhắm được token) */
+  targetsTokens?: boolean;
+  /** Không thể bị nối chuỗi (không ai được đáp lại lá này bằng lá Quick) */
+  uncounterable?: boolean;
   resolve(ctx: Ctx): void;
 }
 
@@ -382,10 +426,15 @@ export interface HookData {
   onShieldBreak: { target: Unit };
   onKill: { killer: Unit; victim: Unit };
   onDeath: { victim: Unit; killer?: Unit };
-  onCraft: { side: Side; unit: Unit; item: string; gold: Card };
+  /** Ghép xong 1 món (lá đồ huyền thoại lên tay; unit = undefined) */
+  onCraft: { side: Side; unit?: Unit; item: string; gold: Card };
+  /** Một món đồ được đeo lên tướng */
+  onEquip: { side: Side; unit: Unit; item: string };
   onLifeLost: { side: Side; lives: number };
   /** `side` vừa cướp lá `card` (lá gốc) từ tay `from` bằng g.stealCard */
   onSteal: { side: Side; from: Side; card: Card };
+  /** `target` vừa về 0 máu (chưa bị hạ). Hook có thể đặt target.hp > 0 để giữ nó sống. */
+  onLethal: { target: Unit; src?: Unit };
 }
 export type HookName = keyof HookData;
 export type HeroHooks = { [K in HookName]?: (g: Game, me: Unit, d: HookData[K]) => void };
@@ -404,6 +453,10 @@ export interface HeroDef {
   summonLanes?(g: Game, side: Side): number[];
   /** Mục tiêu tự đánh cuối lượt (đấu sĩ mặc định tướng đối diện; Kog E...). Trả undefined = không đánh. */
   autoAttack?(g: Game, me: Unit): Unit | undefined;
+  /** Số lá Q/E/R riêng của tướng này (ghi đè RULES.skillCopies, thiếu khoá thì dùng mặc định) */
+  skillCopies?: Partial<Record<SkillKey, number>>;
+  /** Bộ 20 thẻ hỗ trợ riêng (ghi đè từng khoá của RULES.heroSupport) */
+  supportCopies?: Partial<Record<SupportId, number>>;
   /** true = khung chưa viết, bot/selfplay bỏ qua */
   todo?: boolean;
 }

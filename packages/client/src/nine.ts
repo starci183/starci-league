@@ -115,7 +115,8 @@ function controlCss() {
     const cards = (["spell",
         "trap",
         "stat",
-        "item"] as const).map((kind) => {
+        "item",
+        "combat"] as const).map((kind) => {
         const img = `card_${kind}` as const, w = cq(img,
             0.75)
         return `.cv.${kind} .cv-in{border-style:solid;border-width:${w};border-image:url(${url(img)}) ${NINE_META[img].slice.join(" ")} fill / ${w} stretch}`

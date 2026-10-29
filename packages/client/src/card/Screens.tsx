@@ -1,6 +1,6 @@
 // Màn ngoài bàn của chế độ thẻ bài: chờ đối thủ, chọn tướng (draft), kết thúc trận.
 import {
-    useEffect, useState
+    useEffect, useRef, useState
 } from "react"
 import {
     cg
@@ -33,6 +33,12 @@ const TXT = {
             timeout: "Quá thời gian", error: "Lỗi hệ thống",
         } as Record<string, string>,
         round: "Vòng", turn: "Lượt", lives: "Mạng còn lại (bạn - địch)", deck: "Bài còn trong bộ (bạn - địch)",
+        briefPurpose: "Mục đích / cách thắng", briefEngines: "Động cơ", briefCopies: "lá", quick: "Quick", chainOnly: "Chỉ nối chuỗi",
+        combos: "Combo tốt với", counteredBy: "Bị khắc chế bởi", counters: "Khắc chế", cx: {
+            "Đơn giản": "Đơn giản", "Vừa": "Vừa", "Phức tạp": "Phức tạp"
+        } as Record<string, string>,
+        scout: "Phân tích đối thủ", weakTo: "Yếu trước", strongVs: "Khắc chế", warnYou: "Khắc đồng đội của bạn!", beat: "Cách đánh bại", beatUse: "Chọn {x}", beatNone: "Hết tướng khắc chế: chơi theo mục đích của đội mình",
+        bCounter: "Khắc chế địch", bCombo: "Combo", bCountered: "Bị địch khắc", bBan: "Nên cấm",
         roles: {
             fighter: "Đấu sĩ", tank: "Đỡ đòn", assassin: "Sát thủ", marksman: "Xạ thủ", mage: "Pháp sư", support: "Hỗ trợ",
         } as Record<string, string>,
@@ -56,6 +62,12 @@ const TXT = {
             timeout: "Timed out", error: "System error",
         } as Record<string, string>,
         round: "Round", turn: "Turn", lives: "Lives left (you - foe)", deck: "Cards in deck (you - foe)",
+        briefPurpose: "Purpose / how it wins", briefEngines: "Engines", briefCopies: "cards", quick: "Quick", chainOnly: "Chain only",
+        combos: "Good with", counteredBy: "Countered by", counters: "Counters", cx: {
+            "Đơn giản": "Simple", "Vừa": "Medium", "Phức tạp": "Complex"
+        } as Record<string, string>,
+        scout: "Opponent scouting", weakTo: "Weak to", strongVs: "Counters", warnYou: "Counters one of your picks!", beat: "How to beat", beatUse: "Pick {x}", beatNone: "No counters left: win with your own plan",
+        bCounter: "Counters foe", bCombo: "Combo", bCountered: "Foe counters", bBan: "Suggest ban",
         roles: {
             fighter: "Fighter", tank: "Tank", assassin: "Assassin", marksman: "Marksman", mage: "Mage", support: "Support",
         } as Record<string, string>,
@@ -68,6 +80,73 @@ const fmt = (s: string, n: number) => s.replace("{n}",
 const heroName = (h: DraftHero) => (EN ? cg.HERO_EN[h.id]?.name : undefined) ?? h.name
 const portrait = (id: string) => `/heroes/${id}.jpg`
 const hideBroken = (e: { currentTarget: HTMLImageElement }) => { e.currentTarget.style.visibility = "hidden" }
+
+/** Mục đích + độ khó từng tướng (nguồn: docs/heroes/ENGINES.md; shared chưa export) */
+const BRIEF: Record<string, [string, string]> = {
+    darius: ["Đơn giản",
+        "Đao phủ: rải Chảy Máu rồi kết liễu kẻ đang chảy máu"],
+    zed: ["Vừa",
+        "Một lượt dồn chết: nhân bản lá trong mộ bằng Bóng"],
+    katarina: ["Vừa",
+        "Mưa dao găm: tạo lá Dao tạm, hạ gục thì lấy lại chiêu từ mộ"],
+    khazix: ["Vừa",
+        "Săn mồi cô lập; tiến hoá theo lá thưởng đã lật"],
+    qiyana: ["Phức tạp",
+        "Nguyên tố = lá trên cùng mộ bài; tự đốt bài để đổi"],
+    aatrox: ["Đơn giản",
+        "Máu là đạn: tiêu máu mình để chém, yếu máu thì nguy hiểm"],
+    garen: ["Đơn giản",
+        "Công lý: trừng phạt phe đang dẫn trước (nhiều đồ/mạng/bài hơn)"],
+    vayne: ["Vừa",
+        "Săn tank: 3 Mũi Tên Bạc theo % máu, Kết Án ghim tường giữa chuỗi"],
+    braum: ["Vừa",
+        "Chỉ chơi trong lượt đối thủ: mọi lá là phản ứng"],
+    blitzcrank: ["Phức tạp",
+        "Cướp bài: lá của đối thủ thành vũ khí của mình"],
+    leona: ["Vừa",
+        "Khoá chặt: Choáng/ngắt chuỗi, Ánh Dương cho đồng đội kích nổ"],
+    malphite: ["Đơn giản",
+        "Giáp là tất cả; R không thể bị nối chuỗi"],
+    ornn: ["Phức tạp",
+        "Lò rèn của đội: cấp mảnh Đồ, tiêu Vàng rèn Kiệt Tác"],
+    janna: ["Vừa",
+        "Chống đòn đánh: thổi bay đòn tay giữa chuỗi"],
+    soraka: ["Đơn giản",
+        "Bền bài: lá thừa thành máu, xáo mộ để không bao giờ cạn"],
+    yorick: ["Phức tạp",
+        "Người chăn hồn: lá Yorick trong mộ = linh hồn, Thiếu Nữ ở ô phụ"],
+    kogmaw: ["Đơn giản",
+        "Lớn lên từ cái chết: Kog Stack sống/chết đều tăng"],
+    jinx: ["Đơn giản",
+        "Phấn khích dây chuyền: mỗi hạ gục mở đòn tiếp + bài"],
+    ashe: ["Đơn giản",
+        "Đóng băng nhịp đối thủ: Buốt tướng, đẩy lá chiêu địch xuống đáy bộ"],
+    lux: ["Vừa",
+        "Chiếu Sáng rồi kích nổ; R xuyên cả hàng"],
+    ahri: ["Vừa",
+        "Quyến Rũ rồi khai thác mục tiêu bị Quyến Rũ"],
+    annie: ["Đơn giản",
+        "Gấu Tibbers ở ô phụ là trung tâm mọi lá"],
+    lissandra: ["Vừa",
+        "Băng giá: Buốt là chìa khoá; Quan Tài Băng nối chuỗi"],
+    gangplank: ["Phức tạp",
+        "Thùng thuốc súng ở ô phụ, kích nổ bằng Quick giữa lượt địch"],
+    renata: ["Phức tạp",
+        "Lật kèo: đồng minh sắp chết vẫn đứng dậy, địch càng mạnh càng tự hại"],
+    brand: ["Phức tạp",
+        "Lửa lan: Bỏng (stack hiện) tự cháy mỗi lượt hoặc kích nổ ngay; chết thì lan"],
+    nami: ["Đơn giản",
+        "Thuỷ triều nuôi bài: mỗi lá rút thành sức mạnh cho đồng đội"],
+    viktor: ["Phức tạp",
+        "Tiến hoá bằng mộ bài: mỗi 3 lá Viktor trong mộ = 1 bậc"],
+    twistedfate: ["Phức tạp",
+        "Kiểm soát bộ bài: tìm lá, soi/huỷ Nấm, xem và phá tay"],
+    teemo: ["Phức tạp",
+        "Ép cạn bài: Nấm trong bộ địch, rút càng nhiều càng nổ"],
+}
+const syn = (id: string) => cg.SYNERGY[id] as cg.HeroSynergy | undefined
+const nameOf = (id: string) => (EN ? cg.HERO_EN[id]?.name : undefined) ?? cg.getHero(id)?.name ?? id
+const skillIcon = (id: string, k: string) => `/card_skills/${id}_${k.toLowerCase()}.png`
 
 const leave = () => { cardActions.leave(); location.reload() }
 
@@ -112,15 +191,44 @@ function useCountdown(deadlineMs: number, key: unknown): number | null {
 
 type HeroState = "free" | "banned" | "mine" | "theirs"
 
-function HeroTile({ h, state, selected, canAct, onClick }: { h: DraftHero; state: HeroState; selected: boolean; canAct: boolean; onClick: () => void }) {
+interface Mark { counter: boolean; combo: boolean; countered: boolean; ban: boolean }
+type Avail = (id: string) => "free" | "out" | "mine"
+
+function HeroTile({ h, state, selected, canAct, mark, onClick, onHover }: {
+    h: DraftHero; state: HeroState; selected: boolean; canAct: boolean; mark: Mark; onClick: () => void; onHover: (el: HTMLElement | null) => void
+}) {
     const taken = state !== "free"
+    const timer = useRef(0)
+    const dis = taken || !canAct
     return (
-        <button className={`sc-hero role-${h.role} st-${state}${selected ? " on" : ""}`} onClick={onClick} disabled={taken || !canAct}>
+        <button
+            className={`sc-hero role-${h.role} st-${state}${selected ? " on" : ""}${dis ? " dis" : ""}`}
+            onClick={() => { if (!dis) onClick() }}
+            onMouseEnter={(e) => onHover(e.currentTarget)}
+            onMouseLeave={() => onHover(null)}
+            onTouchStart={(e) => {
+                const el = e.currentTarget
+                window.clearTimeout(timer.current)
+                timer.current = window.setTimeout(() => onHover(el),
+                    450)
+            }}
+            onTouchEnd={() => window.clearTimeout(timer.current)}
+            onTouchMove={() => window.clearTimeout(timer.current)}
+            onContextMenu={(e) => e.preventDefault()}
+        >
             <div className="sc-art">
                 <img src={portrait(h.id)} alt="" draggable={false} onError={hideBroken} />
                 <span className="sc-role">{L.roles[h.role] ?? h.role}</span>
                 {taken ? <span className="sc-taken">{state === "banned" ? L.banned : L.taken}</span> : null}
             </div>
+            {!taken ? (
+                <div className="sc-badges">
+                    {mark.ban ? <span className="bd ban">{L.bBan}</span> : null}
+                    {mark.counter ? <span className="bd ctr">{L.bCounter}</span> : null}
+                    {mark.countered ? <span className="bd cntd">{L.bCountered}</span> : null}
+                    {mark.combo ? <span className="bd cmb">{L.bCombo}</span> : null}
+                </div>
+            ) : null}
             <b className="sc-name">{heroName(h)}</b>
             <div className="sc-stats">
                 <span title={L.hp}><i className="hp" />{h.hp}</span>
@@ -133,9 +241,147 @@ function HeroTile({ h, state, selected, canAct, onClick }: { h: DraftHero; state
     )
 }
 
-/** Cột đội: các ô chọn (portrait) + các ô cấm (gạch chéo) */
-function TeamColumn({ title, mine, picks, bans, size, banSlots, byId, active }: {
+function Chip({ id, cls }: { id: string; cls: string }) {
+    return (
+        <span className={`sc-chip ${cls}`} title={nameOf(id)}>
+            <img src={portrait(id)} alt="" draggable={false} onError={hideBroken} />
+        </span>
+    )
+}
+
+function ChipRow({ ids, avail, label, warn }: { ids: string[]; avail: Avail; label: string; warn?: string[] }) {
+    if (!ids.length) return null
+    return (
+        <div className="sc-chiprow">
+            <em>{label}</em>
+            {ids.map((id) => <Chip key={id} id={id} cls={`${avail(id)}${warn?.includes(id) ? " warn" : ""}`} />)}
+        </div>
+    )
+}
+
+/** Popover thông tin tướng khi rê chuột / nhấn giữ */
+function HeroBrief({ id, rect, avail }: { id: string; rect: DOMRect; avail: Avail }) {
+    const def = cg.getHero(id)
+    if (!def) return null
+    const en = EN ? cg.HERO_EN[id] : undefined
+    const sy = syn(id)
+    const [cx,
+        purpose] = BRIEF[id] ?? ["",
+        ""]
+    const W = 400
+    const left = rect.right + 10 + W < window.innerWidth ? rect.right + 10 : Math.max(8,
+        rect.left - 10 - W)
+    const top = Math.max(8,
+        Math.min(rect.top - 20,
+            window.innerHeight - 320))
+    const txt = (raw: string) => cg.formulaText(raw)
+    const keys = ["Q",
+        "E",
+        "R"] as const
+    const rows: { k: string; name: string; desc: string; tags: string[]; copies?: number }[] = [
+        {
+            k: "P", name: en?.passive.name ?? def.passive.name, desc: txt(en?.passive.desc ?? def.passive.desc), tags: []
+        },
+        ...keys.map((k) => ({
+            k,
+            name: en?.skills[k].name ?? def.skills[k].name,
+            desc: txt(en?.skills[k].desc ?? def.skills[k].desc),
+            tags: [def.skills[k].quick ? L.quick : "",
+                def.skills[k].chainOnly ? L.chainOnly : ""].filter(Boolean),
+            copies: def.skillCopies?.[k] ?? cg.RULES.skillCopies[k],
+        })),
+    ]
+    const heroDesc = en?.desc ?? def.desc
+    return (
+        <div className="sc-brief" style={{
+            left, top, width: W, maxHeight: window.innerHeight - top - 8
+        }}>
+            <div className="bf-head">
+                <img src={portrait(id)} alt="" onError={hideBroken} />
+                <div>
+                    <b>{en?.name ?? def.name}</b>
+                    <div className="bf-tags">
+                        <span className={`role-${def.role}`}>{L.roles[def.role] ?? def.role}</span>
+                        <span className={`sc-dmg ${def.damage}`}>{def.damage === "magic" ? L.magic : L.phys}</span>
+                        {cx ? <span className={`cx cx-${cx === "Đơn giản" ? 1 : cx === "Vừa" ? 2 : 3}`}>{L.cx[cx]}</span> : null}
+                    </div>
+                    <div className="bf-stats">
+                        <span>{L.hp} {def.hp}</span>
+                        <span>{L.ad} {def.atk}</span>
+                        <span>{L.armor} {def.armor}</span>
+                        <span>{L.mr} {def.mr}</span>
+                    </div>
+                </div>
+            </div>
+            {purpose ? <p className="bf-purpose"><em>{L.briefPurpose}</em>{purpose}</p> : null}
+            {sy ? <p className="bf-eng"><em>{L.briefEngines}</em>{sy.engines.map((e) => cg.ENGINE_NAME[e][EN ? "en" : "vi"]).join(" · ")}</p> : null}
+            {heroDesc ? <p className="bf-desc">{txt(heroDesc)}</p> : null}
+            <div className="bf-skills">
+                {rows.map((r) => (
+                    <div key={r.k} className="bf-skill">
+                        <img src={skillIcon(id,
+                            r.k)} alt="" onError={hideBroken} />
+                        <div>
+                            <b>
+                                <i>{r.k}</i>
+                                {r.name}
+                                {r.tags.map((t) => <u key={t}>{t}</u>)}
+                                {r.copies !== undefined ? <s>{r.copies} {L.briefCopies}</s> : null}
+                            </b>
+                            <span>{r.desc}</span>
+                        </div>
+                    </div>
+                ))}
+            </div>
+            {sy ? (
+                <div className="bf-rel">
+                    <ChipRow ids={sy.combos} avail={avail} label={L.combos} />
+                    <ChipRow ids={sy.counteredBy} avail={avail} label={L.counteredBy} />
+                    <ChipRow ids={cg.countersOf(id)} avail={avail} label={L.counters} />
+                </div>
+            ) : null}
+        </div>
+    )
+}
+
+/** Ghi chú trinh sát một tướng địch: yếu trước ai, khắc ai, cách đánh bại */
+function scoutOf(foeId: string, mine: string[], avail: Avail) {
+    const weak = syn(foeId)?.counteredBy ?? []
+    const strong = cg.countersOf(foeId)
+    const warn = strong.filter((x) => mine.includes(x))
+    const usable = weak.filter((x) => avail(x) === "free").map(nameOf)
+    const have = weak.filter((x) => mine.includes(x))
+    const beat = usable.length ? L.beatUse.replace("{x}",
+        usable.slice(0,
+            3).join(", ")) : have.length ? `✓ ${have.map(nameOf).join(", ")}` : L.beatNone
+    return {
+        weak, strong, warn, beat
+    }
+}
+
+function ScoutBlock({ foeId, mine, avail, compact }: { foeId: string; mine: string[]; avail: Avail; compact?: boolean }) {
+    const s = scoutOf(foeId,
+        mine,
+        avail)
+    return (
+        <div className={`sc-scout${compact ? " compact" : ""}${s.warn.length ? " danger" : ""}`}>
+            <div className="sc-scout-h">
+                <Chip id={foeId} cls="free" />
+                <b>{nameOf(foeId)}</b>
+                <small>{BRIEF[foeId]?.[1] ?? ""}</small>
+            </div>
+            <ChipRow ids={s.weak} avail={avail} label={L.weakTo} />
+            <ChipRow ids={s.strong} avail={avail} label={L.strongVs} warn={s.warn} />
+            {s.warn.length ? <div className="sc-warn">⚠ {L.warnYou} ({s.warn.map(nameOf).join(", ")})</div> : null}
+            <div className="sc-beat"><em>{L.beat}</em>{s.beat}</div>
+        </div>
+    )
+}
+
+/** Cột đội: các ô chọn (portrait) + các ô cấm (gạch chéo); cột địch thêm ghi chú trinh sát */
+function TeamColumn({ title, mine, picks, bans, size, banSlots, byId, active, scout }: {
     title: string; mine: boolean; picks: string[]; bans: string[]; size: number; banSlots: number; byId: Map<string, DraftHero>; active: "ban" | "pick" | null
+    scout?: { mine: string[]; avail: Avail }
 }) {
     return (
         <aside className={`sc-col${mine ? " mine" : " foe"}${active ? " active" : ""}`}>
@@ -174,6 +420,12 @@ function TeamColumn({ title, mine, picks, bans, size, banSlots, byId, active }: 
                     </div>
                 </>
             ) : null}
+            {scout && picks.length ? (
+                <>
+                    <h4>{L.scout}</h4>
+                    {picks.map((id) => <ScoutBlock key={id} foeId={id} mine={scout.mine} avail={scout.avail} />)}
+                </>
+            ) : null}
         </aside>
     )
 }
@@ -182,10 +434,21 @@ export function DraftScreen() {
     const { draft } = useCard()
     const [sel,
         setSel] = useState<string | null>(null)
+    const [hover,
+        setHover] = useState<{ id: string; rect: DOMRect } | null>(null)
     const secs = useCountdown(draft?.deadlineMs ?? 0,
         draft?.step)
     useEffect(() => { setSel(null) },
         [draft?.step])
+    useEffect(() => {
+        // chạm ra ngoài thì đóng popover (nhấn giữ trên cảm ứng)
+        const close = () => setHover(null)
+        document.addEventListener("touchstart",
+            close)
+        return () => document.removeEventListener("touchstart",
+            close)
+    },
+    [])
     if (!draft) return <div className="cg-center">…</div>
     const me = draft.you ?? "A"
     const foe = me === "A" ? "B" : "A"
@@ -200,6 +463,25 @@ export function DraftScreen() {
     const stateOf = (id: string): HeroState => draft.bans.includes(id) ? "banned" : draft.picks[me].includes(id) ? "mine" : draft.picks[foe].includes(id) ? "theirs" : "free"
     const status = !turn ? L.done : myTurn ? (turn.action === "ban" ? L.yourBan : L.yourPick) : (turn.action === "ban" ? L.foeBan : L.foePick)
     const confirm = () => { if (sel && myTurn) { cardActions.draftAct(sel); setSel(null) } }
+    const mine = draft.picks[me]
+    const theirs = draft.picks[foe]
+    const avail: Avail = (id) => {
+        const st = stateOf(id)
+        return st === "free" ? "free" : st === "mine" ? "mine" : "out"
+    }
+    const banning = myTurn && turn?.action === "ban"
+    const markOf = (id: string): Mark => {
+        const s = syn(id)
+        return {
+            counter: theirs.some((e) => syn(e)?.counteredBy.includes(id)),
+            countered: theirs.some((e) => !!s?.counteredBy.includes(e)),
+            combo: mine.some((a) => !!s?.combos.includes(a) || !!syn(a)?.combos.includes(id)),
+            ban: banning && mine.some((a) => !!syn(a)?.counteredBy.includes(id)),
+        }
+    }
+    const onHover = (id: string) => (el: HTMLElement | null) => setHover(el ? {
+        id, rect: el.getBoundingClientRect()
+    } : null)
     return (
         <div className="sc-stage">
             <div className="sc-draft bp">
@@ -222,13 +504,25 @@ export function DraftScreen() {
                     ))}
                 </div>
                 <div className="sc-bp-body">
-                    <TeamColumn title={L.yourTeam} mine picks={draft.picks[me]} bans={bansOf(me)} size={draft.size} banSlots={banSlots} byId={byId} active={turn && turn.side === me ? turn.action : null} />
-                    <div className="sc-grid">
-                        {draft.pool.map((h) => (
-                            <HeroTile key={h.id} h={h} state={stateOf(h.id)} selected={sel === h.id} canAct={myTurn} onClick={() => setSel(h.id)} />
-                        ))}
+                    <TeamColumn title={L.yourTeam} mine picks={mine} bans={bansOf(me)} size={draft.size} banSlots={banSlots} byId={byId} active={turn && turn.side === me ? turn.action : null} />
+                    <div className="sc-center">
+                        {theirs.length ? (
+                            <div className="sc-analysis">
+                                <h4>{L.scout}</h4>
+                                <div className="sc-analysis-row">
+                                    {theirs.map((id) => <ScoutBlock key={id} foeId={id} mine={mine} avail={avail} compact />)}
+                                </div>
+                            </div>
+                        ) : null}
+                        <div className="sc-grid">
+                            {draft.pool.map((h) => (
+                                <HeroTile key={h.id} h={h} state={stateOf(h.id)} selected={sel === h.id} canAct={myTurn} mark={markOf(h.id)} onClick={() => setSel(h.id)} onHover={onHover(h.id)} />
+                            ))}
+                        </div>
                     </div>
-                    <TeamColumn title={L.foeTeam} mine={false} picks={draft.picks[foe]} bans={bansOf(foe)} size={draft.size} banSlots={banSlots} byId={byId} active={turn && turn.side === foe ? turn.action : null} />
+                    <TeamColumn title={L.foeTeam} mine={false} picks={theirs} bans={bansOf(foe)} size={draft.size} banSlots={banSlots} byId={byId} active={turn && turn.side === foe ? turn.action : null} scout={{
+                        mine, avail
+                    }} />
                 </div>
                 <footer className="sc-foot">
                     <div className="sc-team">
@@ -244,6 +538,7 @@ export function DraftScreen() {
                     </div>
                 </footer>
             </div>
+            {hover ? <HeroBrief id={hover.id} rect={hover.rect} avail={avail} /> : null}
         </div>
     )
 }

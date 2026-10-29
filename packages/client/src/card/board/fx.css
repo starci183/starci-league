@@ -1,0 +1,53 @@
+/* Lớp 1: hàng biểu tượng trạng thái */
+.bd-srow { flex: none; display: flex; flex-wrap: nowrap; gap: 2px; min-height: 20px; }
+.bd-sc { position: relative; flex: none; width: 20px; height: 20px; border-radius: 3px; background: rgba(0, 0, 0, .8); border: 1px solid #8a8f99; display: grid; place-items: center; font-size: 9px; font-weight: 800; color: #ddd; overflow: visible; }
+.bd-sc img { width: 100%; height: 100%; object-fit: cover; border-radius: 2px; display: block; }
+.bd-sc em { position: absolute; right: -2px; bottom: -2px; min-width: 11px; text-align: center; font-size: 9px; font-style: normal; font-weight: 800; line-height: 11px; border-radius: 6px; background: #000; color: #fff; border: 1px solid #8a8f99; }
+.bd-sc b { position: absolute; left: -1px; top: -3px; min-width: 10px; text-align: center; font-size: 9px; line-height: 10px; border-radius: 5px; background: rgba(0, 0, 0, .85); color: #ffe9a8; }
+.bd-sc.debuff { border-color: #f0584c; box-shadow: 0 0 4px rgba(240, 88, 76, .6); }
+.bd-sc.debuff em { border-color: #f0584c; }
+.bd-sc.buff { border-color: #5fd37a; box-shadow: 0 0 4px rgba(95, 211, 122, .6); }
+.bd-sc.buff em { border-color: #5fd37a; }
+.bd-sc.more { color: #fff; }
+
+/* Lớp 2: một cụm hiệu ứng chung trên đầu tướng (transform/opacity). .spr = sprite PNG, .draw = bản vẽ CSS dự phòng */
+.bd-fx { position: absolute; inset: 0; z-index: 4; pointer-events: none; }
+.bd-fx i, .bd-fx span { display: block; font-style: normal; }
+.fx-cluster { position: absolute; left: 10%; right: 10%; top: -17%; height: 30%; }
+.fx-row { position: absolute; inset: 0; display: flex; justify-content: center; align-items: center; }
+.fx-g { position: relative; height: 100%; aspect-ratio: 1; flex: none; margin-left: -10%; }
+.fx-g:first-child { margin-left: 0; }
+.fx-g:nth-child(2) { z-index: 1; }
+.fx-g:nth-child(3) { z-index: 2; }
+.bd-fx .spr img { width: 100%; height: 100%; object-fit: contain; display: block; }
+.fx-g.draw { display: grid; place-items: center; font-size: 18px; text-shadow: 0 0 4px #000; }
+.fx-blind { animation: fx-pulse 2.2s ease-in-out infinite; }
+.fx-blind.draw { border-radius: 50%; background: radial-gradient(ellipse, rgba(10, 10, 20, .9) 40%, rgba(10, 10, 20, 0) 75%); }
+.fx-mute { animation: fx-bob 1.3s ease-in-out infinite; }
+.fx-grievous { animation: fx-bob 1.6s ease-in-out infinite .3s; }
+.fx-taunt { animation: fx-bob .8s ease-in-out infinite; }
+.fx-taunt.draw { font-size: 22px; font-weight: 900; color: #f0584c; }
+.fx-eye { color: #c6a6ff; animation: fx-pulse 2s ease-in-out infinite; }
+.fx-stun { position: absolute; left: 0; right: 0; top: 50%; aspect-ratio: 1; transform: translateY(-50%); }
+.fx-stun.spr { animation: fx-sway 2.2s ease-in-out infinite; }
+.fx-stun.draw i { position: absolute; left: 50%; top: 50%; margin: -6px; font-size: 14px; line-height: 12px; color: #ffe27a; text-shadow: 0 0 4px #f0a800; animation: fx-orbit 1.6s linear infinite; animation-delay: calc(var(--i) * -.4s); }
+.fx-flake { position: absolute; top: 0; left: calc(18% + var(--i) * 28%); width: 16%; aspect-ratio: 1; animation: fx-drift 2.6s linear infinite; animation-delay: calc(var(--i) * -.9s); }
+.fx-flake.draw { font-size: 12px; color: #dff3ff; text-shadow: 0 0 4px #7cc8ff; }
+
+@keyframes fx-pulse { 50% { opacity: .55; } }
+@keyframes fx-sway { 0%, 100% { transform: translateY(-50%) rotate(-7deg); } 50% { transform: translateY(-50%) rotate(7deg); } }
+@keyframes fx-drift { 0% { transform: translate(0, 0); opacity: 0; } 20% { opacity: 1; } 100% { transform: translate(6px, 34px); opacity: 0; } }
+@keyframes fx-bob { 50% { transform: translateY(-4px); } }
+@keyframes fx-orbit { 0% { transform: translate(-22px, 0) scale(.8); } 25% { transform: translate(0, 5px) scale(1.1); } 50% { transform: translate(22px, 0) scale(.8); } 75% { transform: translate(0, -5px) scale(.6); } 100% { transform: translate(-22px, 0) scale(.8); } }
+
+@media (prefers-reduced-motion: reduce) {
+    .bd-fx i, .bd-fx span { animation: none !important; }
+    .fx-stun { transform: translateY(-50%); }
+}
+
+.bd-tags { position: absolute; left: 5px; right: 5px; bottom: 21px; z-index: 2; display: flex; gap: 3px; flex-wrap: nowrap; overflow: hidden; }
+.bd-tag { flex: 0 1 auto; min-width: 0; font-size: 10px; font-weight: 800; line-height: 13px; padding: 0 5px; border-radius: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #fff; text-shadow: 0 1px 2px #000; }
+.bd-tag.cc { background: rgba(214, 48, 40, .88); border: 1px solid #ff8f84; }
+.bd-tag.stealth { background: rgba(120, 70, 210, .9); border: 1px solid #c6a6ff; }
+.bd-tag.more { flex: none; background: rgba(0, 0, 0, .75); border: 1px solid #8a8f99; }
+.bd-unit.stealthed { opacity: .55; }

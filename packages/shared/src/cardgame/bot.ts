@@ -51,12 +51,34 @@ function scoreEvents(events: GameEvent[], before: GameState, after: GameState, s
             if (ts && ts !== side) sc += v; else if (ts === side) sc -= v * 1.2
             break
         }
-        case "kill": sc += sideOf(e.target) === side ? -400 : 400; break
+        case "kill": {
+            // hạ vật triệu hồi đáng ít hơn hạ tướng (không mất mạng)
+            const tok = !!(before.units[e.target]?.token ?? after.units[e.target]?.token)
+            const v = tok ? 60 : 400
+            sc += sideOf(e.target) === side ? -v : v
+            break
+        }
         case "heal": if (sideOf(e.target) === side) sc += e.amount * 0.8; break
         case "shield": if (sideOf(e.target) === side) sc += e.amount * 0.3; break
         case "draw": if (e.side === side && e.reason !== "turn") sc += after.players[side].hand.length < RULES.handMax ? 18 : 3; break
         case "burn": if (e.side !== side) sc += 12; break
-        case "create": if (e.side !== side) sc += 8; else if (e.card.copyOf) sc += 20; break
+        case "create": if (e.side !== side) sc += e.card.id === "mushroom" ? (e.zone === "deck" ? 30 : 8) : 8; else if (e.card.copyOf) sc += 20; else if (e.zone === "hand" && e.card.kind === "support") sc += 12; break
+        case "summonToken": if (e.side === side) sc += 80; break
+        case "equip": {
+            const u = before.units[e.unit]
+            const role = u ? getHero(u.hero)?.role : undefined
+            if (e.side === side) sc += 200 - 10 * (u?.items.length ?? 0) + (role === "mage" || role === "marksman" || role === "assassin" ? 20 : 0)
+            break
+        }
+        case "respawn": if (sideOf(e.unit) === side && before.units[e.unit]?.status === "dead") sc += 300; break
+        case "statusEnd": if (sideOf(e.target) === side && ["stun",
+            "silence",
+            "ignite",
+            "bleed",
+            "burn",
+            "exhaust"].includes(e.id) && before.units[e.target]?.statuses[e.id]) sc += 25; break
+        case "prize": if (e.side === side) sc += 25; break
+        case "stack": if (e.key === "itemAmp" && sideOf(e.unit) === side) sc += 2 * e.value; break
         case "steal": if (e.to === side) sc += 15; break
         case "returnToHand": if (e.side === side) sc += 25; break
         case "status": {
@@ -67,10 +89,22 @@ function scoreEvents(events: GameEvent[], before: GameState, after: GameState, s
                 "shred",
                 "blind",
                 "zedmark",
-                "storm"].includes(e.id)) sc += 30
+                "storm",
+                "exhaust",
+                "ignite"].includes(e.id)) sc += 30
+            else if (ts && ts !== side && ["sunlight",
+                "illum",
+                "charm",
+                "bleed",
+                "silver",
+                "burn"].includes(e.id)) sc += 10 + (e.id === "burn" ? 8 * e.v : 0)
             else if (ts === side && ["see_hand",
                 "kog_arty",
-                "nami_bless"].includes(e.id)) sc += 15
+                "nami_bless",
+                "aatrox_r",
+                "vayne_r",
+                "mushroom_season"].includes(e.id)) sc += 15
+            else if (ts === side && e.id === "stealth") sc += 40
             break
         }
         case "discard": if (e.side === side && e.reason === "effect") sc -= 4; else if (e.side !== side && e.reason === "effect") sc += 10; break
@@ -106,14 +140,12 @@ export function chooseAction(state: GameState, side: Side): Action {
     const seenDiscardGroup = new Map<string, number>()
     for (const a of legal) {
         let sc: number
-        if (a.t === "end" || a.t === "pass") continue
+        if (a.t === "end" || a.t === "pass" || a.t === "draw") continue
         if (a.t === "summon") {
             const role = getHero(a.hero)?.role ?? "support"
             sc = 1000 + (ROLE_PRIORITY[role] ?? 0) * 10 - LANE_ORDER.indexOf(a.lane)
         } else if (a.t === "craft") {
-            const u = state.units[a.unit]
-            const role = getHero(u.hero)?.role ?? "support"
-            sc = 300 - 10 * u.items.length + (role === "mage" || role === "marksman" || role === "assassin" ? 5 : 0)
+            sc = 300 // ghép xong: lá đồ huyền thoại lên tay, đeo bằng một lượt đánh lá sau
         } else {
             // gom các lựa chọn bỏ lá: chỉ thử lá bỏ ít giá trị nhất
             if (a.t === "play" && a.args?.discard?.length) {
@@ -130,19 +162,24 @@ export function chooseAction(state: GameState, side: Side): Action {
                 seenDiscardGroup.set(key,
                     val)
             }
-            const r = settle(state,
-                applyAction(state,
-                    a))
-            sc = scoreEvents(r.events,
-                state,
-                r.state,
-                side)
+            // không nhìn trộm token úp của đối thủ: nhắm vào nó thì chấm theo giá trị kỳ vọng cố định
+            const tgt = a.t === "play" ? state.units[a.args?.target ?? ""] : a.t === "attack" ? state.units[a.target] : undefined
+            if (tgt?.token?.hidden && tgt.side !== side) sc = 45
+            else {
+                const r = settle(state,
+                    applyAction(state,
+                        a))
+                sc = scoreEvents(r.events,
+                    state,
+                    r.state,
+                    side)
+            }
         }
         sc += noise()
         if (sc > bestScore) { bestScore = sc; best = a; chosen = true }
     }
     // nhóm discard: có thể đã chọn nhầm nhóm khi lá tốt hơn xuất hiện sau; chấp nhận (heuristic)
-    if (!chosen) return legal.find((a) => a.t === "end" || a.t === "pass") ?? best
+    if (!chosen) return legal.find((a) => a.t === "end" || a.t === "pass" || a.t === "draw") ?? best
     return best
 }
 

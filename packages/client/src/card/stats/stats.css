@@ -1,0 +1,76 @@
+/* Bảng chỉ số tướng đang chọn (cột phải, phía trên ChainPanel) */
+.us-root { display: flex; flex-direction: column; min-height: 0; max-height: 58%; flex: 0 1 auto; background: linear-gradient(#10151d, #0a0e14); border-bottom: 2px solid #5a4a26; color: #d7cdb4; font-size: 12px; }
+.us-root.mine { box-shadow: inset 3px 0 0 #2f6aa8; }
+.us-root.foe { box-shadow: inset 3px 0 0 #a8433a; }
+.us-head { display: flex; gap: 8px; padding: 8px; flex: none; }
+.us-portrait { width: 64px; height: 76px; border-radius: 6px; object-fit: cover; object-position: 50% 12%; border: 2px solid #c8aa6e; flex: none; background: #0b0f15; }
+.us-letter { display: grid; place-items: center; font-size: 28px; color: #c8aa6e; }
+.us-back { background: repeating-linear-gradient(45deg, #2a1d4a, #2a1d4a 6px, #3a2a63 6px, #3a2a63 12px); }
+.us-id { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.us-id h3 { margin: 0; font-size: 16px; color: #f0e6d2; letter-spacing: .5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.us-meta { display: flex; flex-wrap: wrap; gap: 4px; font-size: 11px; }
+.us-meta span { padding: 1px 6px; border-radius: 8px; background: #1b2330; border: 1px solid #2f3b4d; }
+.us-meta .ally { color: #7cc0ff; border-color: #2f6aa8; }
+.us-meta .enemy { color: #ff9a8e; border-color: #a8433a; }
+.us-hp { position: relative; height: 16px; border-radius: 4px; background: #0b0f15; border: 1px solid #3a3020; overflow: hidden; }
+.us-hp i { position: absolute; top: 0; bottom: 0; }
+.us-hp .hp { left: 0; background: linear-gradient(#4fcf6a, #2e8f43); }
+.us-hp.low .hp { background: linear-gradient(#ef5a4a, #a02a20); }
+.us-hp .sh { background: linear-gradient(#ffffff, #d6dbe3); }
+.us-hp span { position: relative; display: block; text-align: center; line-height: 14px; font-size: 11px; font-weight: 700; color: #fff; text-shadow: 0 1px 2px #000; }
+.us-hp b { color: #fff; }
+.us-scroll { overflow-y: auto; min-height: 0; padding: 0 8px 8px; scrollbar-width: thin; scrollbar-color: #5a4a26 transparent; }
+.us-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3px; margin-bottom: 6px; }
+.us-st { display: flex; flex-direction: column; align-items: center; padding: 2px 2px; background: #151c27; border: 1px solid #2a3344; border-radius: 4px; line-height: 1.15; }
+.us-st span { font-size: 9.5px; color: #8f98a8; text-transform: uppercase; white-space: nowrap; }
+.us-st b { font-size: 13px; color: #f0e6d2; }
+.us-st.ad b { color: #ffb05a; }
+.us-st.ap b { color: #b88cff; }
+.us-st.ar b { color: #e8d27a; }
+.us-st.mr b { color: #6fd0ff; }
+.us-sec { margin-top: 6px; }
+.us-sec h4 { margin: 0 0 4px; font-size: 11px; letter-spacing: 1px; text-transform: uppercase; color: #c8aa6e; border-bottom: 1px solid #3a3020; padding-bottom: 2px; }
+.us-none { margin: 2px 0; color: #77706a; font-style: italic; }
+.us-items { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
+.us-item { position: relative; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 4px 2px; border: 1px solid #5a4a26; border-radius: 6px; background: #121823; min-height: 54px; }
+.us-item.empty { border-style: dashed; border-color: #2f3b4d; justify-content: center; color: #55606f; font-size: 10px; }
+.us-item-ic { width: 32px; height: 32px; object-fit: contain; }
+.us-item-n { font-size: 10px; text-align: center; line-height: 1.1; color: #e6dcc0; }
+.us-item-tip { display: none; position: absolute; bottom: calc(100% + 4px); left: 50%; transform: translateX(-50%); width: 220px; z-index: 30; padding: 6px 8px; background: #0b0f15; border: 1px solid #c8aa6e; border-radius: 6px; box-shadow: 0 6px 18px rgba(0, 0, 0, .8); font-size: 11px; text-align: left; }
+.us-item-tip p { margin: 3px 0 0; color: #bfb69c; }
+.us-item:hover .us-item-tip { display: block; }
+.us-item:first-child .us-item-tip { left: 0; transform: none; }
+.us-item:last-child .us-item-tip { left: auto; right: 0; transform: none; }
+.us-fx { display: flex; gap: 6px; padding: 4px 6px; margin-bottom: 3px; border-radius: 5px; border: 1px solid #2f3b4d; background: #131a25; }
+.us-fx.debuff { border-color: #a8433a; background: #231416; }
+.us-fx.buff { border-color: #3a9a5a; background: #122019; }
+.us-fx-ic { width: 24px; height: 24px; flex: none; object-fit: contain; }
+.us-fx-h { display: flex; flex-wrap: wrap; gap: 6px; align-items: baseline; }
+.us-fx-h b { color: #f0e6d2; }
+.us-fx-h em { font-style: normal; font-size: 10px; color: #8f98a8; }
+.us-fx.debuff .us-fx-h em { color: #ff9a8e; }
+.us-fx.buff .us-fx-h em { color: #7fe0a0; }
+.us-fx-h span { margin-left: auto; color: #c8aa6e; font-weight: 700; font-size: 11px; }
+.us-fx small { display: block; color: #9a937f; line-height: 1.25; }
+.us-chips { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 3px; align-items: center; }
+.us-chips-t { font-size: 10px; color: #8f98a8; text-transform: uppercase; margin-right: 2px; }
+.us-chip { padding: 1px 6px; border-radius: 8px; background: #1b2330; border: 1px solid #2f3b4d; font-size: 11px; }
+.us-chip b { color: #c8aa6e; }
+.us-chip.buff { border-color: #3a9a5a; color: #9fe8b8; }
+.us-skill { display: flex; gap: 6px; padding: 4px 0; border-bottom: 1px solid #1d2531; }
+.us-skill:last-child { border-bottom: 0; }
+.us-skill.passive { border-bottom: 1px solid #3a3020; }
+.us-sk-ic { width: 36px; height: 36px; flex: none; border-radius: 6px; border: 1px solid #5a4a26; object-fit: cover; }
+.us-sk-b { flex: 1; min-width: 0; }
+.us-sk-h { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; }
+.us-sk-h b { color: #f0e6d2; }
+.us-key { font-style: normal; font-weight: 800; color: #0b0f15; background: #c8aa6e; border-radius: 3px; padding: 0 5px; font-size: 11px; }
+.us-tag { font-size: 9.5px; padding: 0 5px; border-radius: 3px; text-transform: uppercase; font-weight: 700; }
+.us-tag.q { background: #1e4f86; color: #cfe6ff; }
+.us-tag.c { background: #5c2f78; color: #ecd7ff; }
+.us-copies { font-size: 10.5px; color: #c8aa6e; margin: 1px 0; }
+.us-sk-b p { margin: 1px 0 0; line-height: 1.3; color: #bfb69c; }
+.us-sk-b p b { color: #e6dcc0; }
+.us-letter.us-sk-ic, .us-letter.us-item-ic, .us-letter.us-fx-ic { font-size: 16px; background: #121823; }
+.cg-side > .cg-chainwrap { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+.cg-chainwrap { min-height: 200px; }

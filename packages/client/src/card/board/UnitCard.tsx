@@ -8,6 +8,9 @@ import {
 import {
     itemEmoji, itemIcon, itemName, passiveOf, portrait, roleName, statusIcon, statusInfo, tr, turnsLeft, unitName
 } from "./helpers"
+import {
+    StatusFx, StatusRow, StatusTags
+} from "./StatusFx"
 
 export interface Float { id: number; kind: "dmg" | "crit" | "heal" | "shield" | "kill" | "block"; text: string }
 
@@ -45,27 +48,6 @@ export function HpBar(p: { u: cg.Unit; big?: boolean }) {
     )
 }
 
-export function StatusIcons(p: { u: cg.Unit; turnNo: number }) {
-    const ids = Object.keys(p.u.statuses)
-    if (!ids.length) return null
-    return (
-        <div className="bd-sts">
-            {ids.map((id) => {
-                const s = p.u.statuses[id]
-                const left = turnsLeft(s.until,
-                    p.turnNo)
-                return (
-                    <span key={id} className={`bd-st st-${id}`} title={`${statusInfo(id).name} (${left})`}>
-                        <Img src={statusIcon(id)} fallback={statusInfo(id).name.slice(0,
-                            2)} />
-                        <em>{left}</em>
-                    </span>
-                )
-            })}
-        </div>
-    )
-}
-
 export interface UnitCardProps {
     u: cg.Unit
     g: cg.Game
@@ -90,17 +72,25 @@ export function UnitCard(p: UnitCardProps) {
     const stacks = Object.entries(u.stacks).filter(([, v]) => v > 0)
     return (
         <div
-            className={`bd-unit ${p.mine ? "mine" : "foe"} role-${role} ${u.token ? "token" : ""} ${stunned ? "stunned" : ""} ${silenced ? "silenced" : ""} ${p.cls}`}
+            data-unit-id={u.id}
+            className={`bd-unit ${p.mine ? "mine" : "foe"} role-${role} ${u.token ? "token" : ""} ${stunned ? "stunned" : ""} ${silenced ? "silenced" : ""} ${u.statuses.stealth ? "stealthed" : ""} ${p.cls}`}
             onMouseEnter={p.onEnter}
             onMouseMove={p.onMove}
             onMouseLeave={p.onLeave}
             onClick={p.onClick}
         >
+            <StatusRow
+                u={u}
+                turnNo={p.turnNo}
+                unitOf={(id) => {
+                    const x = g.unit(id)
+                    return x ? unitName(x) : undefined
+                }}
+            />
             <div className="bd-art">
                 <Img src={portrait(u)} className="bd-img" fallback={unitName(u).slice(0,
                     1)} />
                 <span className={`bd-role r-${role}`}>{roleName(role)}</span>
-                <StatusIcons u={u} turnNo={p.turnNo} />
                 {stunned ? <span className="bd-banner">{t.stunned}</span> : silenced ? <span className="bd-banner sil">{t.silenced}</span> : null}
                 {p.soaked ? <span className="bd-soak" title={t.soakFor} /> : null}
                 {stacks.length ? (
@@ -110,6 +100,7 @@ export function UnitCard(p: UnitCardProps) {
                     </span>
                 ) : null}
                 {u.nextAttack.length ? <span className="bd-next" title={t.next}>{u.nextAttack.length}</span> : null}
+                <StatusTags u={u} />
                 <div className="bd-name">{unitName(u)}</div>
             </div>
             <HpBar u={u} />
@@ -139,6 +130,7 @@ export function UnitCard(p: UnitCardProps) {
                     })}
                 </div>
             )}
+            <StatusFx u={u} />
             <div className="bd-floats">
                 {p.floats.map((f) => (
                     <span key={f.id} className={`bd-float ${f.kind}`} style={{

@@ -72,6 +72,22 @@ const shuffled = <T,>(a: T[]) => { const r = [...a]; for (let i = r.length - 1; 
 const sigCard = (c: cg.Card | undefined) => (c ? `${c.kind}|${c.id}|${c.hero ?? ""}|${c.item ?? ""}|${c.copyOf ?? ""}` : "?")
 
 /** Hai hành động coi là một nếu khác nhau chỉ ở uid của các lá cùng loại (engine gộp lá trùng thành 1 lá đại diện) */
+/** Token úp mặt của đối thủ: bỏ dữ liệu bí mật (secret, card) khỏi bản gửi cho `viewer` tới khi lật */
+function unitsFor(s: cg.GameState, viewer: Side | null): cg.GameState["units"] {
+    if (viewer === null) return s.units
+    const out: cg.GameState["units"] = {
+    }
+    for (const [id,
+        u] of Object.entries(s.units)) {
+        out[id] = u.token?.hidden && u.side !== viewer ? {
+            ...u, token: {
+                ...u.token, secret: undefined, card: undefined
+            }
+        } : u
+    }
+    return out
+}
+
 function actionKey(state: cg.GameState, a: cg.Action): string {
     const side = a.side
     const find = (uid: string) => state.players[side].hand.find((c) => c.uid === uid) ?? state.players[side].grave.find((c) => c.uid === uid)
@@ -128,6 +144,9 @@ export class CardRoom extends Room<CardRoomState> {
     private bans: string[] = []
     private chosen: Record<Side, string[]> = {
         A: [], B: []
+    }
+    /** Bộ gốc 20 lá mỗi bên (người chơi tự xếp; thiếu/sai thì DEFAULT_DECK, máy và sim luôn DEFAULT_DECK) */
+    private decks: Partial<Record<Side, cg.DeckCardId[]>> = {
     }
     /** Số hành động bot trong trận (chống vòng lặp vô hạn ở phòng sim) */
     private steps = 0
@@ -220,7 +239,7 @@ export class CardRoom extends Room<CardRoomState> {
                 20))
     }
 
-    onJoin(client: Client, options: { team?: string[] }, player: Player) {
+    onJoin(client: Client, options: { team?: string[]; deck?: string[] }, player: Player) {
         if (this.sim) return this.sendFull(client) // khách xem
         const side: Side = this.sides.size === 0 ? "A" : "B"
         this.sides.set(client.sessionId,
@@ -229,6 +248,8 @@ export class CardRoom extends Room<CardRoomState> {
             20)
         if (side === "A") this.state.nameA = this.names.A; else this.state.nameB = this.names.B
         if (options?.team && !this.checkTeam(options.team)) this.preset[side] = options.team
+        // bộ gốc tự xếp: hợp lệ thì dùng, không thì bộ mặc định
+        this.decks[side] = options?.deck && cg.validateDeck(options.deck) === null ? options.deck as cg.DeckCardId[] : [...cg.DEFAULT_DECK]
         const full = this.sides.size + Object.keys(this.bots).length >= 2
         if (full) this.startDraft(); else client.send("cg:waiting",
             {
@@ -319,7 +340,12 @@ export class CardRoom extends Room<CardRoomState> {
         if (!turn) { this.finishDraft(); return }
         this.broadcastDraft()
         const auto = () => {
-            const free = this.pool.filter((id) => !this.draftTaken(id))
+            const all = this.pool.filter((id) => !this.draftTaken(id))
+            // máy chọn: tránh lấy 2 tướng cùng dùng Ô triệu hồi phụ
+            const mine = this.chosen[turn.side] ?? []
+            const ok = turn.action === "pick" && this.bots[turn.side] ? all.filter((id) => !cg.clashesExtraZone([...mine,
+                id])) : all
+            const free = ok.length ? ok : all
             if (free.length) this.draftAct(turn.side,
                 pickRand(free))
         }
@@ -364,8 +390,9 @@ export class CardRoom extends Room<CardRoomState> {
         if (this.teamSize < 1) { this.finish(null,
             "error"); return }
         const { state, events } = cg.newGameEx(this.seed,
-this.picks.A!,
-this.picks.B!)
+            this.picks.A!,
+            this.picks.B!,
+            this.decks)
         this.gs = state
         this.state.phase = "playing"
         this.broadcastEvents(events)
@@ -514,7 +541,8 @@ this.picks.B!)
         }
         return {
             you: viewer, round: s.round, turnNo: s.turnNo, active: s.active, phase: s.phase, toMove: cg.whoseMove(s),
-            actionsThisTurn: s.actionsThisTurn, openLanes: g.openLanes(), players, units: s.units, lanes: s.lanes,
+            actionsThisTurn: s.actionsThisTurn, openLanes: g.openLanes(), players, units: unitsFor(s,
+                viewer), lanes: s.lanes, markers: s.markers,
             chain: s.chain, extra: s.extra, prizes: s.prizes, winner: s.winner, endReason: s.endReason, stats: s.stats,
             names: this.names, bots: this.bots, rules: {
                 lives: cg.RULES.lives, handMax: cg.RULES.handMax, laneOpenRound: cg.RULES.laneOpenRound

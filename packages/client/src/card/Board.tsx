@@ -18,6 +18,9 @@ import {
 import {
     tr, unitName, type Side
 } from "./board/helpers"
+import {
+    inspectedUnit
+} from "./stats/UnitPanel"
 
 const EXTRA = 5
 const FLOAT_MS = 1100
@@ -184,6 +187,8 @@ export function Board() {
         l.targets.forEach((x) => chainTargets.add(x))
         if (l.actor) chainActors.add(l.actor)
     }
+    const selId = inspectedUnit(view,
+        snap.inspect)?.id
     const hovered = hover ? view.units[hover.id] : undefined
     const linked = new Set<string>()
     if (hovered?.token?.ownerId) linked.add(hovered.token.ownerId)
@@ -194,7 +199,10 @@ export function Board() {
     }
 
     const click = (side: Side, lane: number, uid: string | null) => {
-        if (!picking) return
+        if (!picking) {
+            if (uid) cardActions.inspect(uid)
+            return
+        }
         if (uid && tg.units.has(uid)) return cardActions.chooseUnit(uid)
         if (side === me && tg.lanes.has(lane)) return cardActions.chooseLane(lane)
     }
@@ -219,6 +227,7 @@ export function Board() {
                 chainActors.has(u.id) ? "cactor" : "",
                 linked.has(u.id) ? "linked" : "",
                 hover?.id === u.id ? "hov" : "",
+                selId === u.id ? "sel" : "",
             ].join(" ")
             const owner = u.token?.ownerId ? view.units[u.token.ownerId] : undefined
             const soaked = !u.token && !!view.extra[side] && view.units[view.extra[side]!]?.token?.ownerId === u.id
@@ -249,7 +258,7 @@ export function Board() {
         }
         if (lane === EXTRA) {
             return (
-                <div key={key} className={`bd-slot extra empty ${state}`}>
+                <div key={key} className={`bd-slot extra empty ${state}`} data-lane={lane + 1}>
                     <span className="bd-slot-label">{t.extra}</span>
                     <span className="bd-slot-sub">{t.emptyExtra}</span>
                     {here.map((f) => <span key={f.id} className={`bd-float ${f.kind}`}>{f.text}</span>)}
@@ -266,7 +275,7 @@ export function Board() {
             )
         }
         return (
-            <div key={key} className={`bd-slot empty ${state}`} onClick={() => click(side,
+            <div key={key} className={`bd-slot empty ${state}`} data-lane={lane + 1} onClick={() => click(side,
                 lane,
                 null)}>
                 <span className="bd-slot-label">{`${t.lane} ${lane + 1}`}</span>

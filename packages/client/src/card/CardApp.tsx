@@ -4,6 +4,7 @@
 //   Board.tsx    : sân 5 đường x 2 phe, ô triệu hồi phụ, mạng, bộ bài, mộ, lá thưởng (board.css)
 //   Hand.tsx     : tay bài, thanh hành động, gọi tướng, ghép đồ, kết thúc lượt (hand.css)
 //   ChainPanel.tsx: chuỗi Quick play, nhật ký trận, hiệu ứng sự kiện (chain.css)
+//   stats/UnitPanel.tsx: bảng chỉ số tướng đang chọn, trên ChainPanel (stats/stats.css)
 import {
     createRoot
 } from "react-dom/client"
@@ -22,11 +23,21 @@ import {
 import {
     ChainPanel
 } from "./ChainPanel"
+import {
+    UnitPanel
+} from "./stats/UnitPanel"
+import {
+    AnimLayer
+} from "./anim/AnimLayer"
+import {
+    VfxCanvas
+} from "./vfx/VfxCanvas"
 import "./card.css"
 import "./screens.css"
 import "./board.css"
 import "./hand.css"
 import "./chain.css"
+import "./stats/stats.css"
 
 function CardApp() {
     const { stage, error } = useCard()
@@ -41,8 +52,13 @@ function CardApp() {
                 <Hand />
             </main>
             <aside className="cg-side">
-                <ChainPanel />
+                <UnitPanel />
+                <div className="cg-chainwrap">
+                    <ChainPanel />
+                </div>
             </aside>
+            <AnimLayer />
+            <VfxCanvas />
             {stage === "ended" ? <EndScreen /> : null}
         </div>
     )

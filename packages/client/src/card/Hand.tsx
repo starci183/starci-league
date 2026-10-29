@@ -3,11 +3,14 @@ import {
     useEffect, useMemo, useState
 } from "react"
 import {
-    cg, combine, getItem
+    cg
 } from "@starci/shared"
 import {
     actionsForHandCard, cardActions, cardSig, gameOf, useCard, type CardView
 } from "./store"
+import {
+    CraftDialog
+} from "./hand/CraftDialog"
 
 type Action = cg.Action
 type Card = cg.Card
@@ -21,48 +24,103 @@ const L = (vi: string, en: string) => (lang === "en" ? en : vi)
 // ---------------------------------------------------------------- art
 const heroPortrait = (hero: string) => `/heroes/${hero}.jpg`
 
-function artSources(card: Card): string[] {
+type FrameKind = "spell" | "trap" | "stat" | "item" | "combat"
+
+interface ArtInfo { kind: FrameKind; srcs: string[]; letter?: string }
+
+function spellIdOf(card: Card): string | undefined {
+    if (card.id.startsWith("spell_")) return card.id.slice(6)
+    if (card.id.startsWith("spell:")) return card.id.slice(6)
+    if (card.id === "spell") {
+        const v = card.data?.spell ?? card.data?.id ?? card.item
+        return v === undefined ? undefined : String(v)
+    }
+    return undefined
+}
+
+function artInfo(card: Card): ArtInfo {
     const key = (card.copyOf ?? card.id).slice(-1).toLowerCase()
     const hero = card.hero
     if (card.kind === "skill" || card.copyOf) {
-        return hero ? [`/card_skills/${hero}_${key}.png`,
-            `/icons/${hero}_${key}.png`,
-            `/skills_art/${hero}_${key}.jpg`,
-            heroPortrait(hero)] : []
-    }
-    if (card.kind === "support") {
-        switch (card.id) {
-        case "gold": return ["/ui/coin.png"]
-        case "item": return card.item ? [`/items/${card.item}.png`] : ["/ui/badge/item.png"]
-        case "potion": return ["/cards/binh_mau.jpg"]
-        case "draw": return ["/cards/bai_moi.jpg"]
-        case "buff": return ["/cards/cuong_no.jpg"]
-        default: return ["/ui/badge/combat.png"]
+        return {
+            kind: "trap",
+            srcs: hero ? [`/card_skills/${hero}_${key}.png`,
+                `/icons/${hero}_${key}.png`,
+                `/skills_art/${hero}_${key}.jpg`,
+                heroPortrait(hero)] : []
         }
     }
-    if (card.kind === "special") return card.id === "mushroom" ? ["/cards/nam_teemo.jpg"] : ["/ui/badge/spell.png"]
-    return []
+    if (card.kind === "wild") {
+        return {
+            kind: "trap", srcs: [`/card_support/wild_${key}.png`], letter: key.toUpperCase()
+        }
+    }
+    if (card.kind === "support") {
+        const spell = spellIdOf(card)
+        if (spell) {
+            return {
+                kind: "spell", srcs: [`/card_support/spell_${spell}.png`,
+                    "/ui/badge/spell.png"]
+            }
+        }
+        switch (card.id) {
+        case "gold": return {
+            kind: "stat", srcs: ["/card_support/gold.png",
+                "/ui/coin.png"]
+        }
+        case "item":
+        case "legend": return {
+            kind: "item", srcs: card.item ? [`/card_items/${card.item}.png`,
+                `/items/${card.item}.png`] : ["/ui/badge/item.png"]
+        }
+        case "potion": return {
+            kind: "spell", srcs: ["/cards/binh_mau.jpg"]
+        }
+        case "draw": return {
+            kind: "spell", srcs: ["/card_support/draw.png",
+                "/cards/bai_moi.jpg"]
+        }
+        case "buff": return {
+            kind: "spell", srcs: ["/cards/cuong_no.jpg"]
+        }
+        default: return {
+            kind: "combat", srcs: ["/card_support/basic.png",
+                "/ui/badge/combat.png"]
+        }
+        }
+    }
+    return {
+        kind: "trap", srcs: card.id === "mushroom" ? ["/cards/nam_teemo.jpg"] : ["/ui/badge/spell.png"]
+    }
 }
 
-function Art({ card, big }: { card: Card; big?: boolean }) {
-    const srcs = useMemo(() => artSources(card),
+/** Lá bài theo khung Hextech giống màn xếp bộ (.cv) */
+function Framed({ card, name }: { card: Card; name: string }) {
+    const info = useMemo(() => artInfo(card),
         [card.id,
             card.hero,
             card.item,
             card.copyOf,
-            card.kind])
+            card.kind,
+            card.data])
     const [i,
         setI] = useState(0)
     useEffect(() => setI(0),
-        [srcs])
-    if (card.kind === "wild") {
-        return <div className={`hd-art hd-wild${big ? " big" : ""}`}><b>{card.id.slice(-1).toUpperCase()}</b></div>
-    }
-    const icon = card.kind === "support" && card.id !== "buff" && card.id !== "draw" && card.id !== "potion"
-    if (i >= srcs.length) return <div className="hd-art hd-wild"><b>?</b></div>
+        [info])
+    const failed = i >= info.srcs.length
     return (
-        <div className={`hd-art${icon ? " icon" : ""}${big ? " big" : ""}`}>
-            <img src={srcs[i]} alt="" draggable={false} onError={() => setI(i + 1)} />
+        <div className={`cv ${info.kind}`}>
+            <div className="cv-in">
+                <img className="cv-badge" src={`/ui/badge/${info.kind}.png`} alt="" draggable={false} onError={(e) => e.currentTarget.remove()} />
+                <div className="cv-icon">
+                    {failed ? (
+                        <div className="hd-letter"><b>{info.letter ?? "?"}</b></div>
+                    ) : (
+                        <img className="cv-art" src={info.srcs[i]} alt="" draggable={false} onError={() => setI(i + 1)} />
+                    )}
+                </div>
+                <b className="cv-name">{name}</b>
+            </div>
         </div>
     )
 }
@@ -300,12 +358,15 @@ export function Hand() {
     // ---- hành động toàn cục
     const summons = legal.filter((a): a is Extract<Action, { t: "summon" }> => a.t === "summon")
     const attacks = legal.filter((a): a is Extract<Action, { t: "attack" }> => a.t === "attack")
-    const crafts = legal.filter((a): a is Extract<Action, { t: "craft" }> => a.t === "craft")
-    const canEnd = legal.some((a) => a.t === "end")
+    // bước gọi tướng đầu lượt: nút lớn là "Rút bài" (gọi xong hoặc bỏ qua thì rút), sau đó mới là "Kết thúc lượt"
+    const drawAct = legal.find((a) => (a.t as string) === "draw")
+    const endAct = legal.find((a) => a.t === "end") ?? drawAct
+    const canEnd = !!endAct
     const summonHeroes = [...new Set(summons.map((a) => a.hero))]
     const attackers = [...new Set(attacks.map((a) => a.actor))]
     const chain = view.phase === "chain"
-    const endLabel = canEnd ? L("Kết thúc lượt",
+    const endLabel = drawAct && !legal.some((a) => a.t === "end") ? L("Rút bài",
+        "Draw") : canEnd ? L("Kết thúc lượt",
         "End turn") : chain ? L("Đang nối chuỗi…",
         "Chain…") : myMove ? L("Chờ…",
         "Wait…") : L("Lượt đối thủ",
@@ -408,13 +469,13 @@ export function Hand() {
                     </div>
                 ) : null}
                 <div className="hd-bottom">
-                    {crafts.length ? <button className="hd-btn blue" onClick={() => setCraftOpen(true)}>{L("Ghép đồ",
-                        "Craft")}</button> : null}
-                    <button className="hd-end" disabled={!canEnd} onClick={() => cardActions.act(legal.find((a) => a.t === "end")!)}>{endLabel}</button>
+                    <button className="hd-btn blue" onClick={() => setCraftOpen(true)}>{L("Ghép đồ",
+                        "Craft")}</button>
+                    <button className="hd-end" disabled={!canEnd} onClick={() => endAct && cardActions.act(endAct)}>{endLabel}</button>
                 </div>
             </div>
 
-            {craftOpen ? <CraftDialog crafts={crafts} view={view} onClose={() => setCraftOpen(false)} unitName={unitName} /> : null}
+            {craftOpen ? <CraftDialog onClose={() => setCraftOpen(false)} /> : null}
         </section>
     )
 }
@@ -428,28 +489,23 @@ function HandCard({ d, chain, selected, onClick }: { d: CardData; chain: boolean
         d.dead ? "dead" : "",
         selected ? "sel" : "",
         chain && d.chainable ? "chainable" : ""]
+    const tag = d.quick ? (d.chainOnly ? L("Chỉ nối chuỗi",
+        "Chain only") : "Quick") : ""
     return (
-        <div className="hd-slot">
+        <div className="hd-slot" data-hand-uid={d.card.uid}>
             <div className={cls.filter(Boolean).join(" ")} onClick={onClick} role="button" aria-disabled={!playable}>
-                <Art card={d.card} />
-                <div className="hd-head">
-                    <span className="hd-name">{d.name}</span>
-                </div>
-                <div className="hd-badges">
-                    {d.quick ? <span className="hd-q">{d.chainOnly ? L("Chỉ nối chuỗi",
-                        "Chain only") : "Quick"}</span> : null}
-                </div>
-                <div className="hd-desc">{d.desc}</div>
+                <Framed card={d.card} name={d.name} />
+                {tag ? <span className="hd-q hd-qtag">{tag}</span> : null}
                 {d.dead ? <div className="hd-dead">{L("ĐÃ CHẾT",
                     "DEAD")}</div> : null}
             </div>
             <div className={`hd-zoom ${d.type}`}>
-                <Art card={d.card} big />
-                <div className="hd-zname">{d.name}</div>
+                <div className="hd-zcard">
+                    <Framed card={d.card} name={d.name} />
+                </div>
                 <div className="hd-ztags">
                     <span>{d.typeLabel}</span>
-                    {d.quick ? <span className="hd-q">{d.chainOnly ? L("Chỉ nối chuỗi",
-                        "Chain only") : "Quick"}</span> : null}
+                    {d.quick ? <span className="hd-q">{tag}</span> : null}
                     {d.dead ? <span className="bad">{L("Tướng đã chết",
                         "Champion dead")}</span> : null}
                 </div>
@@ -457,63 +513,6 @@ function HandCard({ d, chain, selected, onClick }: { d: CardData; chain: boolean
                 <div className={`hd-zstate${playable ? " ok" : ""}`}>{playable ? L("Bấm để đánh",
                     "Click to play") : L("Chưa đánh được",
                     "Not playable now")}</div>
-            </div>
-        </div>
-    )
-}
-
-// ---------------------------------------------------------------- ghép đồ
-function CraftDialog({ crafts, view, onClose, unitName }: { crafts: Extract<Action, { t: "craft" }>[]; view: CardView; onClose: () => void; unitName: (id: string) => string }) {
-    const results = new Map<string, { recipe: [string, string]; list: Extract<Action, { t: "craft" }>[] }>()
-    for (const a of crafts) {
-        const id = combine(a.items[0],
-            a.items[1])
-        if (!id) continue
-        const r = results.get(id) ?? {
-            recipe: a.items, list: []
-        }
-        if (!r.list.some((x) => x.unit === a.unit)) r.list.push(a)
-        results.set(id,
-            r)
-    }
-    const nm = (id: string) => getItem(id)?.name ?? id
-    return (
-        <div className="hd-modal" onClick={onClose}>
-            <div className="hd-dialog" onClick={(e) => e.stopPropagation()}>
-                <h3>{L("Ghép đồ",
-                    "Craft an item")}</h3>
-                <p>{L("2 mảnh + 1 Vàng thành 1 món đồ. Chọn món và tướng nhận.",
-                    "2 components + 1 Gold make 1 item. Pick the item and the champion.")}</p>
-                <div className="hd-craft-list">
-                    {[...results.entries()].map(([id,
-                        r]) => (
-                        <div key={id} className="hd-craft">
-                            <div className="hd-craft-item">
-                                <img className="big" src={`/items/${id}.png`} alt="" />
-                                <div>
-                                    <b>{nm(id)}</b>
-                                    <span className="hd-recipe">
-                                        <img src={`/items/${r.recipe[0]}.png`} alt="" title={nm(r.recipe[0])} />
-                                        +
-                                        <img src={`/items/${r.recipe[1]}.png`} alt="" title={nm(r.recipe[1])} />
-                                        +
-                                        <img src="/ui/coin.png" alt="" />
-                                    </span>
-                                </div>
-                            </div>
-                            <div className="hd-row">
-                                {r.list.map((a) => (
-                                    <button key={a.unit} className="hd-hero" title={unitName(a.unit)} onClick={() => cardActions.act(a)}>
-                                        <img src={view.units[a.unit] ? heroPortrait(view.units[a.unit].hero) : ""} alt="" />
-                                        <span>{unitName(a.unit)}</span>
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-                    ))}
-                </div>
-                <button className="hd-cancel" onClick={onClose}>{L("Đóng",
-                    "Close")}</button>
             </div>
         </div>
     )

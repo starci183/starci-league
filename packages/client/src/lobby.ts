@@ -5,9 +5,12 @@ import {
     createClient, type Session
 } from "@supabase/supabase-js"
 import {
-    CARDS, DECK, DECK_COPIES, DECK_KINDS, DECK_KIND_NAME, DECK_MAX, DECK_MIN, DeckKind, LANGS, Lang, ItemCard, PRESET_DECKS, PlayCard, TrapCard,
-    KIND_LIMIT, copyLimit, deckError, deckPool, getLang, keywordParts, keywordsIn, t,
+    LANGS, Lang, getLang, t,
 } from "@starci/shared"
+import {
+    DECK_POOL, DECK_SIZE, DEFAULT_DECK, cardMeta, deckError, fromDb, groupCounts, groupName, isEn, loadLocalDeck, maxOf, saveLocalDeck, sortDeck, toDb,
+    type DeckCardGroup, type DeckCardId,
+} from "./card/deckStore"
 import "./lobby.css"
 
 const supabase = createClient(import.meta.env.VITE_SUPABASE_URL,
@@ -16,7 +19,7 @@ const supabase = createClient(import.meta.env.VITE_SUPABASE_URL,
 /** Cách vào phòng: đấu nhanh (ghép ngẫu nhiên), tạo phòng riêng (có mã), vào phòng bằng mã */
 export type JoinMode = { kind: "quick" } | { kind: "create" } | { kind: "join"; roomId: string } | { kind: "bot"; level: "easy" | "hard" }
   /** Chế độ thẻ bài (phòng "card"): đấu máy, vào phòng bằng mã, hoặc ghép ngẫu nhiên */
-  | { kind: "card"; bot?: "easy" | "hard"; roomId?: string };
+  | { kind: "card"; bot?: "easy" | "hard"; roomId?: string; deck?: string[] };
 /** Thông tin mang vào trận: token để server xác thực, tên, cách vào phòng */
 export interface Entry { token?: string; name: string; mode: JoinMode }
 /** Người chơi đã chọn ở sảnh (BoardScene đọc khi vào phòng) */
@@ -26,27 +29,12 @@ export const entry: Entry = {
     }
 }
 
-interface Deck { id: string | null; name: string; cards: string[]; is_active: boolean }
+interface CgDeck { id: string | null; name: string; cards: DeckCardId[]; is_active: boolean }
 interface Me { session: Session | null; name: string }
 
 const root = () => document.getElementById("lobby")!
 const esc = (s: string) => s.replace(/[&<>"']/g,
     (c) => `&#${c.charCodeAt(0)};`)
-/** Mô tả kiểu tooltip LoL: từ khóa hiệu ứng in đậm, icon đứng trước */
-const kwHtml = (text: string) => keywordParts(text).map((part) => typeof part === "string" ? esc(part)
-    : "num" in part ? `<b class="num">${esc(part.text)}</b>`
-        : `<b class="kw ${part.kw.good ? "good" : "bad"}"><img src="/${part.kw.icon}" alt="">${esc(part.text)}</b>`).join("")
-/** Chú giải các hiệu ứng có trong mô tả */
-const kwGloss = (texts: (string | undefined)[]) => {
-    const kws = keywordsIn(texts)
-    return kws.length ? `<div class="kw-gloss">${kws.map((k) => `<p><b class="kw ${k.good ? "good" : "bad"}"><img src="/${k.icon}" alt="">${esc(k.name)}</b> ${kwHtml(k.desc)}</p>`).join("")}</div>` : ""
-}
-const card = (id: string) => CARDS[id] as PlayCard | TrapCard | ItemCard
-/** Tranh lá: thẻ mảnh đồ dùng tranh món đồ */
-const cardArt = (id: string) => { const c = card(id); return c.kind === "item" ? `items_art/${c.itemId}.jpg` : `cards/${id}.jpg` }
-const KIND = DECK_KIND_NAME
-/** Cách dùng từng loại bài (gọi lúc vẽ để theo ngôn ngữ đã chọn) */
-
 /** Chọn ngôn ngữ: lưu lại rồi tải lại trang (dữ liệu game được đổi tên lúc khởi động) */
 const langSelect = () => `<select class="lb-lang" id="lb-lang" title="${t("lang")}">${LANGS.map((l) =>
     `<option value="${l.id}" ${l.id === getLang() ? "selected" : ""}>${l.name}</option>`).join("")}</select>`
@@ -54,17 +42,6 @@ function wireLang() {
     const sel = root().querySelector<HTMLSelectElement>("#lb-lang")
     if (sel) sel.onchange = () => { try { localStorage.setItem("lang",
 sel.value as Lang) } catch { /* chế độ riêng tư */ } location.reload() }
-}
-
-/** Lá bài gọn: icon vuông + tên + viên mana, viền màu theo loại (cùng bố cục với art.ts drawIconCard). Mô tả nằm ở ô chi tiết. */
-function cardHtml(id: string, attrs = "") {
-    const c = card(id)
-    return `<div class="cv ${c.kind}" ${attrs} title="${esc(c.name)}"><div class="cv-in">
-    <img class="cv-badge" src="ui/badge/${c.kind}.png" alt="" draggable="false" onerror="this.remove()">
-    <div class="cv-icon"><img class="cv-art" src="${cardArt(id)}" alt="" draggable="false" onerror="this.style.visibility='hidden'">
-      <img class="cv-frame" src="ui/iconframe-${c.kind}.png" alt="" draggable="false" onerror="this.remove()"></div>
-    <b class="cv-name">${esc(c.name)}</b>
-  </div></div>`
 }
 
 let finish: (e: Entry) => void = () => {}
@@ -155,14 +132,69 @@ const CG = getLang() === "en"
         hard: "Đấu máy Khó", hardSub: "Thử thách thực sự", codePh: "Mã phòng", join: "Vào phòng",
     }
 
-async function homeView(me: Me, msg = "") {
-    let active: Deck | null = null
-    if (me.session) {
-        const { data } = await supabase.from("decks").select("id, name, cards, is_active").eq("owner_id",
-            me.session.user.id).eq("is_active",
-            true).maybeSingle()
-        active = data
+/** Chữ của màn bộ bài (Việt/Anh) */
+const D = isEn()
+    ? {
+        title: "Base deck", hint: "20 cards: support, Gold and item components. Each champion adds its own 20 support cards and skills when summoned.",
+        open: "Build deck", openSub: "Edit and choose your active deck", active: "Active", unsaved: "(unsaved)", back: "Back",
+        newDeck: "New", sample: "Sample deck", rename: "Rename", del: "Delete", save: "Save", use: "Use this deck", dirty: "Unsaved changes",
+        add: "Add", rem: "Remove", all: "All", loading: "Loading…", firstName: "My deck", newPrompt: "New deck name", renamePrompt: "Deck name",
+        delConfirm: "Delete this deck?", discard: "Discard unsaved changes?", saved: "Saved", activated: "Deck selected for matches", deleted: "Deleted",
+        full: `The deck already has ${DECK_SIZE} cards`, maxCopies: "Max copies reached", saveFail: "Save failed: ", removeHint: "Double-click or Remove to take a card out; drag cards from the right.",
+        poolHint: "Click to view, double-click or drag to add.", guest: "Guest deck is stored on this device only.", cards: "cards", count: (n: number) => `${n}/${DECK_SIZE}`,
+        summary: (b: number, s: number, g: number, i: number) => `Basic ${b} · Spells ${s} · Gold ${g} · Items ${i}`,
     }
+    : {
+        title: "Bộ bài", hint: "20 lá: hỗ trợ, Vàng và mảnh Đồ. Mỗi tướng khi ra sân thêm 20 lá hỗ trợ riêng và các chiêu của mình.",
+        open: "Xếp bộ bài", openSub: "Chỉnh sửa và chọn bộ đang dùng", active: "Đang dùng", unsaved: "(chưa lưu)", back: "Quay lại",
+        newDeck: "Bộ mới", sample: "Bộ mẫu", rename: "Đổi tên", del: "Xoá", save: "Lưu", use: "Dùng bộ này", dirty: "Có thay đổi chưa lưu",
+        add: "Thêm", rem: "Bớt", all: "Tất cả", loading: "Đang tải…", firstName: "Bộ của tôi", newPrompt: "Tên bộ mới", renamePrompt: "Tên bộ bài",
+        delConfirm: "Xoá bộ này?", discard: "Bỏ các thay đổi chưa lưu?", saved: "Đã lưu", activated: "Đã chọn bộ này cho trận đấu", deleted: "Đã xoá",
+        full: `Bộ đã đủ ${DECK_SIZE} lá`, maxCopies: "Đã đủ số bản tối đa", saveFail: "Lưu thất bại: ", removeHint: "Bấm đúp hoặc Bớt để bỏ lá; kéo lá từ kho bên phải vào.",
+        poolHint: "Bấm để xem, bấm đúp hoặc kéo để thêm.", guest: "Bộ của khách chỉ lưu trên máy này.", cards: "lá", count: (n: number) => `${n}/${DECK_SIZE}`,
+        summary: (b: number, s: number, g: number, i: number) => `Đánh thường ${b} · Bổ trợ ${s} · Vàng ${g} · Đồ ${i}`,
+    }
+
+/** Ô lá bài gọn: tranh + tên (+ số bản) */
+/** Khung + badge theo loại lá: Đánh thường = combat, Bổ trợ = spell, Vàng = stat, Đồ = item */
+const FRAME_KIND: Record<string, string> = {
+    basic: "combat", spell: "spell", gold: "stat", item: "item",
+}
+function tile(id: DeckCardId, attrs = "", n = 0) {
+    const m = cardMeta(id)
+    const kind = FRAME_KIND[m.group] ?? "spell"
+    return `<div class="cgc ${m.group}" ${attrs} title="${esc(m.name)}"><div class="cv ${kind}"><div class="cv-in">
+    <img class="cv-badge" src="/ui/badge/${kind}.png" alt="" draggable="false" onerror="this.remove()">
+    <div class="cv-icon"><img class="cv-art" src="${m.art}" alt="" draggable="false" onerror="if(!this.dataset.fb){this.dataset.fb=1;this.src='${m.fallback}'}else{this.style.visibility='hidden'}"></div>
+    <b class="cv-name">${esc(m.name)}</b>
+  </div></div>${n > 0 ? `<i class="cgc-n">×${n}</i>` : ""}</div>`
+}
+
+/** Các bộ thẻ bài của người chơi (chỉ bộ có mọi lá bắt đầu bằng "cg:") */
+async function loadCgDecks(uid: string): Promise<CgDeck[]> {
+    const { data } = await supabase.from("decks").select("id, name, cards, is_active").eq("owner_id",
+        uid).order("created_at")
+    const out: CgDeck[] = []
+    for (const d of (data ?? []) as { id: string; name: string; cards: string[]; is_active: boolean }[]) {
+        const cards = fromDb(d.cards ?? [])
+        if (cards) out.push({
+            id: d.id, name: d.name, cards, is_active: d.is_active
+        })
+    }
+    return out
+}
+
+async function homeView(me: Me, msg = "") {
+    let active: DeckCardId[] = loadLocalDeck() ?? DEFAULT_DECK
+    if (me.session) {
+        const decks = await loadCgDecks(me.session.user.id)
+        active = decks.find((d) => d.is_active)?.cards ?? DEFAULT_DECK
+    }
+    if (deckError(active)) active = DEFAULT_DECK
+    const counts = groupCounts(active)
+    const mini = [...new Set(sortDeck(active))].map((id) => tile(id,
+        "",
+        active.filter((x) => x === id).length)).join("")
     root().innerHTML = `
     <div class="lb-home">
       <header class="lb-bar nine-header">
@@ -185,90 +217,94 @@ async function homeView(me: Me, msg = "") {
           <p class="lb-msg">${esc(msg)}</p>
         </section>
         <section class="lb-panel nine-panel">
-          <h2>${t("home.deck")}</h2>
-          <p class="lb-hint">${t("home.deck_hint",
-        {
-            min: DECK_MIN, max: DECK_MAX, copies: DECK_COPIES
-        })}</p>
-          <div class="lb-mini nine-tray">${(active?.cards ?? DECK).slice(0,
-        20).map((id) => cardHtml(id)).join("")}</div>
-          <button class="lb-tile" id="lb-deck" ${me.session ? "" : "disabled"}><b>${t("home.builder")}</b><small>${me.session ? t("home.builder_sub") : t("home.need_login")}</small></button>
+          <h2>${D.title}<small>${D.count(active.length)}</small></h2>
+          <p class="lb-hint">${D.hint}</p>
+          <p class="lb-hint"><b>${D.summary(counts.basic,
+        counts.spell,
+        counts.gold,
+        counts.item)}</b></p>
+          <div class="lb-mini nine-tray">${mini}</div>
+          <button class="lb-tile" id="lb-deck"><b>${D.open}</b><small>${me.session ? D.openSub : D.guest}</small></button>
         </section>
       </main>
     </div>`
     wireLang()
     const $ = <T extends HTMLElement>(s: string) => root().querySelector<T>(s)!
     $("#lb-out").onclick = async () => { if (me.session) await supabase.auth.signOut(); loginView() }
-    $("#lb-deck").onclick = () => deckBuilder(me)
+    $("#lb-deck").onclick = () => cardDeckBuilder(me)
     $("#lb-cg-quick").onclick = () => play(me,
         {
-            kind: "card"
+            kind: "card", deck: active
         })
     $("#lb-cg-easy").onclick = () => play(me,
         {
-            kind: "card", bot: "easy"
+            kind: "card", bot: "easy", deck: active
         })
     $("#lb-cg-hard").onclick = () => play(me,
         {
-            kind: "card", bot: "hard"
+            kind: "card", bot: "hard", deck: active
         })
     $<HTMLFormElement>("#lb-cg-join").onsubmit = (ev) => {
         ev.preventDefault()
         const code = String(new FormData(ev.target as HTMLFormElement).get("code")).trim()
         if (code) play(me,
             {
-                kind: "card", roomId: code
+                kind: "card", roomId: code, deck: active
             })
     }
 }
 
-// ================= XÂY BỘ BÀI (kiểu DuelingBook) =================
-// Trái: xem lá bài · Giữa: bộ bài đang xếp · Phải: kho bài (tìm, lọc). Kéo thả hoặc bấm đúp để thêm/bớt.
 
-async function deckBuilder(me: Me) {
-    root().innerHTML = `<div class="lb-center"><p class="lb-hint">${t("db.loading")}</p></div>`
-    const uid = me.session!.user.id
-    const { data } = await supabase.from("decks").select("id, name, cards, is_active").eq("owner_id",
-        uid).order("created_at")
-    const decks: Deck[] = data?.length ? data : [{
-        id: null, name: t("db.first_name"), cards: [...DECK], is_active: true
-    }]
+// ================= XÂY BỘ BÀI (chế độ thẻ bài) =================
+// Trái: chi tiết lá · Giữa: bộ đang xếp (20 lá) · Phải: kho DECK_POOL. Bấm để xem, bấm đúp hoặc kéo thả để thêm/bớt.
+
+async function cardDeckBuilder(me: Me) {
+    root().innerHTML = `<div class="lb-center"><p class="lb-hint">${D.loading}</p></div>`
+    const uid = me.session?.user.id ?? null
+    let decks: CgDeck[] = uid ? await loadCgDecks(uid) : []
+    let dirty = false
+    if (!decks.length) {
+        decks = [{
+            id: null, name: D.firstName, cards: sortDeck(uid ? DEFAULT_DECK : loadLocalDeck() ?? DEFAULT_DECK), is_active: true
+        }]
+        dirty = true
+    }
     let cur = Math.max(0,
         decks.findIndex((d) => d.is_active))
-    let view = decks[cur].cards[0] ?? deckPool()[0]
-    let query = "", kind: "all" | DeckKind = "all", dirty = !data?.length, msg = "", msgOk = false
+    let view: DeckCardId = decks[cur].cards[0] ?? DECK_POOL[0].id
+    let group: "all" | DeckCardGroup = "all", msg = "", msgOk = false
     const say = (text: string, ok = false) => { msg = text; msgOk = ok; render() }
-
     const deck = () => decks[cur]
-    const add = (id: string) => {
-        const n = deck().cards.filter((c) => c === id).length
-        if (n >= copyLimit(id)) return say(t("db.copies_max",
-            {
-                name: card(id).name, n: copyLimit(id)
-            }))
-        const k = card(id).kind as DeckKind
-        if (deck().cards.filter((c) => card(c).kind === k).length >= KIND_LIMIT[k]) return say(t("err.kind_max",
-            {
-                kind: KIND[k], n: KIND_LIMIT[k]
-            }))
-        if (deck().cards.length >= DECK_MAX) return say(t("db.deck_max",
-            {
-                n: DECK_MAX
-            }))
-        deck().cards.push(id); deck().cards.sort(); dirty = true; view = id; say("")
+    const countOf = (id: string) => deck().cards.filter((c) => c === id).length
+
+    const add = (id: DeckCardId) => {
+        view = id
+        if (deck().cards.length >= DECK_SIZE) return say(D.full)
+        if (countOf(id) >= maxOf(id)) return say(`${D.maxCopies}: ${cardMeta(id).name} (${maxOf(id)})`)
+        deck().cards = sortDeck([...deck().cards,
+            id])
+        dirty = true; say("")
     }
-    const remove = (id: string) => {
+    const remove = (id: DeckCardId) => {
         const i = deck().cards.indexOf(id)
-        if (i >= 0) { deck().cards.splice(i,
-            1); dirty = true; say("") }
+        if (i < 0) return
+        deck().cards.splice(i,
+            1)
+        dirty = true; say("")
     }
 
-    /** Lưu bộ đang chọn (tạo mới nếu chưa có id) */
-    const save = async () => {
+    /** Lưu bộ đang chọn: khách -> localStorage, đã đăng nhập -> bảng decks (mã có tiền tố "cg:") */
+    const save = async (): Promise<boolean> => {
         const d = deck(), err = deckError(d.cards)
-        if (err) return say(err)
+        if (err) { say(err); return false }
+        if (!uid) {
+            if (!saveLocalDeck(d.cards)) { say(D.saveFail); return false }
+            dirty = false; say(D.saved,
+                true)
+            return true
+        }
         const body = {
-            name: d.name, cards: d.cards, updated_at: new Date().toISOString()
+            name: d.name, cards: toDb(d.cards), updated_at: new Date().toISOString()
         }
         const res = d.id
             ? await supabase.from("decks").update(body).eq("id",
@@ -276,19 +312,17 @@ async function deckBuilder(me: Me) {
             : await supabase.from("decks").insert({
                 ...body, owner_id: uid, is_active: !decks.some((x) => x.id && x.is_active)
             }).select("id, is_active").single()
-        if (res.error) return say(t("db.save_fail",
-            {
-                e: res.error.message
-            }))
+        if (res.error) { say(D.saveFail + res.error.message); return false }
         d.id = res.data.id
         if ("is_active" in res.data) d.is_active = !!res.data.is_active
-        dirty = false; say(t("db.saved"),
+        dirty = false; say(D.saved,
             true)
+        return true
     }
     /** Chọn bộ đang xem làm bộ dùng khi vào trận */
     const activate = async () => {
-        if (dirty || !deck().id) await save()
-        if (!deck().id) return
+        if (!uid) return
+        if ((dirty || !deck().id) && !await save()) return
         await supabase.from("decks").update({
             is_active: false
         }).eq("owner_id",
@@ -297,71 +331,75 @@ async function deckBuilder(me: Me) {
         const { error } = await supabase.from("decks").update({
             is_active: true
         }).eq("id",
-deck().id!)
+            deck().id!)
         if (error) return say(error.message)
         decks.forEach((d) => (d.is_active = d === deck()))
-        say(t("db.activated"),
+        say(D.activated,
             true)
     }
 
     const render = () => {
-        const d = deck(), err = deckError(d.cards), c = card(view)
-        const counts = new Map<string, number>()
-        d.cards.forEach((id) => counts.set(id,
-            (counts.get(id) ?? 0) + 1))
-        const pool = deckPool().filter((id) => (kind === "all" || card(id).kind === kind)
-      && (!query || `${card(id).name} ${card(id).desc}`.toLowerCase().includes(query.toLowerCase())))
-        const byKind = DECK_KINDS.map((k) => `<span class="db-chip ${k}">${KIND[k]} <b>${d.cards.filter((id) => card(id).kind === k).length}/${KIND_LIMIT[k]}</b></span>`).join("")
+        const d = deck(), err = deckError(d.cards), m = cardMeta(view)
+        const gc = groupCounts(d.cards)
+        const pool = DECK_POOL.filter((p) => group === "all" || p.group === group)
+        const slots = Math.max(0,
+            DECK_SIZE - d.cards.length)
         root().innerHTML = `
       <div class="db">
         <header class="lb-bar nine-header">
-          <button class="lb-btn" id="db-back">${t("db.back")}</button>
-          <select id="db-pick">${decks.map((x, i) => `<option value="${i}" ${i === cur ? "selected" : ""}>${esc(x.name)}${x.is_active ? ` · ${t("db.active")}` : ""}${x.id ? "" : ` ${t("db.unsaved")}`}</option>`).join("")}</select>
-          <button class="lb-btn" id="db-new">${t("db.new")}</button>
-          <select id="db-preset"><option value="">${t("db.preset")}</option>${PRESET_DECKS.map((p, i) => `<option value="${i}">${esc(p.name)}: ${esc(p.desc)}</option>`).join("")}</select>
-          <button class="lb-btn" id="db-rename">${t("db.rename")}</button>
-          <button class="lb-btn" id="db-del" ${decks.length > 1 && d.id ? "" : "disabled"}>${t("db.delete")}</button>
+          <button class="lb-btn" id="db-back">${D.back}</button>
+          <select id="db-pick" ${uid ? "" : "disabled"}>${decks.map((x, i) => `<option value="${i}" ${i === cur ? "selected" : ""}>${esc(x.name)}${x.is_active ? ` · ${D.active}` : ""}${x.id ? "" : ` ${D.unsaved}`}</option>`).join("")}</select>
+          <button class="lb-btn" id="db-new" ${uid ? "" : "disabled"}>${D.newDeck}</button>
+          <button class="lb-btn" id="db-sample">${D.sample}</button>
+          <button class="lb-btn" id="db-rename">${D.rename}</button>
+          <button class="lb-btn" id="db-del" ${uid && decks.length > 1 && d.id ? "" : "disabled"}>${D.del}</button>
           <span class="db-gap"></span>
-          <span class="lb-msg ${msgOk ? "ok" : ""}">${esc(msg || (dirty ? t("db.dirty") : ""))}</span>
+          <span class="lb-msg ${msgOk ? "ok" : ""}">${esc(msg || (dirty ? D.dirty : ""))}</span>
           ${langSelect()}
-          <button class="lb-btn" id="db-save">${t("db.save")}</button>
-          <button class="lb-btn gold" id="db-use" ${err ? "disabled" : ""}>${d.is_active ? t("db.active") : t("db.use")}</button>
+          <button class="lb-btn" id="db-save" ${err ? "disabled" : ""}>${D.save}</button>
+          <button class="lb-btn gold" id="db-use" ${err || !uid ? "disabled" : ""}>${d.is_active ? D.active : D.use}</button>
         </header>
         <div class="db-body">
           <aside class="db-view lb-panel nine-tooltip">
-            ${cardHtml(view)}
-            <h3>${esc(c.name)}</h3>
-            <p class="db-type ${c.kind}"><img src="ui/badge/${c.kind}.png" alt="" onerror="this.remove()">${KIND[c.kind]}</p>
-            <p class="db-desc">${[c.desc,
-        ...(("bonus" in c && c.bonus) || [])].map(kwHtml).join("<br>")}</p>
-            ${kwGloss([c.desc,
-        ...(("bonus" in c && c.bonus) || [])])}
-            <div class="db-actions"><button class="lb-btn" data-add="${view}">${t("db.add")}</button><button class="lb-btn" data-rem="${view}">${t("db.rem")}</button><b>${counts.get(view) ?? 0}/${copyLimit(view)}</b></div>
+            ${tile(view)}
+            <h3>${esc(m.name)}</h3>
+            <p class="db-type cg-${m.group}">${groupName(m.group)}</p>
+            <p class="db-desc">${esc(m.desc)}</p>
+            <div class="db-actions"><button class="lb-btn" id="db-add">${D.add}</button><button class="lb-btn" id="db-rem">${D.rem}</button><b>${countOf(view)}/${maxOf(view)}</b></div>
           </aside>
           <section class="db-deck lb-panel nine-tray" id="db-drop">
-            <h2>${esc(d.name)} <span class="${err ? "bad" : "ok"}">${t("db.cards",
-    {
-        n: d.cards.length, max: DECK_MAX
-    })}</span></h2>
-            <div class="db-stats"><div class="db-chips">${byKind}</div></div>
-            <p class="lb-hint">${err ? esc(err) : t("db.remove_hint")}</p>
-            <div class="db-grid">${d.cards.map((id) => cardHtml(id,
+            <h2>${esc(d.name)} <span class="${err ? "bad" : "ok"}">${D.count(d.cards.length)}</span></h2>
+            <div class="db-stats"><div class="db-chips">
+              <span class="db-chip cg-basic">${groupName("basic")} <b>${gc.basic}</b></span>
+              <span class="db-chip cg-spell">${groupName("spell")} <b>${gc.spell}</b></span>
+              <span class="db-chip cg-gold">${groupName("gold")} <b>${gc.gold}</b></span>
+              <span class="db-chip cg-item">${groupName("item")} <b>${gc.item}</b></span>
+            </div><small class="lb-hint">${D.summary(gc.basic,
+        gc.spell,
+        gc.gold,
+        gc.item)}</small></div>
+            <p class="lb-hint ${err ? "bad" : ""}">${err ? esc(err) : D.removeHint}</p>
+            <div class="db-grid">${d.cards.map((id) => tile(id,
         `draggable="true" data-card="${id}" data-from="deck"`)).join("")}
               ${Array.from({
-        length: Math.max(0,
-            DECK_MIN - d.cards.length)
+        length: slots
     },
     () => "<div class=\"db-slot nine-slot\"></div>").join("")}</div>
           </section>
           <aside class="db-search lb-panel nine-panel" id="db-pool">
-            <input id="db-q" placeholder="${t("db.search")}" value="${esc(query)}">
             <div class="lb-tabs">${(["all",
-        ...DECK_KINDS] as const).map((k) => `<button data-k="${k}" class="${kind === k ? "on" : ""}">${k === "all" ? t("db.all") : KIND[k]}</button>`).join("")}</div>
-            <div class="db-list">${pool.map((id) => `
-              <div class="db-row ${view === id ? "on" : ""}" draggable="true" data-card="${id}" data-from="pool">
-                ${cardHtml(id)}<div><b>${esc(card(id).name)}</b><small>${KIND[card(id).kind]}</small></div><span>${counts.get(id) ?? 0}</span>
-              </div>`).join("") || `<p class="lb-hint">${t("db.none")}</p>`}</div>
-            <p class="lb-hint">${t("db.pool_hint")}</p>
+        "basic",
+        "spell",
+        "gold",
+        "item"] as const).map((k) => `<button data-g="${k}" class="${group === k ? "on" : ""}">${k === "all" ? D.all : groupName(k)}</button>`).join("")}</div>
+            <div class="db-list">${pool.map((p) => {
+        const mm = cardMeta(p.id), n = countOf(p.id)
+        return `
+              <div class="db-row ${view === p.id ? "on" : ""} ${n >= p.max ? "full" : ""}" draggable="true" data-card="${p.id}" data-from="pool">
+                ${tile(p.id)}<div><b>${esc(mm.name)}</b><small>${groupName(p.group)}</small></div><span>${n}/${p.max}</span>
+              </div>`
+    }).join("")}</div>
+            <p class="lb-hint">${D.poolHint}</p>
           </aside>
         </div>
       </div>`
@@ -371,14 +409,13 @@ deck().id!)
     const wire = () => {
         const r = root(), $ = <T extends HTMLElement>(s: string) => r.querySelector<T>(s)!
         wireLang()
-        $("#db-back").onclick = () => (!dirty || confirm(t("db.discard_confirm"))) && homeView(me)
-        $<HTMLSelectElement>("#db-pick").onchange = (e) => { cur = Number((e.target as HTMLSelectElement).value); dirty = !deck().id; say("") }
+        $("#db-back").onclick = () => (!dirty || confirm(D.discard)) && homeView(me)
+        $<HTMLSelectElement>("#db-pick").onchange = (e) => {
+            cur = Number((e.target as HTMLSelectElement).value); dirty = !deck().id; view = deck().cards[0] ?? view; say("")
+        }
         $("#db-new").onclick = () => {
-            const name = prompt(t("db.new_prompt"),
-                t("db.default_name",
-                    {
-                        n: decks.length + 1
-                    }))?.trim()
+            const name = prompt(D.newPrompt,
+                `${D.firstName} ${decks.length + 1}`)?.trim()
             if (!name) return
             decks.push({
                 id: null, name: name.slice(0,
@@ -386,56 +423,43 @@ deck().id!)
             })
             cur = decks.length - 1; dirty = true; say("")
         }
-        $<HTMLSelectElement>("#db-preset").onchange = (e) => {
-            const p = PRESET_DECKS[Number((e.target as HTMLSelectElement).value)]
-            if (!p) return
-            decks.push({
-                id: null, name: p.name, cards: [...p.cards].sort(), is_active: false
-            })
-            cur = decks.length - 1; dirty = true; view = p.cards[0]; say("")
-        }
+        $("#db-sample").onclick = () => { deck().cards = sortDeck(DEFAULT_DECK); dirty = true; say("") }
         $("#db-rename").onclick = () => {
-            const name = prompt(t("db.rename_prompt"),
+            const name = prompt(D.renamePrompt,
                 deck().name)?.trim()
             if (name) { deck().name = name.slice(0,
                 32); dirty = true; render() }
         }
         $("#db-del").onclick = async () => {
-            if (!deck().id || !confirm(t("db.del_confirm",
-                {
-                    name: deck().name
-                }))) return
+            if (!deck().id || !confirm(D.delConfirm)) return
             const { error } = await supabase.from("decks").delete().eq("id",
-deck().id!)
+                deck().id!)
             if (error) return say(error.message)
             decks.splice(cur,
-                1); cur = 0; say(t("db.deleted"),
+                1); cur = 0; dirty = false; say(D.deleted,
                 true)
         }
-        $("#db-save").onclick = save
-        $("#db-use").onclick = activate
-        const q = $<HTMLInputElement>("#db-q")
-        q.oninput = () => { query = q.value; render(); const n = root().querySelector<HTMLInputElement>("#db-q")!; n.focus(); n.setSelectionRange(query.length,
-            query.length) }
-        r.querySelectorAll<HTMLButtonElement>("#db-pool .lb-tabs button").forEach((b) => b.onclick = () => { kind = b.dataset.k as typeof kind; render() })
-        r.querySelectorAll<HTMLButtonElement>("[data-add]").forEach((b) => b.onclick = () => add(b.dataset.add!))
-        r.querySelectorAll<HTMLButtonElement>("[data-rem]").forEach((b) => b.onclick = () => remove(b.dataset.rem!))
+        $("#db-save").onclick = () => { void save() }
+        $("#db-use").onclick = () => { void activate() }
+        $("#db-add").onclick = () => add(view)
+        $("#db-rem").onclick = () => remove(view)
+        r.querySelectorAll<HTMLButtonElement>("#db-pool .lb-tabs button").forEach((b) => b.onclick = () => { group = b.dataset.g as typeof group; render() })
         // bấm để xem, bấm đúp để thêm/bớt, kéo thả giữa kho và bộ bài
         r.querySelectorAll<HTMLElement>("[data-card]").forEach((el) => {
-            const id = el.dataset.card!, from = el.dataset.from!
+            const id = el.dataset.card as DeckCardId, from = el.dataset.from!
             el.onclick = () => { view = id; render() }
             el.ondblclick = () => (from === "pool" ? add(id) : remove(id))
             el.ondragstart = (e) => e.dataTransfer!.setData("text/plain",
-                `${from}:${id}`)
+                `${from}|${id}`)
         })
-        const zone = (el: HTMLElement, accept: string, act: (id: string) => void) => {
+        const zone = (el: HTMLElement, accept: string, act: (id: DeckCardId) => void) => {
             el.ondragover = (e) => { e.preventDefault(); el.classList.add("drop") }
             el.ondragleave = () => el.classList.remove("drop")
             el.ondrop = (e) => {
                 e.preventDefault(); el.classList.remove("drop")
                 const [from,
-                    id] = (e.dataTransfer!.getData("text/plain") || ":").split(":")
-                if (from === accept && id) act(id)
+                    id] = (e.dataTransfer!.getData("text/plain") || "|").split("|")
+                if (from === accept && id) act(id as DeckCardId)
             }
         }
         zone($("#db-drop"),

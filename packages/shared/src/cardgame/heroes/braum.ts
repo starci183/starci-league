@@ -1,84 +1,83 @@
-// Braum (Đỡ đòn, phép): máu 1000 · AD 62 · giáp/kháng 37/37. Lối chơi: HỘ VỆ PHẢN ỨNG.
-// Giữ Q/E trên tay, chơi trong lượt đối thủ. Cơ chế engine dùng: lá Quick chỉ nối chuỗi (quick + chainOnly), đổi mục tiêu (g.chainFx().redirect),
-// giảm sát thương/miễn khống chế (fx.cut, fx.cutNoCc), phản sát thương (fx.reflect*).
+// Braum (Đỡ đòn, phép): máu 1060 · AD 62 · giáp/kháng 37/37.
+// MỤC ĐÍCH: Bức tường phản ứng — chỉ chơi trong lượt đối thủ, mọi lá của Braum là một lá Quick chỉ-nối-chuỗi đỡ cho đồng đội.
+// Q đỡ đòn đơn (đổi mục tiêu sang Braum), E đỡ chiêu nhiều mục tiêu (giảm sát thương), R đỡ trọn một chiêu (vô hiệu sát thương + khống chế, phản công kẻ tung).
+// Nội tại: mỗi lá Quick của Braum giải quyết thì rút 1 lá (tay luôn có phản ứng mới). Engine: chain.
+// Cơ chế engine dùng: quick + chainOnly, g.chainFx() (redirect, cut/cutSide/cutNoCc, reflectUnit/reflectPct).
+import type {
+    Game
+} from "../game"
 import {
     defineHero
 } from "../registry"
 import type {
-    Card, Unit
+    Card, Ctx, Side
 } from "../types"
 
-const F_Q_SHIELD = "60 + 10% máu cộng thêm + 30% AP"
-const F_R = "80 + 40% AP"
+const F_Q_SHIELD = "130 + 10% máu cộng thêm + 30% AP"
+const F_R = "110 + 6% máu tối đa + 40% AP"
 const REFLECT = 0.3
 const CUT = 0.4
 
-const isReactCard = (c: Card) => c.kind === "skill" && c.hero === "braum" && (c.id === "braum_q" || c.id === "braum_e")
+const isBraumQuick = (c: Card) => c.kind === "skill" && c.hero === "braum"
+const braumQuickInHand = (g: Game, side: Side) => g.player(side).hand.filter(isBraumQuick).length
+/** Nội tại Bức Tường Freljord: lá Quick của Braum giải quyết xong thì rút 1 lá */
+const wall = (c: Ctx) => { c.g.draw(c.side,
+    1,
+    {
+        reason: "skill", by: c.self.id
+    }) }
 
 export default defineHero({
-    id: "braum", name: "Braum", role: "tank", damage: "magic", hp: 1000, atk: 62, armor: 37, mr: 37,
-    desc: "Tấm khiên của Freljord. Hầu như chỉ chơi bài trong lượt đối thủ: Q đỡ đòn đơn, E đỡ chiêu diện rộng, mỗi lần phản ứng lại được rút thêm bài.",
-    passive: {
-        name: "Cảnh Giác",
-        desc: "Cuối lượt đối thủ, nếu trong lượt đó Braum đã dùng ít nhất 1 lá phản ứng, bạn rút 1 lá.",
+    id: "braum", name: "Braum", role: "tank", damage: "magic", hp: 1750, atk: 81, armor: 37, mr: 37,
+    skillCopies: {
+        Q: 9, E: 7, R: 3
     },
-    hooks: {
-        onTurnStart(g, me, d) { if (d.side === me.side) g.setStack(me,
-            "reacted",
-            0) },
-        onTurnEnd(g, me, d) {
-            if (d.side === me.side) return
-            if (g.stackOf(me,
-                "reacted") > 0) { g.setStack(me,
-                "reacted",
-                0); g.draw(me.side,
-                1,
-                {
-                    reason: "skill", by: me.id
-                }) }
-        },
+    desc: "Tấm khiên của Freljord: chỉ chơi trong lượt đối thủ. Q đỡ đòn đơn, E đỡ chiêu diện rộng, R chặn trọn một chiêu; mỗi lần đỡ lại rút lá mới.",
+    passive: {
+        name: "Bức Tường Freljord",
+        desc: "Mọi lá chiêu của Braum là lá **Quick chỉ nối chuỗi**. Mỗi khi một lá Quick của Braum giải quyết xong, bạn rút 1 lá.",
     },
     skills: {
         Q: {
-            key: "Q", name: "Đứng Sau Tôi", target: "none",
-            desc: `Phản ứng, khi 1 đồng minh bị chọn làm mục tiêu: đổi mục tiêu sang Braum, và Braum nhận Khiên {${F_Q_SHIELD}}. **Điều kiện:** Braum đang có Khiên từ trước thì phản lại ${REFLECT * 100}% sát thương đó cho kẻ tấn công.`,
-            quick: true, chainOnly: true,
-            quickWhen: (c) => c.trigger.side !== c.side && !!c.trigger.single && c.trigger.target !== c.self.id && !!c.trigger.redirectable?.includes(c.self.id),
+            key: "Q", name: "Đứng Sau Tôi", target: "none", quick: true, chainOnly: true,
+            desc: `**Quick, chỉ nối chuỗi**, khi địch đánh/tung chiêu nhắm đúng 1 tướng mình: đổi mục tiêu sang Braum, Braum nhận Khiên {${F_Q_SHIELD}}. **Điều kiện:** Braum đang có Khiên từ trước thì phản lại ${REFLECT * 100}% sát thương đó cho kẻ tấn công.`,
+            quickWhen: (c) => c.trigger.side !== c.side && !!c.trigger.single
+                && (c.trigger.target === c.self.id || !!c.trigger.redirectable?.includes(c.self.id)),
             resolve(c) {
                 const braum = c.self
                 const had = braum.shield > 0
                 const fx = c.g.chainFx()
-                fx.redirect = braum.id
+                if (c.trigger?.target !== braum.id) fx.redirect = braum.id
                 c.g.shield(braum,
                     braum,
                     c.f(F_Q_SHIELD))
                 if (had) { fx.reflectUnit = braum.id; fx.reflectPct = REFLECT }
-                c.g.setStack(braum,
-                    "reacted",
-                    1)
+                wall(c)
             },
         },
         E: {
-            key: "E", name: "Bất Khả Xâm Phạm", target: "none",
-            desc: `Phản ứng, khi địch dùng chiêu nhắm nhiều tướng (tối đa N hoặc mọi tướng): mọi đồng minh nhận ít hơn ${CUT * 100}% sát thương từ chiêu đó. **Điều kiện:** chiêu bị chặn là chiêu cuối (R) thì đồng minh còn được miễn hiệu ứng khống chế của nó.`,
-            quick: true, chainOnly: true,
+            key: "E", name: "Bất Khả Xâm Phạm", target: "none", quick: true, chainOnly: true,
+            desc: `**Quick, chỉ nối chuỗi**, khi địch tung chiêu nhắm nhiều tướng mình (tối đa N hoặc mọi tướng): mọi tướng mình nhận ít hơn ${CUT * 100}% sát thương từ chiêu đó. **Điều kiện:** chiêu bị đỡ là chiêu cuối (R) thì tướng mình còn miễn khống chế của nó.`,
             quickWhen: (c) => c.trigger.side !== c.side && !!c.trigger.multi,
             resolve(c) {
                 const fx = c.g.chainFx()
                 fx.cut = CUT; fx.cutSide = c.side
                 if (c.trigger?.ult) fx.cutNoCc = true
-                c.g.setStack(c.self,
-                    "reacted",
-                    1)
+                wall(c)
             },
         },
         R: {
-            key: "R", name: "Vết Nứt Băng Giá", target: "all_enemies",
-            desc: `Dùng trong lượt mình: {${F_R}} sát thương phép cho mọi tướng địch và Choáng 1 lượt. **Điều kiện:** trên tay còn từ 2 lá phản ứng (Q/E của Braum) thì Choáng 2 lượt.`,
+            key: "R", name: "Vết Nứt Băng Giá", target: "none", quick: true, chainOnly: true,
+            desc: `**Quick, chỉ nối chuỗi**, khi địch tung một lá chiêu nhắm tướng mình: tướng mình **không nhận sát thương và khống chế** từ lá đó, kẻ tung nhận {${F_R}} sát thương phép và bị Buốt 1 lượt. **Điều kiện:** trên tay bạn còn từ 2 lá Braum thì mọi tướng địch cùng nhận sát thương và Buốt.`,
+            quickWhen: (c) => c.trigger.side !== c.side && !!c.trigger.card && c.trigger.card.kind !== "support" && !!c.trigger.target,
             resolve(c) {
-                const reacts = c.g.player(c.side).hand.filter(isReactCard).length
-                const turns = reacts >= 2 ? 2 : 1
-                for (const t of c.g.enemies(c.self) as Unit[]) {
+                const fx = c.g.chainFx()
+                fx.cut = 1; fx.cutSide = c.side; fx.cutNoCc = true
+                const caster = c.g.unit(c.trigger?.actor)
+                const wide = braumQuickInHand(c.g,
+                    c.side) >= 2
+                const hit = wide ? c.g.enemies(c.self) : caster && caster.status === "board" && caster.side !== c.side ? [caster] : []
+                for (const t of hit) {
                     c.g.damage(c.self,
                         t,
                         c.f(F_R),
@@ -87,9 +86,10 @@ export default defineHero({
                             tag: "skill"
                         })
                     c.g.status(t,
-                        "stun",
-                        turns)
+                        "chill",
+                        1)
                 }
+                wall(c)
             },
         },
     },

@@ -98,6 +98,8 @@ export interface CardSnapshot {
     /** Toàn bộ nhật ký trận */
     log: LogEntry[];
     targeting: Targeting | null;
+    /** Tướng đang xem trong bảng chỉ số bên phải (bấm tướng trên sân để chọn) */
+    inspect: string | null;
     error: string | null;
     end: { winner: Side | null; reason: string } | null;
     /** Tăng mỗi lần nhận cg:events, để component biết có lô sự kiện mới */
@@ -106,7 +108,7 @@ export interface CardSnapshot {
 
 const EMPTY: CardSnapshot = {
     stage: "idle", draft: null, picked: {
-    }, view: null, legal: [], lastEvents: [], log: [], targeting: null, error: null, end: null, tick: 0,
+    }, view: null, legal: [], lastEvents: [], log: [], targeting: null, inspect: null, error: null, end: null, tick: 0,
 }
 
 let snap: CardSnapshot = EMPTY
@@ -129,7 +131,7 @@ export function useCard(): CardSnapshot {
 export const getCard = () => snap
 
 /** Tuỳ chọn khi vào phòng (xem mục 1 của docs/CARDGAME_PROTOCOL.md) */
-export interface CardJoin { name: string; token?: string; bot?: "easy" | "hard"; roomId?: string; quick?: boolean }
+export interface CardJoin { name: string; token?: string; bot?: "easy" | "hard"; roomId?: string; quick?: boolean; deck?: string[] }
 
 const actionKey = (a: Action) => JSON.stringify(a)
 
@@ -142,7 +144,7 @@ export const cardActions = {
         const proto = location.protocol === "https:" ? "wss" : "ws"
         const client = new Client(`${proto}://${location.hostname}:2567`)
         const opts = {
-            name: o.name, token: o.token
+            name: o.name, token: o.token, deck: o.deck
         }
         try {
             room = o.bot ? await client.create("card",
@@ -233,6 +235,10 @@ export const cardActions = {
         {
         }) },
     leave() { void room?.leave(); room = null; set(EMPTY) },
+    /** Chọn tướng để xem ở bảng chỉ số (null = bỏ chọn) */
+    inspect(unitId: string | null) { set({
+        inspect: unitId
+    }) },
     clearError() { set({
         error: null
     }) },
@@ -276,7 +282,7 @@ export function targetsOf(a: Action): { units: string[]; lanes: number[] } {
         units: [a.target], lanes: []
     }
     if (a.t === "craft") return {
-        units: [a.unit], lanes: []
+        units: a.unit ? [a.unit] : [], lanes: []
     }
     if (a.t === "play" || a.t === "chain") {
         const args = a.args ?? {

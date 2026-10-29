@@ -38,7 +38,7 @@ const picked = await showLobby()
 if (picked.mode.kind === "card") {
     // chế độ thẻ bài: giao diện React riêng, không dựng Phaser
     startCardGame({
-        name: picked.name, token: picked.token, bot: picked.mode.bot, roomId: picked.mode.roomId
+        name: picked.name, token: picked.token, bot: picked.mode.bot, roomId: picked.mode.roomId, deck: picked.mode.deck
     })
 } else await startBoard()
 

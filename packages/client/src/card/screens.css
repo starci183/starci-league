@@ -84,7 +84,7 @@
 .sc-step.ban { background: #1a0c0c; }
 .sc-step.past { opacity: .35; }
 .sc-step.now { transform: scale(1.25); box-shadow: 0 0 10px #f5d27a; border-color: #f5d27a; color: #f5d27a; }
-.sc-bp-body { min-height: 0; display: grid; grid-template-columns: 190px 1fr 190px; gap: 14px; }
+.sc-bp-body { min-height: 0; display: grid; grid-template-columns: 200px 1fr 230px; gap: 14px; }
 .sc-col { min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; padding: 10px; border-radius: 8px; border: 1px solid #2a3040; background: rgba(8,12,18,.7); transition: border-color .2s, box-shadow .2s; }
 .sc-col.mine { border-color: #24496a; }
 .sc-col.foe { border-color: #5a2a24; }
@@ -112,3 +112,63 @@
 .sc-btn.red { background: linear-gradient(#a8382c, #7a2018); border-color: #e05a4a; color: #fff; }
 @keyframes sc-pulse { 50% { box-shadow: 0 0 2px rgba(245,210,122,.1); } }
 @media (max-width: 1200px) { .sc-bp-body { grid-template-columns: 150px 1fr 150px; } .sc-pickslot b { display: none; } }
+
+/* ---- Hover brief + trinh sát địch ---- */
+.sc-center { min-height: 0; display: flex; flex-direction: column; gap: 8px; }
+.sc-center .sc-grid { flex: 1; }
+.sc-hero.dis { cursor: default; }
+.sc-hero.dis.st-free { opacity: .8; }
+.sc-hero:hover.dis:not(.st-banned):not(.st-mine):not(.st-theirs) { transform: none; }
+.sc-badges { display: flex; flex-wrap: wrap; justify-content: center; gap: 2px; min-height: 14px; }
+.bd { padding: 0 5px; border-radius: 3px; font-size: 10px; font-weight: 800; line-height: 14px; white-space: nowrap; border: 1px solid; }
+.bd.ctr { color: #8fe0a0; border-color: #3c8c5a; background: rgba(60,140,90,.22); }
+.bd.cmb { color: #7ab8f5; border-color: #24496a; background: rgba(40,100,170,.22); }
+.bd.cntd { color: #ff9a8a; border-color: #8a3a34; background: rgba(170,50,40,.25); }
+.bd.ban { color: #fff; border-color: #e05a4a; background: #a8382c; animation: sc-pulse 1.2s ease-in-out infinite; }
+
+.sc-chip { position: relative; width: 26px; height: 26px; border-radius: 4px; overflow: hidden; border: 1px solid #3a4250; background: #070b10; flex: none; }
+.sc-chip img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.sc-chip.free { border-color: #5cc08a; }
+.sc-chip.mine { border-color: #f5d27a; box-shadow: 0 0 0 1px #f5d27a; }
+.sc-chip.out { opacity: .4; filter: grayscale(1); border-color: #3a4250; }
+.sc-chip.warn { border-color: #ff5a4a; box-shadow: 0 0 0 1px #ff5a4a, 0 0 8px rgba(255,90,74,.7); opacity: 1; }
+.sc-chiprow { display: flex; align-items: center; flex-wrap: wrap; gap: 3px; margin-top: 3px; }
+.sc-chiprow em { font-style: normal; font-size: 10.5px; color: #9a9aa3; margin-right: 3px; }
+
+.sc-scout { padding: 6px; margin-bottom: 6px; border-radius: 6px; border: 1px solid #4a2a24; background: rgba(30,12,10,.55); font-size: 11.5px; color: #cfc8b8; }
+.sc-scout.danger { border-color: #ff5a4a; }
+.sc-scout-h { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.sc-scout-h b { color: #f08a7a; font-size: 12.5px; }
+.sc-scout-h small { flex-basis: 100%; color: #9a9aa3; font-size: 10.5px; line-height: 1.25; }
+.sc-warn { margin-top: 4px; color: #ff8a7a; font-weight: 700; font-size: 11px; }
+.sc-beat { margin-top: 4px; color: #8fe0a0; line-height: 1.3; }
+.sc-beat em { font-style: normal; color: #9a9aa3; margin-right: 4px; }
+.sc-analysis { flex: none; padding: 6px 8px; border-radius: 8px; border: 1px solid #5a2a24; background: rgba(8,12,18,.7); max-height: 128px; overflow: hidden; }
+.sc-analysis h4 { margin: 0 0 4px; font-size: 11px; color: #f08a7a; text-transform: uppercase; }
+.sc-analysis-row { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 2px; }
+.sc-scout.compact { flex: 0 0 250px; margin: 0; }
+.sc-scout.compact .sc-scout-h small { display: none; }
+
+.sc-brief { position: fixed; z-index: 80; overflow: hidden; padding: 10px 12px; box-sizing: border-box; pointer-events: none; border: 1px solid #c8a050; border-radius: 10px; background: rgba(8,13,20,.98); box-shadow: 0 8px 36px rgba(0,0,0,.8); color: #e8e4d8; font-size: 12px; line-height: 1.35; animation: sc-fade .12s ease-out; }
+.bf-head { display: flex; gap: 10px; align-items: center; }
+.bf-head img { width: 64px; height: 64px; object-fit: cover; border-radius: 6px; border: 1px solid #c8a050; }
+.bf-head b { font-size: 17px; color: #f5d27a; }
+.bf-tags { display: flex; gap: 6px; align-items: center; font-size: 11px; font-weight: 700; margin: 2px 0; }
+.cx { padding: 0 6px; border-radius: 3px; border: 1px solid; } .cx-1 { color: #8fe0a0; border-color: #3c8c5a; } .cx-2 { color: #f5d27a; border-color: #8a6a2a; } .cx-3 { color: #ff9a8a; border-color: #8a3a34; }
+.bf-stats { display: flex; gap: 8px; color: #b8b4a8; font-size: 11px; font-variant-numeric: tabular-nums; }
+.bf-purpose, .bf-eng, .bf-desc { margin: 6px 0 0; }
+.bf-purpose { padding: 5px 8px; border-left: 3px solid #f5d27a; background: rgba(245,210,122,.08); color: #f5e6b8; font-weight: 600; }
+.bf-purpose em, .bf-eng em { display: block; font-style: normal; font-size: 10px; color: #9a9aa3; text-transform: uppercase; font-weight: 400; }
+.bf-eng { color: #7ab8f5; }
+.bf-eng em { display: inline; margin-right: 6px; }
+.bf-desc { color: #b8b4a8; font-style: italic; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.bf-skills { display: grid; gap: 5px; margin-top: 8px; }
+.bf-skill { display: flex; gap: 8px; align-items: flex-start; }
+.bf-skill img { width: 32px; height: 32px; border-radius: 5px; border: 1px solid #3a4250; flex: none; object-fit: cover; }
+.bf-skill b { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; font-size: 12px; color: #f5d27a; }
+.bf-skill b i { font-style: normal; display: inline-grid; place-items: center; width: 16px; height: 16px; border-radius: 3px; background: #243044; color: #e8e4d8; font-size: 10px; }
+.bf-skill b u { text-decoration: none; padding: 0 4px; border-radius: 3px; background: #2a1a3a; color: #c8a0ff; font-size: 10px; }
+.bf-skill b s { text-decoration: none; color: #9a9aa3; font-weight: 400; font-size: 10.5px; margin-left: auto; }
+.bf-skill span { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; color: #b8b4a8; font-size: 11px; }
+.bf-rel { margin-top: 8px; padding-top: 6px; border-top: 1px solid #2a3040; }
+@media (max-width: 1200px) { .sc-scout-h small, .sc-col .sc-chiprow em { display: none; } }

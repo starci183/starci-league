@@ -153,3 +153,41 @@
 /* khu Thẻ bài */
 .lb-card-mode { border-color: #c8a050; background: linear-gradient(160deg, rgba(42,32,16,.9), rgba(10,16,24,.92) 60%); box-shadow: 0 0 22px rgba(200,160,80,.18); }
 .lb-new { display: inline-block; padding: 1px 7px; border-radius: 999px; background: #f5d27a; color: #120d05; font-size: 11px !important; font-weight: 800; letter-spacing: .5px; vertical-align: 2px; }
+
+/* bộ bài chế độ thẻ bài: ô lá gọn (tranh + tên) */
+.cgc { --tint: #4a8ef0; position: relative; box-sizing: border-box; width: 100%; padding: 4px; background: #101822; border: 1px solid var(--tint); border-radius: 6px; user-select: none; }
+.cgc.support { --tint: #e0563a; } .cgc.gold { --tint: #f5d27a; } .cgc.item { --tint: #4a8ef0; }
+.cgc-art { aspect-ratio: 1; overflow: hidden; background: #1a2230; border-radius: 4px; display: flex; align-items: center; justify-content: center; }
+.cgc-art img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.cgc.gold .cgc-art img, .cgc.item .cgc-art img { object-fit: contain; padding: 8%; box-sizing: border-box; }
+.cgc-name { display: block; margin-top: 4px; text-align: center; font-size: 11px; font-weight: 800; line-height: 1.15; color: #f0e8d0; min-height: 2.3em; }
+.cgc-n { position: absolute; top: 2px; right: 4px; padding: 0 5px; font-style: normal; font-size: 11px; font-weight: 800; color: #120d05; background: #f5d27a; border-radius: 8px; }
+.lb-mini .cgc { width: 56px; } .lb-mini .cgc-name { font-size: 9px; }
+.db-view .cgc { max-width: 170px; margin: 22px auto 0; } .db-view .cgc-name { font-size: 14px; }
+.db-grid .cgc { cursor: grab; } .db-grid .cgc:hover { transform: translateY(-3px); filter: drop-shadow(0 0 6px rgba(245,210,122,.6)); }
+.db-row .cgc { width: 52px; flex: none; } .db-row .cgc-name { display: none; }
+.db-row.full { opacity: .6; }
+.db-type.cg-basic { color: #ff8a5a; } .db-type.cg-gold { color: #f5d27a; } .db-type.cg-item { color: #7ab8f5; }
+.db-chip.cg-basic { color: #ffad94; border-color: #e0563a; background: rgba(224,86,58,.12); }
+.db-chip.cg-gold { color: #f5d27a; border-color: #c8a050; background: rgba(245,210,122,.12); }
+.db-chip.cg-item { color: #9cc4ff; border-color: #4a8ef0; background: rgba(74,142,240,.12); }
+
+/* ép kích thước ảnh lá: không bao giờ hiện cỡ gốc */
+.cgc-art { position: relative; width: 100%; aspect-ratio: 1 / 1; }
+.cgc-art img, .cgc.gold .cgc-art img, .cgc.item .cgc-art img { position: absolute; inset: 0; width: 100%; height: 100%; max-width: 100%; padding: 0; object-fit: cover; }
+.db-grid .cgc { width: 118px; }
+.db-view .cgc { width: 220px; max-width: 100%; }
+.db-row .cgc { width: 44px; height: 44px; padding: 2px; flex: none; }
+.lb-mini .cgc { width: 56px; }
+
+.db-type.cg-spell { color: #9ad08a; }
+.db-chip.cg-spell { color: #b8e6a8; border-color: #4caa5a; background: rgba(76,170,90,.12); }
+
+/* Lá trong màn xếp bộ dùng khung thẻ Hextech (.cv): bỏ hộp cũ của .cgc, chừa chỗ cho badge nhô lên đầu lá */
+.cgc { padding: 12% 0 0; background: none; border: none; border-radius: 0; }
+.cgc .cv { width: 100%; }
+.cgc .cv-name { font-size: inherit; }
+.db-grid .cgc { font-size: 11px; }
+.db-view .cgc { font-size: 15px; }
+.db-row .cgc, .lb-mini .cgc { padding-top: 0; height: auto; }
+.cgc-n { top: 14%; z-index: 3; }

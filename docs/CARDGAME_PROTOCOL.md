@@ -4,12 +4,13 @@ Code server: `packages/server/src/CardRoom.ts` (đăng ký ở `index.ts`, tên 
 
 ## 1. Tạo / vào phòng
 ```ts
-client.create("card", { name, token?, bot?: "easy"|"hard", private?: boolean, fast?: boolean, sim?: boolean, team?: string[], seed?: number })
-client.joinById(roomId, { name, token?, team? })     // phòng thường: tối đa 2 người
+client.create("card", { name, token?, bot?: "easy"|"hard", private?: boolean, fast?: boolean, sim?: boolean, team?: string[], seed?: number, deck?: string[] })
+client.joinById(roomId, { name, token?, team?, deck? })     // phòng thường: tối đa 2 người
 client.joinOrCreate("card", { name })                // ghép ngẫu nhiên
 ```
 - `bot`: đấu máy (người = phe A đi trước, máy = phe B; phòng tự private). `easy` đôi khi đánh bậy/bỏ phản ứng.
 - `sim: true`: 2 bot Khó đánh nhau, khách chỉ xem (nhận state đầy đủ, `you: null`). `fast: true` bỏ nhịp chờ (test); không có `fast` thì bot mỗi hành động cách 1 giây.
+- `deck`: bộ gốc 20 lá người chơi tự xếp, mảng mã `DeckCardId` (`"basic"|"draw"|"buff"|"potion"|"gold"|"item:<mảnh>"`, xem `cg.DECK_POOL`). Server kiểm bằng `cg.validateDeck`; thiếu hoặc sai thì dùng `cg.DEFAULT_DECK` (không báo lỗi). Máy và phòng sim luôn dùng `DEFAULT_DECK`.
 - `team`: 5 tướng chọn sẵn (bỏ qua màn chọn nếu hợp lệ). `seed`: cố định xáo bài (test).
 - Auth như phòng duel (`token` Supabase hoặc khách).
 - Người vào trước là phe **A** (đi trước), người sau là **B**. `room.sessionId` ↔ phe: dùng `you` trong `cg:state`.
@@ -80,3 +81,10 @@ PlayerView = {
 
 ## 6. Mô phỏng
 `npx tsx scripts/card_sim.ts [số trận=40] [song song=4] [file.json]` (cần server đang chạy): tỉ lệ thắng theo tướng, lý do thắng, số vòng, tỉ lệ bên đi trước thắng. Trận quá 150 vòng hoặc 40000 bước bot -> `timeout`.
+
+## Bổ sung (đợt 30 tướng)
+- `Action` craft: `{ t:"craft", side, items:[uid, uid], gold: uid }` (không còn `unit`; gửi kèm cũng bị bỏ qua). Món ghép thành **lá đồ huyền thoại** trên tay: `Card { kind:"support", id:"legend", item:<id món> }`. Đeo bằng `{ t:"play", side, uid, args:{ target:<tướng mình còn ô đồ> } }` (có trong `cg:legal`).
+- Sự kiện mới: `equip {side, unit, item}`, `tokenFlip {unit, card?, secret?}`, `marker {side, lane, id, on}`; `craft {side, item, card?, unit?}` (`unit` chỉ có khi rèn thẳng vào tướng). `tokenEnd.reason` thêm `"expired"`.
+- `cg:state` có thêm `markers` (dấu trên đường). Token úp của đối thủ: `units[id].token.secret`/`card` bị xoá tới khi lật.
+- Thẻ hỗ trợ mới: phép bổ trợ `spell_<heal|flash|ignite|exhaust|barrier|cleanse|smite|teleport>` (art `card_support/spell_<id>.png`), đánh như lá thường với `args` trong `cg:legal`.
+- **Bước gọi tướng:** `phase` trong `cg:state` có thêm `"summon"`. Khi `toMove` là bạn và `phase === "summon"`, `cg:legal` chỉ gồm `{t:"summon", side, hero, lane}` và (nếu được phép) `{t:"draw", side}` = xong bước gọi tướng, rút bài. Lượt đầu chưa có `draw` cho tới khi gọi ≥1 tướng; gọi xong mà hết đường/hết tướng thì server tự rút (không cần gửi `draw`). `Action` mới: `{ t:"draw"; side }`. Thẻ chiêu chung (wild) không còn xuất hiện.

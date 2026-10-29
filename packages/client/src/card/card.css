@@ -5,3 +5,5 @@
 .cg-side { border-left: 1px solid #3a3020; min-height: 0; display: flex; flex-direction: column; }
 .cg-center { display: grid; place-items: center; height: 100%; font-size: 18px; }
 .cg-error { color: #ff8a7a; }
+/* Ảnh tướng là chân dung dọc (308x560): ô vuông/ngang thì căn phía trên để không cụt đầu */
+.cg-host img[src*="/heroes/"] { object-position: 50% 12%; }

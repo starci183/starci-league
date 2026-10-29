@@ -26,6 +26,9 @@ const ZERO: UnitStats = {
 export class Game {
     events: GameEvent[] = []
     private hookDepth = 0
+    /** Lá/tướng đang giải quyết (engine đặt quanh resolve) để g.status tự ghi nguồn */
+    cur: { src?: string; card?: string } = {
+    }
     constructor(public s: GameState) {}
     emit(e: GameEvent) { this.events.push(e) }
     log(text: string) { this.emit({
@@ -110,6 +113,9 @@ export class Game {
             for (const k of Object.keys(ZERO) as (keyof UnitStats)[]) out[k] += b[k] ?? 0
             out.ap += (b.manaRegen ?? 0) * RULES.manaRegenToAp
         }
+        // stack "itemAmp" (%): đồ của tướng mạnh thêm (Ornn rèn đồ Kiệt Tác)
+        const amp = (u.stacks?.itemAmp ?? 0) / 100
+        if (amp) for (const k of Object.keys(out) as (keyof UnitStats)[]) out[k] *= 1 + amp
         return out
     }
     atk(u: Unit) { const st = this.stats(u); return Math.round((this.hero(u).atk + st.atk) * (1 + st.atkMult)) }
@@ -134,7 +140,7 @@ export class Game {
     has(u: Unit, id: string) { return !!u.statuses[id] }
     statusV(u: Unit, id: string) { return u.statuses[id]?.v ?? 0 }
     /** Gắn trạng thái `turns` lượt của CHỦ tướng (o.of đổi sang phe khác: vd "tới hết lượt đối thủ" = of: phe đối thủ). o.v: giá trị; o.add: cộng dồn v (tối đa o.max). */
-    status(u: Unit, id: string, turns: number, o: { v?: number; add?: boolean; max?: number; of?: Side; until?: number } = {
+    status(u: Unit, id: string, turns: number, o: { v?: number; add?: boolean; max?: number; of?: Side; until?: number; src?: string; card?: string } = {
     }) {
         if (u.status !== "board") return
         const fx = this.s.fx
@@ -149,12 +155,19 @@ export class Game {
         let v = o.v ?? 1
         if (cur && o.add) v = Math.min(o.max ?? Infinity,
             cur.v + v)
+        const src = o.src ?? this.cur.src, card = o.card ?? this.cur.card
         u.statuses[id] = {
             until: cur ? Math.max(cur.until,
-                until) : until, v
+                until) : until, v, ...(src ? {
+                src
+            } : {
+            }), ...(card ? {
+                card
+            } : {
+            })
         }
         this.emit({
-            t: "status", target: u.id, id, turns, v
+            t: "status", target: u.id, id, turns, v, src, card
         })
     }
     removeStatus(u: Unit, id: string) { if (u.statuses[id]) { delete u.statuses[id]; this.emit({
@@ -211,6 +224,8 @@ export class Game {
             }
             if (tag !== "dot" && this.has(src,
                 "empower")) m *= 1 + RULES.buffCard.dmg
+            if (this.has(src,
+                "exhaust")) m *= 0.6 // Kiệt Sức (phép bổ trợ)
         }
         if (this.has(tgt,
             "chill")) m *= 1 + RULES.chillBonus
@@ -257,12 +272,19 @@ export class Game {
                 src,
                 Math.round(hpLost * vamp))
         }
+        // hook onLethal: tướng có thể "không chết" (đặt lại hp > 0) trước khi bị hạ (Renata nội tại)
+        if (tgt.hp <= 0 && tgt.status === "board" && !tgt.token) this.hook("onLethal",
+            {
+                target: tgt, src
+            })
         if (tgt.hp <= 0 && tgt.status === "board") this.kill(tgt,
             src)
         return absorbed + hpLost
     }
     heal(src: Unit | undefined, tgt: Unit, amount: number): number {
         if (tgt.status !== "board" || amount <= 0) return 0
+        if (this.has(tgt,
+            "grievous")) amount *= 1 - RULES.grievous // Vết Thương Sâu: hồi máu giảm
         const real = Math.max(0,
             Math.min(Math.round(amount),
                 tgt.maxHp - tgt.hp))
@@ -274,6 +296,8 @@ export class Game {
     }
     shield(src: Unit | undefined, tgt: Unit, amount: number) {
         if (tgt.status !== "board" || amount <= 0) return
+        if (this.has(tgt,
+            "grievous")) amount *= 1 - RULES.grievous // Vết Thương Sâu: Khiên nhận giảm
         tgt.shield += Math.round(amount)
         this.emit({
             t: "shield", src: src?.id, target: tgt.id, amount: Math.round(amount), shield: tgt.shield
@@ -337,7 +361,8 @@ export class Game {
             })
     }
     /** Gỡ token khỏi ô phụ và khỏi state */
-    removeToken(tok: Unit, reason: "dead" | "owner" | "replaced") {
+    removeToken(tok: Unit, reason: "dead" | "owner" | "replaced" | "expired") {
+        this.flipToken(tok) // token úp rời sân thì lộ mặt
         if (this.s.extra[tok.side] === tok.id) this.s.extra[tok.side] = null
         tok.status = "dead"; tok.lane = -1
         this.emit({
@@ -361,6 +386,8 @@ export class Game {
             token: {
                 id: def.id, name: def.name, atk: def.atk ?? 0, armor: def.armor ?? 0, mr: def.mr ?? 0, damage: def.damage ?? "physical",
                 role: def.role ?? "fighter", soak: def.soak ?? !!def.ownerId, overflow: def.overflow ?? false, ownerId: def.ownerId,
+                hidden: def.hidden || undefined, secret: def.secret, card: def.card, expires: def.turns ? this.turnsUntil(side,
+                    def.turns) : undefined,
             },
         }
         this.s.units[id] = u
@@ -369,6 +396,19 @@ export class Game {
             t: "summonToken", side, unit: id, name: def.name, owner: def.ownerId
         })
         return u
+    }
+    /** Lật token úp: lộ secret/card cho cả hai bên (không làm gì nếu token đã ngửa) */
+    flipToken(tok: Unit) {
+        if (!tok.token?.hidden) return
+        tok.token.hidden = false
+        this.emit({
+            t: "tokenFlip", unit: tok.id, card: tok.token.card, secret: tok.token.secret
+        })
+    }
+    /** Gỡ các token đã hết hạn (gọi cuối mỗi lượt) */
+    expireTokens() {
+        for (const u of Object.values(this.s.units)) if (u.token && u.status === "board" && u.token.expires !== undefined && u.token.expires <= this.s.turnNo) this.removeToken(u,
+            "expired")
     }
     /** Hiệu ứng tạm (đổi mục tiêu, giảm sát thương...) mà lá Quick đang giải quyết áp lên mắt xích ngay dưới nó */
     chainFx() { return (this.s.fxNext ??= {
@@ -408,6 +448,57 @@ export class Game {
         this.emit({
             t: "move", unit: u.id, from: old, to: lane, with: occ?.id
         })
+    }
+
+    /** Đeo món `item` lên tướng u (máu tối đa/hiện tại tăng theo máu của món), phát "equip" + hook onEquip. Trả false nếu hết ô. */
+    equip(u: Unit, item: string): boolean {
+        if (u.items.length >= RULES.itemSlots || u.token) return false
+        const before = this.stats(u).hp
+        u.items.push(item)
+        const dh = this.stats(u).hp - before
+        u.maxHp += dh; if (u.status === "board") u.hp += dh
+        this.emit({
+            t: "equip", side: u.side, unit: u.id, item
+        })
+        this.hook("onEquip",
+            {
+                side: u.side, unit: u, item
+            })
+        return true
+    }
+
+    // ---------------- Dấu mốc trên đường (lane markers) ----------------
+    /** Danh sách id dấu đang nằm ở đường `lane` phía `side` */
+    markersAt(side: Side, lane: number): string[] { return this.s.markers?.[side]?.[lane] ?? [] }
+    /** Đặt 1 dấu `id` lên đường `lane` phía `side` (một đường có thể có nhiều dấu) */
+    addMarker(side: Side, lane: number, id: string) {
+        this.s.markers ??= {
+            A: [[],
+                [],
+                [],
+                [],
+                []], B: [[],
+                [],
+                [],
+                [],
+                []]
+        }
+        this.s.markers[side][lane].push(id)
+        this.emit({
+            t: "marker", side, lane, id, on: true
+        })
+    }
+    /** Gỡ 1 dấu `id` ở đường `lane` phía `side`; trả về true nếu có dấu để gỡ */
+    removeMarker(side: Side, lane: number, id: string): boolean {
+        const list = this.s.markers?.[side]?.[lane]
+        const i = list ? list.indexOf(id) : -1
+        if (!list || i < 0) return false
+        list.splice(i,
+            1)
+        this.emit({
+            t: "marker", side, lane, id, on: false
+        })
+        return true
     }
 
     // ---------------- Đòn đánh ----------------
@@ -486,9 +577,13 @@ export class Game {
         "ao_choang",
         "dai_khong_lo",
         "nuoc_mat"][this.randInt(8)] }
-    supportCard(id: string): Card { return this.newCard({
-        kind: "support", id, item: id === "item" ? this.randomComponent() : undefined
-    }) }
+    /** Thẻ hỗ trợ `id`; lá Đồ: mảnh `item` chỉ định, hoặc ngẫu nhiên nếu không ghi. Nhận cả mã bộ gốc "item:<mảnh>". */
+    supportCard(id: string, item?: string): Card {
+        if (id.startsWith("item:")) { item = id.slice(5); id = "item" }
+        return this.newCard({
+            kind: "support", id, item: id === "item" ? item ?? this.randomComponent() : undefined
+        })
+    }
     /** Lá chiêu của tướng hero thuộc phe side */
     skillCard(hero: string, side: Side, key: SkillKey): Card { return this.newCard({
         kind: "skill", id: `${hero}_${key.toLowerCase()}`, hero, side
@@ -502,13 +597,18 @@ export class Game {
     /** 34 lá khi một tướng ra sân */
     heroCards(hero: string, side: Side): Card[] {
         const out: Card[] = []
+        const def = getHero(hero)
         for (const k of ["Q",
             "E",
-            "R"] as SkillKey[]) for (let i = 0; i < RULES.skillCopies[k]; i++) out.push(this.skillCard(hero,
+            "R"] as SkillKey[]) for (let i = 0; i < (def?.skillCopies?.[k] ?? RULES.skillCopies[k]); i++) out.push(this.skillCard(hero,
             side,
             k))
+        const sup = {
+            ...RULES.heroSupport, ...(def?.supportCopies ?? {
+            })
+        }
         for (const [id,
-            n] of Object.entries(RULES.heroSupport)) for (let i = 0; i < n; i++) out.push(this.supportCard(id))
+            n] of Object.entries(sup)) for (let i = 0; i < (n ?? 0); i++) out.push(this.supportCard(id))
         return out
     }
 
@@ -673,9 +773,8 @@ export class Game {
         this.emit({
             t: "steal", from, to, card
         })
-        const gained = card.kind === "skill" || card.copyOf ? this.newCard({
-            kind: "wild", id: `wild_${(card.copyOf ?? card.id).slice(-1)}`
-        }) : card
+        // lá chiêu (hoặc Bóng) của đối thủ không dùng được: thành 1 lá Đánh thường của người cướp
+        const gained = card.kind === "skill" || card.copyOf || card.kind === "wild" ? this.supportCard("basic") : card
         this.giveCard(to,
             gained,
             "hand")

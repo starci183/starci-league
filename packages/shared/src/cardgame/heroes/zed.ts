@@ -1,81 +1,94 @@
-// Zed (Sát thủ, vật lý): máu 820 · AD 84 · giáp/kháng 30/28. Lối chơi: MỘT LƯỢT DỒN CHẾT.
-// Bóng = lá special (copyOf) nhân bản lá Zed trong mộ; Dấu Ấn tích sát thương rồi nổ 50% cuối lượt đối thủ.
+// Zed (Sát thủ, vật lý): máu 820 · AD 84 · giáp/kháng 30/28.
+// MỤC ĐÍCH: Một lượt dồn chết từ mộ bài. Các lượt đầu tiêu lá Zed để nuôi mộ; lượt kết liễu: R đặt Dấu Ấn (số đòn trúng hiện trên dấu),
+// E gọi Bóng (lá special copyOf) nhân bản lá Q/R trong mộ, mọi đòn dồn vào dấu, cuối lượt dấu nổ theo số đòn.
+// Engine: grave (đếm lá Zed trong mộ, sao chép lá trong mộ). Đối thủ trả lời: nối chuỗi trong lượt dồn (Braum đổi mục tiêu, Choáng làm lá fizzle).
 import {
     defineHero, defineSpecialCard
 } from "../registry"
 import type {
-    Card
+    Card, Ctx
 } from "../types"
 import {
     otherSide
 } from "../types"
+import type {
+    Game
+} from "../game"
 
-const F_Q = "40 + 60% AD + 20% AP"
-const Q_MARK_BONUS = 0.4
-const EXECUTE_PCT = 0.08
 const MARK = "zedmark"
-const BURST = 0.5
+const PER_GRAVE = 0.03
+const MAX_GRAVE = 10
+const F_Q = "40 + 55% AD + 20% AP"
+const F_R = "40 + 30% AD"
+const F_HIT = "30 + 25% AD"
+const MAX_HITS = 8
+const SHADOW_AT = 4
 
 defineSpecialCard({
     id: "shadow", name: "Bóng", desc: "Bản sao một lá Zed trong mộ: tung đúng chiêu đó rồi biến mất. Hết lượt mà chưa dùng cũng biến mất."
 })
 
-const isZed = (c: Card) => c.kind === "skill" && c.hero === "zed"
+const isZedSkill = (c: Card) => c.kind === "skill" && c.hero === "zed"
+/** Số lá Zed trong mộ bài của side (công khai) */
+export const zedGrave = (g: Game, side: "A" | "B") => g.player(side).grave.filter(isZedSkill).length
+const amp = (c: Ctx) => 1 + PER_GRAVE * Math.min(MAX_GRAVE,
+    zedGrave(c.g,
+        c.side))
 
 export default defineHero({
-    id: "zed", name: "Zed", role: "assassin", damage: "physical", hp: 820, atk: 84, armor: 30, mr: 28,
-    desc: "Chủ nhân Bóng Tối: tích bài, rồi một lượt nhân bản chiêu bằng Bóng, dồn hết vào một mục tiêu.",
+    id: "zed", name: "Zed", role: "assassin", damage: "physical", hp: 760, atk: 80, armor: 30, mr: 28,
+    skillCopies: {
+        Q: 6, E: 4, R: 2
+    },
+    desc: "Chủ nhân Bóng Tối: tiêu lá để nuôi mộ, rồi một lượt gọi Bóng nhân bản chiêu trong mộ, dồn hết vào Dấu Ấn và nổ cuối lượt.",
     passive: {
-        name: "Khinh Thường Kẻ Yếu",
-        desc: `Đòn đánh của Zed lên mục tiêu dưới 50% máu gây thêm ${EXECUTE_PCT * 100}% máu tối đa của nó.`,
+        name: "Bóng Tối Trong Mộ",
+        desc: `Chiêu của Zed gây thêm ${PER_GRAVE * 100}% sát thương cho mỗi lá Zed trong mộ bài của bạn (tối đa +${PER_GRAVE * MAX_GRAVE * 100}%). Mỗi lần Zed gây sát thương lên tướng có Dấu Ấn, dấu +1 đòn (tối đa ${MAX_HITS}).`,
     },
     hooks: {
-        onAttack(g, me, d) {
-            if (d.attacker.id !== me.id || d.target.hp / d.target.maxHp >= 0.5) return
-            d.info.bonus.push({
-                raw: d.target.maxHp * EXECUTE_PCT, kind: "physical"
-            })
-        },
-        // cộng dồn sát thương Zed gây lên mục tiêu đang bị Dấu Ấn
         onDamage(g, me, d) {
             if (d.src?.id !== me.id || (d.tag !== "attack" && d.tag !== "skill") || !g.has(d.target,
-                MARK)) return
-            g.stack(me,
-                `dmg:${d.target.id}`,
-                d.amount)
+                MARK) || d.target.status !== "board") return
+            const v = Math.min(MAX_HITS,
+                g.statusV(d.target,
+                    MARK) + 1)
+            d.target.statuses[MARK].v = v
+            g.emit({
+                t: "status", target: d.target.id, id: MARK, turns: 0, v
+            })
         },
-        // cuối lượt đối thủ: dấu nổ
+        // cuối lượt Zed: mọi Dấu Ấn nổ theo số đòn
         onTurnEnd(g, me, d) {
-            if (d.side === me.side) return
+            if (d.side !== me.side) return
             for (const t of g.enemies(me)) {
-                if (!g.has(t,
-                    MARK)) continue
-                const dmg = Math.round(g.stackOf(me,
-                    `dmg:${t.id}`) * BURST)
-                g.setStack(me,
-                    `dmg:${t.id}`,
-                    0)
+                const hits = g.statusV(t,
+                    MARK)
+                if (!hits) continue
                 g.removeStatus(t,
                     MARK)
-                if (dmg > 0) g.damage(me,
+                g.damage(me,
                     t,
-                    dmg,
+                    g.f(me,
+                        F_R) + hits * g.f(me,
+                        F_HIT),
                     "true",
                     {
                         tag: "effect"
                     })
-                if (t.status === "dead") {
-                    // hạ gục: lá R đánh dấu quay về tay
-                    const uid = `c${g.stackOf(me,
-                        `markCard:${t.id}`)}`
-                    const gr = g.player(me.side).grave
-                    const i = gr.findIndex((x) => x.uid === uid)
-                    if (i >= 0) { const [card] = gr.splice(i,
-                        1); g.emit({
-                        t: "returnToHand", side: me.side, card
-                    }); g.giveCard(me.side,
-                        card,
-                        "hand") }
+                if (t.status !== "board") {
+                    const card = g.lastGrave(me.side,
+                        (x) => x.id === "zed_r")
+                    if (card) {
+                        const gr = g.player(me.side).grave
+                        gr.splice(gr.indexOf(card),
+                            1)
+                        g.emit({
+                            t: "returnToHand", side: me.side, card
+                        })
+                        g.giveCard(me.side,
+                            card,
+                            "hand")
+                    }
                 }
             }
         },
@@ -83,25 +96,28 @@ export default defineHero({
     skills: {
         Q: {
             key: "Q", name: "Phi Tiêu Sắc Lẻm", target: "enemy",
-            desc: `{${F_Q}} sát thương vật lý lên 1 tướng địch. **Điều kiện:** mục tiêu đang bị Dấu Ấn (R) thì thêm ${Q_MARK_BONUS * 100}% sát thương.`,
+            desc: `{${F_Q}} sát thương vật lý lên 1 tướng địch. **Điều kiện:** mục tiêu có Dấu Ấn thì Zed đánh thêm 1 đòn đánh thường miễn phí lên nó.`,
             resolve(c) {
                 const t = c.target!
-                const m = c.g.has(t,
-                    MARK) ? 1 + Q_MARK_BONUS : 1
                 c.g.damage(c.self,
                     t,
-                    c.f(F_Q) * m,
+                    c.f(F_Q) * amp(c),
                     "physical",
                     {
                         tag: "skill"
+                    })
+                if (t.status === "board" && c.g.has(t,
+                    MARK)) c.g.attack(c.self,
+                    t,
+                    {
+                        free: true, mult: 0.4
                     })
             },
         },
         E: {
             key: "E", name: "Phân Thân Bóng Tối", target: "lane",
-            desc: "Zed chuyển sang một đường bất kỳ (đổi chỗ với tướng mình nếu có), rồi tạo 1 lá Bóng lên tay: bản sao lá Zed vào mộ gần nhất (không sao chép E). Bóng biến mất cuối lượt nếu không dùng. **Điều kiện:** trong mộ có từ 3 lá Zed thì tạo 2 lá Bóng (sao chép 2 lá gần nhất).",
+            desc: `Zed chuyển sang một đường (đổi chỗ với tướng mình nếu có), rồi tạo 1 lá Bóng: bản sao lá Q hoặc R của Zed vào mộ gần nhất. Bóng biến mất cuối lượt nếu không dùng. **Điều kiện:** mộ bài có từ ${SHADOW_AT} lá Zed thì tạo 2 lá Bóng (2 lá Q/R gần nhất).`,
             options(c) {
-                // chỉ đáng đứng đường đang có địch đối diện (nếu không có thì ở nguyên chỗ)
                 const foes = c.g.openLanes().filter((l) => c.g.at(otherSide(c.side),
                     l)?.status === "board")
                 return (foes.length ? foes : [c.self.lane]).map((lane) => ({
@@ -109,11 +125,12 @@ export default defineHero({
                 }))
             },
             resolve(c) {
-                if (c.lane !== undefined) c.g.moveTo(c.self,
+                if (c.lane !== undefined && c.lane !== c.self.lane) c.g.moveTo(c.self,
                     c.lane)
                 const grave = c.g.player(c.side).grave
-                const copyable = grave.filter((x) => isZed(x) && !x.id.endsWith("_e"))
-                const n = grave.filter(isZed).length >= 3 ? 2 : 1
+                const copyable = grave.filter((x) => isZedSkill(x) && (x.id === "zed_q" || x.id === "zed_r"))
+                const n = zedGrave(c.g,
+                    c.side) >= SHADOW_AT ? 2 : 1
                 for (let i = 0; i < n; i++) {
                     const src = copyable[copyable.length - 1 - i]
                     if (!src) break
@@ -127,19 +144,27 @@ export default defineHero({
         },
         R: {
             key: "R", name: "Dấu Ấn Tử Thần", target: "enemy",
-            desc: `Đánh dấu 1 tướng địch. Cuối lượt đối thủ, dấu nổ gây ${BURST * 100}% tổng sát thương Zed đã gây lên nó từ lúc đánh dấu (sát thương chuẩn). **Điều kiện:** dấu nổ hạ gục thì lá R này quay về tay.`,
+            desc: `Đặt Dấu Ấn lên 1 tướng địch (đã có thì +2 đòn). Cuối lượt này dấu nổ: {${F_R}} + {${F_HIT}} mỗi đòn hiện trên dấu, sát thương chuẩn. **Điều kiện:** dấu nổ hạ gục thì lá R gần nhất trong mộ quay về tay.`,
             resolve(c) {
                 const t = c.target!
+                const cur = c.g.statusV(t,
+                    MARK)
                 c.g.status(t,
                     MARK,
-                    1)
-                c.g.setStack(c.self,
-                    `dmg:${t.id}`,
-                    0)
-                c.g.setStack(c.self,
-                    `markCard:${t.id}`,
-                    Number(c.card.uid.slice(1)) || 0)
+                    1,
+                    {
+                        v: Math.min(MAX_HITS,
+                            cur ? cur + 2 : 1), until: c.g.s.turnNo
+                    })
+                if (!cur) c.g.damage(c.self,
+                    t,
+                    c.f(F_HIT) * amp(c),
+                    "physical",
+                    {
+                        tag: "skill"
+                    })
             },
         },
     },
 })
+
