@@ -42,9 +42,13 @@ export class CardRoomState extends Schema {
   @type("boolean") sim = false
 }
 
-type Hidden = { uid: string; hidden: true };
+type Hidden = { uid: string; hidden: true; temp?: true };
+/** Lá úp: chỉ lộ uid; lá tạm (hiệu ứng tướng) vẫn lộ cờ temp để client biết nó sẽ tan biến cuối lượt */
 const hidden = (c: cg.Card): Hidden => ({
-    uid: c.uid, hidden: true
+    uid: c.uid, hidden: true, ...(c.temp ? {
+        temp: true as const
+    } : {
+    })
 })
 
 const pickRand = <T,>(a: T[], rnd = Math.random) => a[Math.floor(rnd() * a.length)]
@@ -86,6 +90,39 @@ function unitsFor(s: cg.GameState, viewer: Side | null): cg.GameState["units"] {
         } : u
     }
     return out
+}
+
+/** Lá có args.pick bí mật với đối thủ (hiện không có: Gangplank úp Thùng giả qua HeroDef.handUse, không phát sự kiện play/chuỗi nên không lộ lá; secret của token Thùng đã bị lọc ở maskUnits) */
+const SECRET_PICK_CARDS = new Set<string>()
+const secretArgs = (card: cg.Card | undefined, args: cg.PlayArgs | undefined, owner: Side, viewer: Side | null): cg.PlayArgs | undefined => {
+    if (!args || viewer === null || viewer === owner || !card || !SECRET_PICK_CARDS.has(card.id) || args.pick === undefined) return args
+    const rest = {
+        ...args
+    }
+    delete rest.pick
+    return rest
+}
+/** Chuỗi đang mở theo người xem: che args.pick của lá bí mật bên kia */
+function chainFor(chain: cg.Chain | null, viewer: Side | null): cg.Chain | null {
+    if (!chain || viewer === null) return chain
+    return {
+        ...chain, links: chain.links.map((L) => {
+            const args = secretArgs(L.card,
+                L.args,
+                L.side,
+                viewer)
+            return args === L.args ? L : {
+                ...L, args: args ?? {
+                }
+            }
+        })
+    }
+}
+/** Lá trên cùng bộ của `side` mà hành động hợp lệ nhắc tới qua args.pick (Twisted Fate Q xem 3 lá): gửi riêng cho chủ bộ */
+function peekFor(s: cg.GameState, side: Side, legal: cg.Action[]): cg.Card[] {
+    const want = new Set<string>()
+    for (const a of legal) if ((a.t === "play" || a.t === "chain") && a.args?.pick) want.add(a.args.pick)
+    return want.size ? s.players[side].deck.filter((c) => want.has(c.uid)) : []
 }
 
 function actionKey(state: cg.GameState, a: cg.Action): string {
@@ -132,7 +169,8 @@ export class CardRoom extends Room<CardRoomState> {
     private fast = false
     private sim = false
     private seed = 0
-    private pace = 1000
+    /** Nhịp mỗi hành động của máy (ms): đủ chậm để người xem kịp theo dõi hoạt cảnh */
+    private pace = 2500
     private stepping = false
     private disposed = false
     private botTimer: { clear(): void } | null = null
@@ -145,7 +183,7 @@ export class CardRoom extends Room<CardRoomState> {
     private chosen: Record<Side, string[]> = {
         A: [], B: []
     }
-    /** Bộ gốc 20 lá mỗi bên (người chơi tự xếp; thiếu/sai thì DEFAULT_DECK, máy và sim luôn DEFAULT_DECK) */
+    /** Bộ gốc 40 lá mỗi bên (người chơi tự xếp; thiếu/sai thì DEFAULT_DECK, máy và sim luôn DEFAULT_DECK); engine thêm 45 lá chiêu của 5 tướng => 85 */
     private decks: Partial<Record<Side, cg.DeckCardId[]>> = {
     }
     /** Số hành động bot trong trận (chống vòng lặp vô hạn ở phòng sim) */
@@ -158,7 +196,7 @@ export class CardRoom extends Room<CardRoomState> {
     onCreate(options: { private?: boolean; bot?: BotLevel; fast?: boolean; sim?: boolean; seed?: number }) {
         this.setState(new CardRoomState())
         this.fast = !!options?.fast
-        this.pace = this.fast ? 0 : 1000
+        this.pace = this.fast ? 0 : 2500
         this.sim = !!options?.sim
         this.state.sim = this.sim
         this.seed = Number.isFinite(options?.seed) ? Number(options!.seed) >>> 0 : Math.floor(Math.random() * 2 ** 31)
@@ -346,8 +384,12 @@ export class CardRoom extends Room<CardRoomState> {
             const ok = turn.action === "pick" && this.bots[turn.side] ? all.filter((id) => !cg.clashesExtraZone([...mine,
                 id])) : all
             const free = ok.length ? ok : all
+            // máy "hard": cấm/chọn theo bản đồ đội hình (combo với tướng mình, khắc tướng địch; botDraft.ts)
+            const smart = this.bots[turn.side] === "hard" ? cg.draftChoice({
+                available: free, mine, theirs: this.chosen[other(turn.side)] ?? [], action: turn.action, noise: 0.8
+            }) : undefined
             if (free.length) this.draftAct(turn.side,
-                pickRand(free))
+                smart ?? pickRand(free))
         }
         if (this.bots[turn.side]) this.draftTimer = this.clock.setTimeout(auto,
             this.fast ? 0 : 700)
@@ -402,7 +444,8 @@ export class CardRoom extends Room<CardRoomState> {
 
     private humanAction(side: Side, raw: cg.Action) {
         const gs = this.gs!
-        if (cg.whoseMove(gs) !== side) throw new Error("Chưa tới lượt bạn")
+        // bước gọi tướng úp (phase "blind"): cả hai bên cùng hành động, không có "lượt"
+        if (gs.phase !== "blind" && cg.whoseMove(gs) !== side) throw new Error("Chưa tới lượt bạn")
         const action = {
             ...raw, side
         } as cg.Action
@@ -433,38 +476,55 @@ export class CardRoom extends Room<CardRoomState> {
 
     // ================= Bot =================
 
+    /** Các phe đang phải quyết định: phase "blind" là mọi phe chưa chốt (đồng thời), còn lại đúng một phe */
+    private movers(gs: cg.GameState): Side[] {
+        return cg.actorsOf(gs)
+    }
+
+    /** Phe máy đang cần ra quyết định (undefined = đang chờ người) */
+    private botMover(): Side | undefined {
+        const gs = this.gs
+        return gs ? this.movers(gs).find((s) => !!this.bots[s]) : undefined
+    }
+
     private pump() {
         if (this.disposed || this.stepping || this.state.phase !== "playing" || !this.gs) return
-        const mover = cg.whoseMove(this.gs)
-        if (!this.bots[mover]) return
+        if (!this.botMover()) return
         if (this.fast) {
             // chạy liên tục theo từng mẻ nhỏ để không chặn vòng lặp sự kiện
             this.stepping = true
             const batch = () => {
                 this.stepping = false
                 if (this.disposed) return
-                for (let i = 0; i < 100 && this.state.phase === "playing" && this.gs && this.bots[cg.whoseMove(this.gs)]; i++) {
+                for (let i = 0; i < 100 && this.state.phase === "playing" && this.gs && this.botMover(); i++) {
                     if (!this.botStep(true)) return
                 }
-                if (this.state.phase === "playing" && this.gs && this.bots[cg.whoseMove(this.gs)]) { this.stepping = true; setImmediate(batch) }
+                if (this.state.phase === "playing" && this.gs && this.botMover()) { this.stepping = true; setImmediate(batch) }
             }
             setImmediate(batch)
         } else {
             this.stepping = true
+            // cửa sổ Chuỗi chỉ có đòn Quick không cần lá: bot quyết định ngay, không bắt người chờ nhịp bot
+            const side = this.botMover()!
+            const instant = cg.isCardlessOnlyWindow(this.gs.phase,
+                cg.legalActions(this.gs,
+                    side))
             this.botTimer = this.clock.setTimeout(() => { this.stepping = false; if (!this.disposed) this.botStep(false) },
-                this.pace)
+                instant ? 0 : this.pace)
         }
     }
 
     /** Một bước của bot. Trả false nếu trận đã kết thúc/lỗi. */
     private botStep(inBatch: boolean): boolean {
         const gs = this.gs!
-        const side = cg.whoseMove(gs)
+        const side = this.botMover()
+        if (!side) return false
         if (++this.steps > 40_000 || gs.round > 150) { this.finish(null,
             "timeout"); return false }
         try {
             let action = cg.chooseAction(gs,
-                side)
+                side,
+                this.bots[side] ?? "hard")
             if (this.bots[side] === "easy") {
                 const legal = cg.legalActions(gs,
                     side)
@@ -531,7 +591,7 @@ export class CardRoom extends Room<CardRoomState> {
         }
         for (const side of SIDES) {
             const p = s.players[side]
-            const showHand = viewer === null || viewer === side || this.revealed[viewer].has(side)
+            const showHand = viewer === null || viewer === side || this.revealed[viewer].has(side) || g.handRevealed(side)
             players[side] = {
                 side, heroes: p.heroes, lives: p.lives, grave: p.grave, handCount: p.hand.length, deckCount: p.deck.length,
                 hand: showHand ? p.hand : undefined,
@@ -540,26 +600,61 @@ export class CardRoom extends Room<CardRoomState> {
             }
         }
         return {
-            you: viewer, round: s.round, turnNo: s.turnNo, active: s.active, phase: s.phase, toMove: cg.whoseMove(s),
+            you: viewer, round: s.round, turnNo: s.turnNo, active: s.active, phase: s.phase,
+            // phase "blind": ai chưa chốt thì tới lượt người đó (cả hai có thể cùng "tới lượt")
+            toMove: s.phase === "blind" && viewer && !s.blind?.ready[viewer] ? viewer : cg.whoseMove(s),
+            blind: s.phase === "blind" ? this.blindFor(s,
+                viewer) : undefined,
             actionsThisTurn: s.actionsThisTurn, openLanes: g.openLanes(), players, units: unitsFor(s,
                 viewer), lanes: s.lanes, markers: s.markers,
-            chain: s.chain, extra: s.extra, prizes: s.prizes, winner: s.winner, endReason: s.endReason, stats: s.stats,
+            chain: chainFor(s.chain,
+                viewer), extra: s.extra, prizes: s.prizes, winner: s.winner, endReason: s.endReason, stats: s.stats,
+            // V2: số đòn đã đánh (công khai) của phe có lượt và phe kia (đòn Quick ngoài lượt), cùng giới hạn cứng
+            turnAttacks: g.turnAttacks(s.active),
+            offTurnAttacks: g.turnAttacks(other(s.active)),
+            attackLimit: g.attackLimit(s.active),
             names: this.names, bots: this.bots, rules: {
-                lives: cg.RULES.lives, handMax: cg.RULES.handMax, laneOpenRound: cg.RULES.laneOpenRound
+                lives: cg.RULES.lives, handMax: cg.RULES.handMax, laneOpenRound: cg.RULES.laneOpenRound,
+                attackLimit: cg.RULES.attackLimit, drawPerTurn: cg.RULES.drawPerTurn, fighterCardlessMult: cg.RULES.fighterCardlessMult,
+                mage: {
+                    manaMax: cg.RULES.mage.manaMax
+                },
+                skillCopies: cg.RULES.skillCopies,
             },
+        }
+    }
+
+    /**
+     * Gọi tướng úp: mỗi người chỉ thấy lựa chọn của chính mình. Lựa chọn của phe kia bị xoá hẳn (cả SỐ lượng),
+     * nếu không người chốt sau sẽ biết đối thủ gọi mấy tướng và đáp lại. `ready` công khai. Khách xem phòng sim (viewer = null) thấy hết.
+     */
+    private blindFor(s: cg.GameState, viewer: Side | null) {
+        const b = s.blind
+        if (!b || viewer === null) return b
+        return {
+            cap: b.cap, ready: b.ready, picks: {
+                A: viewer === "A" ? b.picks.A : [], B: viewer === "B" ? b.picks.B : []
+            }
         }
     }
 
     private sendState(client: Client) {
         if (!this.gs) return
         const viewer = this.viewerSide(client)
-        client.send("cg:state",
-            this.viewOf(this.sim ? null : viewer))
-        if (viewer && this.state.phase === "playing" && cg.whoseMove(this.gs) === viewer) {
-            client.send("cg:legal",
-                cg.legalActions(this.gs,
-                    viewer))
+        const view: ReturnType<CardRoom["viewOf"]> & { peek?: cg.Card[] } = this.viewOf(this.sim ? null : viewer)
+        const legal = viewer && this.state.phase === "playing" && this.movers(this.gs).includes(viewer) ? cg.legalActions(this.gs,
+            viewer) : null
+        // lá trên cùng bộ mà lựa chọn của bạn cần thấy (Twisted Fate Q: chọn 1 trong 3 lá xuống đáy)
+        if (legal && viewer) {
+            const peek = peekFor(this.gs,
+                viewer,
+                legal)
+            if (peek.length) view.peek = peek
         }
+        client.send("cg:state",
+            view)
+        if (legal) client.send("cg:legal",
+            legal)
     }
 
     private sendFull(client: Client) {
@@ -606,6 +701,25 @@ export class CardRoom extends Room<CardRoomState> {
                 return e.side === viewer || e.zone === "grave" ? e : {
                     ...e, card: hidden(e.card)
                 }
+            case "cardBurned":
+                // mộ bài công khai nên lá bị đốt lộ mặt; riêng lá tạm của đối thủ vẫn úp
+                return e.card.temp && e.side !== viewer ? {
+                    ...e, card: hidden(e.card)
+                } : e
+            case "tempExpired":
+                return e.side === viewer ? e : {
+                    ...e, card: hidden(e.card)
+                }
+            case "play": {
+                // Gangplank: Thùng thật/giả là bí mật với đối thủ
+                const args = secretArgs(e.card,
+                    e.args,
+                    e.side,
+                    viewer)
+                return args === e.args ? e : {
+                    ...e, args
+                }
+            }
             default: return e
             }
         })

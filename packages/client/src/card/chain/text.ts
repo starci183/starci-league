@@ -5,6 +5,9 @@ import {
 import type {
     CardView
 } from "../store"
+import {
+    statusNameVi
+} from "../board/helpers"
 
 export type Lang = "vi" | "en"
 type Side = cg.Side
@@ -81,20 +84,9 @@ export const TXT = {
 
 export const isHidden = (c: Card | undefined): boolean => !!c && (c as { hidden?: boolean }).hidden === true
 
-const STATUS_VI: Record<string, string> = {
-    stun: "Choáng",
-    silence: "Câm lặng",
-    chill: "Buốt",
-    shred: "Rã giáp",
-    taunt: "Khiêu khích",
-    empower: "Cường hoá",
-    blind: "Mù",
-    bleed: "Xuất huyết",
-    see_hand: "Thấy bài",
-    kog_arty: "Pháo kích",
-    mushroom_season: "Mùa nấm",
-    nami_bless: "Phước lành",
-}
+/** Tên tiếng Việt của món/mảnh đồ (đồ chế độ thẻ trước, gói đồ cũ sau) */
+const itemNameVi = (id: string) => cg.itemText(id,
+    "vi")?.name ?? getItem(id)?.name ?? id
 const DMG_VI: Record<string, string> = {
     physical: "vật lý", magic: "phép", true: "chuẩn",
 }
@@ -153,10 +145,20 @@ export function eventSide(e: GameEvent): Side | null {
     case "prize":
     case "pass":
     case "reveal":
+    case "cardBurned":
+    case "tempExpired":
+    case "attackCount":
+    case "blindLocked":
+    case "cardFrozen":
+    case "cardThawed":
+    case "revealEnd":
+    case "chainCancel":
+    case "upgrade":
         return e.side
     case "chainWindow": return e.priority
     case "steal": return e.to
     case "end": return e.winner
+    case "manaChange": return sideOfUnit(e.unit)
     case "summon":
     case "respawn":
     case "stack":
@@ -188,7 +190,8 @@ const MINOR = new Set<string>(["stack",
     "create",
     "discard",
     "pass",
-    "shield"])
+    "shield",
+    "attackCount"])
 export const isMinor = (e: GameEvent): boolean => MINOR.has(e.t)
 
 /** Câu tiếng Việt cho một sự kiện */
@@ -201,8 +204,9 @@ export function viText(e: GameEvent, v: CardView, g: cg.Game | null): string | u
     const cn = (c: Card) => cardName(g,
         c,
         "vi")
-    const st = (id: string) => STATUS_VI[id] ?? id
+    const st = (id: string) => statusNameVi(id)
     const lane = (n: number) => `đường ${n + 1}`
+    const pct = `${Math.round((v.rules.fighterCardlessMult ?? .66) * 100)}%`
     switch (e.t) {
     case "roundStart": return `Vòng ${e.round} bắt đầu. Đường mở: ${e.openLanes.map((l) => l + 1).join(", ")}.`
     case "turnStart": return `Lượt của ${sd(e.side)} (vòng ${e.round}).`
@@ -211,9 +215,11 @@ export function viText(e: GameEvent, v: CardView, g: cg.Game | null): string | u
     case "respawn": return `${un(e.unit)} hồi sinh ở ${lane(e.lane)}.`
     case "play": return `${sd(e.side)} đánh ${cn(e.card)}${e.reaction ? " (Quick)" : ""}.`
     case "cast": return `${un(e.unit)} tung ${e.skill}${e.target ? ` vào ${un(e.target)}` : ""}.`
-    case "attack": return e.miss
-        ? `${un(e.attacker)} đánh ${un(e.target)} nhưng trượt.`
-        : `${un(e.attacker)} đánh ${un(e.target)}${e.crit ? " (chí mạng)" : ""}${e.free ? " (miễn phí)" : ""}.`
+    case "attack": return e.cardless
+        ? `${un(e.attacker)} đánh không cần lá ${un(e.target)} (${pct})${e.miss ? " nhưng trượt" : e.crit ? ", chí mạng" : ""}.`
+        : e.miss
+            ? `${un(e.attacker)} đánh ${un(e.target)} nhưng trượt.`
+            : `${un(e.attacker)} đánh ${un(e.target)}${e.crit ? " (chí mạng)" : ""}${e.free ? " (miễn phí)" : ""}.`
     case "damage": return `${un(e.target)} nhận ${e.amount} sát thương ${DMG_VI[e.kind] ?? e.kind}${e.src ? ` từ ${un(e.src)}` : ""}${e.absorbed ? ` (khiên đỡ ${e.absorbed})` : ""}${e.crit ? ", chí mạng" : ""}.`
     case "heal": return `${un(e.target)} hồi ${e.amount} máu.`
     case "shield": return `${un(e.target)} có thêm ${e.amount} khiên.`
@@ -223,15 +229,33 @@ export function viText(e: GameEvent, v: CardView, g: cg.Game | null): string | u
     case "move": return `${un(e.unit)} dời từ ${lane(e.from)} sang ${lane(e.to)}${e.with ? `, đổi chỗ với ${un(e.with)}` : ""}.`
     case "kill": return `${un(e.target)} bị hạ gục${e.src ? ` bởi ${un(e.src)}` : ""}.`
     case "lives": return `${sd(e.side)} còn ${e.lives} mạng.`
-    case "draw": return isHidden(e.card) ? `${sd(e.side)} rút 1 lá.` : `${sd(e.side)} rút ${cn(e.card)}.`
+    case "draw":
+        if (e.reason === "support") {
+            // Trợ thủ ra sân: lấy Q và E từ bộ lên tay (lá của đối thủ úp nên chỉ biết số lá)
+            return isHidden(e.card)
+                ? `${sd(e.side)} lấy 1 lá chiêu từ bộ lên tay (Trợ thủ ra sân).`
+                : `${e.card.hero ? un(`${e.card.side ?? e.side}:${e.card.hero}`) : sd(e.side)} gọi ra: lấy ${cn(e.card)} lên tay.`
+        }
+        return isHidden(e.card) ? `${sd(e.side)} rút 1 lá.` : `${sd(e.side)} rút ${cn(e.card)}.`
     case "drawAuto": return `${sd(e.side)} rút ${cn(e.card)}, lá này kích hoạt ngay.`
     case "discard": return `${sd(e.side)} bỏ ${cn(e.card)}.`
+    case "cardBurned": return `${sd(e.side)} tay đầy, đốt ${cn(e.card)}.`
+    case "tempExpired": return `${cn(e.card)} (tạm) tan biến.`
+    case "manaChange": return `${un(e.unit)} ${e.delta >= 0 ? "+" : "−"}${Math.abs(e.delta)} mana (${e.mana}/${e.max}).`
+    case "attackCount": return `${sd(e.side)} đã đánh ${e.used}/${e.limit}.`
+    case "chainCancel": return `Mắt xích ${e.n} bị huỷ${e.card ? `: ${cn(e.card)}` : ""}.`
+    case "cardFrozen": return `${cn(e.card)} của ${sd(e.side)} bị Hoá Băng, không đánh được.`
+    case "cardThawed": return `${cn(e.card)} của ${sd(e.side)} tan băng.`
+    case "revealEnd": return `Tay bài của ${sd(e.side)} không còn bị lộ.`
+    case "upgrade": return `${un(e.unit)} nâng cấp ${itemNameVi(e.from)} thành ${itemNameVi(e.item)}.`
+    case "blindStart": return `Vòng ${e.round}: gọi tướng úp, mỗi bên tối đa ${e.cap} tướng.`
+    case "blindLocked": return `${sd(e.side)} đã chốt gọi tướng.`
     case "burn": return `${cn(e.card)} trong bộ của ${sd(e.side)} bị đốt.`
     case "create": return `${cn(e.card)} được thêm vào ${e.zone === "hand" ? "tay" : e.zone === "deck" ? "bộ bài" : "mộ"} của ${sd(e.side)}.`
     case "steal": return `${sd(e.to)} cướp ${cn(e.card)} của ${sd(e.from)}.`
     case "returnToHand": return `${cn(e.card)} về lại tay ${sd(e.side)}.`
     case "shuffle": return e.what === "graveIntoDeck" ? `${sd(e.side)} xáo ${e.count} lá từ mộ vào bộ bài.` : `${sd(e.side)} xáo bộ bài.`
-    case "craft": return `${sd(e.side)} ghép ${getItem(e.item)?.name ?? e.item} cho ${un(e.unit)}.`
+    case "craft": return e.unit ? `${sd(e.side)} ghép ${itemNameVi(e.item)} cho ${un(e.unit)}.` : `${sd(e.side)} ghép ${itemNameVi(e.item)} (lá đồ lên tay).`
     case "chainAdd": return `Mắt xích ${e.n}: ${sd(e.side)} ${e.card ? `kích hoạt ${cn(e.card)}` : `đánh thường bằng ${un(e.actor)}`}${e.targets.length ? ` nhắm ${e.targets.map(un).join(", ")}` : ""}.`
     case "chainWindow": return `${sd(e.priority)} có thể nối chuỗi (${e.length} mắt xích).`
     case "chainResolve": return `Mắt xích ${e.n} giải quyết${e.card ? `: ${cn(e.card)}` : ""}.`

@@ -1,134 +1,98 @@
-// Kog'Maw (Xạ thủ, vật lý): máu 710 · AD 68 · giáp/kháng 26/28. Engine: scaling (lớn dần), lật kèo theo mạng.
-// MỤC ĐÍCH: "Lớn lên từ cái chết" — mỗi tướng mình gục là thức ăn cho Kog Stack (stack hiện trên tướng, giữ qua chết);
-// đội càng thua mạng thì Kog càng nguy hiểm. Cơ chế: stack "kog", status "kog_arty" bật autoAttack cuối lượt.
+// Kog'Maw (Xạ thủ, phép): máu 400 · AD 70 · giáp/kháng 24/28. Chất: ĐÓI, trận càng dài, sống càng dai càng mạnh.
+// Đói = bộ đếm (stack "hunger", tối đa 20): +1 mỗi lượt Kog còn sống, +1 mỗi khi có tướng chết (bất kỳ phe); Kog chết thì mất nửa.
+// Đòn đánh của Kog gây thêm % máu tối đa của mục tiêu theo Đói (sát thương phép).
 import {
-    attackTargets
-} from "../engine"
-import type {
-    Game
-} from "../game"
+    pct
+} from "../formula"
 import {
     defineHero
 } from "../registry"
-import {
-    otherSide,
-    type Side
-} from "../types"
 
-const STACK = "kog"
-const ARTY = "kog_arty"
-const F_STACK = "6 + 3% AD"
-const F_Q = "40 + 60% AD + 30% AP"
-const F_BURST = "40 + 20% AD"
-const BURST_PER_STACK = 8
-const F_R = "70 + 40% AD + 50% AP"
-const R_PER_STACK = 15
-const ARTY_PCT = 0.03
-
-/** Phe side đang ít mạng hơn đối thủ (đọc từ số mạng công khai) */
-const behind = (g: Game, side: Side) => g.player(side).lives < g.player(otherSide(side)).lives
+const HUNGER = "hunger"
+const GORGE = "kog_e"
+export const MAX_HUNGER = 20
+/** % máu tối đa của mục tiêu mỗi Đói cho đòn đánh (E nhân đôi) */
+const ATTACK_PCT = 0.026
+/** % máu tối đa mỗi Đói cho R */
+const R_PCT = 0.045
 
 export default defineHero({
-    id: "kogmaw", name: "Kog'Maw", role: "marksman", damage: "physical", hp: 680, atk: 66, armor: 26, mr: 28,
-    desc: "Lớn lên từ cái chết: mỗi đồng đội gục (kể cả chính Kog'Maw) là thêm Kog Stack. Đội càng thua mạng thì axít càng lan, pháo càng nạp lại.",
-    skillCopies: {
-        Q: 5, E: 4, R: 2
+    id: "kogmaw", name: "Kog'Maw", role: "marksman", damage: "magic", hp: 380, atk: 84, armor: 28, mr: 28,
+    bot: {
+        stackValue: {
+            hunger: 10,
+        },
     },
+    desc: "Sống càng lâu càng đói: bắn theo % máu tối đa, tank càng trâu càng lủng.",
     passive: {
-        name: "Cơn Đói Hư Không",
-        desc: `Mỗi khi 1 tướng mình bị hạ, Kog'Maw +1 Kog Stack (+2 nếu chính Kog'Maw bị hạ; Stack hiện trên tướng, giữ qua các lần chết). Mỗi Stack: đòn đánh của Kog'Maw +{${F_STACK}} sát thương. Khi Kog'Maw bị hạ, hắn nổ: {${F_BURST}} + ${BURST_PER_STACK} mỗi Stack sát thương chuẩn lên mọi tướng địch.`,
+        name: "Đói Khát",
+        desc: `Đầu lượt của bạn, Kog'Maw còn sống: +1 Đói. Có tướng chết (bất kỳ phe): +1 Đói. Đòn đánh của Kog'Maw gây thêm ${pct(ATTACK_PCT)}% máu tối đa của mục tiêu mỗi Đói (sát thương phép, tối đa ${MAX_HUNGER} Đói). Kog'Maw chết: mất nửa Đói.`,
     },
     hooks: {
+        onTurnStart(g, me, d) {
+            if (d.side === me.side) g.stack(me,
+                HUNGER,
+                1,
+                MAX_HUNGER)
+        },
         onDeath(g, me, d) {
-            if (d.victim.side !== me.side || d.victim.token) return
-            if (d.victim.id !== me.id) { if (me.status === "board") g.stack(me,
-                STACK,
-                1); return }
-            g.stack(me,
-                STACK,
-                2)
-            const dmg = g.f(me,
-                F_BURST) + BURST_PER_STACK * g.stackOf(me,
-                STACK)
-            for (const t of g.heroes(otherSide(me.side))) g.damage(me,
-                t,
-                dmg,
-                "true",
-                {
-                    tag: "effect"
-                })
+            if (d.victim.token) return
+            if (d.victim.id === me.id) g.setStack(me,
+                HUNGER,
+                Math.floor(g.stackOf(me,
+                    HUNGER) / 2))
+            else g.stack(me,
+                HUNGER,
+                1,
+                MAX_HUNGER)
         },
         onAttack(g, me, d) {
-            if (d.attacker.id !== me.id) return
-            d.info.raw += g.stackOf(me,
-                STACK) * g.f(me,
-                F_STACK)
-            if (g.has(me,
-                ARTY) && d.info.free) d.info.raw += ARTY_PCT * d.target.maxHp
+            if (d.attacker.id !== me.id || d.info.miss) return
+            const n = g.stackOf(me,
+                HUNGER)
+            if (n <= 0) return
+            d.info.bonus.push({
+                raw: d.target.maxHp * ATTACK_PCT * n * (g.has(me,
+                    GORGE) ? 2 : 1), kind: "magic"
+            })
         },
-    },
-    // Cao Xạ Ma Pháp: cuối lượt tự bắn 1 tướng địch (ưu tiên tướng đang Rã giáp, rồi tướng ít máu nhất)
-    autoAttack(g, me) {
-        if (!g.has(me,
-            ARTY)) return undefined
-        const all = attackTargets(g,
-            me,
-            false)
-        const champs = all.filter((u) => !u.token)
-        const list = champs.length ? champs : all
-        const shred = list.filter((u) => g.has(u,
-            "shred"))
-        return g.lowestHp(shred.length ? shred : list)
     },
     skills: {
         Q: {
-            key: "Q", name: "Phun Axít", target: "enemy",
-            desc: `{${F_Q}} sát thương vật lý cho 1 tướng địch và Rã giáp (giáp và kháng −40%) 2 lượt. **Điều kiện:** đội bạn đang ít mạng hơn đối thủ thì Rã giáp mọi tướng địch.`,
+            key: "Q", name: "Nuôi Dưỡng", target: "self",
+            desc: "Kog'Maw +3 Đói.",
             resolve(c) {
-                const t = c.target!
-                c.g.damage(c.self,
-                    t,
-                    c.f(F_Q),
-                    "physical",
-                    {
-                        tag: "skill"
-                    })
-                for (const u of behind(c.g,
-                    c.side) ? c.g.heroes(otherSide(c.side)) : [t]) c.g.status(u,
-                    "shred",
-                    2)
+                c.g.stack(c.self,
+                    HUNGER,
+                    3,
+                    MAX_HUNGER)
             },
         },
         E: {
-            key: "E", name: "Cao Xạ Ma Pháp", target: "self",
-            desc: `Trong 2 lượt, cuối lượt của bạn Kog'Maw tự đánh (không cần lá Đánh thường) 1 tướng địch bất kỳ, ưu tiên tướng đang Rã giáp, thêm ${ARTY_PCT * 100}% máu tối đa mục tiêu. **Điều kiện:** đội bạn đang ít mạng hơn đối thủ thì kéo dài 3 lượt.`,
+            key: "E", name: "Xả Đạn", target: "self",
+            desc: "Tới hết lượt này: mỗi đòn đánh của Kog'Maw gây gấp đôi % máu tối đa từ Đói.",
             resolve(c) {
                 c.g.status(c.self,
-                    ARTY,
-                    behind(c.g,
-                        c.side) ? 3 : 2)
+                    GORGE,
+                    1)
             },
         },
         R: {
-            key: "R", name: "Pháo Sinh Học", target: "enemy",
-            desc: `{${F_R}} + ${R_PER_STACK} mỗi Kog Stack sát thương phép cho 1 tướng địch. **Điều kiện:** mục tiêu đang Rã giáp và đội bạn đang ít mạng hơn đối thủ thì gỡ Rã giáp của nó và lá R này quay về tay.`,
+            key: "R", name: "Đại Bác Sinh Học", target: "all_enemies",
+            desc: `Mọi tướng địch nhận sát thương phép bằng ${pct(R_PCT)}% máu tối đa của chúng mỗi Đói của Kog'Maw.`,
             resolve(c) {
-                const t = c.target!
-                const reload = c.g.has(t,
-                    "shred") && behind(c.g,
-                    c.side)
-                c.g.damage(c.self,
-                    t,
-                    c.f(F_R) + R_PER_STACK * c.g.stackOf(c.self,
-                        STACK),
-                    "magic",
-                    {
-                        tag: "skill"
-                    })
-                if (reload) {
-                    c.g.removeStatus(t,
-                        "shred")
-                    c.toHand()
+                const n = c.g.stackOf(c.self,
+                    HUNGER)
+                if (n <= 0) return
+                for (const t of c.g.enemies(c.self)) {
+                    if (t.token) continue
+                    c.g.damage(c.self,
+                        t,
+                        t.maxHp * R_PCT * n,
+                        "magic",
+                        {
+                            tag: "skill"
+                        })
                 }
             },
         },

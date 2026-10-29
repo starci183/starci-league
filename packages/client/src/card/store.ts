@@ -56,10 +56,20 @@ export interface CardView {
     round: number;
     turnNo: number;
     active: Side;
-    phase: "main" | "chain" | "over";
+    phase: "blind" | "summon" | "main" | "chain" | "over";
     toMove: Side;
     actionsThisTurn: number;
+    /** Số đòn đã đánh của phe CÓ LƯỢT (V2: tối đa 3, tính mọi đòn kể cả đòn Quick không cần lá và đòn miễn phí) */
+    turnAttacks: { used: number; cardless: string[] };
+    /** Như turnAttacks nhưng cho phe KHÔNG có lượt (đòn Quick đánh trong lượt đối thủ) */
+    offTurnAttacks: { used: number; cardless: string[] };
+    /** Giới hạn cứng số đòn mỗi phe mỗi lượt */
+    attackLimit: number;
+    /** Gọi tướng úp (phase "blind"): lựa chọn của phe kia luôn rỗng tới khi lật; ready công khai */
+    blind?: { cap: number; picks: Record<Side, { hero: string; lane: number }[]>; ready: Record<Side, boolean> };
     openLanes: number[];
+    /** Lá trên cùng bộ của bạn mà lựa chọn hiện tại cần xem (Twisted Fate Q: chọn lá xuống đáy). Chỉ chủ bộ nhận. */
+    peek?: Card[];
     players: Record<Side, PlayerView>;
     units: Record<string, Unit>;
     lanes: Record<Side, (string | null)[]>;
@@ -70,7 +80,11 @@ export interface CardView {
     endReason: string | null;
     names: Record<Side, string>;
     bots: Partial<Record<Side, string>>;
-    rules: { lives: number; handMax: number; laneOpenRound: number[] };
+    rules: {
+        lives: number; handMax: number; laneOpenRound: number[];
+        attackLimit: number; drawPerTurn: number; fighterCardlessMult: number;
+        mage: { manaMax: number }; skillCopies: Record<cg.SkillKey, number>;
+    };
 }
 
 /** Một dòng nhật ký (sự kiện engine đã nhận, kèm số thứ tự để làm key React) */
@@ -116,10 +130,271 @@ const listeners = new Set<() => void>()
 let room: Room | null = null
 let logN = 0
 
+// ---------------------------------------------------------------- khung hình hiển thị (display view)
+// Store giữ view THẬT (trạng thái mới nhất của server) nhưng snap.view là bản HIỂN THỊ: units/lanes/extra (và cờ frozen của lá trên tay)
+// đi sau, chỉ được cập nhật khi hoạt ảnh tới từng sự kiện (applyToDisplay). Hết hàng đợi hoạt ảnh (hoặc tắt hoạt ảnh) thì snapDisplay() = view thật.
+interface Lag {
+    units: Record<string, Unit>;
+    lanes: Record<Side, (string | null)[]>;
+    extra: Record<Side, string | null>;
+    /** uid lá trên tay -> id tướng đã làm lá Hoá Băng (undefined = chưa/đã tan) theo thứ tự hoạt ảnh */
+    frozen: Map<string, string | undefined>;
+}
+
+let realView: CardView | null = null
+let lag: Lag | null = null
+let lagVer = 0
+let lagEnabled = false
+let lagTimer: number | undefined
+let shownCache: { r: CardView; v: number; out: CardView } | null = null
+const applied = new WeakSet<GameEvent>()
+
+const clone = <T,>(x: T): T => JSON.parse(JSON.stringify(x)) as T
+
+/** View mà component thấy: view thật + phần hiển thị đi sau (nếu đang chờ hoạt ảnh) */
+function shown(): CardView | null {
+    const r = realView
+    if (!r || !lag) return r
+    if (shownCache && shownCache.r === r && shownCache.v === lagVer) return shownCache.out
+    const players = {
+        ...r.players
+    }
+    if (lag.frozen.size) {
+        for (const s of ["A",
+            "B"] as Side[]) {
+            const p = r.players[s]
+            if (!p.hand) continue
+            players[s] = {
+                ...p, hand: p.hand.map((c) => (lag!.frozen.has(c.uid) ? {
+                    ...c, frozen: lag!.frozen.get(c.uid)
+                } : c))
+            }
+        }
+    }
+    const out: CardView = {
+        ...r, units: lag.units, lanes: lag.lanes, extra: lag.extra, players
+    }
+    shownCache = {
+        r, v: lagVer, out
+    }
+    return out
+}
+
+function republish() {
+    lagVer++
+    snap = {
+        ...snap, view: shown()
+    }
+    for (const l of listeners) l()
+}
+
+/** AnimLayer bật khi đang chạy hoạt ảnh; tắt (hoặc reduced-motion) thì mọi thứ hiện ngay */
+export function setDisplayLag(on: boolean) {
+    lagEnabled = on
+    if (!on) snapDisplay()
+}
+
+/** Hiển thị = view thật (hết lô, bỏ qua lô, tắt hoạt ảnh, rời trận) */
+export function snapDisplay() {
+    window.clearTimeout(lagTimer)
+    if (!lag) return
+    lag = null
+    republish()
+}
+
+/** Lô sự kiện vừa tới (TRƯỚC cg:state của nó): chụp bản hiển thị từ view thật cũ */
+function beginLag(events: GameEvent[]) {
+    if (!lagEnabled || !realView) return
+    const r = realView
+    if (!lag) {
+        lag = {
+            units: clone(r.units), lanes: clone(r.lanes), extra: clone(r.extra), frozen: new Map()
+        }
+    }
+    for (const e of events) {
+        if (e.t !== "cardFrozen" && e.t !== "cardThawed") continue
+        if (lag.frozen.has(e.card.uid)) continue
+        const old = [...(r.players.A.hand ?? []),
+            ...(r.players.B.hand ?? [])].find((c) => c.uid === e.card.uid)
+        lag.frozen.set(e.card.uid,
+            old?.frozen)
+    }
+    // chốt chặn: hoạt ảnh kẹt thì sau 25 giây hiện thẳng trạng thái thật
+    window.clearTimeout(lagTimer)
+    lagTimer = window.setTimeout(snapDisplay,
+        25_000)
+    republish()
+}
+
+const sideOfId = (id: string): Side => (id.startsWith("B:") ? "B" : "A")
+
+/** Áp hiệu ứng nhìn thấy của các sự kiện lên bản hiển thị (mỗi sự kiện chỉ một lần). Sự kiện lạ thì chờ tới khi snap. */
+export function applyToDisplay(events: GameEvent[]) {
+    const real = realView
+    const cur = lag
+    if (!real || !cur || !events.length) return
+    let units = cur.units
+    let lanes = cur.lanes
+    let extra = cur.extra
+    let changed = false
+    const upd = (id: string, fn: (u: Unit) => Unit) => {
+        const u = units[id]
+        if (!u) return
+        units = {
+            ...units, [id]: fn(u)
+        }
+        changed = true
+    }
+    const fromReal = (id: string) => {
+        const r = real.units[id]
+        units = {
+            ...units
+        }
+        if (r) units[id] = clone(r)
+        else delete units[id]
+        changed = true
+    }
+    const syncLanes = (side: Side) => {
+        lanes = {
+            ...lanes, [side]: [...real.lanes[side]]
+        }
+        extra = {
+            ...extra, [side]: real.extra[side]
+        }
+        for (const id of Object.keys(units)) {
+            const ru = real.units[id]
+            if (ru && units[id].side === side && !units[id].token) units[id] = {
+                ...units[id], lane: ru.lane
+            }
+        }
+        changed = true
+    }
+    for (const e of events) {
+        if (applied.has(e)) continue
+        applied.add(e)
+        switch (e.t) {
+        case "damage":
+            upd(e.target,
+                (u) => ({
+                    ...u, hp: e.hp, shield: Math.max(0,
+                        u.shield - e.absorbed)
+                }))
+            break
+        case "heal":
+            upd(e.target,
+                (u) => ({
+                    ...u, hp: e.hp
+                }))
+            break
+        case "shield":
+            upd(e.target,
+                (u) => ({
+                    ...u, shield: e.shield
+                }))
+            break
+        case "status":
+            upd(e.target,
+                (u) => ({
+                    ...u, statuses: {
+                        ...u.statuses, [e.id]: real.units[e.target]?.statuses[e.id] ?? {
+                            until: real.turnNo + e.turns, v: e.v, at: real.turnNo, src: e.src, card: e.card
+                        }
+                    }
+                }))
+            break
+        case "statusEnd":
+            upd(e.target,
+                (u) => {
+                    const st = {
+                        ...u.statuses
+                    }
+                    delete st[e.id]
+                    return {
+                        ...u, statuses: st
+                    }
+                })
+            break
+        case "stack":
+            upd(e.unit,
+                (u) => ({
+                    ...u, stacks: {
+                        ...u.stacks, [e.key]: e.value
+                    }
+                }))
+            break
+        case "manaChange":
+            upd(e.unit,
+                (u) => ({
+                    ...u, mana: e.mana
+                }))
+            break
+        case "kill":
+            fromReal(e.target)
+            syncLanes(sideOfId(e.target))
+            break
+        case "summon":
+        case "respawn":
+            fromReal(e.unit)
+            if (e.t === "summon" && e.swapped) fromReal(e.swapped)
+            syncLanes(sideOfId(e.unit))
+            break
+        case "move":
+            fromReal(e.unit)
+            if (e.with) fromReal(e.with)
+            syncLanes(sideOfId(e.unit))
+            break
+        case "equip":
+        case "upgrade":
+            upd(e.unit,
+                (u) => ({
+                    ...u, items: [...(real.units[e.unit]?.items ?? u.items)]
+                }))
+            break
+        case "craft":
+            if (e.unit) upd(e.unit,
+                (u) => ({
+                    ...u, items: [...(real.units[e.unit!]?.items ?? u.items)]
+                }))
+            break
+        case "summonToken":
+        case "tokenEnd":
+        case "tokenFlip":
+            fromReal(e.unit)
+            syncLanes(sideOfId(e.unit))
+            break
+        case "cardFrozen":
+            cur.frozen.set(e.card.uid,
+                e.by)
+            changed = true
+            break
+        case "cardThawed":
+            cur.frozen.set(e.card.uid,
+                undefined)
+            changed = true
+            break
+        default:
+            break
+        }
+    }
+    if (!changed) return
+    lag = {
+        ...cur, units, lanes, extra
+    }
+    republish()
+}
+
 function set(patch: Partial<CardSnapshot>) {
+    if ("view" in patch) {
+        realView = patch.view ?? null
+        if (!realView) {
+            lag = null
+            window.clearTimeout(lagTimer)
+        }
+    }
     snap = {
         ...snap, ...patch
     }
+    if ("view" in patch) snap.view = shown()
     for (const l of listeners) l()
 }
 
@@ -177,6 +452,7 @@ export const cardActions = {
             }))
         room.onMessage("cg:events",
             (events: GameEvent[]) => {
+                beginLag(events)
                 const add = events.map((e) => ({
                     n: ++logN, e
                 }))
@@ -326,6 +602,36 @@ export function actionsForHandCard(legal: Action[], hand: Card[], card: Card): A
     const sig = cardSig(card)
     const uids = new Set(hand.filter((c) => cardSig(c) === sig).map((c) => c.uid))
     return legal.filter((a) => (a.t === "play" || a.t === "chain") && uids.has(a.uid))
+}
+
+/** Các đòn "Đánh nhanh" (Đấu sĩ đánh không cần lá, Quick) của tướng `unitId`, lọc từ legal */
+export function cardlessOptions(legal: Action[], unitId: string): Action[] {
+    return legal.filter((a) => a.t === "attack" && !!a.cardless && a.actor === unitId)
+}
+
+/** Các đòn miễn phí (từ buff đòn kế tiếp, không tính giới hạn) của tướng `unitId`, lọc từ legal */
+export function freeAttackOptions(legal: Action[], unitId: string): Action[] {
+    return legal.filter((a) => a.t === "attack" && !a.cardless && a.actor === unitId)
+}
+
+/** Mana lá chiêu `card` tốn (chỉ lá chiêu của Pháp sư đang trên sân; còn lại undefined) */
+export function manaCostOf(g: cg.Game, card: Card): number | undefined {
+    if (card.kind !== "skill" || !card.hero || !card.side) return undefined
+    const u = g.unit(`${card.side}:${card.hero}`)
+    if (!u || !g.isMage(u)) return undefined
+    const key = card.id.slice(card.hero.length + 1).toUpperCase() as cg.SkillKey
+    const def = cg.getHero(card.hero)?.skills[key]
+    return def ? g.manaCost(u,
+        def,
+        card) : undefined
+}
+
+/** Số đòn đã đánh + các Đấu sĩ đã dùng đòn Quick của `side` lượt này, và giới hạn (đọc đúng phe có lượt hay không) */
+export function attacksOf(v: CardView, side: Side): { used: number; limit: number; cardless: string[] } {
+    const t = side === v.active ? v.turnAttacks : v.offTurnAttacks
+    return {
+        used: t?.used ?? 0, limit: v.attackLimit ?? v.rules.attackLimit, cardless: t?.cardless ?? []
+    }
 }
 
 /** Engine `Game` dựng trên state nhận được, để gọi cg.cardInfo / g.stats / g.atk... cho hiển thị */

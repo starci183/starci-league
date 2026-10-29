@@ -14,6 +14,9 @@ import {
 import {
     TXT, cardArt, cardName, eventLine, eventSide, getLang, heroArt, isHidden, isMinor, sideLabel, unitName, type Lang
 } from "./chain/text"
+import {
+    AutoPassBar
+} from "./chain/AutoPassBar"
 
 type Side = cg.Side
 type Action = cg.Action
@@ -72,7 +75,8 @@ function TurnHeader({ v, lang, over }: { v: CardView; lang: Lang; over: boolean 
 // ---------------------------------------------------------------- mắt xích
 function LinkRow({ l, v, g, lang, state }: { l: LinkView; v: CardView; g: cg.Game; lang: Lang; state: "" | "resolving" | "done" }) {
     const t = TXT[lang]
-    const name = l.kind === "attack" || !l.card ? t.attack : cardName(g,
+    const quickAtk = l.kind === "attack" && l.mode === "cardless"
+    const name = quickAtk ? `${lang === "en" ? "Quick attack" : "Đánh nhanh"} ${Math.round((v.rules.fighterCardlessMult ?? .66) * 100)}%` : l.kind === "attack" || !l.card ? t.attack : cardName(g,
         l.card,
         lang)
     const art = l.kind === "attack" ? heroArt(l.actor) : cardArt(l.card,
@@ -140,6 +144,7 @@ function Prompt({ v, g, lang }: { v: CardView; g: cg.Game; lang: Lang }) {
                 })}
             </div>
             {pass ? <button className="ch-btn big" onClick={() => cardActions.act(pass)}>{t.pass}</button> : null}
+            <AutoPassBar />
         </div>
     )
 }

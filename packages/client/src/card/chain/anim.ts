@@ -17,6 +17,8 @@ export interface LinkView {
     actor?: string
     targets: string[]
     quick: boolean
+    /** Đòn đánh: free = miễn phí từ buff, cardless = Đấu sĩ đánh nhanh không cần lá */
+    mode?: "free" | "cardless"
 }
 
 export interface ChainAnim {
@@ -28,11 +30,11 @@ export interface ChainAnim {
     order: number[]
 }
 
-const STEP_MS = 750
+const STEP_MS = 1000
 const END_MS = 1100
 
 export const linksOf = (c: cg.Chain): LinkView[] => c.links.map((l) => ({
-    n: l.n, side: l.side, kind: l.kind, card: l.card, actor: l.actor, targets: l.targets, quick: l.quick,
+    n: l.n, side: l.side, kind: l.kind, card: l.card, actor: l.actor, targets: l.targets, quick: l.quick, mode: l.mode,
 }))
 
 /** Trả về hoạt hình đang chạy (null khi không có) */

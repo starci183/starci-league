@@ -6,13 +6,29 @@ import {
     cg
 } from "@starci/shared"
 import {
-    itemEmoji, itemIcon, itemName, passiveOf, portrait, roleName, statusIcon, statusInfo, tr, turnsLeft, unitName
+    itemEmoji, itemIcon, itemName, passiveOf, portrait, roleName, tr, unitName
 } from "./helpers"
+import {
+    RichText
+} from "../RichText"
+import {
+    buildEffects, FxCellView
+} from "../stats/effects"
 import {
     StatusFx, StatusRow, StatusTags
 } from "./StatusFx"
 
-export interface Float { id: number; kind: "dmg" | "crit" | "heal" | "shield" | "kill" | "block"; text: string }
+/** Số nổi: dmg kèm loại sát thương (vật lý đỏ, phép xanh dương, chuẩn trắng), crit thêm biểu tượng chí mạng */
+export interface Float { id: number; kind: "dmg" | "crit" | "heal" | "shield" | "kill" | "block" | "mana" | "tag"; text: string; dmg?: "physical" | "magic" | "true" }
+
+/** Biểu tượng chí mạng: dấu nổ 8 cánh */
+export function CritIcon() {
+    return (
+        <svg className="bd-crit-ic" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 1 14.2 8.2 21.5 5 17.6 11.6 23 15 15.6 15.6 16 23 12 17 8 23 8.4 15.6 1 15 6.4 11.6 2.5 5 9.8 8.2Z" />
+        </svg>
+    )
+}
 
 export function Img(p: { src: string; alt?: string; className?: string; fallback?: string }) {
     const [bad,
@@ -48,6 +64,56 @@ export function HpBar(p: { u: cg.Unit; big?: boolean }) {
     )
 }
 
+/** Thanh mana (pháp sư): xanh dương, vạch chia mỗi 10 mana; ẩn khi tướng không có mana */
+export function ManaBar(p: { u: cg.Unit; g: cg.Game; big?: boolean }) {
+    const { u, g } = p
+    if (u.mana === undefined) return null
+    const max = Math.max(g.maxMana(u),
+        1)
+    return (
+        <div className={`bd-mana ${p.big ? "big" : ""}`} title={`Mana ${Math.floor(u.mana)}/${max}`}>
+            <i style={{
+                width: clampPct(u.mana / max)
+            }} />
+            <span>{`${Math.floor(u.mana)}/${max}`}</span>
+        </div>
+    )
+}
+
+/** Biểu tượng kiếm (CSS/SVG) cho nút đánh không cần lá của Đấu sĩ */
+function SwordIcon() {
+    return (
+        <svg className="bd-sword-ic" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M14.5 3H21v6.5l-9.2 9.2-2.5-2.5zM6 14l4 4-2.2 2.2-1.3-1.3-2.4 2.4-1.5-1.5 2.4-2.4-1.3-1.3z" />
+        </svg>
+    )
+}
+
+/** Đòn Quick không cần lá của Đấu sĩ: nút nhỏ trên thẻ, mờ khi đã dùng trong lượt */
+export interface CardlessBtn { used: boolean; ready: boolean; pct: number; onClick(): void }
+
+/** Tướng đã chết nằm lại đường: thẻ xám, đầu lâu và đếm ngược hồi sinh; không chọn được làm mục tiêu */
+export function DeadCard(p: { u: cg.Unit; round: number; onClick(): void }) {
+    const { u } = p
+    const t = tr()
+    const left = Math.max(0,
+        u.respawnRound - p.round)
+    return (
+        <div data-unit-id={u.id} className="bd-unit dead" onClick={p.onClick}>
+            <div className="bd-art">
+                <Img src={portrait(u)} className="bd-img" fallback={unitName(u).slice(0,
+                    1)} />
+                <span className="bd-skull" aria-hidden="true">☠</span>
+                <div className="bd-name">{unitName(u)}</div>
+            </div>
+            <div className="bd-dead-l">
+                <b>{t.deadLabel}</b>
+                <small>{`${t.respawnIn} ${left} ${t.roundUnit}`}</small>
+            </div>
+        </div>
+    )
+}
+
 export interface UnitCardProps {
     u: cg.Unit
     g: cg.Game
@@ -57,6 +123,7 @@ export interface UnitCardProps {
     floats: Float[]
     ownerName?: string
     soaked: boolean
+    cardless?: CardlessBtn
     onEnter(e: MouseEvent): void
     onMove(e: MouseEvent): void
     onLeave(): void
@@ -91,7 +158,6 @@ export function UnitCard(p: UnitCardProps) {
                 <Img src={portrait(u)} className="bd-img" fallback={unitName(u).slice(0,
                     1)} />
                 <span className={`bd-role r-${role}`}>{roleName(role)}</span>
-                {stunned ? <span className="bd-banner">{t.stunned}</span> : silenced ? <span className="bd-banner sil">{t.silenced}</span> : null}
                 {p.soaked ? <span className="bd-soak" title={t.soakFor} /> : null}
                 {stacks.length ? (
                     <span className="bd-stacks">
@@ -102,8 +168,23 @@ export function UnitCard(p: UnitCardProps) {
                 {u.nextAttack.length ? <span className="bd-next" title={t.next}>{u.nextAttack.length}</span> : null}
                 <StatusTags u={u} />
                 <div className="bd-name">{unitName(u)}</div>
+                {p.cardless ? (
+                    <button
+                        className={`bd-cardless ${p.cardless.used ? "used" : ""} ${p.cardless.ready ? "ready" : ""}`}
+                        title={p.cardless.used ? t.cardlessUsed : t.cardlessTip}
+                        disabled={!p.cardless.ready}
+                        onClick={(e) => {
+                            e.stopPropagation()
+                            if (p.cardless?.ready) p.cardless.onClick()
+                        }}
+                    >
+                        <SwordIcon />
+                        {`${p.cardless.pct}%`}
+                    </button>
+                ) : null}
             </div>
             <HpBar u={u} />
+            <ManaBar u={u} g={g} />
             <div className="bd-stats">
                 <span className="ad" title={t.ad}>{g.atk(u)}</span>
                 <span className="ap" title={t.ap}>{g.ap(u)}</span>
@@ -133,9 +214,9 @@ export function UnitCard(p: UnitCardProps) {
             <StatusFx u={u} />
             <div className="bd-floats">
                 {p.floats.map((f) => (
-                    <span key={f.id} className={`bd-float ${f.kind}`} style={{
+                    <span key={f.id} className={`bd-float ${f.kind}${f.dmg ? ` ${f.dmg}` : ""}`} style={{
                         "--dx": `${(f.id % 5) * 8 - 16}px`
-                    } as CSSProperties}>{f.text}</span>
+                    } as CSSProperties}>{f.kind === "crit" ? <CritIcon /> : null}{f.text}</span>
                 ))}
             </div>
         </div>
@@ -153,8 +234,9 @@ export function UnitTip(p: { u: cg.Unit; g: cg.Game; turnNo: number; x: number; 
     const top = Math.max(8,
         Math.min(p.y - 20,
             window.innerHeight - 380))
-    const st = Object.entries(u.statuses)
-    const stacks = Object.entries(u.stacks).filter(([, v]) => v !== 0)
+    const fx = buildEffects(u,
+        p.turnNo,
+        (id) => g.unit(id))
     return (
         <div className="bd-tip" style={{
             left, top, width: W
@@ -171,6 +253,7 @@ export function UnitTip(p: { u: cg.Unit; g: cg.Game; turnNo: number; x: number; 
                 </div>
             </div>
             <HpBar u={u} big />
+            <ManaBar u={u} g={g} big />
             <div className="bd-tip-stats">
                 <span>
                     {t.ad}
@@ -189,11 +272,13 @@ export function UnitTip(p: { u: cg.Unit; g: cg.Game; turnNo: number; x: number; 
                     <b>{g.mr(u)}</b>
                 </span>
             </div>
+            {role === "fighter" && !u.token ? <p className="bd-tip-p">{t.fighterLine}</p> : null}
+            {u.mana !== undefined ? <p className="bd-tip-p">{t.mageLine}</p> : null}
             {passive ? (
                 <p className="bd-tip-p">
                     <b>{`${t.passive}: ${passive.name}`}</b>
                     {" "}
-                    {passive.desc}
+                    <RichText text={passive.desc} />
                 </p>
             ) : null}
             {u.items.length ? (
@@ -206,35 +291,10 @@ export function UnitTip(p: { u: cg.Unit; g: cg.Game; turnNo: number; x: number; 
                     ))}
                 </ul>
             ) : null}
-            {st.length ? (
-                <ul className="bd-tip-list">
-                    {st.map(([id,
-                        s]) => (
-                        <li key={id}>
-                            <Img src={statusIcon(id)} fallback={statusInfo(id).name.slice(0,
-                                2)} />
-                            <span>
-                                <b>{statusInfo(id).name}</b>
-                                {` (${t.turnsLeft} ${turnsLeft(s.until,
-                                    p.turnNo)} ${t.turnsUnit}${s.v ? `, ${s.v}` : ""})`}
-                                {statusInfo(id).desc ? <small>{statusInfo(id).desc}</small> : null}
-                            </span>
-                        </li>
-                    ))}
-                </ul>
-            ) : null}
-            {stacks.length ? (
-                <p className="bd-tip-p">
-                    <b>{`${t.stacks}: `}</b>
-                    {stacks.map(([k,
-                        v]) => `${k} ${v}`).join(", ")}
-                </p>
-            ) : null}
-            {u.nextAttack.length ? (
-                <p className="bd-tip-p">
-                    <b>{`${t.next}: `}</b>
-                    {u.nextAttack.map((n) => `${n.id}${n.free ? ` (${t.free})` : ""}${n.mult ? ` x${n.mult}` : ""}${n.bonusRaw ? ` +${n.bonusRaw}` : ""}`).join(", ")}
-                </p>
+            {fx.cells.length ? (
+                <div className="fxm-grid">
+                    {fx.cells.map((c) => <FxCellView key={c.key} cell={c} />)}
+                </div>
             ) : null}
         </div>
     )

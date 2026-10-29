@@ -7,14 +7,16 @@ import {
     cg
 } from "@starci/shared"
 import {
-    cardIcon, cardLabel, statusIcon, statusInfo, statusKind, TAG_STATUSES, tr, turnsLeft, type StatusSrc
+    cardIcon, cardLabel, elapsedPct, groupBySource, isEn, statusIcon, statusInfo, statusKind, TAG_STATUSES, tr, turnsLeft, type SourceGroup
 } from "./helpers"
 
-function Img(p: { src: string; fallback: string }) {
-    const [bad,
-        setBad] = useState(false)
-    if (bad) return <span>{p.fallback}</span>
-    return <img src={p.src} alt="" draggable={false} onError={() => setBad(true)} />
+/** Ảnh thử lần lượt các nguồn (icon lá -> icon nội tại -> icon trạng thái), hết thì hiện chữ */
+function Img(p: { srcs: (string | undefined)[]; fallback: string }) {
+    const [i,
+        setI] = useState(0)
+    const list = p.srcs.filter((x): x is string => !!x)
+    if (i >= list.length) return <span>{p.fallback}</span>
+    return <img src={list[i]} alt="" draggable={false} onError={() => setI(i + 1)} />
 }
 
 const MAX_CELLS = 6
@@ -36,37 +38,47 @@ export function StatusTags(p: { u: cg.Unit }) {
     )
 }
 
+/** Trạng thái không ghi lá gây ra = do nội tại sinh ra: icon nội tại của tướng gây ra (id "A:jinx"); token thì không có */
+const passiveIconOf = (unitId: string): string | undefined => {
+    const hero = unitId.split(":")[1]
+    return hero && !hero.startsWith("tok") ? `/card_skills/${hero}_p.png` : undefined
+}
+
 export function StatusRow(p: { u: cg.Unit; turnNo: number; unitOf?(id: string): string | undefined }) {
     const { u } = p
     const t = tr()
-    const entries = Object.entries(u.statuses)
-    if (!entries.length) return null
-    const shown = entries.slice(0,
+    const groups = groupBySource(u.statuses)
+    if (!groups.length) return null
+    const shown = groups.slice(0,
         MAX_CELLS)
-    const more = entries.slice(MAX_CELLS)
+    const more = groups.slice(MAX_CELLS)
+    const effName = (g: SourceGroup) => g.ids.map((id) => statusInfo(id).name).join(" + ")
     return (
         <div className="bd-srow">
-            {shown.map(([id,
-                raw]) => {
-                const s: StatusSrc = raw
-                const info = statusInfo(id)
-                const left = turnsLeft(s.until,
+            {shown.map((g) => {
+                const left = turnsLeft(g.until,
                     p.turnNo)
-                const from = cardLabel(s.card)
-                const who = s.src ? p.unitOf?.(s.src) : undefined
-                const tip = [`${info.name} - ${left} ${t.turnsUnit}${s.v ? ` (${s.v})` : ""}`,
-                    info.desc,
-                    from ? `${who ? `${who}: ` : ""}${from}` : ""].filter(Boolean).join("\n")
+                const from = cardLabel(g.card)
+                const who = g.src ? p.unitOf?.(g.src) : undefined
+                const tip = [`${from ?? (who ? `${who} (${isEn() ? "Passive" : "Nội tại"})` : effName(g))}: ${effName(g)} - ${left} ${t.turnsUnit}`,
+                    from && who ? who : ""].filter(Boolean).join("\n")
+                const kind = g.ids.some((id) => statusKind(id) === "debuff") ? "debuff" : statusKind(g.ids[0])
                 return (
-                    <span key={id} className={`bd-sc ${statusKind(id)} st-${id}`} title={tip}>
-                        <Img src={cardIcon(s.card) ?? statusIcon(id)} fallback={info.name.slice(0,
+                    <span key={g.key} className={`bd-sc ${kind} ${g.ids.map((id) => `st-${id}`).join(" ")}`} title={tip}>
+                        <Img srcs={[cardIcon(g.card),
+                            passiveIconOf(g.src ?? u.id),
+                            statusIcon(g.ids[0])]} fallback={effName(g).slice(0,
                             2)} />
-                        <em>{left}</em>
-                        {s.v > 1 ? <b>{s.v}</b> : null}
+                        <i className="cd-sweep" style={{
+                            "--p": elapsedPct(g.until,
+                                g.at,
+                                p.turnNo)
+                        } as CSSProperties} />
+                        {g.v > 1 ? <em>{Math.round(g.v)}</em> : null}
                     </span>
                 )
             })}
-            {more.length ? <span className="bd-sc more" title={more.map(([id]) => statusInfo(id).name).join(", ")}>{`+${more.length}`}</span> : null}
+            {more.length ? <span className="bd-sc more" title={more.map(effName).join(", ")}>{`+${more.length}`}</span> : null}
         </div>
     )
 }

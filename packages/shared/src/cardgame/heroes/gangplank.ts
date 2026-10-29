@@ -1,10 +1,13 @@
-// Gangplank (Đấu sĩ, vật lý): máu 900 · AD 78 · giáp/kháng 32/30. Engine: tokens (ô triệu hồi phụ), items (Vàng/đồ).
-// MỤC ĐÍCH: "Thùng thuốc súng úp mặt" — Gangplank úp 1 lá trên tay thành Thùng Thuốc Súng ở ô triệu hồi phụ: lá của
-// Gangplank = thùng THẬT, lá khác = thùng GIẢ (tháu cáy). Đối thủ chỉ thấy thùng úp, Thuốc Súng tăng mỗi lượt (stack hiện
-// trên thùng), thùng tự xịt sau 3 lượt. Mọi thứ Gangplank làm đều trong lượt của hắn (KHÔNG có lá Quick): đối thủ luôn có
-// trọn 1 lượt để đọc bàn và trả lời — chỉ đòn Đánh thường của XẠ THỦ đập được thùng (luật token toàn cục của engine).
-// Cơ chế: g.summonToken({hidden, secret:{real}, card, turns:3}); lá úp theo thùng vào mộ khi thùng nổ/vỡ/xịt (trừ
-// khi Gangplank gục: thùng biến mất cùng lá úp).
+// Gangplank (Đấu sĩ, vật lý): máu 410 · AD 74 · giáp/kháng 33/30.
+// CHẤT: "Ăn cam trụ đường, gài thùng nổ cả đội": đấu sĩ bền, bịp bằng Thùng giả. Thùng KHÔNG tự xuất hiện: E đặt Thùng thật,
+// hoặc úp BẤT KỲ lá trên tay làm Thùng giả (lá đó mất). Thùng thật +1 Thuốc Súng đầu mỗi lượt của Gangplank, không hết hạn.
+// Đòn đánh của Gangplank (kể cả nút Đánh nhanh 66%) vào Thùng của mình = nổ 1 Thùng thật: MỌI tướng địch nhận sát thương theo Thuốc Súng.
+// Ô phụ chứa tối đa 1 Thùng (thật hoặc giả). Chỉ Xạ thủ địch nhắm được Thùng; đòn đánh của Xạ thủ vỡ 1 Thùng NGẪU NHIÊN (địch không
+// biết cái nào thật): Thùng giả lật mặt, lá úp vào mộ (đòn đó coi như phí); Thùng thật vỡ KHÔNG nổ (mất luôn Thuốc Súng).
+// Engine: engine chỉ có 1 ô triệu hồi phụ mỗi bên nên mọi Thùng nằm trong MỘT token úp "keg"; danh sách từng Thùng (thật/giả,
+// Thuốc Súng, lá úp của Thùng giả) là JSON trong token.secret.list (bí mật với đối thủ tới khi lật). Token hp 1 nhưng không chết vì
+// sát thương: onDamage đặt lại hp. Úp Thùng giả dùng HeroDef.handUse (hành động tay chung, tốn 1 lượt đánh, không qua Chuỗi).
+// Đối thủ trả lời: Xạ thủ bắn vỡ Thùng, Blitzcrank cướp Q/E, hạ Gangplank.
 import type {
     Game
 } from "../game"
@@ -13,47 +16,99 @@ import {
 } from "../registry"
 import {
     otherSide,
-    type Card, type PlayArgs, type Side, type Unit
+    type Card, type Unit
 } from "../types"
 
 const KEG = "keg"
-const POWDER = "powder"
-const KEG_TURNS = 3
-const F_KEG = "55 + 40% AD"
-const F_POWDER = "35 + 20% AD"
-const F_Q = "40 + 80% AD"
-const F_R = "25 + 25% AD + 30% AP"
-const ITEM_AMP = 0.08
-const E_ITEMS = 2
+/** Ô phụ chứa tối đa bấy nhiêu Thùng (thật hoặc giả) */
+const MAX_KEGS = 1
+const START_POWDER = 1
+const FAKE_ID = "gp_fake"
+/** Sát thương vật lý lên mỗi tướng địch cho mỗi Thuốc Súng của Thùng nổ */
+const F_POWDER = "15 + 30% AD"
+/** Q: hồi máu cho chính Gangplank */
+const F_HEAL = "100 + 60% AD"
 
-const kegOf = (g: Game, me: Unit) => { const t = g.tokenOf(me.side); return t?.token?.id === KEG && t.token.ownerId === me.id ? t : undefined }
-const amp = (me: Unit) => 1 + ITEM_AMP * me.items.length
-const isReal = (keg: Unit) => Number(keg.token?.secret?.real ?? 0) === 1
-const isGpCard = (c: Card) => c.kind === "skill" && c.hero === "gangplank"
-/** Lá đã úp theo thùng vào mộ của chủ (nếu có) */
-function buryKegCard(g: Game, side: Side, keg: Unit) {
-    const card = keg.token?.card
-    if (!card || !keg.token) return
-    keg.token.card = undefined
-    g.player(side).grave.push(card)
+interface Keg {
+    real: boolean;
+    powder: number;
+    /** Thùng giả: lá bị úp (vào mộ khi bị lật) */
+    card?: Card;
 }
-/** Kích nổ thùng của Gangplank: lật mặt; thật thì nổ lên mọi tướng địch theo Thuốc Súng, giả thì không gì. Trả về true nếu nổ thật. */
-function detonate(g: Game, me: Unit): boolean {
-    const keg = kegOf(g,
+const encode = (ks: Keg[]) => JSON.stringify(ks)
+const decode = (s: string | number | undefined): Keg[] => {
+    try {
+        const v: unknown = JSON.parse(String(s ?? ""))
+        return Array.isArray(v) ? v as Keg[] : []
+    } catch {
+        return []
+    }
+}
+
+const kegToken = (g: Game, me: Unit): Unit | undefined => {
+    const t = g.tokenOf(me.side)
+    return t?.token?.id === KEG && t.token.ownerId === me.id ? t : undefined
+}
+export const kegsOf = (g: Game, me: Unit): Keg[] => decode(kegToken(g,
+    me)?.token?.secret?.list)
+/** Ghi lại danh sách Thùng: rỗng thì gỡ token */
+function saveKegs(g: Game, me: Unit, ks: Keg[]) {
+    const tok = kegToken(g,
         me)
-    if (!keg) return false
-    g.flipToken(keg)
-    const real = isReal(keg)
-    const dmg = real ? (g.f(me,
-        F_KEG) + g.stackOf(keg,
-        POWDER) * g.f(me,
-        F_POWDER)) * amp(me) : 0
-    buryKegCard(g,
-        me.side,
-        keg)
-    g.removeToken(keg,
-        "dead")
-    if (!real) { g.log("The Powder Keg was a fake: nothing happens."); return false }
+    if (!ks.length) {
+        if (tok?.token) {
+            tok.token.secret = {
+                list: "[]"
+            }
+            g.removeToken(tok,
+                "expired")
+        }
+        return
+    }
+    if (tok?.token) {
+        tok.token.secret = {
+            list: encode(ks)
+        }
+        g.setStack(tok,
+            "kegs",
+            ks.length)
+        return
+    }
+    const t = g.summonToken(me.side,
+        {
+            id: KEG, name: "Powder Keg", hp: 1, armor: 0, mr: 0, ownerId: me.id, soak: false, hidden: true,
+            secret: {
+                list: encode(ks)
+            },
+        })
+    g.setStack(t,
+        "kegs",
+        ks.length)
+}
+const hasRoom = (g: Game, me: Unit) => kegsOf(g,
+    me).length < MAX_KEGS
+function placeKeg(g: Game, me: Unit, keg: Keg) {
+    const ks = kegsOf(g,
+        me)
+    if (ks.length >= MAX_KEGS) return
+    ks.push(keg)
+    saveKegs(g,
+        me,
+        ks)
+}
+/** H: lượng máu Q (Ăn Cam) hồi; các lần hồi từ Thùng giả tính theo tỉ lệ của H */
+const healQ = (g: Game, me: Unit) => g.f(me,
+    F_HEAL)
+/** Thùng giả là lá Cam (Q của Gangplank) */
+const isOrange = (k: Keg) => k.card?.id === "gangplank_q"
+const HEAL_FAKE = 0.3
+const HEAL_ORANGE_ENEMY = 1
+const HEAL_ORANGE_EAT = 0.6
+/** Nổ 1 Thùng thật: mọi tướng địch nhận sát thương theo Thuốc Súng của nó */
+function blast(g: Game, me: Unit, keg: Keg) {
+    if (keg.powder <= 0) return
+    const dmg = keg.powder * g.f(me,
+        F_POWDER)
     for (const t of g.heroes(otherSide(me.side))) g.damage(me,
         t,
         dmg,
@@ -61,139 +116,152 @@ function detonate(g: Game, me: Unit): boolean {
         {
             tag: "skill"
         })
-    return true
 }
 
 export default defineHero({
-    id: "gangplank", name: "Gangplank", role: "fighter", damage: "physical", hp: 860, atk: 76, armor: 32, mr: 30,
-    desc: "Thùng thuốc súng úp mặt: úp 1 lá thành thùng thật hoặc giả, Thuốc Súng tăng mỗi lượt. Đối thủ phải đoán: tốn đòn xạ thủ đập thùng, hay liều chờ nó nổ.",
-    skillCopies: {
-        Q: 5, E: 4, R: 2
+    id: "gangplank", name: "Gangplank", role: "fighter", damage: "physical", hp: 370, atk: 74, armor: 33, mr: 30,
+    bot: {
+        tokenValue: 30,
+        tokenStackValue: {
+            kegs: 25,
+        },
+        hiddenPrior: 0.6,
     },
+    desc: "Đấu sĩ trụ đường nhờ Cam, gài Thùng thuốc súng nổ cả đội. Thùng thật to dần mỗi lượt; Thùng giả (úp bất kỳ lá nào) khiến địch phải đoán cái nào đáng phá.",
     passive: {
         name: "Thuốc Súng Bilgewater",
-        desc: `Thùng Thuốc Súng úp ở ô triệu hồi phụ: đầu mỗi lượt của bạn thùng +1 Thuốc Súng (hiện trên thùng); thùng tự xịt sau ${KEG_TURNS} lượt của bạn. Chỉ đòn Đánh thường của xạ thủ địch đập được thùng (thùng 1 máu; đập thùng thật thì không nổ). Lá úp theo thùng vào mộ khi thùng nổ, vỡ hoặc xịt. Mỗi khi Gangplank hạ 1 tướng địch, bạn nhận 1 lá Vàng. Chiêu và thùng của Gangplank +${ITEM_AMP * 100}% sát thương cho mỗi món đồ hắn đeo.`,
+        desc: `Đầu lượt của bạn: Thùng thật của Gangplank +1 Thuốc Súng. Bạn có thể úp BẤT KỲ lá trên tay làm Thùng giả (lá đó mất; tốn 1 lượt đánh). Ô phụ chứa tối đa ${MAX_KEGS} Thùng; địch không phân biệt thật/giả. Chỉ đòn đánh của Xạ Thủ nhắm được Thùng (vỡ 1 Thùng ngẫu nhiên: Thùng giả bị lật và lá vào mộ, Thùng thật mất mà không nổ). Địch phá Thùng giả: Gangplank hồi 30% lượng hồi của Q (nếu là lá Cam: 100%). Trong lượt của bạn, đòn đánh của Gangplank (cả Đánh nhanh) có thể nhắm Thùng của bạn: Kích Nổ 1 Thùng thật, mọi tướng địch nhận {${F_POWDER}} sát thương vật lý mỗi Thuốc Súng. Hết Thùng thật, đòn đánh vào Thùng giả = ăn nó: lá vào mộ, nếu là lá Cam hồi 60% lượng hồi của Q.`,
+    },
+    extraAttackTargets(g, me) {
+        if (g.s.active !== me.side) return []
+        const tok = kegToken(g,
+            me)
+        return tok && kegsOf(g,
+            me).length ? [tok] : []
+    },
+    handUse: {
+        id: FAKE_ID,
+        name: "Úp làm Thùng giả",
+        can: (g, me) => hasRoom(g,
+            me),
+        resolve(g, me, card) {
+            placeKeg(g,
+                me,
+                {
+                    real: false, powder: 0, card
+                })
+        },
     },
     hooks: {
         onTurnStart(g, me, d) {
             if (d.side !== me.side) return
-            const keg = kegOf(g,
+            const ks = kegsOf(g,
                 me)
-            if (keg) g.stack(keg,
-                POWDER,
+            for (const k of ks) if (k.real) k.powder++
+            if (ks.length) saveKegs(g,
+                me,
+                ks)
+        },
+        onDamage(g, me, d) {
+            const tok = d.target
+            if (tok.token?.id !== KEG || tok.token.ownerId !== me.id) return
+            tok.hp = tok.maxHp // token không chết vì sát thương: từng Thùng vỡ/nổ theo danh sách
+            if (d.tag !== "attack" || !d.src) return
+            const n = g.s.attackCounts?.[d.src.id] ?? 0
+            const ks = kegsOf(g,
+                me)
+            if (!ks.length) return
+            if (d.src.side === me.side) {
+                // đòn của chính Gangplank: Kích Nổ Thùng thật nhiều Thuốc Súng nhất; hết Thùng thật thì "ăn" Thùng giả
+                // (ưu tiên lá Cam: hồi 60% H; Thùng giả khác chỉ vào mộ, đòn đánh bị phí)
+                if (d.src.id !== me.id || !g.oncePerTurn(me,
+                    `blast:${n}`)) return
+                let best = -1
+                ks.forEach((k, i) => { if (k.real && (best < 0 || k.powder > ks[best].powder)) best = i })
+                if (best < 0) {
+                    best = ks.findIndex(isOrange)
+                    if (best < 0) best = 0
+                    const [fake] = ks.splice(best,
+                        1)
+                    saveKegs(g,
+                        me,
+                        ks)
+                    if (fake.card) g.giveCard(me.side,
+                        fake.card,
+                        "grave")
+                    if (isOrange(fake)) g.heal(me,
+                        me,
+                        healQ(g,
+                            me) * HEAL_ORANGE_EAT)
+                    return
+                }
+                const [keg] = ks.splice(best,
+                    1)
+                saveKegs(g,
+                    me,
+                    ks)
+                blast(g,
+                    me,
+                    keg)
+                return
+            }
+            // đòn của địch (Xạ thủ): vỡ 1 Thùng ngẫu nhiên (mỗi đòn một lần)
+            if (!g.oncePerTurn(me,
+                `pop:${d.src.id}:${n}`)) return
+            const [keg] = ks.splice(g.randInt(ks.length),
                 1)
-        },
-        onTurnEnd(g, me, d) {
-            if (d.side !== me.side) return
-            const keg = kegOf(g,
-                me)
-            if (keg && keg.token?.expires !== undefined && keg.token.expires <= g.s.turnNo) buryKegCard(g,
-                me.side,
-                keg) // thùng sắp xịt (engine gỡ ngay sau hook này)
-        },
-        onDeath(g, me, d) {
-            const v = d.victim
-            if (v.token?.id === KEG && v.token.ownerId === me.id) buryKegCard(g,
-                me.side,
-                v) // xạ thủ địch đập vỡ thùng
-        },
-        onKill(g, me, d) {
-            if (d.killer.id === me.id && !d.victim.token && d.victim.side !== me.side) g.giveCard(me.side,
-                g.supportCard("gold"),
-                "hand")
+            saveKegs(g,
+                me,
+                ks)
+            // Thùng giả bị lật: lá úp vào mộ (công khai). Thùng thật chỉ vỡ, không nổ.
+            if (!keg.real && keg.card) {
+                g.giveCard(me.side,
+                    keg.card,
+                    "grave")
+                // Thùng giả bị địch phá: Gangplank hồi máu (lá Cam hồi nhiều hơn)
+                g.heal(me,
+                    me,
+                    healQ(g,
+                        me) * (isOrange(keg) ? HEAL_ORANGE_ENEMY : HEAL_FAKE))
+            }
         },
     },
     skills: {
         Q: {
-            key: "Q", name: "Bắn Một Phát", target: "none",
-            options(c) {
-                const foes = c.g.heroes(otherSide(c.side)).filter((u) => !c.g.has(u,
-                    "stealth"))
-                const taunt = foes.filter((u) => c.g.has(u,
-                    "taunt"))
-                const out: PlayArgs[] = (taunt.length ? taunt : foes).map((u) => ({
-                    target: u.id
-                }))
-                if (kegOf(c.g,
-                    c.self)) out.push({
-                    pick: KEG
-                })
-                return out
-            },
-            desc: `Chọn 1: bắn 1 tướng địch {${F_Q}} sát thương vật lý (chí mạng theo đồ); **hoặc** bắn Thùng Thuốc Súng của bạn: lật thùng, thùng thật nổ {${F_KEG}} + {${F_POWDER}} mỗi Thuốc Súng, sát thương vật lý lên **mọi tướng địch**; thùng giả không gì xảy ra. **Điều kiện:** phát bắn (hoặc vụ nổ) hạ gục tướng địch thì lá Q này quay về tay.`,
+            key: "Q", name: "Ăn Cam", target: "self",
+            desc: `Gangplank hồi {${F_HEAL}} máu (chỉ hồi cho chính hắn).`,
             resolve(c) {
-                const foes = c.g.heroes(otherSide(c.side))
-                if (c.args.pick === KEG) {
-                    detonate(c.g,
-                        c.self)
-                } else {
-                    const t = c.target
-                    if (!t || t.status !== "board") return
-                    const st = c.g.stats(c.self)
-                    const crit = st.crit > 0 && c.g.rand() < Math.min(1,
-                        st.crit)
-                    c.g.damage(c.self,
-                        t,
-                        c.f(F_Q) * amp(c.self) * (crit ? 1.5 + st.critDmg : 1),
-                        "physical",
-                        {
-                            tag: "skill", crit
-                        })
-                }
-                if (foes.some((u) => u.status === "dead")) c.toHand()
+                c.g.heal(c.self,
+                    c.self,
+                    healQ(c.g,
+                        c.self))
             },
         },
         E: {
-            key: "E", name: "Thùng Thuốc Súng", target: "none",
-            canPlay: (c) => !kegOf(c.g,
+            key: "E", name: "Đặt Thùng", target: "none",
+            desc: `Đặt 1 Thùng thật (${START_POWDER} Thuốc Súng) vào ô phụ. Cần ô phụ còn chỗ (tối đa ${MAX_KEGS} Thùng).`,
+            canPlay: (c) => hasRoom(c.g,
                 c.self),
-            options(c) {
-                const seen = new Set<string>()
-                const out: PlayArgs[] = []
-                for (const x of c.g.player(c.side).hand) {
-                    if (x.uid === c.card.uid) continue
-                    const k = isGpCard(x) ? `gp:${x.id}` : "fake"
-                    if (seen.has(k)) continue
-                    seen.add(k)
-                    out.push({
-                        pick: x.uid
-                    })
-                }
-                return out
-            },
-            desc: `Úp 1 lá khác trên tay thành Thùng Thuốc Súng ở ô triệu hồi phụ (1 máu, tự xịt sau ${KEG_TURNS} lượt; chỉ đánh được khi chưa có thùng). Lá chiêu của Gangplank = thùng **thật**, lá khác = thùng **giả**; đối thủ chỉ thấy thùng úp. **Điều kiện:** Gangplank đeo từ ${E_ITEMS} món đồ thì thùng ra sân với sẵn 1 Thuốc Súng.`,
             resolve(c) {
-                const hand = c.g.player(c.side).hand
-                const i = hand.findIndex((x) => x.uid === c.args.pick)
-                if (i < 0) return
-                const [card] = hand.splice(i,
-                    1)
-                const keg = c.g.summonToken(c.side,
+                placeKeg(c.g,
+                    c.self,
                     {
-                        id: KEG, name: "Powder Keg", hp: 1, armor: 0, mr: 0, ownerId: c.self.id, soak: false,
-                        hidden: true, secret: {
-                            real: isGpCard(card) ? 1 : 0
-                        }, card, turns: KEG_TURNS,
+                        real: true, powder: START_POWDER
                     })
-                if (c.self.items.length >= E_ITEMS) c.g.stack(keg,
-                    POWDER,
-                    1)
             },
         },
         R: {
-            key: "R", name: "Mưa Đại Bác", target: "all_enemies",
-            desc: `Kích nổ Thùng Thuốc Súng của bạn trước (nếu có; thùng giả thì không gì), rồi bắn các đợt đại bác: mỗi đợt {${F_R}} sát thương vật lý cho mọi tướng địch; 1 đợt, **thêm 1 đợt cho mỗi món đồ** Gangplank đeo. **Điều kiện:** số đợt = 1 + số đồ.`,
+            key: "R", name: "Mưa Đại Bác", target: "none",
+            desc: "Thêm 1 lá Q (Cam) và 1 lá E (Thùng) của Gangplank lên tay.",
             resolve(c) {
-                detonate(c.g,
-                    c.self)
-                const waves = 1 + c.self.items.length
-                for (let w = 0; w < waves; w++) for (const t of c.g.heroes(otherSide(c.side))) c.g.damage(c.self,
-                    t,
-                    c.f(F_R) * amp(c.self),
-                    "physical",
-                    {
-                        tag: "skill"
-                    })
+                c.g.giveSkillToHand(c.self.side,
+                    c.self.hero,
+                    "Q",
+                    "gangplank_r")
+                c.g.giveSkillToHand(c.self.side,
+                    c.self.hero,
+                    "E",
+                    "gangplank_r")
             },
         },
     },

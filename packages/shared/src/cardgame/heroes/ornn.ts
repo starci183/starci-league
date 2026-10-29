@@ -1,144 +1,169 @@
-// Ornn (Đỡ đòn, phép): máu 1000 · AD 66 · giáp/kháng 40/36.
-// MỤC ĐÍCH: Lò rèn của đội — Ornn không gây sát thương: cấp mảnh Đồ, lục bộ tìm Vàng/Đồ, và tiêu Vàng để nâng đồ đồng đội thành Kiệt Tác.
-// Kiệt Tác = stack "itemAmp" (%) hiện trên tướng: Game.stats nhân mọi chỉ số từ đồ (+100% = gấp đôi). Engine: items.
-// Cơ chế engine dùng: stack itemAmp, g.tutor, combine/getItem để rèn đồ ngay (R), event craft.
+// Ornn (Đỡ đòn, phép): máu 480 · AD 66 · giáp/kháng 45/40.
+// CHẤT: "Lò rèn của đội". Mỗi lượt Ornn rèn một đồng minh cứng và sắc thêm. Rèn là bộ đếm vĩnh viễn (tối đa 10) hiện trên tướng;
+// mỗi Rèn cho tướng đó thêm sát thương vật lý/đòn đánh gây ra và thêm Giáp. Hiệu ứng chạy qua HeroDef.modifyDamage của Ornn
+// nên chỉ có tác dụng khi Ornn còn trên sân.
+// Engine: stack "forge", HeroDef.modifyDamage, lá đặc biệt có SpecialCardDef.skill (chọn đồng minh đầu lượt), status "forge_e".
+// Đối thủ trả lời: sát thương phép/chuẩn (Giáp vô dụng), sát thương theo % máu tối đa, hoặc hạ Ornn để tắt cả lò.
 import {
-    combine, getItem
-} from "../../items"
+    pct
+} from "../formula"
+import {
+    defineHero, defineSpecialCard
+} from "../registry"
 import type {
     Game
 } from "../game"
-import {
-    defineHero
-} from "../registry"
-import {
-    RULES
-} from "../types"
 import type {
-    Card, Side, Unit
+    PlayArgs, Unit
 } from "../types"
 
-const AMP = 30
-const AMP_MAX = 100
-const F_Q = "40 + 8% máu cộng thêm + 30% AP"
-const F_E_SHIELD = "40 + 30% AP"
-const F_R = "60 + 10% máu cộng thêm + 30% AP"
+const FORGE = "forge"
+const FORGE_MAX = 10
+/** Mỗi Rèn: +5% sát thương vật lý/đòn đánh gây ra và +5 Giáp */
+const ATK_PER = 0.15
+const ARMOR_PER = 12
+const Q_FORGE = 5
+const E_STATUS = "forge_e"
+const CHOICE = "ornn_forge"
 
-const isGold = (x: Card) => x.kind === "support" && x.id === "gold"
-const isComponent = (x: Card) => x.kind === "support" && x.id === "item"
-const hand = (g: Game, side: Side) => g.player(side).hand
-
-/** Cộng % Kiệt Tác cho đồ của u, giữ đúng máu (máu tối đa và máu hiện tại tăng theo phần máu cộng thêm) */
-export function addItemAmp(g: Game, u: Unit, pct: number, max = AMP_MAX) {
-    const before = g.bonusHp(u)
+export const forgeOf = (g: Game, u: Unit) => g.stackOf(u,
+    FORGE)
+/** Rèn tính hiệu lực: E nhân đôi tới hết lượt */
+const effective = (g: Game, u: Unit) => forgeOf(g,
+    u) * (g.has(u,
+    E_STATUS) ? 2 : 1)
+const addForge = (g: Game, u: Unit, n: number) => {
+    if (u.status !== "board" || u.token) return
     g.stack(u,
-        "itemAmp",
-        pct,
-        max)
-    const dh = g.bonusHp(u) - before
-    u.maxHp += dh; if (u.status === "board") u.hp += dh
+        FORGE,
+        n,
+        FORGE_MAX)
 }
-/** Rèn ngay 1 món đồ từ 2 mảnh ngẫu nhiên (không tốn lá) cho u. Trả về id món hoặc undefined. */
-export function forgeRandom(g: Game, u: Unit): string | undefined {
-    if (u.items.length >= RULES.itemSlots) return undefined
-    for (let tries = 0; tries < 20; tries++) {
-        const id = combine(g.randomComponent(),
-            g.randomComponent())
-        if (!id || !getItem(id)) continue
-        g.equip(u,
-            id)
-        return id
-    }
-    return undefined
+const allyOptions = (g: Game, me: Unit): PlayArgs[] => g.heroes(me.side).map((u) => ({
+    target: u.id
+}))
+
+defineSpecialCard({
+    id: CHOICE, name: "Lò Rèn",
+    desc: "Chọn 1 tướng mình; nó +1 Rèn.",
+    skill: {
+        key: "Q", name: "Lò Rèn", target: "ally",
+        desc: "Chọn 1 tướng mình; nó +1 Rèn.",
+        options: (c) => allyOptions(c.g,
+            c.self),
+        resolve(c) {
+            if (c.target) addForge(c.g,
+                c.target,
+                1)
+        },
+    },
+})
+
+/** Không chọn kịp: rèn một đồng minh ngẫu nhiên */
+const forgeRandom = (g: Game, me: Unit) => {
+    const u = g.pick(g.heroes(me.side))
+    if (u) addForge(g,
+        u,
+        1)
 }
 
 export default defineHero({
-    id: "ornn", name: "Ornn", role: "tank", damage: "magic", hp: 1010, atk: 68, armor: 40, mr: 36,
-    skillCopies: {
-        Q: 3, E: 3, R: 1
-    },
-    supportCopies: {
-        basic: 7, gold: 5, item: 3
-    },
-    desc: "Thần Rèn dưới chân núi: không phải kẻ gây sát thương mà là lò rèn của đội. Cấp mảnh Đồ, tìm Vàng, rèn đồ đồng đội thành Kiệt Tác.",
+    id: "ornn", name: "Ornn", role: "tank", damage: "magic", hp: 450, atk: 78, armor: 39, mr: 38,
+    desc: "Thần Rèn: mỗi lượt rèn một đồng minh cứng và sắc thêm; R nhân đôi cả lò. Đổ Rèn vào một carry là có Kiệt Tác.",
     passive: {
         name: "Lò Rèn Sống",
-        desc: "Đầu lượt của bạn, nếu trên tay có lá Vàng nhưng không có lá Đồ (mảnh) nào, Ornn tạo 1 lá Đồ (mảnh ngẫu nhiên) lên tay.",
+        desc: `Đầu lượt của bạn: chọn 1 tướng mình; nó +1 Rèn (vĩnh viễn, tối đa ${FORGE_MAX}). Mỗi Rèn: tướng đó gây thêm ${pct(ATK_PER)}% sát thương vật lý (cả đòn đánh) và +${ARMOR_PER} Giáp, chỉ khi Ornn còn trên sân.`,
+    },
+    modifyDamage(g, me, d) {
+        let m = 1
+        const src = d.src
+        // ATK: đồng minh có Rèn gây sát thương vật lý hoặc đòn đánh lên địch
+        if (src && src.side === me.side && !src.token && d.target.side !== me.side && (d.tag === "attack" || d.kind === "physical")) {
+            m *= 1 + ATK_PER * effective(g,
+                src)
+        }
+        // Giáp: đồng minh có Rèn nhận sát thương vật lý từ địch
+        const t = d.target
+        if (t.side === me.side && !t.token && d.kind === "physical" && src && src.side !== me.side) {
+            const bonus = ARMOR_PER * effective(g,
+                t)
+            if (bonus > 0) {
+                const armor = g.armor(t)
+                m *= (100 + armor) / (100 + armor + bonus)
+            }
+        }
+        return m
     },
     hooks: {
         onTurnStart(g, me, d) {
-            if (d.side === me.side && hand(g,
-                me.side).some(isGold) && !hand(g,
-                me.side).some(isComponent)) g.giveCard(me.side,
-                g.supportCard("item"),
-                "hand")
+            if (d.side !== me.side) return
+            const card = g.createCard(me.side,
+                {
+                    kind: "special", id: CHOICE, hero: me.hero, side: me.side, temp: true
+                })
+            // tay đầy: lá biến mất ngay, rèn ngẫu nhiên thay vì mất lượt rèn
+            if (!g.player(me.side).hand.some((x) => x.uid === card.uid)) forgeRandom(g,
+                me)
+        },
+        onTempExpired(g, me, d) {
+            if (d.side === me.side && d.card.id === CHOICE) forgeRandom(g,
+                me)
         },
     },
     skills: {
         Q: {
-            key: "Q", name: "Thổi Bễ", target: "none",
-            desc: `Tìm trong bộ bài 1 lá Vàng (nếu tay chưa có Vàng) hoặc 1 lá Đồ (nếu đã có) lên tay. Ornn nhận Khiên {${F_Q}}. **Điều kiện:** sau đó tay bạn đủ 2 Đồ + 1 Vàng (ghép được đồ) thì rút thêm 1 lá.`,
-            resolve(c) {
-                const want = hand(c.g,
-                    c.side).some(isGold) ? isComponent : isGold
-                c.g.tutor(c.side,
-                    want)
-                c.g.shield(c.self,
-                    c.self,
-                    c.f(F_Q))
-                const h = hand(c.g,
-                    c.side)
-                if (h.some(isGold) && h.filter(isComponent).length >= 2) c.g.draw(c.side,
-                    1,
-                    {
-                        reason: "skill", by: c.self.id
+            key: "Q", name: "Thổi Bễ", target: "ally", extra: "discard",
+            desc: `Bỏ 1 lá trên tay, chọn 1 tướng mình; nó +${Q_FORGE} Rèn.`,
+            canPlay: (c) => c.g.player(c.side).hand.some((x) => x.uid !== c.card.uid),
+            options(c): PlayArgs[] {
+                const hand = c.g.player(c.side).hand.filter((x) => x.uid !== c.card.uid)
+                const seen = new Set<string>()
+                const out: PlayArgs[] = []
+                for (const x of hand) {
+                    const k = `${x.kind}|${x.id}|${x.hero ?? ""}|${x.item ?? ""}`
+                    if (seen.has(k)) continue
+                    seen.add(k)
+                    for (const a of allyOptions(c.g,
+                        c.self)) out.push({
+                        ...a, discard: [x.uid]
                     })
+                }
+                return out
+            },
+            resolve(c) {
+                const uid = c.args.discard?.[0]
+                if (uid) c.g.discard(c.side,
+                    uid,
+                    "cost")
+                if (c.target) addForge(c.g,
+                    c.target,
+                    Q_FORGE)
             },
         },
         E: {
-            key: "E", name: "Rèn Kiệt Tác", target: "ally",
-            desc: `Bỏ 1 lá Vàng trên tay: đồ của 1 tướng mình (đang đeo đồ) được rèn lên **Kiệt Tác**: mọi chỉ số từ đồ +${AMP}% (tối đa +${AMP_MAX}% = gấp đôi, hiện trên tướng). Ornn nhận Khiên {${F_E_SHIELD}}. **Điều kiện:** tướng đó đeo đủ 3 món thì bạn rút 1 lá.`,
-            canPlay: (c) => hand(c.g,
-                c.side).some(isGold),
-            options: (c) => c.g.heroes(c.side).filter((u) => u.items.length > 0 && c.g.stackOf(u,
-                "itemAmp") < AMP_MAX).map((u) => ({
-                target: u.id
-            })),
+            key: "E", name: "Lửa Bùng", target: "ally", quick: true,
+            desc: "Quick. Chọn 1 tướng mình; tới hết lượt, Rèn của nó tính gấp đôi.",
+            options: (c) => allyOptions(c.g,
+                c.self),
             resolve(c) {
-                const gold = hand(c.g,
-                    c.side).find(isGold)
-                if (!gold) return
-                c.g.discard(c.side,
-                    gold.uid,
-                    "cost")
-                const t = c.target!
-                addItemAmp(c.g,
-                    t,
-                    AMP)
-                c.g.shield(c.self,
-                    c.self,
-                    c.f(F_E_SHIELD))
-                if (t.items.length >= 3) c.g.draw(c.side,
+                if (c.target) c.g.status(c.target,
+                    E_STATUS,
                     1,
                     {
-                        reason: "skill", by: c.self.id
+                        until: c.g.s.turnNo
                     })
             },
         },
         R: {
-            key: "R", name: "Lời Hiệu Triệu Thần Rèn", target: "allies_upto", max: 1,
-            desc: `1 tướng mình: được rèn ngay 1 món đồ ngẫu nhiên (không tốn lá) và nhận Khiên {${F_R}}. **Điều kiện:** tướng đã đeo đủ 3 món thì đồ của nó được rèn Kiệt Tác +${AMP}% thay vì món mới.`,
+            key: "R", name: "Lời Hiệu Triệu Thần Rèn", target: "all_allies",
+            desc: `Nhân đôi Rèn của mọi tướng mình (vĩnh viễn, tối đa ${FORGE_MAX}).`,
             resolve(c) {
-                for (const u of c.targets) {
-                    if (u.token) continue
-                    if (u.items.length >= RULES.itemSlots) addItemAmp(c.g,
-                        u,
-                        AMP)
-                    else forgeRandom(c.g,
+                for (const u of c.g.heroes(c.side)) {
+                    const n = forgeOf(c.g,
                         u)
-                    c.g.shield(c.self,
+                    if (n > 0) addForge(c.g,
                         u,
-                        c.f(F_R))
+                        n)
                 }
             },
         },

@@ -1,95 +1,100 @@
-// Braum (Đỡ đòn, phép): máu 1060 · AD 62 · giáp/kháng 37/37.
-// MỤC ĐÍCH: Bức tường phản ứng — chỉ chơi trong lượt đối thủ, mọi lá của Braum là một lá Quick chỉ-nối-chuỗi đỡ cho đồng đội.
-// Q đỡ đòn đơn (đổi mục tiêu sang Braum), E đỡ chiêu nhiều mục tiêu (giảm sát thương), R đỡ trọn một chiêu (vô hiệu sát thương + khống chế, phản công kẻ tung).
-// Nội tại: mỗi lá Quick của Braum giải quyết thì rút 1 lá (tay luôn có phản ứng mới). Engine: chain.
-// Cơ chế engine dùng: quick + chainOnly, g.chainFx() (redirect, cut/cutSide/cutNoCc, reflectUnit/reflectPct).
-import type {
-    Game
-} from "../game"
+// Braum (Đỡ đòn): máu 500 · AD 55 · giáp/kháng 40/40.
+// CHẤT: "Đứng sau tôi": Braum hứng đòn cho đồng đội, càng hứng càng Vững.
+// Nội tại: mỗi đòn đánh trúng Braum +1 Vững (giữ mãi, tối đa 6); mỗi Vững Braum nhận ít hơn 10% sát thương.
+// Q (Quick) Đỡ Thay + 2 Vững. E (Quick) Vững ×2 đến hết lượt (giảm tối đa 80%). R (Quick) đồng minh nhận ít sát thương theo Vững tới hết lượt địch.
+// Cơ chế engine dùng: HeroDef.modifyDamage, hook onAttackHit, g.chainFx().redirect, stack, status.
+import {
+    pct
+} from "../formula"
 import {
     defineHero
 } from "../registry"
-import type {
-    Card, Ctx, Side
+import {
+    otherSide
 } from "../types"
 
-const F_Q_SHIELD = "130 + 10% máu cộng thêm + 30% AP"
-const F_R = "110 + 6% máu tối đa + 40% AP"
-const REFLECT = 0.3
-const CUT = 0.4
-
-const isBraumQuick = (c: Card) => c.kind === "skill" && c.hero === "braum"
-const braumQuickInHand = (g: Game, side: Side) => g.player(side).hand.filter(isBraumQuick).length
-/** Nội tại Bức Tường Freljord: lá Quick của Braum giải quyết xong thì rút 1 lá */
-const wall = (c: Ctx) => { c.g.draw(c.side,
-    1,
-    {
-        reason: "skill", by: c.self.id
-    }) }
+const STEADY = "braum_steady"
+const DOUBLE = "braum_dbl"
+const WALL = "braum_wall"
+const STEADY_MAX = 6
+const CUT_PER = 0.1
+const CUT_CAP = 0.8
+const CUT_TEAM_CAP = 0.6
+const Q_GAIN = 2
 
 export default defineHero({
-    id: "braum", name: "Braum", role: "tank", damage: "magic", hp: 1750, atk: 81, armor: 37, mr: 37,
-    skillCopies: {
-        Q: 9, E: 7, R: 3
+    id: "braum", name: "Braum", role: "tank", damage: "magic", hp: 430, atk: 66, armor: 39, mr: 38,
+    bot: {
+        stackValue: {
+            braum_steady: 25,
+        },
+        buffValue: {
+            braum_dbl: 30, braum_wall: 70,
+        },
     },
-    desc: "Tấm khiên của Freljord: chỉ chơi trong lượt đối thủ. Q đỡ đòn đơn, E đỡ chiêu diện rộng, R chặn trọn một chiêu; mỗi lần đỡ lại rút lá mới.",
+    desc: "Tấm khiên của Freljord: hứng đòn cho cả đội, càng bị đánh càng Vững, không gây sát thương bằng chiêu.",
     passive: {
-        name: "Bức Tường Freljord",
-        desc: "Mọi lá chiêu của Braum là lá **Quick chỉ nối chuỗi**. Mỗi khi một lá Quick của Braum giải quyết xong, bạn rút 1 lá.",
+        name: "Da Sắt",
+        desc: `Mỗi đòn đánh trúng Braum: +1 Vững (giữ mãi, tối đa ${STEADY_MAX}). Mỗi Vững: Braum nhận ít hơn ${pct(CUT_PER)}% sát thương.`,
+    },
+    modifyDamage(g, me, d) {
+        if (d.target.token) return 1
+        const steady = g.stackOf(me,
+            STEADY)
+        if (d.target.id === me.id) return 1 - Math.min(CUT_CAP,
+            steady * (g.has(me,
+                DOUBLE) ? 2 : 1) * CUT_PER)
+        if (d.target.side === me.side && g.has(me,
+            WALL)) return 1 - Math.min(CUT_TEAM_CAP,
+            steady * CUT_PER)
+        return 1
+    },
+    hooks: {
+        onAttackHit(g, me, d) {
+            if (d.target.id === me.id && d.attacker.side !== me.side) g.stack(me,
+                STEADY,
+                1,
+                STEADY_MAX)
+        },
     },
     skills: {
         Q: {
             key: "Q", name: "Đứng Sau Tôi", target: "none", quick: true, chainOnly: true,
-            desc: `**Quick, chỉ nối chuỗi**, khi địch đánh/tung chiêu nhắm đúng 1 tướng mình: đổi mục tiêu sang Braum, Braum nhận Khiên {${F_Q_SHIELD}}. **Điều kiện:** Braum đang có Khiên từ trước thì phản lại ${REFLECT * 100}% sát thương đó cho kẻ tấn công.`,
-            quickWhen: (c) => c.trigger.side !== c.side && !!c.trigger.single
-                && (c.trigger.target === c.self.id || !!c.trigger.redirectable?.includes(c.self.id)),
+            desc: `Quick, Chỉ Nối Chuỗi. Khi địch đánh 1 đồng minh khác Braum: Đỡ Thay đòn đó; Braum +${Q_GAIN} Vững.`,
+            quickWhen: (c) => c.trigger.side !== c.side && !!c.trigger.single && c.trigger.target !== c.self.id
+                && !!c.trigger.redirectable?.includes(c.self.id),
             resolve(c) {
-                const braum = c.self
-                const had = braum.shield > 0
-                const fx = c.g.chainFx()
-                if (c.trigger?.target !== braum.id) fx.redirect = braum.id
-                c.g.shield(braum,
-                    braum,
-                    c.f(F_Q_SHIELD))
-                if (had) { fx.reflectUnit = braum.id; fx.reflectPct = REFLECT }
-                wall(c)
+                if (c.trigger?.target !== c.self.id) c.g.chainFx().redirect = c.self.id
+                c.g.stack(c.self,
+                    STEADY,
+                    Q_GAIN,
+                    STEADY_MAX)
             },
         },
         E: {
             key: "E", name: "Bất Khả Xâm Phạm", target: "none", quick: true, chainOnly: true,
-            desc: `**Quick, chỉ nối chuỗi**, khi địch tung chiêu nhắm nhiều tướng mình (tối đa N hoặc mọi tướng): mọi tướng mình nhận ít hơn ${CUT * 100}% sát thương từ chiêu đó. **Điều kiện:** chiêu bị đỡ là chiêu cuối (R) thì tướng mình còn miễn khống chế của nó.`,
-            quickWhen: (c) => c.trigger.side !== c.side && !!c.trigger.multi,
+            desc: `Quick, Chỉ Nối Chuỗi. Khi địch đánh: tới hết lượt này, Vững của Braum tính ×2 (Braum nhận ít hơn tối đa ${pct(CUT_CAP)}% sát thương).`,
+            quickWhen: (c) => c.trigger.side !== c.side,
             resolve(c) {
-                const fx = c.g.chainFx()
-                fx.cut = CUT; fx.cutSide = c.side
-                if (c.trigger?.ult) fx.cutNoCc = true
-                wall(c)
+                c.g.status(c.self,
+                    DOUBLE,
+                    1,
+                    {
+                        of: c.g.s.active
+                    })
             },
         },
         R: {
-            key: "R", name: "Vết Nứt Băng Giá", target: "none", quick: true, chainOnly: true,
-            desc: `**Quick, chỉ nối chuỗi**, khi địch tung một lá chiêu nhắm tướng mình: tướng mình **không nhận sát thương và khống chế** từ lá đó, kẻ tung nhận {${F_R}} sát thương phép và bị Buốt 1 lượt. **Điều kiện:** trên tay bạn còn từ 2 lá Braum thì mọi tướng địch cùng nhận sát thương và Buốt.`,
-            quickWhen: (c) => c.trigger.side !== c.side && !!c.trigger.card && c.trigger.card.kind !== "support" && !!c.trigger.target,
+            key: "R", name: "Vết Nứt Băng Giá", target: "none", quick: true,
+            desc: `Quick. Tới hết lượt của đối thủ: mọi đồng minh nhận ít hơn ${pct(CUT_PER)}% sát thương cho mỗi Vững của Braum.`,
+            quickWhen: (c) => c.trigger.side !== c.side,
             resolve(c) {
-                const fx = c.g.chainFx()
-                fx.cut = 1; fx.cutSide = c.side; fx.cutNoCc = true
-                const caster = c.g.unit(c.trigger?.actor)
-                const wide = braumQuickInHand(c.g,
-                    c.side) >= 2
-                const hit = wide ? c.g.enemies(c.self) : caster && caster.status === "board" && caster.side !== c.side ? [caster] : []
-                for (const t of hit) {
-                    c.g.damage(c.self,
-                        t,
-                        c.f(F_R),
-                        "magic",
-                        {
-                            tag: "skill"
-                        })
-                    c.g.status(t,
-                        "chill",
-                        1)
-                }
-                wall(c)
+                c.g.status(c.self,
+                    WALL,
+                    1,
+                    {
+                        of: otherSide(c.side)
+                    })
             },
         },
     },

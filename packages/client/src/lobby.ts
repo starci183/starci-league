@@ -135,7 +135,7 @@ const CG = getLang() === "en"
 /** Chữ của màn bộ bài (Việt/Anh) */
 const D = isEn()
     ? {
-        title: "Base deck", hint: "20 cards: support, Gold and item components. Each champion adds its own 20 support cards and skills when summoned.",
+        title: "Base deck", hint: "40 cards: Basic Attack, Draw, spells, Gold and item components. Each champion adds 4 Q, 4 E and 1 R to the deck (85 cards in total).",
         open: "Build deck", openSub: "Edit and choose your active deck", active: "Active", unsaved: "(unsaved)", back: "Back",
         newDeck: "New", sample: "Sample deck", rename: "Rename", del: "Delete", save: "Save", use: "Use this deck", dirty: "Unsaved changes",
         add: "Add", rem: "Remove", all: "All", loading: "Loading…", firstName: "My deck", newPrompt: "New deck name", renamePrompt: "Deck name",
@@ -145,7 +145,7 @@ const D = isEn()
         summary: (b: number, s: number, g: number, i: number) => `Basic ${b} · Spells ${s} · Gold ${g} · Items ${i}`,
     }
     : {
-        title: "Bộ bài", hint: "20 lá: hỗ trợ, Vàng và mảnh Đồ. Mỗi tướng khi ra sân thêm 20 lá hỗ trợ riêng và các chiêu của mình.",
+        title: "Bộ bài", hint: "40 lá: Đánh thường, Rút Bài, phép bổ trợ, Vàng và mảnh Đồ. Mỗi tướng thêm 4 Q, 4 E, 1 R vào bộ (tổng 85 lá).",
         open: "Xếp bộ bài", openSub: "Chỉnh sửa và chọn bộ đang dùng", active: "Đang dùng", unsaved: "(chưa lưu)", back: "Quay lại",
         newDeck: "Bộ mới", sample: "Bộ mẫu", rename: "Đổi tên", del: "Xoá", save: "Lưu", use: "Dùng bộ này", dirty: "Có thay đổi chưa lưu",
         add: "Thêm", rem: "Bớt", all: "Tất cả", loading: "Đang tải…", firstName: "Bộ của tôi", newPrompt: "Tên bộ mới", renamePrompt: "Tên bộ bài",
@@ -256,7 +256,7 @@ async function homeView(me: Me, msg = "") {
 
 
 // ================= XÂY BỘ BÀI (chế độ thẻ bài) =================
-// Trái: chi tiết lá · Giữa: bộ đang xếp (20 lá) · Phải: kho DECK_POOL. Bấm để xem, bấm đúp hoặc kéo thả để thêm/bớt.
+// Trái: chi tiết lá · Giữa: bộ đang xếp (40 lá) · Phải: kho DECK_POOL. Bấm để xem, bấm đúp hoặc kéo thả để thêm/bớt.
 
 async function cardDeckBuilder(me: Me) {
     root().innerHTML = `<div class="lb-center"><p class="lb-hint">${D.loading}</p></div>`

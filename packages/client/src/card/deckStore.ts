@@ -1,8 +1,11 @@
-// Dữ liệu hiển thị + lưu trữ cục bộ của bộ gốc chế độ thẻ bài (20 lá: Đánh thường, Rút Bài, phép bổ trợ, Vàng, mảnh Đồ).
+// Dữ liệu hiển thị + lưu trữ cục bộ của bộ gốc chế độ thẻ bài (40 lá: Đánh thường, Rút Bài, phép bổ trợ, Vàng, mảnh Đồ; engine thêm 45 lá chiêu của 5 tướng thành bộ 85 lá).
 // Luật nằm ở shared (cardgame/deck.ts); file này chỉ lo tên, mô tả, tranh và bộ của khách (localStorage "cg.deck").
 import {
     describeStats, getItem
 } from "@starci/shared"
+import {
+    itemText
+} from "@starci/shared/src/cardgame/items"
 import {
     DECK_POOL, DECK_SIZE, DEFAULT_DECK, isDeckCardId, validateDeck, type DeckCardGroup, type DeckCardId
 } from "@starci/shared/src/cardgame/deck"
@@ -52,9 +55,9 @@ const SUPPORT: Record<string, { vi: [string, string]; en: [string, string]; art:
 const SPELL: Record<string, { vi: [string, string]; en: [string, string]; art: string }> = {
     heal: {
         vi: ["Hồi Máu",
-            "1 tướng mình hồi 150 + 10% máu tối đa"],
+            "1 tướng mình hồi 100 + 10% máu tối đa"],
         en: ["Heal",
-            "One of your champions heals 150 + 10% max HP"],
+            "One of your champions heals 100 + 10% max HP"],
         art: "/cards/hoi_phuc.jpg"
     },
     flash: {
@@ -80,9 +83,9 @@ const SPELL: Record<string, { vi: [string, string]; en: [string, string]; art: s
     },
     barrier: {
         vi: ["Lá Chắn",
-            "1 tướng mình nhận Khiên 120 + 10% máu tối đa"],
+            "1 tướng mình nhận Khiên 80 + 10% máu tối đa"],
         en: ["Barrier",
-            "One of your champions gains a 120 + 10% max HP Shield"],
+            "One of your champions gains an 80 + 10% max HP Shield"],
         art: "/cards/la_chan.jpg"
     },
     cleanse: {
@@ -113,9 +116,11 @@ export function cardMeta(id: DeckCardId): CardMeta {
     if (id.startsWith("item:")) {
         const c = id.slice(5)
         const it = getItem(c)
-        const stats = it?.props[0]?.stats ? describeStats(it.props[0].stats) : ""
+        const tx = itemText(c,
+            isEn() ? "en" : "vi")
+        const stats = tx?.stats ?? (it?.props[0]?.stats ? describeStats(it.props[0].stats) : "")
         return {
-            id, group, name: it?.name ?? c, art: `/card_items/${c}.png`, fallback: `/items/${c}.png`,
+            id, group, name: tx?.name ?? it?.name ?? c, art: `/card_items/${c}.png`, fallback: `/items/${c}.png`,
             desc: [L("Mảnh Đồ",
                 "Item component"),
             stats].filter(Boolean).join(": ")
@@ -161,12 +166,16 @@ export function groupCounts(ids: DeckCardId[]): Record<DeckCardGroup, number> {
     return out
 }
 
-/** Lỗi của bộ theo ngôn ngữ đang chọn (null = hợp lệ) */
+/** Dòng giới thiệu bộ bài (hiện ở màn xếp bộ) */
+export const deckInfo = (): string => L("Mỗi tướng thêm 4 Q, 4 E, 1 R vào bộ (tổng 85 lá)",
+    "Each champion adds 4 Q, 4 E and 1 R to the deck (85 cards in total)")
+
+/** Lỗi của bộ theo ngôn ngữ đang chọn (null = hợp lệ). Bộ cũ 20 lá báo xếp lại. */
 export function deckError(ids: DeckCardId[]): string | null {
     const err = validateDeck(ids)
-    if (!err || !isEn()) return err
-    if (ids.length !== DECK_SIZE) return `The deck must have exactly ${DECK_SIZE} cards (has ${ids.length})`
-    return "Too many copies of a card"
+    if (!err) return null
+    if (ids.length !== DECK_SIZE) return isEn() ? `The deck needs ${DECK_SIZE} cards, please rebuild it (has ${ids.length})` : `Bộ bài cần ${DECK_SIZE} lá, hãy xếp lại`
+    return isEn() ? "Too many copies of a card" : err
 }
 
 /** Mã lưu DB -> mã lá; null nếu không phải bộ thẻ bài hợp lệ về mặt mã */

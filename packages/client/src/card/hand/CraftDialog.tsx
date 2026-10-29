@@ -3,7 +3,7 @@ import {
     useEffect, useMemo, useState
 } from "react"
 import {
-    cg, combine, describeStats, getItem
+    cg
 } from "@starci/shared"
 import {
     cardActions, useCard
@@ -34,7 +34,8 @@ function Icon({ id }: { id: string }) {
     )
 }
 
-const nameOf = (id: string) => getItem(id)?.name ?? id
+const nameOf = (id: string) => cg.itemText(id,
+    lang)?.name ?? id
 
 export function CraftDialog({ onClose }: { onClose: () => void }) {
     const { view, legal } = useCard()
@@ -122,9 +123,9 @@ export function CraftDialog({ onClose }: { onClose: () => void }) {
         onClose()
     }
 
-    const hv = hover ? getItem(hover) : undefined
-    const hvStats = hv?.props.filter((p) => p.stats && p.condition.kind === "none").map((p) => describeStats(p.stats!)).filter(Boolean).join(", ")
-    const hvPassives = hv?.props.filter((p) => p.desc)
+    // chữ món theo bảng đồ chế độ thẻ V2 (cg.CARD_ITEMS)
+    const hv = hover ? cg.itemText(hover,
+        lang) : undefined
 
     return (
         <div className="cd-modal" onClick={onClose}>
@@ -170,7 +171,7 @@ export function CraftDialog({ onClose }: { onClose: () => void }) {
                                     </th>
                                     {COMPS.map((c,
                                         ci) => {
-                                        const res = combine(r,
+                                        const res = cg.cardCombine(r,
                                             c)
                                         const list = byCell.get([r,
                                             c].sort().join("|"))
@@ -195,14 +196,14 @@ export function CraftDialog({ onClose }: { onClose: () => void }) {
                         {hv ? (
                             <>
                                 <b>{hv.name}</b>
-                                {hvStats ? <div className="cd-stats">{hvStats}</div> : null}
-                                {hvPassives?.map((p) => (
-                                    <div key={p.name} className="cd-pas">
-                                        <i>{p.name}</i>
+                                {hv.stats ? <div className="cd-stats">{hv.stats}</div> : null}
+                                {hv.passive ? (
+                                    <div className="cd-pas">
+                                        <i>{hv.passive}</i>
                                         {" "}
-                                        {p.desc}
+                                        {hv.desc}
                                     </div>
-                                ))}
+                                ) : null}
                             </>
                         ) : (
                             <span className="cd-mute">{L("Rê chuột vào ô để xem đồ. Ô sáng = ghép được ngay.",

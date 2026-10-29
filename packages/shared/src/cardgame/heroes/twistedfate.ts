@@ -1,165 +1,94 @@
-// Twisted Fate (Pháp sư, phép): máu 740 · AD 60 · giáp/kháng 28/30. Lối chơi: KIỂM SOÁT BÀI.
-// Cơ chế: Q đổi màu (mạnh hơn khi đang cầm lá Vàng: thấy được trên tay), E lục bộ bài, R xem tay đối thủ (status "see_hand") và chọn 1 lá cho họ bỏ. Một mục đích: KIỂM SOÁT BỘ BÀI.
-import {
-    defineHero, getHero
-} from "../registry"
+// Twisted Fate (Pháp sư, phép) V2: "Tay bài là đạn": TF rút nhiều, giữ dày, rồi ném cả tay.
+// Nội tại: drawBonus +1 (rút 3 lá mỗi lượt khi TF trên sân). Q (15 mana) Chọn Bài: xem 3 lá trên cùng, lấy 2, lá còn lại xuống đáy.
+// E (25) sát thương theo số lá trên tay · R (45) bỏ cả tay vào mộ, mỗi lá gây sát thương lên mọi địch.
 import type {
-    Card, PlayArgs
+    PlayArgs
 } from "../types"
 import {
-    otherSide
-} from "../types"
+    defineHero
+} from "../registry"
 
-const F_RED = "55 + 20% AD + 35% AP"
-const F_GOLD = "75 + 20% AD + 45% AP"
-const BONUS = 1.5
-
-const sig = (c: Card) => `${c.kind}|${c.id}|${c.hero ?? ""}|${c.item ?? ""}`
-const distinct = (cards: Card[]) => { const seen = new Set<string>(); return cards.filter((c) => !seen.has(sig(c)) && !!seen.add(sig(c))) }
-const isReactCard = (c: Card) => c.kind === "skill" && !!getHero(c.hero ?? "")?.skills[c.id.slice(-1).toUpperCase() as "Q" | "E" | "R"].quick
+export const DRAW_BONUS = 1
+/** Q xem bấy nhiêu lá trên cùng bộ bài, lấy (PEEK - 1) lá */
+export const PEEK = 3
+const F_E = "5 + 25% AD + 30% AP"
+const F_E_CARD = "3 + 5% AP"
+const F_R_CARD = "8 + 6% AD + 12% AP"
 
 export default defineHero({
-    id: "twistedfate", name: "Twisted Fate", role: "mage", damage: "magic", hp: 820, atk: 63, armor: 28, mr: 30,
-    skillCopies: {
-        Q: 7, E: 6, R: 2
-    },
-    desc: "Não của đội: chọn màu theo tình thế, lục đúng lá combo, xem tay đối thủ để phá thế phản ứng.",
+    id: "twistedfate", name: "Twisted Fate", role: "mage", damage: "magic", hp: 300, atk: 72, armor: 28, mr: 30,
+    desc: "Tay bài là đạn: rút nhiều hơn, chọn lá hay từ đỉnh bộ, E đánh theo độ dày của tay, R ném cả tay thành bão bài.",
     passive: {
-        name: "Bàn Tay Vàng", desc: "Mỗi lần dùng lá Vàng để ghép đồ, thầy rút 1 lá."
+        name: "Bàn Tay Vàng",
+        desc: `Khi TF trên sân: lượt rút của bạn rút thêm ${DRAW_BONUS} lá.`,
     },
-    hooks: {
-        onCraft(g, me, d) {
-            if (d.side === me.side) g.draw(me.side,
-                1,
-                {
-                    reason: "passive", by: me.id
-                })
-        },
-    },
+    drawBonus: () => DRAW_BONUS,
     skills: {
         Q: {
-            key: "Q", name: "Chọn Bài",
-            desc: `Đổi màu, chọn khi đánh. **Xanh** (bản thân): rút 2 lá. **Đỏ** (mọi tướng địch): {${F_RED}} sát thương phép. **Vàng** (1 tướng địch): {${F_GOLD}} sát thương phép, Choáng 1 lượt, và thầy nhận 1 lá Vàng. **Điều kiện:** trên tay bạn đang có **lá Vàng** thì hiệu ứng mạnh thêm 50% (Xanh rút 3 lá, Đỏ/Vàng thêm 50% sát thương).`,
-            target: "none",
+            key: "Q", name: "Chọn Bài", target: "none", mana: 20,
+            desc: `Xem ${PEEK} lá trên cùng bộ bài, lấy ${PEEK - 1} lá lên tay, lá còn lại xuống đáy bộ bài.`,
             options(c) {
-                const out: PlayArgs[] = [{
-                    color: "blue"
-                },
-                {
-                    color: "red"
+                const top = c.g.peekDeck(c.side,
+                    PEEK)
+                if (top.length < PEEK) return [{
                 }]
-                const en = c.g.enemies(c.self)
-                const taunt = en.filter((u) => c.g.has(u,
-                    "taunt"))
-                for (const t of taunt.length ? taunt : en) out.push({
-                    color: "gold", target: t.id
-                })
-                return out
+                // pick = lá bị đẩy xuống đáy
+                return top.map((x): PlayArgs => ({
+                    pick: x.uid
+                }))
             },
             resolve(c) {
-                const color = c.args.color ?? "blue"
-                const same = c.g.player(c.side).hand.some((x) => x.kind === "support" && x.id === "gold")
-                const m = same ? BONUS : 1
-                if (color === "blue") c.g.draw(c.side,
-                    same ? 3 : 2,
+                const top = c.g.peekDeck(c.side,
+                    PEEK)
+                if (top.length >= PEEK) {
+                    const down = top.find((x) => x.uid === c.args.pick) ?? top[top.length - 1]
+                    const card = c.g.takeFromDeck(c.side,
+                        down.uid)
+                    if (card) c.g.putOnBottom(c.side,
+                        card)
+                }
+                c.g.draw(c.side,
+                    PEEK - 1,
                     {
-                        reason: "skill", by: c.self.id
+                        reason: "pick", by: c.self.id
                     })
-                else if (color === "red") for (const t of c.g.enemies(c.self)) c.g.damage(c.self,
-                    t,
-                    c.f(F_RED) * m,
+            },
+        },
+        E: {
+            key: "E", name: "Lá Bài Định Mệnh", target: "enemy", mana: 30,
+            desc: `Chọn 1 tướng địch; gây {${F_E}} sát thương phép, cộng {${F_E_CARD}} cho mỗi lá trên tay bạn.`,
+            resolve(c) {
+                const n = c.g.player(c.side).hand.length
+                c.g.damage(c.self,
+                    c.target!,
+                    c.f(F_E) + c.f(F_E_CARD) * n,
                     "magic",
                     {
                         tag: "skill"
                     })
-                else {
-                    const t = c.target
-                    if (t && t.status === "board") {
+            },
+        },
+        R: {
+            key: "R", name: "Ném Hết Bài", target: "all_enemies", mana: 55,
+            desc: `Bỏ mọi lá trên tay vào mộ; mỗi lá bỏ gây {${F_R_CARD}} sát thương phép lên mọi tướng địch.`,
+            resolve(c) {
+                const hand = [...c.g.player(c.side).hand]
+                let n = 0
+                for (const card of hand) if (c.g.discard(c.side,
+                    card.uid,
+                    "throw")) n++
+                const per = c.f(F_R_CARD)
+                for (let i = 0; i < n; i++) {
+                    for (const t of c.g.enemies(c.self).filter((u) => !u.token)) {
                         c.g.damage(c.self,
                             t,
-                            c.f(F_GOLD) * m,
+                            per,
                             "magic",
                             {
                                 tag: "skill"
                             })
-                        c.g.status(t,
-                            "stun",
-                            1)
                     }
-                    c.g.giveCard(c.side,
-                        c.g.supportCard("gold"),
-                        "hand")
                 }
-            },
-        },
-        E: {
-            key: "E", name: "Xào Bài", target: "none",
-            desc: "Lục bộ bài lấy 1 lá bất kỳ lên tay, rồi xáo bộ bài; mọi lá **Nấm** (lá đặc biệt địch cài) thấy trong bộ bị huỷ. **Điều kiện:** lấy đúng **lá chiêu cuối (R)** thì phải bỏ 1 lá khác trên tay.",
-            options(c) {
-                const out: PlayArgs[] = []
-                const hand = c.g.player(c.side).hand.filter((x) => x.uid !== c.card.uid)
-                const handDistinct = distinct(hand)
-                for (const card of distinct(c.g.player(c.side).deck.filter((x) => x.kind !== "special"))) {
-                    const isR = card.kind === "skill" && card.id.endsWith("_r")
-                    if (isR && handDistinct.length) for (const h of handDistinct) out.push({
-                        pick: card.uid, discard: [h.uid]
-                    })
-                    else out.push({
-                        pick: card.uid
-                    })
-                }
-                return out.length ? out : [{
-                }]
-            },
-            resolve(c) {
-                const p = c.g.player(c.side)
-                const traps = p.deck.filter((x) => x.kind === "special" && x.side !== c.side)
-                if (traps.length) {
-                    p.deck = p.deck.filter((x) => !traps.includes(x))
-                    for (const x of traps) c.g.emit({
-                        t: "burn", side: c.side, card: x
-                    })
-                }
-                const deck = p.deck
-                const want = deck.find((x) => x.uid === c.args.pick)
-                if (!want) return
-                const isR = want.kind === "skill" && want.id.endsWith("_r")
-                if (isR && c.args.discard?.[0]) c.g.discard(c.side,
-                    c.args.discard[0],
-                    "effect") // bỏ trước để có chỗ trên tay
-                c.g.tutor(c.side,
-                    (x) => x.uid === want.uid)
-            },
-        },
-        R: {
-            key: "R", name: "Định Mệnh", target: "none",
-            desc: "Xem toàn bộ tay đối thủ tới hết lượt và chọn **1 lá bất kỳ** trong đó cho họ bỏ vào mộ. **Điều kiện:** lá bị bỏ là **lá phản ứng** (lá Quick) thì bạn rút 1 lá.",
-            options(c) {
-                const out: PlayArgs[] = distinct(c.g.player(otherSide(c.side)).hand).map((x) => ({
-                    pick: x.uid
-                }))
-                return out.length ? out : [{
-                }]
-            },
-            resolve(c) {
-                const g = c.g, foe = otherSide(c.side)
-                g.status(c.self,
-                    "see_hand",
-                    1) // client: hiện tay đối thủ cho bên của tướng này tới hết lượt
-                g.emit({
-                    t: "reveal", side: foe, to: c.side, cards: structuredClone(g.player(foe).hand)
-                }) // server gửi tay `side` cho `to` một lần
-                const card = g.player(foe).hand.find((x) => x.uid === c.args.pick)
-                if (!card) return
-                const react = isReactCard(card)
-                g.discard(foe,
-                    card.uid,
-                    "effect")
-                if (react) g.draw(c.side,
-                    1,
-                    {
-                        reason: "skill", by: c.self.id
-                    })
             },
         },
     },

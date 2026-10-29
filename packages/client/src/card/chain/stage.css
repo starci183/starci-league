@@ -1,0 +1,71 @@
+/* Sân khấu Chuỗi giữa bàn (Master Duel). Phủ vùng chính, không chặn chuột trừ phần nhắc. */
+.cs-root { position: absolute; left: 0; right: 340px; top: 0; bottom: 0; z-index: 60; pointer-events: none; overflow: hidden; }
+.cs-root::before { content: ""; position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 42%, rgba(8, 12, 22, .62), rgba(8, 12, 22, 0) 62%); }
+.cs-root.resolving::before { background: radial-gradient(ellipse at 50% 42%, rgba(40, 28, 8, .66), rgba(8, 12, 22, 0) 62%); }
+.cs-stack { position: absolute; left: 50%; top: 40%; width: 0; height: 0; }
+.cs-slot { position: absolute; width: 0; height: 0; }
+.cs-link { position: absolute; width: 104px; left: -52px; top: -73px; border-radius: 9px; animation: cs-pop .5s cubic-bezier(.18, .9, .3, 1.3); transition: transform .35s, opacity .45s, filter .35s; }
+.cs-link.me { box-shadow: -6px 0 0 0 #4a90e2, 0 0 16px rgba(74, 144, 226, .55), 0 6px 14px rgba(0, 0, 0, .7); }
+.cs-link.foe { box-shadow: -6px 0 0 0 #e0554a, 0 0 16px rgba(224, 85, 74, .55), 0 6px 14px rgba(0, 0, 0, .7); }
+.cs-face .cv { width: 100%; }
+.cs-link.resolving { transform: scale(1.18); filter: brightness(1.25) drop-shadow(0 0 16px #ffd36b) drop-shadow(0 0 30px rgba(245, 210, 122, .8)); }
+.cs-link.done { transform: scale(1.6); opacity: 0; filter: brightness(1.8) blur(2px); }
+.cs-num { position: absolute; left: -16px; top: -16px; z-index: 3; width: 36px; height: 36px; display: grid; place-items: center; border-radius: 50%; font-size: 20px; font-weight: 900; color: #120d05; background: radial-gradient(circle at 35% 30%, #fff1b8, #e8c470 45%, #9a7430); border: 2px solid #fff3c4; box-shadow: 0 0 12px rgba(245, 210, 122, .9), 0 2px 5px rgba(0, 0, 0, .7); }
+.cs-link.resolving .cs-num { animation: cs-badge .5s ease-in-out infinite; }
+.cs-link.done .cs-num { opacity: 0; }
+
+/* đường nối phát sáng: từ tâm mắt xích này về mắt xích trước (góc/độ dài đặt inline) */
+.cs-line { position: absolute; left: 0; top: -1px; height: 3px; transform-origin: 0 50%; pointer-events: none; background: linear-gradient(90deg, #fff6d0, #ffe39a 50%, rgba(245, 210, 122, .25)); box-shadow: 0 0 10px #f5d27a, 0 0 18px rgba(245, 210, 122, .6); animation: cs-glow 1.2s ease-in-out infinite; }
+.cs-line.done { opacity: 0; transition: opacity .3s; }
+
+/* mặt đòn đánh thường */
+.cs-atk { position: relative; aspect-ratio: 5 / 7; border-radius: 9px; overflow: hidden; border: 2px solid #c8a050; background: #0a0f16; display: grid; place-items: center; color: #f5d27a; font-size: 34px; }
+.cs-atk img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.cs-atk-name, .cs-atk small { position: absolute; left: 0; right: 0; z-index: 1; text-align: center; text-shadow: 0 1px 3px #000; }
+.cs-atk-name { bottom: 14px; font-size: 13px; font-weight: 800; color: #fff; padding: 2px 0; background: rgba(0, 0, 0, .6); }
+.cs-atk small { bottom: 0; font-size: 10px; color: #f5d27a; background: rgba(0, 0, 0, .6); }
+
+/* lời hô */
+.cs-shout { position: absolute; left: 0; right: 0; top: 40%; margin-top: -40px; text-align: center; font-size: 58px; font-weight: 900; letter-spacing: 2px; text-transform: uppercase; color: #fff3c4; text-shadow: 0 0 18px #f5d27a, 0 0 40px rgba(245, 210, 122, .8), 0 4px 0 #6a4a10, 0 6px 14px #000; animation: cs-shout 1.05s ease-out forwards; z-index: 40; }
+.cs-shout.res { color: #ffd0a0; text-shadow: 0 0 18px #ff9a40, 0 0 40px rgba(255, 140, 50, .8), 0 4px 0 #6a2a10, 0 6px 14px #000; font-size: 48px; }
+.cs-shout.end { color: #cfe6ff; text-shadow: 0 0 18px #6fb4ff, 0 4px 0 #1a3a60, 0 6px 14px #000; font-size: 44px; }
+
+/* nhắc nối chuỗi dưới chồng lá */
+.cs-prompt { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); pointer-events: auto; display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 10px 16px; border-radius: 12px; border: 1px solid #f5d27a; background: linear-gradient(rgba(40, 30, 10, .9), rgba(12, 10, 6, .92)); box-shadow: 0 0 22px rgba(245, 210, 122, .4); animation: cs-rise .3s ease-out; z-index: 50; }
+.cs-ask { font-size: 17px; font-weight: 800; color: #ffe39a; }
+.cs-cards { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; max-width: 560px; }
+.cs-btn-card { position: relative; width: 66px; padding: 0; font: inherit; cursor: pointer; background: none; border: 2px solid #4a90e2; border-radius: 8px; transition: transform .12s, box-shadow .12s; }
+.cs-btn-card:hover { transform: translateY(-4px) scale(1.06); box-shadow: 0 0 14px rgba(111, 180, 255, .8); }
+.cs-btn-card .cv { width: 100%; display: block; }
+.cs-btn-card small { position: absolute; right: -4px; top: -6px; padding: 1px 5px; border-radius: 8px; font-weight: 800; font-size: 11px; color: #120d05; background: #6fb4ff; }
+.cs-pass { font: inherit; font-size: 18px; font-weight: 800; letter-spacing: .5px; cursor: pointer; padding: 10px 44px; color: #120d05; background: linear-gradient(#e8c470, #9a7430); border: 1px solid #f5d27a; border-radius: 8px; }
+.cs-pass:hover { background: linear-gradient(#f5d27a, #b08838); }
+.cs-wait { position: absolute; left: 50%; bottom: 20px; transform: translateX(-50%); padding: 8px 18px; border-radius: 20px; font-weight: 700; color: #f5d27a; background: rgba(10, 14, 22, .85); border: 1px solid #5a4a28; animation: cs-blink 1.4s ease-in-out infinite; }
+
+@keyframes cs-pop { 0% { transform: translate(60px, -40px) scale(.4); opacity: 0; } 100% { transform: none; opacity: 1; } }
+@keyframes cs-badge { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.3); } }
+@keyframes cs-glow { 0%, 100% { opacity: .65; } 50% { opacity: 1; } }
+@keyframes cs-shout { 0% { transform: scale(2.2); opacity: 0; } 18% { transform: scale(1); opacity: 1; } 75% { transform: scale(1.04); opacity: 1; } 100% { transform: scale(1.1); opacity: 0; } }
+@keyframes cs-rise { from { transform: translate(-50%, 20px); opacity: 0; } to { transform: translate(-50%, 0); opacity: 1; } }
+@keyframes cs-blink { 0%, 100% { opacity: 1; } 50% { opacity: .55; } }
+
+@media (max-height: 800px) {
+    .cs-shout { font-size: 44px; }
+    .cs-link { width: 92px; left: -46px; top: -64px; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .cs-link, .cs-line, .cs-shout, .cs-prompt, .cs-wait, .cs-link.resolving .cs-num { animation: none; }
+    .cs-link { transition: none; }
+}
+
+/* Đếm ngược tự bỏ qua cửa sổ chỉ có đòn Đánh nhanh (autoPass.ts) */
+.ap-bar { display: flex; flex-direction: column; align-items: stretch; gap: 4px; width: 100%; min-width: 160px; margin-top: 4px; font-size: 12px; color: #e8dcb8; text-align: center; }
+.ap-track { display: block; height: 5px; border-radius: 3px; background: rgba(255, 255, 255, .12); overflow: hidden; }
+.ap-fill { display: block; height: 100%; background: linear-gradient(90deg, #f5d27a, #e8a040); transition: width .1s linear; }
+@media (prefers-reduced-motion: reduce) {
+    .ap-fill { transition: none; }
+}
+/* Khung giải thích lá khi rê chuột trong bảng nối chuỗi */
+.cs-tip { display: none; position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%); width: 240px; z-index: 40; padding: 8px 10px; text-align: left; font-size: 12px; line-height: 1.45; color: #e8dfc8; background: rgba(8, 12, 18, .97); border: 1px solid #c8aa6e; border-radius: 6px; box-shadow: 0 6px 18px rgba(0, 0, 0, .8); pointer-events: none; white-space: normal; }
+.cs-tip b { display: block; margin-bottom: 4px; color: #f0d58a; font-size: 13px; }
+.cs-btn-card:hover .cs-tip { display: block; }

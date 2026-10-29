@@ -56,3 +56,6 @@ export const formulaText = (text: string, g?: Game, u?: Unit) =>
     formulaParts(text,
         g,
         u).map((p) => (typeof p === "string" ? p : p.value !== undefined ? `${p.value} (${p.expr})` : p.expr)).join("")
+
+/** Tỉ lệ (0.026) thành số phần trăm gọn để in vào chữ (2.6), tránh lỗi số thực kiểu 2.5999999999999996 */
+export const pct = (x: number) => Math.round(x * 1000) / 10

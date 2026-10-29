@@ -88,3 +88,12 @@ PlayerView = {
 - `cg:state` có thêm `markers` (dấu trên đường). Token úp của đối thủ: `units[id].token.secret`/`card` bị xoá tới khi lật.
 - Thẻ hỗ trợ mới: phép bổ trợ `spell_<heal|flash|ignite|exhaust|barrier|cleanse|smite|teleport>` (art `card_support/spell_<id>.png`), đánh như lá thường với `args` trong `cg:legal`.
 - **Bước gọi tướng:** `phase` trong `cg:state` có thêm `"summon"`. Khi `toMove` là bạn và `phase === "summon"`, `cg:legal` chỉ gồm `{t:"summon", side, hero, lane}` và (nếu được phép) `{t:"draw", side}` = xong bước gọi tướng, rút bài. Lượt đầu chưa có `draw` cho tới khi gọi ≥1 tướng; gọi xong mà hết đường/hết tướng thì server tự rút (không cần gửi `draw`). `Action` mới: `{ t:"draw"; side }`. Thẻ chiêu chung (wild) không còn xuất hiện.
+
+## Luật V2 (30/10/2026): thay đổi giao thức
+
+- **`deck` khi tạo/vào phòng:** bộ chung **40 lá** (`cg.DECK_SIZE`); bộ 20 lá cũ không hợp lệ nên server dùng `cg.DEFAULT_DECK`. Mỗi bên thực chơi 85 lá (40 + 4Q 4E 1R × 5 tướng).
+- **Bước gọi tướng úp (`phase: "blind"`)** đầu mỗi vòng: cả hai bên hành động **cùng lúc**, nên cả hai có thể cùng có `toMove` (server đặt `toMove` = chính bạn nếu bạn chưa chốt). `cg:legal` gồm `{t:"summon", side, hero, lane}` (chọn úp) và `{t:"ready", side}` (chốt; không có nếu bạn chưa có tướng nào và còn tướng để gọi). `cg:state.blind = { cap, ready: {A,B}, picks: {A,B} }`: **`picks` của đối thủ luôn rỗng** (ẩn tới khi lật). Sự kiện `blindStart {round, cap}`, `blindLocked {side}` (công khai), rồi `summon` của cả hai phe cùng lúc khi lật. Phase `"summon"` và action `draw` đã bỏ.
+- **`cg:state` thêm:** `turnAttacks` (số đòn đã dùng của bên đang đi), `offTurnAttacks`, `attackLimit` (3), `rules` thêm `attackLimit, drawPerTurn, fighterCardlessMult, mage:{manaMax}, skillCopies`. `units[id].mana` công khai (Pháp sư).
+- **Action mới:** `{t:"attack", side, actor, target, cardless:true}` (Đấu sĩ đánh không cần lá, Quick). Không có `cardless` = đòn miễn phí từ buff. Hết 3 đòn thì cả hai loại đều không có trong `cg:legal`.
+- **Sự kiện mới:** `cardBurned {side, card, reason:"handFull"}` (mộ công khai; lá tạm của đối thủ thì ẩn), `tempExpired {side, card}` (lá của đối thủ bị ẩn), `manaChange {unit, mana, max, delta, reason}`, `attackCount {side, used, limit}`, `draw {reason:"support"}` (Trợ thủ lấy Q/E: đối thủ thấy lưng bài), `attack` có `cardless`.
+- **Tướng chết giữ đường:** `lanes[side][i]` vẫn là id tướng đã chết (status `dead`, `respawnRound`); client vẽ xám + đếm ngược, không cho nhắm.

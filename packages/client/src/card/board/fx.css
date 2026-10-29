@@ -13,7 +13,7 @@
 /* Lớp 2: một cụm hiệu ứng chung trên đầu tướng (transform/opacity). .spr = sprite PNG, .draw = bản vẽ CSS dự phòng */
 .bd-fx { position: absolute; inset: 0; z-index: 4; pointer-events: none; }
 .bd-fx i, .bd-fx span { display: block; font-style: normal; }
-.fx-cluster { position: absolute; left: 10%; right: 10%; top: -17%; height: 30%; }
+.fx-cluster { position: absolute; left: 6%; right: 6%; top: -26%; height: 44%; }
 .fx-row { position: absolute; inset: 0; display: flex; justify-content: center; align-items: center; }
 .fx-g { position: relative; height: 100%; aspect-ratio: 1; flex: none; margin-left: -10%; }
 .fx-g:first-child { margin-left: 0; }
@@ -51,3 +51,8 @@
 .bd-tag.stealth { background: rgba(120, 70, 210, .9); border: 1px solid #c6a6ff; }
 .bd-tag.more { flex: none; background: rgba(0, 0, 0, .75); border: 1px solid #8a8f99; }
 .bd-unit.stealthed { opacity: .55; }
+
+/* Đồng hồ quét trên icon nguồn hiệu ứng: phần tối = thời gian đã trôi, quét theo chiều kim đồng hồ */
+.cd-sweep { position: absolute; inset: 0; border-radius: inherit; pointer-events: none; background: conic-gradient(rgba(0, 0, 0, .68) 0 calc(var(--p, 0) * 1%), transparent 0); }
+.bd-sc .cd-sweep { inset: 1px; border-radius: 2px; }
+.bd-sc em { z-index: 1; }

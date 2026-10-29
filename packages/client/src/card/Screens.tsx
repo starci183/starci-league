@@ -8,6 +8,9 @@ import {
 import {
     cardActions, useCard, type DraftHero
 } from "./store"
+import {
+    RichText
+} from "./RichText"
 
 const EN = (() => {
     try { return localStorage.getItem("lang") === "en" } catch { return false }
@@ -328,7 +331,7 @@ function HeroBrief({ id, rect, avail }: { id: string; rect: DOMRect; avail: Avai
                                 {r.tags.map((t) => <u key={t}>{t}</u>)}
                                 {r.copies !== undefined ? <s>{r.copies} {L.briefCopies}</s> : null}
                             </b>
-                            <span>{r.desc}</span>
+                            <span><RichText text={r.desc} /></span>
                         </div>
                     </div>
                 ))}

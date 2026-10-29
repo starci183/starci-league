@@ -1,133 +1,130 @@
-// Renata Glasc (Trợ thủ, phép): máu 780 · AD 56 · giáp/kháng 28/32. Một mục đích: LẬT KÈO (đội đang thua là lúc nguy hiểm nhất).
-// R "Thâu Tóm": mọi tướng địch trên sân nổi điên, mỗi tướng đánh thường 1 đồng đội của chính nó (ưu tiên đường kề, rồi ít máu nhất)
-// bằng đòn đánh đầy đủ của chính nó (theo vai, đồ, chí mạng, hút máu).
-// Nội tại Cứu Trợ (hook onLethal): đồng minh sắp bị hạ thì còn 1 máu + status "bailout" (hiện trên tướng, không chết được) tới hết lượt
-// kế tiếp của bạn; hạ gục được 1 tướng địch trong lúc đó thì gỡ status và sống tiếp, không thì cuối lượt đó bị hạ.
-import type {
-    Game
-} from "../game"
+// Renata Glasc (Trợ thủ): máu 340 · AD 55 · giáp/kháng 25/30.
+// CHẤT: "Địch có dám đánh không": trừng phạt kẻ tấn công, lật kèo khi đồng minh gục.
+// Nội tại: đồng minh khác bị hạ thì hồi sinh 25% máu, hoá Cuồng Bạo (sát thương ×1.5 + 1 Đòn Miễn Phí); 1 lần/đồng minh/trận.
+// Q (Quick): Khiên lớn + Giáp Phản (Khiên vỡ: kẻ phá nhận sát thương phép + Choáng). E (Quick): phản sát thương của đòn địch. R: mọi địch đánh lẫn nhau.
+// Cơ chế engine dùng: hook onLethal + g.surviveWith, hook onDamage, g.chainFx().reflectUnit, HeroDef.modifyDamage, g.grantFreeAttack.
+import {
+    pct
+} from "../formula"
 import {
     defineHero
 } from "../registry"
 import {
-    otherSide, type Unit
+    FOREVER, otherSide
 } from "../types"
 
-const F_Q = "60 + 40% AP"
-const F_E = "40 + 30% AP"
-const MISSING_PCT = 0.2
-const BERSERK = "berserk"
-const BAIL = "bailout"
-
-/** Đồng đội mà tướng nổi điên `u` sẽ đánh: tướng kề đường trước, rồi ít máu nhất; không còn ai thì tự đánh mình */
-function victimOf(g: Game, u: Unit): Unit {
-    const mates = g.board(u.side).filter((x) => x.id !== u.id)
-    const adj = mates.filter((x) => !x.token && Math.abs(x.lane - u.lane) === 1)
-    return g.lowestHp(adj.length ? adj : mates) ?? u
-}
+const REVIVED = "renata_rev"
+const FRENZY = "frenzy"
+const WARD = "renata_ward"
+const REVIVE_PCT = 0.15
+const FRENZY_MULT = 1.15
+const REFLECT = 0.4
+const F_Q = "70 + 50% AD"
+const F_PUNISH = "60 + 70% AD"
 
 export default defineHero({
-    id: "renata", name: "Renata Glasc", role: "support", damage: "magic", hp: 610, atk: 49, armor: 28, mr: 32,
-    skillCopies: {
-        Q: 5, E: 4, R: 1
+    id: "renata", name: "Renata Glasc", role: "support", damage: "magic", hp: 300, atk: 60, armor: 28, mr: 30,
+    bot: {
+        buffValue: {
+            frenzy: 40, renata_ward: 50,
+        },
+        markValue: {
+            berserk: 40,
+        },
     },
-    desc: "Nữ tài phiệt Zaun, chuyên lật kèo: đồng minh sắp chết vẫn đứng dậy đánh thêm một lượt, càng gần chết càng mạnh, và Thâu Tóm biến sức mạnh của đội địch thành vũ khí chống lại chính họ.",
+    desc: "Nữ tài phiệt Zaun, chuyên lật kèo: đồng minh gục thì đứng dậy phát điên, kẻ đánh vỡ Giáp bị trừng phạt, và địch quay sang đánh nhau.",
     passive: {
         name: "Cứu Trợ",
-        desc: "Khi một tướng mình (khác Renata) sắp bị hạ, nó còn 1 máu và nhận **Cứu Trợ**: không thể bị hạ tới hết lượt kế tiếp của bạn. Nếu trong lúc đó nó hạ gục được 1 tướng địch thì Cứu Trợ biến mất và nó sống tiếp; nếu không, cuối lượt đó nó bị hạ.",
+        desc: `Khi 1 đồng minh khác Renata sắp bị hạ: nó hồi sinh với ${pct(REVIVE_PCT)}% máu tối đa, nhận Cuồng Bạo và 1 Đòn Miễn Phí (1 lần mỗi đồng minh mỗi trận).`,
+    },
+    modifyDamage(g, me, d) {
+        if (d.src && g.has(d.src,
+            FRENZY) && (d.tag === "attack" || d.tag === "skill")) return FRENZY_MULT
+        return 1
     },
     hooks: {
         onLethal(g, me, d) {
             const t = d.target
-            if (t.side !== me.side || t.id === me.id || t.token) return
-            if (!g.has(t,
-                BAIL)) g.status(t,
-                BAIL,
-                1,
+            if (t.side !== me.side || t.id === me.id || t.token || g.stackOf(t,
+                REVIVED) > 0) return
+            g.setStack(t,
+                REVIVED,
+                1)
+            g.surviveWith(t,
+                t.maxHp * REVIVE_PCT)
+            g.status(t,
+                FRENZY,
+                1)
+            g.grantFreeAttack(t,
                 {
-                    until: g.turnsUntil(me.side,
-                        g.s.active === me.side ? 2 : 1)
+                    id: "renata_frenzy", source: me.id
                 })
-            if (g.has(t,
-                BAIL)) t.hp = 1
         },
-        onKill(g, me, d) {
-            if (d.killer.side === me.side && d.victim.side !== me.side && g.has(d.killer,
-                BAIL)) g.removeStatus(d.killer,
-                BAIL)
-        },
-        onTurnEnd(g, me, d) {
-            if (d.side !== me.side) return
-            for (const u of g.heroes(me.side)) if (g.has(u,
-                BAIL) && u.statuses[BAIL].until <= g.s.turnNo) { g.removeStatus(u,
-                BAIL); g.kill(u) }
+        onDamage(g, me, d) {
+            const t = d.target
+            if (t.side !== me.side || !g.has(t,
+                WARD)) return
+            const brokeNow = d.amount - d.hpLost > 0 && t.shield <= 0
+            if (t.shield <= 0) g.removeStatus(t,
+                WARD)
+            const src = d.src
+            if (!brokeNow || !src || src.side === me.side || src.status !== "board") return
+            g.damage(me,
+                src,
+                g.f(me,
+                    F_PUNISH),
+                "magic",
+                {
+                    tag: "effect"
+                })
+            g.status(src,
+                "stun",
+                1)
         },
     },
     skills: {
         Q: {
-            key: "Q", name: "Bắt Tay", target: "enemy",
-            desc: `Kéo 1 tướng địch về đối diện Renata, gây {${F_Q}} sát thương phép và Choáng 1 lượt. **Điều kiện:** đội bạn còn **ít mạng hơn** đội địch thì cướp thêm 1 lá ngẫu nhiên trên tay đối thủ.`,
-            resolve(c) {
-                const t = c.target!
-                const foe = otherSide(c.side)
-                const behind = c.g.player(c.side).lives < c.g.player(foe).lives
-                if (!t.token) c.g.moveTo(t,
-                    c.self.lane)
-                c.g.damage(c.self,
-                    t,
-                    c.f(F_Q),
-                    "magic",
-                    {
-                        tag: "skill"
-                    })
-                if (t.status === "board") c.g.status(t,
-                    "stun",
-                    1)
-                if (behind) c.g.stealCard(c.side,
-                    foe)
-            },
-        },
-        E: {
-            key: "E", name: "Gói Cứu Trợ", target: "ally",
-            desc: `1 tướng mình nhận Khiên {${F_E}} + ${MISSING_PCT * 100}% máu nó đã mất, và +20% sát thương tới hết lượt đối thủ: càng gần chết càng mạnh. **Điều kiện:** tướng đó dưới 40% máu (hoặc đang Cứu Trợ) thì đòn đánh kế tiếp của nó không cần lá Đánh thường.`,
+            key: "Q", name: "Bắt Tay", target: "ally", quick: true,
+            desc: `Quick. Chọn 1 tướng mình; nó nhận Khiên {${F_Q}} và Giáp Phản. Khi Khiên đó bị phá: kẻ phá nhận {${F_PUNISH}} sát thương phép và Choáng 1 lượt.`,
             resolve(c) {
                 const t = c.target!
                 c.g.shield(c.self,
                     t,
-                    c.f(F_E) + MISSING_PCT * (t.maxHp - t.hp))
+                    c.f(F_Q))
                 c.g.status(t,
-                    "empower",
+                    WARD,
                     1,
                     {
-                        of: otherSide(c.side)
+                        until: FOREVER
                     })
-                if ((c.g.hpPct(t) < 0.4 || c.g.has(t,
-                    BAIL)) && !t.nextAttack.some((b) => b.free)) t.nextAttack.push({
-                    id: "renata_e", source: c.self.id, free: true
-                })
+            },
+        },
+        E: {
+            key: "E", name: "Gói Cứu Trợ", target: "none", quick: true, chainOnly: true,
+            desc: `Quick, Chỉ Nối Chuỗi. Khi địch đánh đúng 1 tướng mình: tướng đó phản lại ${pct(REFLECT)}% sát thương nhận từ đòn đó cho kẻ đánh (sát thương chuẩn).`,
+            quickWhen: (c) => c.trigger.side !== c.side && !!c.trigger.single && !!c.trigger.target,
+            resolve(c) {
+                const fx = c.g.chainFx()
+                fx.reflectUnit = c.trigger?.target
+                fx.reflectPct = REFLECT
             },
         },
         R: {
             key: "R", name: "Thâu Tóm", target: "all_enemies",
-            desc: "Mọi tướng địch trên sân **nổi điên**: lần lượt mỗi tướng tung đòn đánh thường đầy đủ của nó (theo vai, đồ, chí mạng, hút máu) vào một đồng đội của chính nó (ưu tiên đường kề, rồi ít máu nhất; đứng một mình thì tự đánh mình): địch càng mạnh càng tự hại. **Điều kiện:** đội bạn còn **ít mạng hơn** đội địch thì mỗi tướng đánh 2 lần.",
+            desc: "Mọi tướng địch Nổi Điên: lần lượt mỗi tướng đánh thường 1 đồng đội của nó có máu thấp nhất (không còn ai thì tự đánh mình).",
             resolve(c) {
                 const foe = otherSide(c.side)
-                const times = c.g.player(c.side).lives < c.g.player(foe).lives ? 2 : 1
                 for (const u of c.g.heroes(foe)) {
-                    if (u.status !== "board") continue
+                    if (u.status !== "board" || c.g.s.phase === "over") continue
                     c.g.status(u,
-                        BERSERK,
+                        "berserk",
                         1)
-                    for (let i = 0; i < times && u.status === "board" && c.g.s.phase !== "over"; i++) {
-                        const v = victimOf(c.g,
-                            u)
-                        if (v.status !== "board") break
-                        c.g.attack(u,
-                            v,
-                            {
-                                free: true
-                            })
-                    }
+                    const victim = c.g.lowestHp(c.g.heroes(foe).filter((x) => x.id !== u.id)) ?? u
+                    c.g.attack(u,
+                        victim,
+                        {
+                            free: true
+                        })
                 }
             },
         },

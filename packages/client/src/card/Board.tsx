@@ -4,19 +4,22 @@ import {
     useEffect, useMemo, useRef, useState, type ReactNode
 } from "react"
 import {
+    onImpactFloats
+} from "./anim/impacts"
+import {
     cg
 } from "@starci/shared"
 import {
-    cardActions, gameOf, targetable, useCard, type CardView
+    attacksOf, cardActions, cardlessOptions, gameOf, targetable, useCard, type CardView
 } from "./store"
 import {
     GraveModal, PlayerStrip
 } from "./board/Strip"
 import {
-    UnitCard, UnitTip, type Float
+    CritIcon, DeadCard, Img, UnitCard, UnitTip, type Float
 } from "./board/UnitCard"
 import {
-    tr, unitName, type Side
+    heroName, tr, unitName, type Side
 } from "./board/helpers"
 import {
     inspectedUnit
@@ -38,7 +41,7 @@ function floatsOf(events: cg.GameEvent[]): { unit: string; f: Omit<Float, "id"> 
             if (e.hpLost > 0) {
                 out.push({
                     unit: e.target, f: {
-                        kind: e.crit ? "crit" : "dmg", text: `-${Math.round(e.hpLost)}`
+                        kind: e.crit ? "crit" : "dmg", text: `-${Math.round(e.hpLost)}`, dmg: e.kind
                     }
                 })
             } else if (e.absorbed > 0) {
@@ -58,6 +61,18 @@ function floatsOf(events: cg.GameEvent[]): { unit: string; f: Omit<Float, "id"> 
             out.push({
                 unit: e.target, f: {
                     kind: "shield", text: `+${Math.round(e.amount)}`
+                }
+            })
+        } else if (e.t === "manaChange" && e.delta !== 0) {
+            out.push({
+                unit: e.unit, f: {
+                    kind: "mana", text: `${e.delta > 0 ? "+" : "−"}${Math.abs(Math.round(e.delta))}`
+                }
+            })
+        } else if (e.t === "attack" && e.cardless) {
+            out.push({
+                unit: e.attacker, f: {
+                    kind: "tag", text: "66%"
                 }
             })
         } else if (e.t === "kill") {
@@ -106,7 +121,7 @@ function TurnBar(p: { view: CardView; me: Side; hint: boolean }) {
 
 export function Board() {
     const snap = useCard()
-    const { view, targeting, tick, lastEvents } = snap
+    const { view, targeting } = snap
     const [hover,
         setHover] = useState<Hover | null>(null)
     const [grave,
@@ -116,19 +131,18 @@ export function Board() {
     const posRef = useRef<Map<string, string>>(new Map())
     const idRef = useRef(0)
     const timers = useRef<number[]>([])
-    const seenTick = useRef(tick)
-
+    const viewRef = useRef(view)
+    viewRef.current = view
     const g = useMemo(() => (view ? gameOf(view) : null),
         [view])
     const tg = useMemo(() => targetable(targeting),
         [targeting])
 
-    // số nổi: mỗi lần nhận lô sự kiện mới (cg:events đến trước cg:state nên vị trí cũ vẫn còn)
-    useEffect(() => {
-        if (tick === seenTick.current) return
-        seenTick.current = tick
+    // số nổi: phát khi hoạt ảnh tới nhịp trúng đích (anim/impacts), không phải lúc state tới
+    useEffect(() => onImpactFloats((events) => {
+        const view = viewRef.current
         const made: FloatRec[] = []
-        for (const x of floatsOf(lastEvents)) {
+        for (const x of floatsOf(events)) {
             const u = view?.units[x.unit]
             const slot = posRef.current.get(x.unit) ?? (u && u.lane >= 0 ? slotKey(u.side,
                 u.lane) : undefined)
@@ -145,10 +159,8 @@ export function Board() {
         const ids = new Set(made.map((m) => m.f.id))
         timers.current.push(window.setTimeout(() => setFloats((old) => old.filter((o) => !ids.has(o.f.id))),
             FLOAT_MS))
-    },
-    [tick,
-        lastEvents,
-        view])
+    }),
+    [])
 
     // nhớ ô của từng tướng (kể cả tướng vừa chết) để số nổi không mất chỗ
     useEffect(() => {
@@ -211,6 +223,7 @@ export function Board() {
         const key = slotKey(side,
             lane)
         const uid = lane === EXTRA ? view.extra[side] : view.lanes[side][lane]
+        // view đã là bản hiển thị (store.applyToDisplay): máu/khiên/trạng thái đổi đúng nhịp hoạt ảnh
         const u = uid ? view.units[uid] : undefined
         const t = tr()
         const here = floats.filter((x) => x.slot === key).map((x) => x.f)
@@ -230,6 +243,20 @@ export function Board() {
                 selId === u.id ? "sel" : "",
             ].join(" ")
             const owner = u.token?.ownerId ? view.units[u.token.ownerId] : undefined
+            const cardless = side === me && !u.token && g.role(u) === "fighter" ? (() => {
+                const used = attacksOf(view,
+                    side).cardless.includes(u.id)
+                const opts = cardlessOptions(snap.legal,
+                    u.id)
+                if (!used && !opts.length) return undefined
+                return {
+                    used,
+                    ready: !used && opts.length > 0 && !picking,
+                    pct: Math.round(view.rules.fighterCardlessMult * 100),
+                    onClick: () => cardActions.beginTargeting(u.id,
+                        opts),
+                }
+            })() : undefined
             const soaked = !u.token && !!view.extra[side] && view.units[view.extra[side]!]?.token?.ownerId === u.id
             return (
                 <div key={key} className={`bd-slot occupied ${lane === EXTRA ? "extra" : ""}`} data-lane={lane + 1}>
@@ -242,6 +269,7 @@ export function Board() {
                         floats={here}
                         ownerName={owner ? unitName(owner) : undefined}
                         soaked={soaked}
+                        cardless={cardless}
                         onEnter={(e) => setHover({
                             id: u.id, x: e.clientX, y: e.clientY
                         })}
@@ -256,16 +284,36 @@ export function Board() {
                 </div>
             )
         }
+        if (u && u.status === "dead") {
+            return (
+                <div key={key} className={`bd-slot occupied dead ${lane === EXTRA ? "extra" : ""}`} data-lane={lane + 1}>
+                    <DeadCard u={u} round={view.round} onClick={() => {
+                        if (!picking) cardActions.inspect(u.id)
+                    }} />
+                </div>
+            )
+        }
         if (lane === EXTRA) {
             return (
                 <div key={key} className={`bd-slot extra empty ${state}`} data-lane={lane + 1}>
                     <span className="bd-slot-label">{t.extra}</span>
                     <span className="bd-slot-sub">{t.emptyExtra}</span>
-                    {here.map((f) => <span key={f.id} className={`bd-float ${f.kind}`}>{f.text}</span>)}
+                    {here.map((f) => <span key={f.id} className={`bd-float ${f.kind}${f.dmg ? ` ${f.dmg}` : ""}`}>{f.kind === "crit" ? <CritIcon /> : null}{f.text}</span>)}
                 </div>
             )
         }
         const open = view.openLanes.includes(lane)
+        const mine = side === me ? view.blind?.picks[me].find((x) => x.lane === lane) : undefined
+        if (mine && open) {
+            return (
+                <div key={key} className="bd-slot empty pending" data-lane={lane + 1}>
+                    <Img src={`/heroes/${mine.hero}.jpg`} className="bd-pend-img" fallback={heroName(mine.hero).slice(0,
+                        1)} />
+                    <span className="bd-slot-label">{heroName(mine.hero)}</span>
+                    <span className="bd-slot-sub">{view.blind?.ready[me] ? tr().blindPicked : tr().blindDraft}</span>
+                </div>
+            )
+        }
         if (!open) {
             return (
                 <div key={key} className="bd-slot closed">
@@ -279,7 +327,7 @@ export function Board() {
                 lane,
                 null)}>
                 <span className="bd-slot-label">{`${t.lane} ${lane + 1}`}</span>
-                {here.map((f) => <span key={f.id} className={`bd-float ${f.kind}`}>{f.text}</span>)}
+                {here.map((f) => <span key={f.id} className={`bd-float ${f.kind}${f.dmg ? ` ${f.dmg}` : ""}`}>{f.kind === "crit" ? <CritIcon /> : null}{f.text}</span>)}
             </div>
         )
     }
@@ -307,6 +355,12 @@ export function Board() {
         >
             <TurnBar view={view} me={me} hint={picking} />
             <PlayerStrip side={foe} view={view} isMe={false} onGrave={() => setGrave(foe)} />
+            {view.phase === "blind" && view.blind?.ready[foe] ? (
+                <div className="bd-back picked bd-foe-ready">
+                    <b>?</b>
+                    {tr().foeLocked}
+                </div>
+            ) : null}
             {row(foe)}
             <div className="bd-mid">
                 {[0,

@@ -9,8 +9,14 @@ import {
     gameOf, useCard, type CardView
 } from "../store"
 import {
-    isEn, roleName, statusIcon, statusInfo, turnsLeft, unitName
+    isEn, roleName, turnsLeft, unitName
 } from "../board/helpers"
+import {
+    RichText
+} from "../RichText"
+import {
+    buildEffects, FxCellView
+} from "./effects"
 
 type Side = cg.Side
 type Unit = cg.Unit
@@ -60,6 +66,11 @@ const VI = {
     free: "miễn phí",
     source: "từ",
     reserve: "Chưa có tướng trên sân",
+    mana: "Mana",
+    costMana: "Tốn",
+    supportNote: "Gọi ra sân: lấy Q và E từ bộ lên tay.",
+    mageNote: "Pháp sư: mỗi chiêu tốn mana (+10 mỗi lượt).",
+    fighterNote: "Đấu sĩ: mỗi lượt đánh không cần lá 1 lần (66% sát thương).",
 }
 const EN: typeof VI = {
     damage: "Damage",
@@ -93,91 +104,13 @@ const EN: typeof VI = {
     free: "free",
     source: "from",
     reserve: "No champion on board",
+    mana: "Mana",
+    costMana: "Costs",
+    supportNote: "On summon: take its Q and E from the deck into your hand.",
+    mageNote: "Mage: every skill costs mana (+10 per turn).",
+    fighterNote: "Fighter: one cardless attack per turn (66% damage).",
 }
 const T = () => (isEn() ? EN : VI)
-
-const STATUS_NAME_VI: Record<string, string> = {
-    stun: "Choáng",
-    silence: "Câm lặng",
-    chill: "Buốt",
-    shred: "Rã giáp",
-    taunt: "Khiêu khích",
-    empower: "Cường hoá",
-    blind: "Mù",
-    bleed: "Xuất huyết",
-    burn: "Thiêu đốt",
-    ignite: "Thiêu đốt",
-    exhaust: "Kiệt sức",
-    sunlight: "Ánh Dương",
-    silver: "Đạn Bạc",
-    see_hand: "Lộ bài",
-    stealth: "Tàng hình",
-    charm: "Mê hoặc",
-    zedmark: "Dấu Tử Thần",
-    aatrox_r: "Tận Thế",
-    bailout: "Cứu trợ",
-    berserk: "Cuồng nộ",
-}
-const STATUS_DESC_VI: Record<string, string> = {
-    stun: "Không dùng chiêu, không đánh, không bị lá Đánh thường nhắm tới.",
-    silence: "Không tung được chiêu (vẫn đánh thường).",
-    chill: "Nhận thêm 25% sát thương.",
-    shred: "Giáp và kháng phép giảm.",
-    taunt: "Chiêu/đòn đơn mục tiêu của địch phải nhắm tướng này.",
-    empower: "Gây thêm 20% sát thương.",
-    blind: "Các đòn đánh kế tiếp trượt.",
-    bleed: "Mất máu đầu lượt của chủ, mỗi dấu một lần.",
-    ignite: "Mất máu (sát thương chuẩn) đầu lượt và chỉ nhận một nửa hồi máu.",
-    exhaust: "Gây ít hơn 40% sát thương.",
-    stealth: "Không bị chọn làm mục tiêu đơn lẻ hay bởi lá Đánh thường.",
-    sunlight: "Dấu của Leona: cộng dồn tối đa 3, đủ 3 sẽ làm choáng.",
-    silver: "Phát thứ 3 nổ gây sát thương chuẩn theo máu tối đa.",
-    zedmark: "Đếm số đòn của Zed trong lượt, nổ cuối lượt Zed.",
-}
-const BUFFS = new Set(["empower",
-    "stealth",
-    "taunt",
-    "bailout",
-    "berserk",
-    "aatrox_r"])
-const DEBUFFS = new Set(["stun",
-    "silence",
-    "chill",
-    "shred",
-    "blind",
-    "bleed",
-    "burn",
-    "ignite",
-    "exhaust",
-    "sunlight",
-    "silver",
-    "charm",
-    "zedmark"])
-
-function effectInfo(id: string): { name: string; desc: string } {
-    if (isEn()) {
-        const e = cg.STATUS_EN[id]
-        return {
-            name: e?.name ?? id, desc: e?.desc ?? ""
-        }
-    }
-    const base = statusInfo(id)
-    return {
-        name: STATUS_NAME_VI[id] ?? base.name, desc: STATUS_DESC_VI[id] ?? base.desc
-    }
-}
-const kindOf = (id: string): "buff" | "debuff" | "neutral" => (BUFFS.has(id) ? "buff" : DEBUFFS.has(id) ? "debuff" : "neutral")
-
-function stackLabel(id: string): string {
-    if (isEn()) return cg.STACK_EN[id] ?? id
-    const dag = /^dagger(\d)$/.exec(id)
-    if (dag) return `Dao đường ${dag[1]} (lượt còn lại)`
-    if (id === "kog") return "Điểm Kog"
-    if (id === "evo") return "Bậc tiến hoá"
-    if (id === "itemAmp") return "Kiệt Tác (% chỉ số đồ)"
-    if (id === "bonusRes") return "Giáp/KP cộng thêm"
-    return id
-}
 
 /** Ảnh thử lần lượt các nguồn, hết thì hiện chữ */
 function Pic(p: { srcs: string[]; cls: string; letter: string; pos?: string }) {
@@ -196,11 +129,6 @@ function Pic(p: { srcs: string[]; cls: string; letter: string; pos?: string }) {
             onError={() => setI(i + 1)}
         />
     )
-}
-
-/** Chuyển **đậm** thành <b> */
-function rich(text: string): ReactNode[] {
-    return text.split("**").map((s, i) => (i % 2 ? <b key={i}>{s}</b> : <span key={i}>{s}</span>))
 }
 
 const pct = (n: number) => `${Math.round(n * 100)}%`
@@ -229,65 +157,49 @@ function HpRow(p: { u: Unit }) {
     )
 }
 
+function ManaRow(p: { u: Unit; g: cg.Game }) {
+    const { u, g } = p
+    if (u.mana === undefined) return null
+    const max = Math.max(g.maxMana(u),
+        1)
+    return (
+        <div className="us-mana">
+            <i style={{
+                width: clampPct(u.mana / max)
+            }} />
+            <span>{`${T().mana} ${Math.floor(u.mana)} / ${max}`}</span>
+        </div>
+    )
+}
+
 function Effects(p: { u: Unit; view: CardView }) {
     const t = T()
     const { u, view } = p
-    const sts = Object.entries(u.statuses).map(([id,
-        s]) => ({
-        id, s, info: effectInfo(id), kind: kindOf(id)
-    }))
-    const order = {
-        debuff: 0, buff: 1, neutral: 2
-    }
-    sts.sort((a, b) => order[a.kind] - order[b.kind])
-    const stacks = Object.entries(u.stacks).filter(([, v]) => v !== 0)
+    const [openKey,
+        setOpenKey] = useState<string | null>(null)
+    const m = buildEffects(u,
+        view.turnNo,
+        (id) => view.units[id])
+    const en = isEn()
     return (
-        <section className="us-sec">
-            <h4>{t.effects}</h4>
-            {!sts.length && !stacks.length && !u.nextAttack.length ? <p className="us-none">{t.none}</p> : null}
-            {sts.map(({ id, s, info, kind }) => {
-                const src = (s as { source?: string }).source
-                const srcUnit = src ? view.units[src] : undefined
-                return (
-                    <div key={id} className={`us-fx ${kind}`}>
-                        <Pic srcs={[statusIcon(id)]} cls="us-fx-ic" letter={info.name.slice(0,
-                            1)} />
-                        <div>
-                            <div className="us-fx-h">
-                                <b>{info.name}</b>
-                                <em>{kind === "buff" ? t.buff : kind === "debuff" ? t.debuff : ""}</em>
-                                <span>{`${t.left} ${turnsLeft(s.until,
-                                    view.turnNo)} ${t.turns}${s.v ? ` · ${Math.round(s.v * 100) / 100}` : ""}`}</span>
-                            </div>
-                            {info.desc ? <small>{info.desc}</small> : null}
-                            {srcUnit ? <small>{`${t.source} ${unitName(srcUnit)}`}</small> : null}
-                        </div>
+        <>
+            <section className="us-sec">
+                <h4>{en ? "Effects by source" : "Nguồn hiệu ứng đang chịu"}</h4>
+                {m.cells.length ? (
+                    <div className="fxm-grid">
+                        {m.cells.map((c) => (
+                            <FxCellView
+                                key={c.key}
+                                cell={c}
+                                popover
+                                open={openKey === c.key}
+                                onToggle={() => setOpenKey(openKey === c.key ? null : c.key)}
+                            />
+                        ))}
                     </div>
-                )
-            })}
-            {stacks.length ? (
-                <div className="us-chips">
-                    <span className="us-chips-t">{t.stacks}</span>
-                    {stacks.map(([k,
-                        v]) => (
-                        <span key={k} className="us-chip">
-                            {`${stackLabel(k)}: `}
-                            <b>{v}</b>
-                        </span>
-                    ))}
-                </div>
-            ) : null}
-            {u.nextAttack.length ? (
-                <div className="us-chips">
-                    <span className="us-chips-t">{t.next}</span>
-                    {u.nextAttack.map((n, i) => (
-                        <span key={i} className="us-chip buff">
-                            {`${n.id}${n.free ? ` (${t.free})` : ""}${n.mult ? ` x${n.mult}` : ""}${n.bonusRaw ? ` +${n.bonusRaw}` : ""}`}
-                        </span>
-                    ))}
-                </div>
-            ) : null}
-        </section>
+                ) : <p className="us-none">{t.none}</p>}
+            </section>
+        </>
     )
 }
 
@@ -310,6 +222,8 @@ function ItemSlots(p: { u: Unit }) {
                         )
                     }
                     const props = (it?.props ?? []).slice(1)
+                    const tx = cg.itemText(id,
+                        isEn() ? "en" : "vi")
                     return (
                         <div key={i} className="us-item">
                             <Pic
@@ -318,14 +232,20 @@ function ItemSlots(p: { u: Unit }) {
                                 cls="us-item-ic"
                                 letter={it?.emoji ?? "?"}
                             />
-                            <span className="us-item-n">{it?.name ?? id}</span>
+                            <span className="us-item-n">{tx?.name ?? it?.name ?? id}</span>
                             <div className="us-item-tip">
-                                <b>{it?.name ?? id}</b>
-                                <p>{it ? cg.itemStatText(it) : ""}</p>
-                                {props.map((x, k) => (
+                                <b>{tx?.name ?? it?.name ?? id}</b>
+                                <p>{tx ? tx.stats : it ? cg.itemStatText(it) : ""}</p>
+                                {tx ? (
+                                    <p>
+                                        <b>{`${tx.passive}: `}</b>
+                                        <RichText text={tx.desc} />
+                                        {tx.counter ? ` (${p.u.stacks[`item:${id}`] ?? 0}/${tx.counter.max})` : ""}
+                                    </p>
+                                ) : props.map((x, k) => (
                                     <p key={k}>
                                         <b>{`${x.name}: `}</b>
-                                        {x.desc}
+                                        <RichText text={x.desc} />
                                     </p>
                                 ))}
                             </div>
@@ -335,6 +255,13 @@ function ItemSlots(p: { u: Unit }) {
             </div>
         </section>
     )
+}
+
+/** Mana cơ bản của một chiêu (số cố định; chiêu tính động thì không hiện) */
+function manaCostOfSkill(g: cg.Game, u: Unit, def: cg.SkillDef): number | "all" | undefined {
+    const raw = def.mana
+    if (typeof raw === "function") return undefined
+    return raw ?? cg.RULES.mage.defaultCost[def.key as cg.SkillKey]
 }
 
 function copiesLine(view: CardView, u: Unit, key: cg.SkillKey, total: number): string {
@@ -368,21 +295,29 @@ function Skills(p: { u: Unit; g: cg.Game; view: CardView }) {
         }
     }
     const pas = en?.passive ?? h.passive
+    const role = g.role(u)
     return (
         <section className="us-sec">
             <h4>{t.skills}</h4>
+            {role === "support" ? <p className="us-note">{t.supportNote}</p> : null}
+            {u.mana !== undefined ? <p className="us-note">{t.mageNote}</p> : null}
+            {role === "fighter" ? <p className="us-note">{t.fighterNote}</p> : null}
             <div className="us-skill passive">
+                <Pic srcs={[`/card_skills/${u.hero}_p.png`]} cls="us-sk-ic" letter="P" />
                 <div className="us-sk-b">
                     <div className="us-sk-h">
                         <b>{`${t.passive}: ${pas.name}`}</b>
                     </div>
-                    <p>{rich(text(pas.desc))}</p>
+                    <RichText className="us-rich" text={text(pas.desc)} />
                 </div>
             </div>
             {KEYS.map((k) => {
                 const def = h.skills[k]
                 const e = en?.skills[k]
-                const total = h.skillCopies?.[k] ?? cg.RULES.skillCopies[k]
+                const total = view.rules.skillCopies[k]
+                const cost = u.mana !== undefined ? manaCostOfSkill(g,
+                    u,
+                    def) : undefined
                 return (
                     <div key={k} className="us-skill">
                         <Pic srcs={[`/card_skills/${u.hero}_${k.toLowerCase()}.png`]} cls="us-sk-ic" letter={k} />
@@ -392,12 +327,13 @@ function Skills(p: { u: Unit; g: cg.Game; view: CardView }) {
                                 <b>{e?.name ?? def.name}</b>
                                 {def.quick ? <span className="us-tag q">{t.quick}</span> : null}
                                 {def.chainOnly ? <span className="us-tag c">{t.chainOnly}</span> : null}
+                                {cost !== undefined ? <span className="us-tag m">{cost === "all" ? "Toàn bộ mana" : `${t.costMana} ${cost} mana`}</span> : null}
                             </div>
                             <div className="us-copies">{copiesLine(view,
                                 u,
                                 k,
                                 total)}</div>
-                            <p>{rich(text(e?.desc ?? def.desc))}</p>
+                            <RichText className="us-rich" text={text(e?.desc ?? def.desc)} />
                         </div>
                     </div>
                 )
@@ -536,6 +472,7 @@ export function UnitPanel() {
                         </div>
                     )}
                     <HpRow u={u} />
+                    <ManaRow u={u} g={g} />
                 </div>
             </header>
             {faceDown ? null : (

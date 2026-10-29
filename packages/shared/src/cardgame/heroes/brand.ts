@@ -1,6 +1,6 @@
-// Brand (Pháp sư, phép): máu 740 · AD 58 · giáp/kháng 26/30. Một mục đích: LỬA LAN.
-// Bỏng = status "burn" (v = số stack, tối đa 5, hiện trên tướng). Đầu lượt của tướng bị Bỏng: mất máu theo số stack (để cháy dần),
-// HOẶC E kích nổ ngay toàn bộ stack (đổi thời gian lấy sát thương tức thì). Tướng đang Bỏng bị hạ thì lửa lan sang tướng địch kề đường.
+// Brand (Pháp sư, phép) V2: "Bỏng cháy mãi mãi, spam chiêu là cháy hết."
+// Bỏng = status "burn" (v = số stack, vĩnh viễn FOREVER, cộng dồn, trần BURN_MAX). Nội tại: đầu lượt ĐỊCH, mỗi stack gây sát thương phép.
+// Q (10 mana) sát thương + 1 Bỏng · E (20) mọi địch +1 Bỏng · R (50) nhân đôi Bỏng trên mọi địch.
 import type {
     Game
 } from "../game"
@@ -10,78 +10,67 @@ import {
 import type {
     Unit
 } from "../types"
+import {
+    FOREVER
+} from "../types"
 
-const BURN = "burn"
-const MAX = 5
-const F_TICK = "50 + 8% AP"
-const F_Q = "100 + 40% AP"
-const F_E = "75 + 25% AP"
-const F_R = "90 + 30% AP"
+export const BURN = "burn"
+/** Trần stack Bỏng trên một tướng (cân bằng: R nhân đôi nên cần trần) */
+export const BURN_MAX = 12
+const F_TICK = "10 + 4% AP"
+const F_Q = "35 + 95% AD + 40% AP"
 
-/** Thêm n stack Bỏng (hết hạn sau 2 lượt của mục tiêu kể từ lần cộng cuối) */
-const ignite = (g: Game, t: Unit, n: number) => { if (t.status === "board" && !t.token) g.status(t,
-    BURN,
-    2,
-    {
-        v: n, add: true, max: MAX
-    }) }
-/** Tướng địch kề đường với u (cùng phe u) */
-const neighbours = (g: Game, u: Unit, lane: number) => g.board(u.side).filter((x) => x.id !== u.id && !x.token && Math.abs(x.lane - lane) === 1)
+/** Thêm n stack Bỏng (không bao giờ hết) */
+export const ignite = (g: Game, t: Unit, n: number) => {
+    if (t.status !== "board" || t.token || n <= 0) return
+    g.status(t,
+        BURN,
+        1,
+        {
+            v: n, add: true, max: BURN_MAX, until: FOREVER
+        })
+}
+/** Mọi tướng địch (không tính vật triệu hồi) */
+const foes = (g: Game, me: Unit) => g.enemies(me).filter((u) => !u.token)
 
 export default defineHero({
-    id: "brand", name: "Brand", role: "mage", damage: "magic", hp: 1720, atk: 89, armor: 26, mr: 30,
-    skillCopies: {
-        Q: 8, E: 7, R: 2
+    id: "brand", name: "Brand", role: "mage", damage: "magic", hp: 310, atk: 78, armor: 28, mr: 30,
+    bot: {
+        markValue: {
+            burn: 20,
+        },
     },
-    desc: "Ngọn lửa báo thù: mọi lá đều đốt thêm stack Bỏng. Để lửa cháy dần mỗi lượt, hay kích nổ tất cả ngay bây giờ? Tướng cháy mà chết thì lửa lan sang kẻ bên cạnh.",
+    desc: "Bỏng cháy mãi mãi: Q rẻ để spam, E rải lửa lên cả bàn, R nhân đôi mọi đống Bỏng. Trận càng dài, địch càng cháy.",
     passive: {
         name: "Bùng Cháy",
-        desc: `Chiêu của Brand cho mục tiêu stack **Bỏng** (tối đa ${MAX}, hiện trên tướng, hết sau 2 lượt của nó kể từ lần cộng cuối). Đầu lượt của tướng bị Bỏng, nó nhận {${F_TICK}} sát thương phép cho mỗi stack. Tướng đang Bỏng bị hạ thì toàn bộ stack lan sang 1 tướng địch ở đường kề (ít máu nhất).`,
+        desc: `Bỏng không bao giờ hết và cộng dồn (tối đa ${BURN_MAX}). Đầu lượt của đối thủ: mỗi tướng địch nhận {${F_TICK}} sát thương phép cho mỗi Bỏng trên nó.`,
     },
     hooks: {
         onTurnStart(g, me, d) {
             if (d.side === me.side) return
-            for (const t of g.enemies(me)) {
+            for (const t of foes(g,
+                me)) {
                 const n = g.statusV(t,
                     BURN)
-                if (n > 0) g.damage(me,
-                    t,
-                    g.f(me,
-                        F_TICK) * n,
-                    "magic",
-                    {
-                        tag: "dot"
-                    })
+                if (n > 0) {
+                    g.damage(me,
+                        t,
+                        g.f(me,
+                            F_TICK) * n,
+                        "magic",
+                        {
+                            tag: "dot"
+                        })
+                }
             }
-        },
-        // ghi số stack lúc trúng đòn (status bị xoá khi chết) để lửa lan đúng số stack
-        onDamage(g, me, d) {
-            if (d.target.side !== me.side && !d.target.token) me.stacks[`burnAt:${d.target.id}`] = g.statusV(d.target,
-                BURN)
-        },
-        onDeath(g, me, d) {
-            const v = d.victim
-            if (v.side === me.side || v.token || me.status !== "board") return
-            const n = g.stackOf(me,
-                `burnAt:${v.id}`)
-            me.stacks[`burnAt:${v.id}`] = 0
-            if (n <= 0) return
-            const to = g.lowestHp(neighbours(g,
-                v,
-                v.homeLane))
-            if (to) ignite(g,
-                to,
-                n)
         },
     },
     skills: {
         Q: {
-            key: "Q", name: "Thiêu Rụi", target: "enemy",
-            desc: `{${F_Q}} sát thương phép lên 1 tướng địch, +2 Bỏng. **Điều kiện:** mục tiêu đang Bỏng từ trước thì bị Choáng 1 lượt.`,
+            key: "Q", name: "Thiêu Rụi", target: "enemy", mana: 10,
+            desc: `Chọn 1 tướng địch; gây {${F_Q}} sát thương phép và +1 Bỏng.`,
             resolve(c) {
                 const t = c.target!
-                const burning = c.g.statusV(t,
-                    BURN) > 0
                 c.g.damage(c.self,
                     t,
                     c.f(F_Q),
@@ -91,58 +80,30 @@ export default defineHero({
                     })
                 ignite(c.g,
                     t,
-                    2)
-                if (burning && t.status === "board") c.g.status(t,
-                    "stun",
                     1)
             },
         },
         E: {
-            key: "E", name: "Hoả Ngục", target: "enemy",
-            options: (c) => c.g.enemies(c.self).filter((u) => !c.g.has(u,
-                "stealth") && c.g.statusV(u,
-                BURN) > 0).map((u) => ({
-                target: u.id
-            })),
-            desc: `Chọn 1 tướng địch **đang Bỏng**: kích nổ toàn bộ stack, mỗi stack gây {${F_E}} sát thương phép ngay, rồi gỡ Bỏng. **Điều kiện:** kích nổ từ 3 stack thì mỗi tướng địch ở đường kề nhận 2 Bỏng.`,
+            key: "E", name: "Rải Lửa", target: "all_enemies", mana: 20,
+            desc: "Mọi tướng địch +1 Bỏng.",
             resolve(c) {
-                const t = c.target!
-                const n = c.g.statusV(t,
-                    BURN)
-                const lane = t.lane
-                c.g.removeStatus(t,
-                    BURN)
-                c.g.damage(c.self,
+                for (const t of foes(c.g,
+                    c.self)) ignite(c.g,
                     t,
-                    c.f(F_E) * n,
-                    "magic",
-                    {
-                        tag: "skill"
-                    })
-                if (n >= 3) for (const u of neighbours(c.g,
-                    t,
-                    lane)) ignite(c.g,
-                    u,
-                    2)
+                    1)
             },
         },
         R: {
-            key: "R", name: "Bão Lửa", target: "all_enemies",
-            desc: `{${F_R}} sát thương phép cho mọi tướng địch, +2 Bỏng cho mỗi tướng. **Điều kiện:** tướng đang Bỏng từ trước nhận thêm 1 Bỏng nữa.`,
+            key: "R", name: "Bão Lửa", target: "all_enemies", mana: 50,
+            desc: "Nhân đôi Bỏng trên mọi tướng địch.",
             resolve(c) {
-                for (const t of c.g.enemies(c.self)) {
-                    const burning = c.g.statusV(t,
-                        BURN) > 0
-                    c.g.damage(c.self,
+                for (const t of foes(c.g,
+                    c.self)) {
+                    const n = c.g.statusV(t,
+                        BURN)
+                    if (n > 0) ignite(c.g,
                         t,
-                        c.f(F_R),
-                        "magic",
-                        {
-                            tag: "skill"
-                        })
-                    ignite(c.g,
-                        t,
-                        burning ? 3 : 2)
+                        n)
                 }
             },
         },

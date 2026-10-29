@@ -1,142 +1,100 @@
-// Vayne (Xạ thủ, vật lý): máu 700 · AD 68 · giáp/kháng 24/28.
-// MỤC ĐÍCH: Săn tank. Mũi Tên Bạc (status "silver", số mũi hiện trên tướng) gắn qua mọi đòn trúng; mũi thứ 3 nổ theo % máu tối đa
-// của mục tiêu (càng trâu càng đau). Q lộn nhào bắn (tank ăn 2 mũi), E Kết Án đẩy mục tiêu ra mép: bị ghim vào tường mà đã mang mũi
-// thì Choáng, R nổ mọi mũi đang cắm. Engine: marks, lanes. Độ khó: VỪA. (Không dùng Quick: mọi pha lớn diễn ra trong lượt Vayne.)
-// Đối thủ trả lời: đứng cạnh đồng đội (đẩy vào ô có đồng đội chỉ đổi chỗ, không bị ghim), đợi mũi rơi (2 lượt), hoặc dồn chết Vayne mỏng máu.
+// Vayne (Xạ thủ, vật lý): máu 380 · AD 82 · giáp/kháng 24/26. Chất: THỢ SĂN BÓNG ĐÊM, ở trong bóng tối càng lâu ra tay càng chí mạng.
+// Đêm = bộ đếm (stack "night", tối đa 10) giữ qua lần chết / lúc chưa gọi. Mỗi đòn đánh tiêu Đêm để gây thêm sát thương chuẩn.
+// Q: Tàng Hình + nạp (Quick). E: lượt xả (đòn tiêu 2 Đêm, gấp đôi). R: đòn kế tiêu hết Đêm vào một phát (buff đòn kế id "vayne_r").
 import {
     defineHero
 } from "../registry"
-import type {
-    Unit
-} from "../types"
 import {
     otherSide
 } from "../types"
-import type {
-    Game
-} from "../game"
 
-const SILVER = "silver"
-const SILVER_PCT = 0.12
-const F_SILVER = "30 + 20% AD"
-const Q_MULT = 0.6
-const F_Q = "40 + 50% AD + 20% AP"
-const F_E = "35 + 50% AD + 20% AP"
-
-/** Đẩy ra phía mép: đường < 2 sang trái, > 2 sang phải, đường giữa sang trái */
-const outward = (lane: number) => (lane > 2 ? lane + 1 : lane - 1)
-/** Cộng n Mũi Bạc; đủ 3 thì nổ: 12% máu tối đa của mục tiêu + {F_SILVER}, sát thương chuẩn */
-export function addSilver(g: Game, vayne: Unit, t: Unit, n = 1) {
-    if (t.status !== "board" || n <= 0) return
-    const v = g.statusV(t,
-        SILVER) + n
-    if (v >= 3) {
-        g.removeStatus(t,
-            SILVER)
-        detonate(g,
-            vayne,
-            t)
-    } else g.status(t,
-        SILVER,
-        2,
-        {
-            v
-        })
-}
-function detonate(g: Game, vayne: Unit, t: Unit) {
-    g.damage(vayne,
-        t,
-        t.maxHp * SILVER_PCT + g.f(vayne,
-            F_SILVER),
-        "true",
-        {
-            tag: "effect"
-        })
-}
+const NIGHT = "night"
+const EDGE = "vayne_e"
+const R_BUFF = "vayne_r"
+export const MAX_NIGHT = 10
+/** Sát thương chuẩn cộng thêm cho mỗi Đêm tiêu (nền) */
+const F_NIGHT = "24 + 36% AD"
+const E_RATE = 2
+const R_RATE = 3
+/** Bot: hoãn gọi Vayne tới khi có bấy nhiêu Đêm */
+const HOLD_UNTIL = 4
 
 export default defineHero({
-    id: "vayne", name: "Vayne", role: "marksman", damage: "physical", hp: 940, atk: 79, armor: 24, mr: 28,
-    skillCopies: {
-        Q: 5, E: 4, R: 2
+    id: "vayne", name: "Vayne", role: "marksman", damage: "physical", hp: 390, atk: 90, armor: 31, mr: 28,
+    bot: {
+        stackValue: {
+            night: 20,
+        },
+        // ngoài sân mỗi lượt +2 Đêm: Đêm còn thấp thì ưu tiên gọi tướng khác trước
+        holdBack: (g, u) => (g.stackOf(u,
+            NIGHT) < HOLD_UNTIL ? 50 : 0),
     },
-    desc: "Thợ săn bóng đêm: cắm Mũi Tên Bạc, mũi thứ 3 nổ theo máu tối đa của mục tiêu; ghim kẻ địch vào tường để làm Choáng.",
+    desc: "Giữ Vayne trên tay, nạp Đêm trong bóng tối rồi gọi ra đúng lúc để xả.",
     passive: {
-        name: "Mũi Tên Bạc",
-        desc: `Mỗi đòn đánh trúng của Vayne cắm 1 Mũi Bạc (giữ 2 lượt của mục tiêu). Mũi thứ 3 nổ: ${SILVER_PCT * 100}% máu tối đa của mục tiêu + {${F_SILVER}} sát thương chuẩn.`,
+        name: "Thợ Săn Bóng Đêm",
+        desc: `Đầu lượt của bạn, Vayne không trên sân (chưa gọi hoặc chờ hồi sinh): +2 Đêm (tối đa ${MAX_NIGHT}). Mỗi đòn đánh của Vayne tiêu 1 Đêm để gây thêm {${F_NIGHT}} sát thương chuẩn.`,
     },
     hooks: {
-        onAttackHit(g, me, d) {
+        onTurnStartAway(g, me, d) {
+            if (d.side === me.side) g.stack(me,
+                NIGHT,
+                2,
+                MAX_NIGHT)
+        },
+        onAttack(g, me, d) {
             if (d.attacker.id !== me.id || d.info.miss) return
-            addSilver(g,
-                me,
-                d.target)
+            const n = g.stackOf(me,
+                NIGHT)
+            if (n <= 0) return
+            const r = d.info.buffs.some((b) => b.id === R_BUFF)
+            const e = g.has(me,
+                EDGE)
+            const spend = r ? n : Math.min(n,
+                e ? 2 : 1)
+            g.setStack(me,
+                NIGHT,
+                n - spend)
+            d.info.bonus.push({
+                raw: g.f(me,
+                    F_NIGHT) * spend * (r ? R_RATE : e ? E_RATE : 1), kind: "true"
+            })
         },
     },
     skills: {
         Q: {
-            key: "Q", name: "Lộn Nhào", target: "enemy",
-            desc: `Vayne đánh 1 tướng địch bất kỳ (${Q_MULT * 100}% đòn đánh thường) cộng {${F_Q}} sát thương vật lý, không cần lá Đánh thường. **Điều kiện:** mục tiêu là Đỡ đòn thì cắm thêm 1 Mũi Bạc.`,
+            key: "Q", name: "Lùi Vào Bóng Tối", target: "self", quick: true,
+            desc: "Quick. Vayne Tàng Hình tới hết lượt kế tiếp của đối thủ và +2 Đêm.",
             resolve(c) {
-                const t = c.target!
-                c.g.attack(c.self,
-                    t,
-                    {
-                        free: true, mult: Q_MULT, bonusRaw: c.f(F_Q)
-                    })
-                if (t.status === "board" && c.g.role(t) === "tank") addSilver(c.g,
-                    c.self,
-                    t)
-            },
-        },
-        E: {
-            key: "E", name: "Kết Án", target: "enemy",
-            desc: `{${F_E}} sát thương vật lý lên 1 tướng địch, cắm 1 Mũi Bạc, rồi đẩy nó 1 đường ra phía mép bàn (đường giữa đẩy sang trái; có đồng đội của nó thì đổi chỗ). **Điều kiện:** phía đó là mép bàn hoặc đường chưa mở thì nó bị ghim vào tường: nếu đã mang Mũi Bạc từ trước thì Choáng 1 lượt.`,
-            resolve(c) {
-                const t = c.target!
-                const had = c.g.statusV(t,
-                    SILVER) > 0
-                c.g.damage(c.self,
-                    t,
-                    c.f(F_E),
-                    "physical",
-                    {
-                        tag: "skill"
-                    })
-                if (t.status !== "board") return
-                addSilver(c.g,
-                    c.self,
-                    t)
-                if (t.status !== "board" || t.token) return
-                const to = outward(t.lane)
-                const wall = to < 0 || to > 4 || !c.g.isOpen(to)
-                if (!wall) c.g.moveTo(t,
-                    to)
-                else if (had) c.g.status(t,
-                    "stun",
-                    1)
-            },
-        },
-        R: {
-            key: "R", name: "Giờ Khắc Cuối Cùng", target: "all_enemies",
-            desc: "Mọi Mũi Bạc đang cắm trên tướng địch nổ ngay (mỗi tướng mang mũi nổ 1 lần dù có 1 hay 2 mũi), rồi Vayne Tàng Hình tới hết lượt đối thủ.",
-            canPlay: (c) => c.g.enemies(c.side).some((u) => c.g.statusV(u,
-                SILVER) > 0),
-            resolve(c) {
-                for (const t of c.g.enemies(c.self)) {
-                    if (c.g.statusV(t,
-                        SILVER) <= 0) continue
-                    c.g.removeStatus(t,
-                        SILVER)
-                    detonate(c.g,
-                        c.self,
-                        t)
-                }
                 c.g.status(c.self,
                     "stealth",
                     1,
                     {
                         of: otherSide(c.side)
                     })
+                c.g.stack(c.self,
+                    NIGHT,
+                    2,
+                    MAX_NIGHT)
+            },
+        },
+        E: {
+            key: "E", name: "Lượt Xả", target: "self",
+            desc: `Tới hết lượt này: mỗi đòn đánh của Vayne tiêu 2 Đêm và sát thương chuẩn thêm từ Đêm gấp ${E_RATE}.`,
+            resolve(c) {
+                c.g.status(c.self,
+                    EDGE,
+                    1)
+            },
+        },
+        R: {
+            key: "R", name: "Giờ Khắc Cuối Cùng", target: "self",
+            desc: `Đòn đánh kế tiếp của Vayne tiêu hết Đêm vào một phát: mỗi Đêm gây thêm {${F_NIGHT}} sát thương chuẩn nhân ${R_RATE}.`,
+            canPlay: (c) => c.g.stackOf(c.self,
+                NIGHT) > 0,
+            resolve(c) {
+                c.self.nextAttack.push({
+                    id: R_BUFF, source: c.self.id
+                })
             },
         },
     },

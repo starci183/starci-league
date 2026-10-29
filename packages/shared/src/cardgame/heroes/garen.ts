@@ -1,116 +1,131 @@
-// Garen (Đấu sĩ, vật lý): máu 1000 · AD 76 · giáp/kháng 38/34.
-// MỤC ĐÍCH: Công lý Demacia. Garen trừng phạt phe đang dẫn trước: đếm 3 hạng mục công khai (mạng, tổng số đồ đang đeo, số lá trên tay);
-// mỗi hạng mục địch hơn phe Garen thì Garen mạnh thêm. Q phạt kẻ nhiều đồ hơn, E chịu đòn khi bị dẫn mạng, R chém theo số đồ và
-// cướp thêm lá thưởng khi đang thua mạng. Engine: items, prizes. Độ khó: ĐƠN GIẢN.
-// Đối thủ trả lời: đừng dẫn trước một cách lộ liễu (tiêu bớt bài trên tay, đeo đồ cho tướng ở xa Garen), hoặc thả diều Garen bằng xạ thủ.
+// Garen (Đấu sĩ, vật lý): máu 460 · AD 66 · giáp/kháng 40/36.
+// CHẤT: "Tay đôi với kẻ trước mặt". Kẻ đối diện Garen mỗi lần đánh (bất kỳ ai) tự +1 Tội; Garen đánh vào Tội thì nặng thêm.
+// Q dùng Tội (không tiêu), E nuôi Tội (3 nhát, mỗi nhát +1), R Phán Quyết xả Tội thành sát thương chuẩn.
+// Engine: status cộng dồn "guilt" (g.status add), AttackInfo.bonus, hook onAttack của tướng đối diện.
+// Đối thủ trả lời: bỏ trống đường đối diện Garen, để kẻ yếu đánh ít đứng trước Garen (Ashe), hoặc thả diều.
+import type {
+    Game
+} from "../game"
 import {
     defineHero
 } from "../registry"
 import type {
-    Ctx, Side, Unit
+    Unit
 } from "../types"
-import {
-    otherSide
-} from "../types"
-import type {
-    Game
-} from "../game"
 
-const PER_LEAD = 0.15
-const F_Q = "40 + 60% AD + 20% AP"
-const F_E = "35 + 50% AD"
-const F_E_SHIELD = "40 + 6% máu tối đa"
-const F_R = "90 + 60% AD"
-const R_PER_ITEM = 60
+const GUILT = "guilt"
+/** Tối đa 10 Tội; hết sau 3 lượt của tướng mang kể từ lần cộng cuối */
+const MAX_GUILT = 10
+const GUILT_TURNS = 3
+/** Nội tại: đòn đánh của Garen thêm từng này sát thương mỗi Tội của mục tiêu */
+const F_PASSIVE = "6% AD"
+const F_Q = "15 + 80% AD"
+/** Q: thêm từng này mỗi Tội */
+const F_Q_GUILT = "15% AD"
+/** E: mỗi nhát */
+const F_E = "6 + 35% AD"
+const E_HITS = 3
+/** R: mỗi Tội */
+const F_R_GUILT = "15 + 40% AD"
 
-const itemsOf = (g: Game, side: Side) => Object.values(g.s.units).filter((u) => u.side === side && !u.token).reduce((n, u) => n + u.items.length,
-    0)
-/** Số hạng mục phe địch đang hơn phe Garen (0..3): mạng, tổng đồ, số lá trên tay */
-export function leadCount(g: Game, side: Side): number {
-    const foe = otherSide(side)
-    let n = 0
-    if (g.player(foe).lives > g.player(side).lives) n++
-    if (itemsOf(g,
-        foe) > itemsOf(g,
-        side)) n++
-    if (g.player(foe).hand.length > g.player(side).hand.length) n++
-    return n
+export const guiltOf = (g: Game, t: Unit) => g.statusV(t,
+    GUILT)
+const addGuilt = (g: Game, t: Unit, n: number) => {
+    if (t.status !== "board" || t.token) return
+    g.status(t,
+        GUILT,
+        GUILT_TURNS,
+        {
+            v: n, add: true, max: MAX_GUILT
+        })
 }
-const justice = (g: Game, me: Unit) => 1 + PER_LEAD * leadCount(g,
-    me.side)
-const hit = (c: Ctx, t: Unit, raw: number, kind: "physical" | "true" = "physical") => c.g.damage(c.self,
-    t,
-    raw * justice(c.g,
-        c.self),
-    kind,
-    {
-        tag: "skill"
-    })
 
 export default defineHero({
-    id: "garen", name: "Garen", role: "fighter", damage: "physical", hp: 800, atk: 68, armor: 38, mr: 34,
-    skillCopies: {
-        Q: 4, E: 3, R: 1
-    },
-    desc: "Sức mạnh Demacia: phe địch càng dẫn trước (mạng, đồ, bài trên tay) thì Garen chém càng đau.",
+    id: "garen", name: "Garen", role: "fighter", damage: "physical", hp: 300, atk: 60, armor: 33, mr: 31,
+    desc: "Tay đôi: kẻ đứng trước Garen cứ đánh là tự chất Tội lên mình, Garen chém vào Tội và Phán Quyết xả hết.",
     passive: {
         name: "Công Lý",
-        desc: `Garen gây thêm ${PER_LEAD * 100}% sát thương cho mỗi hạng mục phe địch đang hơn phe bạn: **mạng** còn lại, tổng số **đồ** đang đeo, số **lá trên tay** (tối đa +${PER_LEAD * 300}%).`,
+        desc: `Mỗi lần tướng địch đối diện Garen tấn công (bất kỳ ai): nó +1 Tội (tối đa ${MAX_GUILT}, hết sau ${GUILT_TURNS} lượt của nó kể từ lần cộng cuối). Đòn đánh của Garen gây thêm {${F_PASSIVE}} sát thương vật lý mỗi Tội trên mục tiêu.`,
     },
     hooks: {
         onAttack(g, me, d) {
-            if (d.attacker.id !== me.id) return
-            d.info.mult *= justice(g,
-                me)
+            const a = d.attacker
+            if (a.id === me.id) {
+                const n = guiltOf(g,
+                    d.target)
+                if (n > 0) d.info.bonus.push({
+                    raw: n * g.f(me,
+                        F_PASSIVE), kind: "physical"
+                })
+                return
+            }
+            if (a.side !== me.side && !a.token && g.opposite(me)?.id === a.id) addGuilt(g,
+                a,
+                1)
+        },
+    },
+    bot: {
+        markValue: {
+            guilt: 20,
         },
     },
     skills: {
         Q: {
             key: "Q", name: "Đòn Quyết Định", target: "opposite",
-            desc: `{${F_Q}} sát thương vật lý lên tướng đối diện. **Điều kiện:** nó đang đeo nhiều đồ hơn Garen thì bị Câm Lặng 1 lượt.`,
+            desc: `Chọn tướng địch đối diện Garen; gây {${F_Q}} sát thương vật lý, thêm {${F_Q_GUILT}} mỗi Tội của nó.`,
             resolve(c) {
                 const t = c.target!
-                const more = t.items.length > c.self.items.length
-                hit(c,
+                c.g.damage(c.self,
                     t,
-                    c.f(F_Q))
-                if (more && t.status === "board") c.g.status(t,
-                    "silence",
-                    1)
+                    c.f(F_Q) + guiltOf(c.g,
+                        t) * c.f(F_Q_GUILT),
+                    "physical",
+                    {
+                        tag: "skill"
+                    })
             },
         },
         E: {
             key: "E", name: "Phán Xét", target: "opposite",
-            desc: `Garen xoay kiếm: {${F_E}} sát thương vật lý lên tướng đối diện và tướng địch ở 2 đường kề bên. **Điều kiện:** phe địch còn nhiều mạng hơn phe bạn thì Garen nhận Khiên {${F_E_SHIELD}}.`,
+            desc: `Chọn tướng địch đối diện Garen; chém nó ${E_HITS} nhát, mỗi nhát gây {${F_E}} sát thương vật lý và +1 Tội (không tính vào 3 đòn đánh).`,
             resolve(c) {
                 const t = c.target!
-                for (const l of [t.lane - 1,
-                    t.lane + 1]) {
-                    const o = l >= 0 && l < 5 ? c.g.at(t.side,
-                        l) : undefined
-                    if (o && o.status === "board") hit(c,
-                        o,
-                        c.f(F_E))
+                for (let i = 0; i < E_HITS && t.status === "board"; i++) {
+                    c.g.damage(c.self,
+                        t,
+                        c.f(F_E),
+                        "physical",
+                        {
+                            tag: "skill"
+                        })
+                    addGuilt(c.g,
+                        t,
+                        1)
                 }
-                hit(c,
-                    t,
-                    c.f(F_E))
-                if (c.g.player(otherSide(c.side)).lives > c.g.player(c.side).lives) c.g.shield(c.self,
-                    c.self,
-                    c.f(F_E_SHIELD))
             },
         },
         R: {
-            key: "R", name: "Công Lý Demacia", target: "enemy",
-            desc: `{${F_R}} + ${R_PER_ITEM} mỗi món đồ mục tiêu đang đeo, sát thương chuẩn lên 1 tướng địch. **Điều kiện:** hạ gục khi phe bạn còn ít mạng hơn thì lật thêm 1 lá thưởng.`,
+            key: "R", name: "Phán Quyết Demacia", target: "opposite",
+            desc: `Chọn tướng địch đối diện Garen đang có Tội; gây {${F_R_GUILT}} sát thương chuẩn cho mỗi Tội của nó rồi xoá hết Tội.`,
+            canPlay: (c) => {
+                const o = c.g.opposite(c.self)
+                return !!o && guiltOf(c.g,
+                    o) > 0
+            },
             resolve(c) {
                 const t = c.target!
-                const behind = c.g.player(c.side).lives < c.g.player(otherSide(c.side)).lives
-                hit(c,
+                const n = guiltOf(c.g,
+                    t)
+                c.g.removeStatus(t,
+                    GUILT)
+                if (n <= 0) return
+                c.g.damage(c.self,
                     t,
-                    c.f(F_R) + R_PER_ITEM * t.items.length,
-                    "true")
-                if (behind && t.status !== "board" && !t.token) c.g.flipPrize(c.side)
+                    n * c.f(F_R_GUILT),
+                    "true",
+                    {
+                        tag: "skill"
+                    })
             },
         },
     },

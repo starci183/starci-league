@@ -11,38 +11,40 @@ Luật: `docs/LUAT_THE_BAI.md` (phần CHỐT MỚI). Engine/API: `docs/CARDGAME
 Số liệu chính xác (công thức, máu, AD, số lá) luôn lấy theo code `packages/shared/src/cardgame/heroes/<id>.ts`; các mục chi tiết bên dưới có thể lệch vài con số sau đợt cân bằng cuối.
 
 ## Bảng tổng (sinh từ code sau đợt cân bằng cuối)
+
+> **Dải chỉ số (chốt của chủ, đợt rescale 10/2026):** máu gốc 300–500, AD 60–90, Giáp 28–39, Kháng phép 28–38 (mọi chỉ số ngoài máu lệch tối đa 1,4 lần giữa tướng thấp nhất và cao nhất). Cột Máu/AD là máu gốc / AD gốc; số lá Q/E/R theo `skillCopies`.
 | Tướng | Vai | Độ khó | Mục đích | Engine | Lá Q/E/R | Máu/AD | Combo cùng đội | Bị khắc bởi | Khắc |
 |---|---|---|---|---|---|---|---|---|---|
-| Darius | Fighter | Đơn giản | Đao phủ: rải Chảy Máu rồi kết liễu kẻ đang chảy máu | marks, lanes | 3/3/2 | 950/82 | blitzcrank, leona, nami | soraka, braum | kogmaw |
-| Nami | Support | Đơn giản | Thuỷ triều nuôi bài: mỗi lá rút thành sức mạnh cho đồng đội | draw | 3/3/1 | 600/51 | viktor, zed, jinx | teemo, renata | blitzcrank |
-| Braum | Tank | Vừa | Chỉ chơi trong lượt đối thủ: mọi lá là phản ứng | chain | 9/7/3 | 1750/81 | kogmaw, viktor, jinx | twistedfate, malphite | darius, zed, qiyana, ahri |
-| Blitzcrank | Tank | Phức tạp | Cướp bài: lá của đối thủ thành vũ khí của mình | hand, lanes | 10/6/3 | 1800/91 | darius, teemo, renata | nami, soraka | viktor, twistedfate, ornn, janna |
-| Zed | Assassin | Vừa | Một lượt dồn chết: nhân bản lá trong mộ bằng Bóng | grave | 6/4/2 | 760/80 | nami, blitzcrank | braum, lissandra | viktor, soraka, ashe, jinx |
-| Viktor | Mage | Phức tạp | Tiến hoá bằng mộ bài: mỗi 3 lá Viktor trong mộ = 1 bậc | grave, draw | 8/7/2 | 790/62 | nami, twistedfate, braum | zed, blitzcrank | annie |
-| Twisted Fate | Mage | Phức tạp | Kiểm soát bộ bài: tìm lá, soi/huỷ Nấm, xem và phá tay | draw, hand | 7/6/2 | 820/63 | darius, zed, viktor | blitzcrank, qiyana | braum, teemo, lissandra, renata |
-| Soraka | Support | Đơn giản | Bền bài: lá thừa thành máu, xáo mộ để không bao giờ cạn | recycle | 5/5/2 | 570/49 | kogmaw, nami, garen | zed, katarina | darius, blitzcrank, teemo, brand |
-| Teemo | Marksman | Phức tạp | Ép cạn bài: Nấm trong bộ địch, rút càng nhiều càng nổ | mill | 6/5/2 | 1050/81 | ashe, blitzcrank, qiyana | twistedfate, soraka | nami, kogmaw |
-| Kog'Maw | Marksman | Đơn giản | Lớn lên từ cái chết: Kog Stack sống/chết đều tăng | scaling | 5/4/2 | 680/66 | braum, soraka, nami | teemo, darius, ashe | garen, leona, malphite |
-| Aatrox | Fighter | Đơn giản | Máu là đạn: tiêu máu mình để chém, yếu máu thì nguy hiểm | prizes, scaling | 4/3/1 | 660/67 | soraka, janna, leona | lissandra, vayne | garen |
-| Garen | Fighter | Đơn giản | Công lý: trừng phạt phe đang dẫn trước (nhiều đồ/mạng/bài hơn) | items | 4/3/1 | 800/68 | ornn, janna, soraka | kogmaw, vayne, aatrox | katarina, khazix |
-| Yorick | Fighter | Phức tạp | Người chăn hồn: lá Yorick trong mộ = linh hồn, Thiếu Nữ ở ô phụ | grave, tokens | 6/4/2 | 780/64 | zed, viktor | lux, gangplank, brand | ahri |
-| Gangplank | Fighter | Phức tạp | Thùng thuốc súng ở ô phụ, kích nổ bằng Quick giữa lượt địch | items, tokens, prizes | 5/4/2 | 860/76 | ornn, twistedfate | vayne, katarina | yorick, annie |
-| Leona | Tank | Vừa | Khoá chặt: Choáng/ngắt chuỗi, Ánh Dương cho đồng đội kích nổ | marks, lanes | 6/5/2 | 1330/73 | darius, jinx, aatrox | malphite, kogmaw | khazix |
-| Malphite | Tank | Đơn giản | Giáp là tất cả; R không thể bị nối chuỗi | items | 4/4/2 | 960/61 | ornn, leona | kogmaw, vayne, jinx | braum, leona, lissandra, janna, renata |
-| Ornn | Tank | Phức tạp | Lò rèn của đội: cấp mảnh Đồ, tiêu Vàng rèn Kiệt Tác | items | 3/3/1 | 1010/68 | gangplank, garen, jinx, malphite | blitzcrank, renata | katarina |
-| Katarina | Assassin | Vừa | Mưa dao găm: tạo lá Dao tạm, hạ gục thì lấy lại chiêu từ mộ | grave, lanes | 6/5/2 | 910/84 | leona, lux | garen, lissandra, ornn | soraka, gangplank, annie, lux |
-| Kha'Zix | Assassin | Vừa | Săn mồi cô lập; tiến hoá theo lá thưởng đã lật | lanes, prizes | 5/4/2 | 590/71 | brand, blitzcrank | garen, leona, annie | lux, ashe, vayne |
-| Qiyana | Assassin | Phức tạp | Nguyên tố = lá trên cùng mộ bài; tự đốt bài để đổi | grave, mill | 5/4/2 | 670/73 | teemo, malphite | lux, braum | twistedfate |
-| Ahri | Mage | Vừa | Quyến Rũ rồi khai thác mục tiêu bị Quyến Rũ | lanes | 8/8/2 | 1180/74 | lux, leona | yorick, braum | vayne |
-| Annie | Mage | Đơn giản | Gấu Tibbers ở ô phụ là trung tâm mọi lá | tokens, grave | 8/6/2 | 1010/66 | braum, janna | gangplank, katarina, viktor | khazix |
-| Lissandra | Mage | Vừa | Băng giá: Buốt là chìa khoá; Quan Tài Băng nối chuỗi | chain, prizes | 10/10/3 | 2010/100 | ashe, brand | malphite, twistedfate | zed, aatrox, katarina |
-| Lux | Mage | Vừa | Chiếu Sáng rồi kích nổ; R xuyên cả hàng | marks | 8/8/2 | 1010/69 | leona, ahri, nami | katarina, khazix | yorick, qiyana |
-| Ashe | Marksman | Đơn giản | Đóng băng nhịp đối thủ: Buốt tướng, đẩy lá chiêu địch xuống đáy bộ | mill, marks | 5/5/2 | 1060/83 | teemo, lissandra | zed, khazix | kogmaw |
-| Jinx | Marksman | Đơn giản | Phấn khích dây chuyền: mỗi hạ gục mở đòn tiếp + bài | items, draw | 5/4/2 | 670/71 | ornn, nami, leona | zed, janna | malphite |
-| Vayne | Marksman | Vừa | Săn tank: 3 Mũi Tên Bạc theo % máu, Kết Án ghim tường giữa chuỗi | marks, lanes | 5/4/2 | 940/79 | janna, ornn | ahri, khazix | aatrox, garen, gangplank, malphite |
-| Janna | Support | Vừa | Chống đòn đánh: thổi bay đòn tay giữa chuỗi | marks | 4/3/1 | 690/53 | jinx, vayne, kogmaw | malphite, blitzcrank | jinx, brand |
-| Brand | Mage | Phức tạp | Lửa lan: Bỏng (stack hiện) tự cháy mỗi lượt hoặc kích nổ ngay; chết thì lan | marks | 8/7/2 | 1720/89 | khazix, lissandra, lux | soraka, janna | yorick |
-| Renata Glasc | Support | Phức tạp | Lật kèo: đồng minh sắp chết vẫn đứng dậy, địch càng mạnh càng tự hại | hand, chain | 5/4/1 | 610/49 | blitzcrank, lux | twistedfate, malphite | nami, ornn |
+| Darius | Fighter | Đơn giản | Đao phủ: rải Chảy Máu rồi kết liễu kẻ đang chảy máu | marks, lanes | 3/3/2 | 370/60 | blitzcrank, leona, nami | soraka, braum | kogmaw |
+| Nami | Support | Đơn giản | Thuỷ triều nuôi bài: mỗi lá rút thành sức mạnh cho đồng đội | draw | 5/4/1 | 390/61 | viktor, zed, jinx | teemo, renata | blitzcrank |
+| Braum | Tank | Vừa | Chỉ chơi trong lượt đối thủ: mọi lá là phản ứng | chain | 9/7/3 | 475/80 | kogmaw, viktor, jinx | twistedfate, malphite | darius, zed, qiyana, ahri |
+| Blitzcrank | Tank | Phức tạp | Cướp bài: lá của đối thủ thành vũ khí của mình | hand, lanes | 10/6/3 | 450/85 | darius, teemo, renata | nami, soraka | viktor, twistedfate, ornn, janna |
+| Zed | Assassin | Vừa | Một lượt dồn chết: nhân bản lá trong mộ bằng Bóng | grave | 6/4/2 | 380/90 | nami, blitzcrank | braum, lissandra | viktor, soraka, ashe, jinx |
+| Viktor | Mage | Phức tạp | Tiến hoá bằng mộ bài: mỗi 3 lá Viktor trong mộ = 1 bậc | grave, draw | 8/7/2 | 340/69 | nami, twistedfate, braum | zed, blitzcrank | annie |
+| Twisted Fate | Mage | Phức tạp | Kiểm soát bộ bài: tìm lá, soi/huỷ Nấm, xem và phá tay | draw, hand | 3/3/2 | 300/69 | darius, zed, viktor | blitzcrank, qiyana | braum, teemo, lissandra, renata |
+| Soraka | Support | Đơn giản | Bền bài: lá thừa thành máu, xáo mộ để không bao giờ cạn | recycle | 6/6/2 | 500/60 | kogmaw, nami, garen | zed, katarina | darius, blitzcrank, teemo, brand |
+| Teemo | Marksman | Phức tạp | Ép cạn bài: Nấm trong bộ địch, rút càng nhiều càng nổ | mill | 7/6/2 | 500/90 | ashe, blitzcrank, qiyana | twistedfate, soraka | nami, kogmaw |
+| Kog'Maw | Marksman | Đơn giản | Lớn lên từ cái chết: Kog Stack sống/chết đều tăng | scaling | 5/4/2 | 320/80 | braum, soraka, nami | teemo, darius, ashe | garen, leona, malphite |
+| Aatrox | Fighter | Đơn giản | Máu là đạn: tiêu máu mình để chém, yếu máu thì nguy hiểm | prizes, scaling | 4/3/1 | 320/62 | soraka, janna, leona | lissandra, vayne | garen |
+| Garen | Fighter | Đơn giản | Công lý: trừng phạt phe đang dẫn trước (nhiều đồ/mạng/bài hơn) | items | 4/3/1 | 345/64 | ornn, janna, soraka | kogmaw, vayne, aatrox | katarina, khazix |
+| Yorick | Fighter | Phức tạp | Người chăn hồn: lá Yorick trong mộ = linh hồn, Thiếu Nữ ở ô phụ | grave, tokens | 6/4/2 | 340/70 | zed, viktor | lux, gangplank, brand | ahri |
+| Gangplank | Fighter | Phức tạp | Thùng thuốc súng ở ô phụ, kích nổ bằng Quick giữa lượt địch | items, tokens, prizes | 5/4/2 | 355/70 | ornn, twistedfate | vayne, katarina | yorick, annie |
+| Leona | Tank | Vừa | Khoá chặt: Choáng/ngắt chuỗi, Ánh Dương cho đồng đội kích nổ | marks, lanes | 6/5/2 | 470/75 | darius, jinx, aatrox | malphite, kogmaw | khazix |
+| Malphite | Tank | Đơn giản | Giáp là tất cả; R không thể bị nối chuỗi | items | 4/4/2 | 460/68 | ornn, leona | kogmaw, vayne, jinx | braum, leona, lissandra, janna, renata |
+| Ornn | Tank | Phức tạp | Lò rèn của đội: cấp mảnh Đồ, tiêu Vàng rèn Kiệt Tác | items | 4/4/1 | 490/72 | gangplank, garen, jinx, malphite | blitzcrank, renata | katarina |
+| Katarina | Assassin | Vừa | Mưa dao găm: tạo lá Dao tạm, hạ gục thì lấy lại chiêu từ mộ | grave, lanes | 6/5/2 | 365/90 | leona, lux | garen, lissandra, ornn | soraka, gangplank, annie, lux |
+| Kha'Zix | Assassin | Vừa | Săn mồi cô lập; tiến hoá theo lá thưởng đã lật | lanes, prizes | 5/4/2 | 400/90 | brand, blitzcrank | garen, leona, annie | lux, ashe, vayne |
+| Qiyana | Assassin | Phức tạp | Nguyên tố = lá trên cùng mộ bài; tự đốt bài để đổi | grave, mill | 5/4/2 | 360/84 | teemo, malphite | lux, braum | twistedfate |
+| Ahri | Mage | Vừa | Quyến Rũ rồi khai thác mục tiêu bị Quyến Rũ | lanes | 8/8/2 | 405/76 | lux, leona | yorick, braum | vayne |
+| Annie | Mage | Đơn giản | Gấu Tibbers ở ô phụ là trung tâm mọi lá | tokens, grave | 8/6/2 | 380/71 | braum, janna | gangplank, katarina, viktor | khazix |
+| Lissandra | Mage | Vừa | Băng giá: Buốt là chìa khoá; Quan Tài Băng nối chuỗi | chain, prizes | 10/10/3 | 430/90 | ashe, brand | malphite, twistedfate | zed, aatrox, katarina |
+| Lux | Mage | Vừa | Chiếu Sáng rồi kích nổ; R xuyên cả hàng | marks | 8/8/2 | 380/73 | leona, ahri, nami | katarina, khazix | yorick, qiyana |
+| Ashe | Marksman | Đơn giản | Đóng băng nhịp đối thủ: Buốt tướng, đẩy lá chiêu địch xuống đáy bộ | mill, marks | 5/5/2 | 385/90 | teemo, lissandra | zed, khazix | kogmaw |
+| Jinx | Marksman | Đơn giản | Phấn khích dây chuyền: mỗi hạ gục mở đòn tiếp + bài | items, draw | 3/3/1 | 300/60 | ornn, nami, leona | zed, janna | malphite |
+| Vayne | Marksman | Vừa | Săn tank: 3 Mũi Tên Bạc theo % máu, Kết Án ghim tường giữa chuỗi | marks, lanes | 5/4/2 | 430/90 | janna, ornn | ahri, khazix | aatrox, garen, gangplank, malphite |
+| Janna | Support | Vừa | Chống đòn đánh: thổi bay đòn tay giữa chuỗi | marks | 6/5/2 | 500/63 | jinx, vayne, kogmaw | malphite, blitzcrank | jinx, brand |
+| Brand | Mage | Phức tạp | Lửa lan: Bỏng (stack hiện) tự cháy mỗi lượt hoặc kích nổ ngay; chết thì lan | marks | 6/6/2 | 380/84 | khazix, lissandra, lux | soraka, janna | yorick |
+| Renata Glasc | Support | Phức tạp | Lật kèo: đồng minh sắp chết vẫn đứng dậy, địch càng mạnh càng tự hại | hand, chain | 5/4/1 | 310/60 | blitzcrank, lux | twistedfate, malphite | nami, ornn |
 
 ## Vòng khắc chế chính
 - **Rút nhiều** (Nami, Viktor, Twisted Fate) ← **Teemo** (Nấm trong bộ, rút càng nhiều càng nổ) ← **Twisted Fate / Ashe / Soraka** (lục bộ huỷ Nấm, soi đẩy bài, xáo mộ nạp lại bộ) ← **Blitzcrank** (cướp lá vừa tìm) ← **Nami / Soraka** (rút bù, lá bị ép bỏ thành máu).

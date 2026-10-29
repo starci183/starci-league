@@ -1,133 +1,98 @@
-// Leona (Đỡ đòn, phép): máu 1000 · AD 62 · giáp/kháng 40/38.
-// MỤC ĐÍCH: Khoá chặt một mục tiêu cho cả đội — Leona chất Ánh Dương (dấu có stack, hiện trên tướng địch), đồng đội đánh trúng thì dấu nổ;
-// đủ 3 Ánh Dương thì nổ kèm Choáng. E lao tới đối diện mục tiêu (đổi đường). Mọi lá chơi trong lượt Leona (không Quick).
-// Đối thủ trả lời bằng: Ánh Dương hết sau lượt kế của mục tiêu -> chặn/làm Mù/hạ đồng đội định kích nổ, hoặc chịu mất 1 lượt né (không cho ai đánh trúng).
-// Engine: marks, lanes. Cơ chế engine dùng: status có v (stack), hook onDamage, g.moveTo.
+// Leona (Đỡ đòn): máu 480 · AD 62 · giáp/kháng 45/35.
+// CHẤT: "Mặt trời mọc": gom Nắng lên địch, đủ 3 Nắng là Choáng, đồng đội đánh sau.
+// Nội tại: đòn đánh của Leona +1 Nắng lên mục tiêu. Q: 1 địch +2 Nắng. E: lượt này đòn đánh của đồng minh +1 Nắng. R: mọi địch +2 Nắng.
+// Leona không gây sát thương bằng chiêu. Cơ chế engine dùng: status "sun" (v = số Nắng, FOREVER), hook onAttackHit, status "stun".
 import type {
     Game
 } from "../game"
 import {
     defineHero
 } from "../registry"
-import type {
-    Unit
+import {
+    FOREVER, type Unit
 } from "../types"
 
-const SUN = "sunlight"
-const SUN_MAX = 3
-const F_SUN = "45 + 60% Giáp + 20% AP"
-const F_Q = "50 + 40% AP"
-const F_E = "60 + 40% AP"
-const F_R = "120 + 40% AP"
+const SUN = "sun"
+const SUN_E = "leona_e"
+const SUN_NEED = 3
+/** Nắng Q gắn lên 1 địch, R gắn lên mọi địch */
+const Q_SUN = 2
+const R_SUN = 2
 
-/** Thêm n Ánh Dương (tối đa 3), giữ tới hết lượt sau của chủ mục tiêu */
-export function addSun(g: Game, t: Unit, n: number) {
-    if (t.status !== "board") return
+/** Thêm n Nắng lên t; đủ SUN_NEED thì xoá hết Nắng và Choáng 1 lượt */
+function addSun(g: Game, leona: Unit, t: Unit, n: number) {
+    if (t.status !== "board" || t.token || t.side === leona.side) return
     g.status(t,
         SUN,
-        2,
+        1,
         {
-            v: n, add: true, max: SUN_MAX
+            v: n, add: true, max: SUN_NEED, until: FOREVER, src: leona.id
+        })
+    if (g.statusV(t,
+        SUN) < SUN_NEED) return
+    g.removeStatus(t,
+        SUN)
+    g.status(t,
+        "stun",
+        1,
+        {
+            src: leona.id
         })
 }
+
 export default defineHero({
-    id: "leona", name: "Leona", role: "tank", damage: "magic", hp: 1330, atk: 73, armor: 40, mr: 38,
-    skillCopies: {
-        Q: 6, E: 5, R: 2
+    id: "leona", name: "Leona", role: "tank", damage: "physical", hp: 450, atk: 90, armor: 39, mr: 38,
+    bot: {
+        markValue: {
+            sun: 40,
+        },
     },
-    desc: "Bình Minh Rực Rỡ: chất Ánh Dương lên một kẻ địch cho đồng đội kích nổ, và lao tới đối diện kẻ đã mang dấu để Choáng nó.",
+    desc: "Mặt trời mọc: gom Nắng lên địch, đủ Nắng là Choáng. Leona không gây sát thương bằng chiêu, đồng đội đánh sau.",
     passive: {
         name: "Ánh Dương",
-        desc: `Chiêu của Leona gắn **Ánh Dương** (tối đa ${SUN_MAX}, hiện trên tướng, giữ tới hết lượt sau của nó). Khi một đồng minh khác của Leona (kể cả vật triệu hồi) gây sát thương bằng đòn đánh hoặc chiêu lên tướng có Ánh Dương, mọi Ánh Dương nổ: mỗi dấu gây {${F_SUN}} sát thương phép; nổ đủ ${SUN_MAX} dấu thì tướng đó bị Choáng 1 lượt.`,
+        desc: `Đòn đánh của Leona +1 Nắng lên mục tiêu. Tướng địch đủ ${SUN_NEED} Nắng: Choáng 1 lượt và mất hết Nắng.`,
     },
     hooks: {
-        onDamage(g, me, d) {
-            if (!d.src || d.src.side !== me.side || d.src.id === me.id || (d.tag !== "attack" && d.tag !== "skill")) return
-            const t = d.target
-            const n = g.statusV(t,
-                SUN)
-            if (n <= 0 || t.status !== "board") return
-            g.removeStatus(t,
-                SUN)
-            g.damage(me,
-                t,
-                g.f(me,
-                    F_SUN) * n,
-                "magic",
-                {
-                    tag: "effect"
-                })
-            if (n >= SUN_MAX) g.status(t,
-                "stun",
+        onAttackHit(g, me, d) {
+            if (d.attacker.id === me.id) addSun(g,
+                me,
+                d.target,
+                1)
+            else if (d.attacker.side === me.side && g.has(me,
+                SUN_E)) addSun(g,
+                me,
+                d.target,
                 1)
         },
     },
     skills: {
         Q: {
-            key: "Q", name: "Khiên Bình Minh", target: "opposite",
-            desc: `Đánh thường tướng đối diện ngay (không cần lá Đánh thường), thêm {${F_Q}} sát thương phép, gắn 2 Ánh Dương. **Điều kiện:** tướng đó đã có Ánh Dương từ trước thì bị Choáng 1 lượt.`,
+            key: "Q", name: "Khiên Mặt Trời", target: "enemy",
+            desc: `Chọn 1 tướng địch; nó +${Q_SUN} Nắng.`,
             resolve(c) {
-                const t = c.target!
-                const lit = c.g.has(t,
-                    SUN)
-                c.g.attack(c.self,
-                    t,
-                    {
-                        free: true, bonusRaw: c.f(F_Q)
-                    })
                 addSun(c.g,
-                    t,
-                    2)
-                if (lit) c.g.status(t,
-                    "stun",
-                    1)
+                    c.self,
+                    c.target!,
+                    Q_SUN)
             },
         },
         E: {
-            key: "E", name: "Thiên Đỉnh Kiếm", target: "enemy",
-            desc: `Leona lao tới đường đối diện 1 tướng địch, gây {${F_E}} sát thương phép và gắn 1 Ánh Dương. **Điều kiện:** mục tiêu đã có Ánh Dương từ trước thì bị Choáng 1 lượt.`,
+            key: "E", name: "Nhật Thực", target: "none",
+            desc: "Tới hết lượt này: mỗi đòn đánh của đồng minh khác Leona +1 Nắng lên mục tiêu.",
             resolve(c) {
-                const t = c.target!
-                const lit = c.g.has(t,
-                    SUN)
-                if (t.lane >= 0 && t.lane < 5 && c.g.isOpen(t.lane)) c.g.moveTo(c.self,
-                    t.lane)
-                c.g.damage(c.self,
-                    t,
-                    c.f(F_E),
-                    "magic",
-                    {
-                        tag: "skill"
-                    })
-                addSun(c.g,
-                    t,
-                    1)
-                if (lit) c.g.status(t,
-                    "stun",
+                c.g.status(c.self,
+                    SUN_E,
                     1)
             },
         },
         R: {
-            key: "R", name: "Thái Dương Hạ San", target: "enemies_upto", max: 3,
-            desc: `Tối đa 3 tướng địch nhận {${F_R}} sát thương phép và được chất đầy ${SUN_MAX} Ánh Dương. **Điều kiện:** tướng đã có Ánh Dương từ trước thì bị Choáng 1 lượt ngay.`,
+            key: "R", name: "Bình Minh", target: "all_enemies",
+            desc: `Mọi tướng địch +${R_SUN} Nắng.`,
             resolve(c) {
-                for (const t of c.targets) {
-                    const lit = c.g.has(t,
-                        SUN)
-                    c.g.damage(c.self,
-                        t,
-                        c.f(F_R),
-                        "magic",
-                        {
-                            tag: "skill"
-                        })
-                    addSun(c.g,
-                        t,
-                        SUN_MAX)
-                    if (lit) c.g.status(t,
-                        "stun",
-                        1)
-                }
+                for (const t of c.g.enemies(c.self)) addSun(c.g,
+                    c.self,
+                    t,
+                    R_SUN)
             },
         },
     },

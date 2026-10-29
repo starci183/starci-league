@@ -11,6 +11,9 @@ import type {
     Game
 } from "./game"
 import {
+    itemText
+} from "./items"
+import {
     allHeroes, getHero, getSpecialCard
 } from "./registry"
 import type {
@@ -26,64 +29,103 @@ import {
     cardInfo, itemStatText
 } from "./engine"
 import {
-    HERO_EN_G2, SPECIAL_EN_G2, STACK_EN_G2, STATUS_EN_G2
-} from "./i18n/en_g2"
+    HERO_EN_V2_G1, SPECIAL_V2_G1, STACK_V2_G1, STATUS_V2_G1
+} from "./i18n/v2_g1"
 import {
-    HERO_EN_G3, STATUS_EN_G3
-} from "./i18n/en_g3"
+    HERO_EN_V2_G2V, STACK_V2_G2V, STATUS_V2_G2V
+} from "./i18n/v2_g2v"
 import {
-    HERO_EN_G4
-} from "./i18n/en_g4"
+    HERO_EN_V2_G3V, STACK_V2_G3V, STATUS_V2_G3V
+} from "./i18n/v2_g3v"
+import {
+    HERO_EN_V2_G4V, STACK_V2_G4V, STATUS_V2_G4V
+} from "./i18n/v2_g4v"
+import {
+    HERO_EN_V2_G5V, SPECIAL_V2_G5V, STACK_V2_G5V, STATUS_V2_G5V
+} from "./i18n/v2_g5v"
 
 export type CardLang = "vi" | "en";
 let current: CardLang = "vi"
 export const getCardLang = () => current
 
 // ======================================================================
+// Bảng V2 hai thứ tiếng (trạng thái / stack / lá đặc biệt) — client đọc .vi, bảng *_EN bên dưới đọc .en
+// ======================================================================
+/** Tên + mô tả theo 2 ngôn ngữ */
+export type BiText = { vi: { name: string; desc: string }; en: { name: string; desc: string } };
+/** Trạng thái V2 (khoá = id status) */
+export const STATUS_V2: Record<string, BiText> = {
+    ...STATUS_V2_G1,
+    ...STATUS_V2_G2V,
+    ...STATUS_V2_G3V,
+    ...STATUS_V2_G4V,
+    ...STATUS_V2_G5V,
+}
+/** Bộ đếm V2 hiện trên tướng (khoá = stack key) */
+export const STACK_V2: Record<string, BiText> = {
+    ...STACK_V2_G1,
+    ...STACK_V2_G2V,
+    ...STACK_V2_G3V,
+    ...STACK_V2_G4V,
+    ...STACK_V2_G5V,
+}
+/** Lá đặc biệt V2 do chiêu/nội tại tạo ra (khoá = id lá) */
+export const SPECIAL_V2: Record<string, BiText> = {
+    ...SPECIAL_V2_G1,
+    ...SPECIAL_V2_G5V,
+}
+const enOf = (m: Record<string, BiText>) => Object.fromEntries(Object.entries(m).map(([k,
+    v]) => [k,
+    v.en]))
+
+// ======================================================================
 // Bảng chữ chung
 // ======================================================================
 export const SUPPORT_EN: Record<SupportId, { name: string; desc: string }> = {
+    mana: {
+        name: "Mana Potion", desc: "1 allied mage restores {30} mana."
+    },
     basic: {
         name: "Strike", desc: "1 allied champion makes a basic attack, following its role's rules."
     },
     gold: {
-        name: "Gold", desc: "1 gold: 2 Components + 1 Gold combine into 1 item."
+        name: "Gold", desc: "1 gold: 2 Components + 1 Gold combine into 1 item; or 1 Component + 1 Gold upgrades the component a champion already carries."
     },
     item: {
-        name: "Component", desc: "Item component: 2 Components + 1 Gold combine into 1 item and equip it (max 3 items per champion)."
+        name: "Component", desc: "Item component: play it on 1 of your champions to equip it alone (takes 1 slot); 2 Components + 1 Gold combine into 1 item (max 3 items per champion)."
     },
     potion: {
-        name: "Health Potion", desc: "1 allied champion heals {150 + 10% max HP}."
+        name: "Health Potion", desc: "1 allied champion heals {100 + 10% max HP}."
     },
     draw: {
         name: "Draw", desc: "Draw 2 cards."
     },
     buff: {
-        name: "Boost", desc: "1 allied champion deals +20% damage and gains a 100 Shield until the end of the opponent's turn."
+        name: "Boost", desc: "1 allied champion deals +20% damage and gains a 70 Shield until the end of the opponent's turn."
     },
     legend: {
         name: "Legendary Item", desc: "Crafted item: play it on 1 of your champions with a free item slot to equip it."
     },
     spell_heal: {
-        name: "Heal", desc: "1 allied champion heals {150} + 10% of its max HP."
+        name: "Heal", desc: "1 allied champion heals {100} + 10% of its max HP."
     },
     spell_flash: {
         name: "Flash", desc: "Move 1 allied champion to an open, empty lane."
     },
     spell_ignite: {
-        name: "Ignite", desc: "1 enemy champion is Ignited for 2 turns: at the start of each of its turns it loses 50 HP (true damage), plus Grievous Wounds (healing and Shields received -50%) for the same duration."
+        name: "Ignite", desc: "1 enemy champion is Ignited for 2 turns: at the start of each of its turns it loses 40 HP (true damage), plus Grievous Wounds (healing and Shields received -50%) for the same duration."
     },
     spell_exhaust: {
         name: "Exhaust", desc: "1 enemy champion deals 40% less damage until the end of its next turn."
     },
     spell_barrier: {
-        name: "Barrier", desc: "1 allied champion gains a Shield of {120} + 10% of its max HP."
+        name: "Barrier", desc: "1 allied champion gains a Shield of {80} + 10% of its max HP."
     },
     spell_cleanse: {
         name: "Cleanse", desc: "Remove every crowd control and harmful effect (Stun, Silence, Chill, Armor Shred, Blind, Ignite, Grievous Wounds, Exhaust, Bleed, Burn...) from 1 allied champion."
     },
     spell_smite: {
-        name: "Smite", desc: "Deal 400 true damage to the summoned unit in the opponent's extra zone (how non-marksmen answer tokens)."
+        name: "Smite", desc: "Deal 150 true damage to the summoned unit in the opponent's extra zone (how non-marksmen answer tokens)."
     },
     spell_teleport: {
         name: "Teleport", desc: "1 allied champion waiting to respawn returns right now to an open, empty lane with 50% HP."
@@ -105,10 +147,7 @@ export const WILD_EN: Record<"Q" | "E" | "R", { name: string; desc: string }> = 
 
 /** Lá đặc biệt do chiêu tạo ra (khóa theo id lá). Mô tả dùng cho lá đã đăng ký bằng defineSpecialCard. */
 export const SPECIAL_EN: Record<string, { name: string; desc: string }> = {
-    ...SPECIAL_EN_G2,
-    mushroom: {
-        name: "Toxic Mushroom", desc: "Sits in a deck. When drawn it explodes: the lowest-HP champion of the drawer takes {120 + 30% AP} magic damage (using Teemo's AP) and the top 3 cards of the drawer's deck are burned to the graveyard (4 while Mushroom Season runs). The Mushroom takes the place of that draw, then disappears."
-    },
+    ...enOf(SPECIAL_V2),
 }
 
 export const ROLE_EN: Record<Role, { name: string; rule: string }> = {
@@ -119,21 +158,20 @@ export const ROLE_EN: Record<Role, { name: string; rule: string }> = {
         name: "Tank", rule: "Strike card hits the opposing champion for 100% AD. Taunt: enemy marksmen's Strike cards must target a tank. Many versatile skills."
     },
     assassin: {
-        name: "Assassin", rule: "Strike card hits the champion in the same lane for 350% AD."
+        name: "Assassin", rule: "Strike card hits the champion in the same lane for 200% AD."
     },
     marksman: {
-        name: "Marksman", rule: "Strike card hits any enemy champion for 200% AD (but must hit a tank if the enemy has one on the board)."
+        name: "Marksman", rule: "Strike card hits any enemy champion for 150% AD (but must hit a tank if the enemy has one on the board)."
     },
     mage: {
-        name: "Mage", rule: "Strike card hits the opposing champion for 100% AD as magic damage. Skill damage is 40% stronger."
+        name: "Mage", rule: "Strike card hits the opposing champion for 100% AD as magic damage."
     },
     support: {
-        name: "Support", rule: "Strike card hits the opposing champion for 100% AD. While alive, draw 1 extra card each turn (+1 at most, however many Supports)."
+        name: "Support", rule: "Strike card hits the opposing champion for 100% AD. When summoned to the board, its owner draws 1 card (once; respawning does not count)."
     },
 }
 
 export const STATUS_EN: Record<string, { name: string; desc: string }> = {
-    ...STATUS_EN_G2, ...STATUS_EN_G3,
     ignite: {
         name: "Ignite", desc: "Loses HP (true damage) at the start of its owner's turn."
     },
@@ -164,27 +202,19 @@ export const STATUS_EN: Record<string, { name: string; desc: string }> = {
     blind: {
         name: "Blind", desc: "Its next attacks miss."
     },
-    bleed: {
-        name: "Hemorrhage", desc: "Loses HP at the start of its owner's turn for each mark."
-    },
-    burn: {
-        name: "Burn", desc: "Takes magic damage at the start of its owner's turn for each stack; Brand can detonate it."
-    },
     stealth: {
         name: "Stealth", desc: "Can't be chosen by single-target or up-to-N skills, nor by attacks (skills that hit every enemy still hit it)."
-    },
-    bailout: {
-        name: "Bailout", desc: "Can't be taken down until the end of its team's next turn; survives for good only by taking down an enemy champion first."
     },
     berserk: {
         name: "Berserk", desc: "Turned against its own team by Hostile Takeover."
     },
+    ...enOf(STATUS_V2),
 }
 
 /** Tên chỉ số đồ (lá đồ huyền thoại) */
 export const STAT_EN: Record<string, string> = {
     atk: "AD", ap: "AP", hp: "HP", armor: "Armor", mr: "MR", crit: "Crit chance", critDmg: "Crit damage", atkMult: "% AD",
-    lethality: "Lethality", magicPen: "Magic pen", spellAmp: "% skill damage", dmgAmp: "% damage", lifesteal: "Life steal", omnivamp: "Omnivamp", extraAtk: "% attack damage", manaRegen: "AP (Tear)",
+    lethality: "Lethality", magicPen: "Magic pen", spellAmp: "% skill damage", dmgAmp: "% damage", lifesteal: "Life steal", omnivamp: "Omnivamp", extraAtk: "% attack damage",
 }
 
 /** Từ khoá bài dùng chung */
@@ -203,13 +233,15 @@ export const KEYWORDS_EN: Record<string, string> = {
 }
 
 export const RULES_EN: string[] = [
-    "Summon first, then draw: each turn starts with a Summon step (summon reserve champions into empty open lanes, or skip), then you draw 2 cards (+1 if you have a living Support). If you must draw and your deck is empty, you lose immediately.",
-    "Opening: your first turn starts by summoning your first champion (its cards are shuffled into your deck), then you draw a 5-card opening hand (no extra turn draw that turn). Hand limit is 10: extra cards go to the graveyard.",
+    "Deck: 85 cards from the start: your 40 shared cards plus, for each of your 5 champions, 4 Q + 4 E + 1 R skill cards. Nothing is shuffled in when you summon. Opening hand: 5 cards, drawn before the first summon, so your hand decides who to summon.",
+    "Summon phase (start of every round): both players pick their summons face-down at the same time, then they are revealed together. One new lane opens each round (lane 3, then 2, 4, 1, 5); each side summons at most 1 champion per phase.",
+    "Each turn you draw 2 cards (your first turn draws none). Hand limit is 10: extra cards are burned into the graveyard. If you must draw and your deck is empty, you lose immediately.",
     "Two ways to win: take down 7 enemy champions (each side has 7 lives), or make the opponent run out of cards.",
-    "Lanes open gradually: round 1 only lane 3 (1v1), round 4 adds lanes 2 and 4 (3v3), round 8 adds lanes 1 and 5 (5v5).",
-    "Summoning a champion shuffles its 34 cards into your deck: 6 Q + 6 E + 2 R skills and 20 support cards.",
+    "Attack limit: at most 3 attacks per player per turn, counting Strike cards, Fighter cardless attacks and free attacks. Attacks made inside skills do not count.",
+    "Fighters may attack without a card once per turn (a Quick action, usable in the opponent's turn to respond to a chain) for 66% damage.",
+    "Support champions fetch their Q and E from the deck into your hand when first summoned. Mages pay mana (x10 scale, +10 per turn) to play skill cards.",
     "Skill cards go to the graveyard after use. Support cards are gone after use.",
-    "A fallen champion respawns after 3 rounds in its old lane, with its items. Its cards are dead cards in the meantime.",
+    "A fallen champion stays in its lane (reserved) and respawns there after 3 rounds, with its items. Its cards are dead cards in the meantime.",
     "2 Components + 1 Gold craft 1 item and equip it on a champion (max 3 items). There are 8 components and 36 recipes.",
 ]
 
@@ -226,145 +258,18 @@ export interface HeroTextEn {
   passive: { name: string; desc: string };
   skills: Record<"Q" | "E" | "R", { name: string; desc: string }>;
 }
-const HERO_EN_LEAD: Record<string, HeroTextEn> = {
-    nami: {
-        desc: "The tide feeds your hand: every card she draws turns into power for her allies, and a skill card drawn for an ally blesses that ally's next attack.",
-        passive: {
-            name: "Surging Tides",
-            desc: "Each card Nami draws through a skill heals the lowest-HP ally for {15 + 10% AP}.",
-        },
-        skills: {
-            Q: {
-                name: "Ebb and Flow",
-                desc: "Draw 2 cards. **Condition:** for each skill card drawn that belongs to one of your champions on the board, that champion is Blessed (its next attack needs no Strike card).",
-            },
-            E: {
-                name: "Blessing of the Tides",
-                desc: "Buff 1 ally: that champion's next attack needs no Strike card and deals an extra {40 + 20% AP} magic damage. **Condition:** if that attack crits, Nami draws 1 extra card.",
-            },
-            R: {
-                name: "Tidal Wave",
-                desc: "Draw 2 cards and every allied champion on the board is Blessed (next attack needs no Strike card). **Condition:** if your team has only 3 lives or fewer left, draw 4 instead of 2.",
-            },
-        },
-    },
-    teemo: {
-        desc: "Deck pressure that punishes heavy draw: Mushrooms wait in the opponent's deck, and the more they draw, the more explode.",
-        passive: {
-            name: "Toxic Mushroom",
-            desc: "Mushroom cards sit in the opponent's deck. When one is drawn it explodes: the lowest-HP champion on that side takes {120 + 30% AP} magic damage and the top 3 cards of the opponent's deck are burned to the graveyard. The Mushroom takes the place of that draw, then is destroyed.",
-        },
-        skills: {
-            Q: {
-                name: "Plant Mushrooms",
-                desc: "Shuffle 2 Mushrooms into the opponent's deck. **Condition:** if the opponent's deck has fewer than 30 cards, shuffle in 3 Mushrooms.",
-            },
-            E: {
-                name: "Trap on the Road",
-                desc: "Put 1 Mushroom on **top** of the opponent's deck (the next card they draw). **Condition:** if the opponent holds 6 or more cards, put 2 Mushrooms on top.",
-            },
-            R: {
-                name: "Mushroom Season",
-                desc: "Shuffle 3 Mushrooms into the opponent's deck. **Condition:** during the opponent's next turn, each Mushroom burns 4 cards instead of 3.",
-            },
-        },
-    },
-    twistedfate: {
-        desc: "Deck control: pick the right color, search for the exact card while clearing Mushrooms, then read the opponent's hand and throw away the card that matters.",
-        passive: {
-            name: "Golden Touch", desc: "Each time you use a Gold card to craft an item, draw 1 card."
-        },
-        skills: {
-            Q: {
-                name: "Pick a Card",
-                desc: "Change color, chosen when played. **Blue** (self): draw 2 cards. **Red** (every enemy champion): {55 + 20% AD + 35% AP} magic damage. **Gold** (1 enemy champion): {75 + 20% AD + 45% AP} magic damage, Stun for 1 turn, and you receive 1 Gold card. **Condition:** if you are holding a **Gold card**, the effect is 50% stronger (Blue draws 3 cards, Red/Gold deal 50% more damage).",
-            },
-            E: {
-                name: "Stacked Deck",
-                desc: "Search your deck for any 1 card and put it into your hand, then shuffle the deck; every **Mushroom** (enemy special card) found in your deck is destroyed. **Condition:** if you take an **ultimate (R)** skill card, you must discard 1 other card from your hand.",
-            },
-            R: {
-                name: "Destiny",
-                desc: "See the opponent's entire hand until the end of the turn and choose **any 1 card** in it for them to discard. **Condition:** if the discarded card is a **reaction card** (a Quick card), draw 1 card.",
-            },
-        },
-    },
-    viktor: {
-        desc: "An evolving machine: every 2 Viktor cards in your graveyard raise all three skills by one tier. Pair him with card draw (Nami, Twisted Fate) to reach tier 3 fast.",
-        passive: {
-            name: "Glorious Evolution",
-            desc: "The tier of every Viktor skill = **the number of Viktor cards in your graveyard divided by 2** (max tier 3). Viktor's deck has 8 Q cards, 7 E cards and only 5 Strike cards.",
-        },
-        skills: {
-            Q: {
-                name: "Siphon Power",
-                desc: "{110 + 20% AD + 50% AP} magic damage to 1 enemy champion; Viktor gains a {25 + 20% AP} Shield. **Tier 1:** +20% damage. **Tier 2:** double Shield. **Tier 3:** draw 1 card.",
-            },
-            E: {
-                name: "Death Ray",
-                desc: "{85 + 20% AD + 40% AP} magic damage to up to 2 enemy champions. **Tier 1:** +20% damage. **Tier 2:** targets are Chilled for 1 turn. **Tier 3:** an immediate aftershock deals 50% more.",
-            },
-            R: {
-                name: "Chaos Storm",
-                desc: "A storm clings to 1 enemy champion for 3 turns, strikes once right away and deals {60 + 30% AP} magic damage at the start of each of your turns. **Tier 1:** 1 more turn. **Tier 2:** Silence for 1 turn when the storm appears. **Tier 3:** each time Viktor uses Q/E while the storm lasts, the storm strikes once more.",
-            },
-        },
-    },
-    renata: {
-        name: "Renata Glasc",
-        desc: "Zaun's chem-baroness and queen of comebacks: allies about to fall stand up for one more turn, grow stronger the closer they are to death, and Hostile Takeover turns the enemy team's own strength against itself.",
-        passive: {
-            name: "Bailout",
-            desc: "When one of your champions (other than Renata) would be taken down, it stays at 1 HP with **Bailout**: it can't be taken down until the end of your next turn. If it takes down an enemy champion meanwhile, Bailout ends and it lives on; otherwise it is taken down at the end of that turn.",
-        },
-        skills: {
-            Q: {
-                name: "Handshake",
-                desc: "Pull 1 enemy champion in front of Renata, deal {60 + 40% AP} magic damage and Stun for 1 turn. **Condition:** if your team has **fewer lives** than the enemy team, also steal 1 random card from the opponent's hand.",
-            },
-            E: {
-                name: "Loyalty Program",
-                desc: "1 allied champion gains a {40 + 30% AP} Shield plus 20% of the HP it has lost, and +20% damage until the end of the opponent's turn: the closer to death, the stronger. **Condition:** if that champion is below 40% HP (or under Bailout), its next attack needs no Strike card.",
-            },
-            R: {
-                name: "Hostile Takeover",
-                desc: "Every enemy champion on the board goes **berserk**: one by one, each makes its full basic attack (role, items, crits, lifesteal) against one of its own allies (adjacent lane first, then lowest HP; if alone, it hits itself): the stronger they are, the more they hurt themselves. **Condition:** if your team has **fewer lives** than the enemy team, each attacks twice.",
-            },
-        },
-    },
-    brand: {
-        desc: "Vengeful flame: every card adds Burn stacks. Let the fire tick every turn, or detonate it all right now? A burning champion that dies spreads its fire to its neighbour.",
-        passive: {
-            name: "Blaze",
-            desc: "Brand's skills give the target **Burn** stacks (max 5, shown on the champion, expiring 2 of its turns after the last one added). At the start of a burning champion's turn it takes {50 + 8% AP} magic damage per stack. When a burning champion is taken down, all its stacks spread to 1 enemy champion in an adjacent lane (lowest HP).",
-        },
-        skills: {
-            Q: {
-                name: "Sear",
-                desc: "{100 + 40% AP} magic damage to 1 enemy champion, +2 Burn. **Condition:** if the target was already burning, it is Stunned for 1 turn.",
-            },
-            E: {
-                name: "Conflagration",
-                desc: "Choose 1 **burning** enemy champion: detonate all its stacks, each dealing {75 + 25% AP} magic damage at once, then remove the Burn. **Condition:** detonating 3 or more stacks gives 2 Burn to each enemy champion in an adjacent lane.",
-            },
-            R: {
-                name: "Pyroclasm",
-                desc: "{90 + 30% AP} magic damage to every enemy champion and +2 Burn to each. **Condition:** champions that were already burning get 1 more Burn.",
-            },
-        },
-    },
-}
-
-/** Bản dịch mọi tướng: nhóm lead (nami, viktor, teemo, twistedfate, renata, brand) + các nhóm G2/G3/G4 (i18n/en_g*.ts) */
+/** Bản dịch mọi tướng V2 (i18n/v2_*.ts, 5 nhóm × 6 tướng) */
 export const HERO_EN: Record<string, HeroTextEn> = {
-    ...HERO_EN_LEAD, ...HERO_EN_G2, ...HERO_EN_G3, ...HERO_EN_G4,
+    ...HERO_EN_V2_G1,
+    ...HERO_EN_V2_G2V,
+    ...HERO_EN_V2_G3V,
+    ...HERO_EN_V2_G4V,
+    ...HERO_EN_V2_G5V,
 }
 /** Tên các stack hiện trên tướng (UI) */
-export const STACK_EN: Record<string, string> = {
-    ...STACK_EN_G2,
-    itemAmp: "Masterwork (% item stats)",
-    kog: "Kog Stack",
-}
+export const STACK_EN: Record<string, string> = Object.fromEntries(Object.entries(STACK_V2).map(([k,
+    v]) => [k,
+    v.en.name]))
 
 // ======================================================================
 // Áp dụng ngôn ngữ (theo kiểu applyLocale của game cũ)
@@ -489,11 +394,19 @@ export function cardInfoL(g: Game, card: Card, unit?: Unit): { name: string; des
         card,
         unit)
     if (card.kind === "support" && card.id === "legend") {
-        const it = getItem(card.item ?? "")
+        const it = getItem(card.item ?? ""), tx = itemText(card.item ?? "",
+            "en")
         const items = LOL_EN.items as Record<string, string>
         return {
-            name: items[card.item ?? ""] ?? it?.name ?? "Legendary Item", desc: `Legendary item: play it on 1 of your champions with a free item slot to equip it.${it ? ` ${itemStatText(it,
+            name: tx?.name ?? items[card.item ?? ""] ?? it?.name ?? "Legendary Item", desc: `Legendary item: play it on 1 of your champions with a free item slot to equip it.${tx ? ` ${tx.stats}. ${tx.passive}: ${tx.desc}` : it ? ` ${itemStatText(it,
                 STAT_EN)}` : ""}`, type: "support"
+        }
+    }
+    if (card.kind === "support" && card.id === "item" && card.item) {
+        const tx = itemText(card.item,
+            "en")
+        if (tx) return {
+            name: `${SUPPORT_EN.item.name}: ${tx.name}`, desc: `${SUPPORT_EN.item.desc} ${tx.stats}.`, type: "support"
         }
     }
     if (card.kind === "support") { const t = SUPPORT_EN[card.id as SupportId]; return {
@@ -545,7 +458,7 @@ export function eventText(e: GameEvent, g?: Game): string | undefined {
     case "respawn": return `${uname(e.unit)} respawns in lane ${e.lane + 1}.`
     case "play": return `${side(e.side)} plays ${cname(e.card)}${e.reaction ? " (Quick)" : ""}.`
     case "cast": return `${uname(e.unit)} casts ${e.skill}${e.target ? ` on ${uname(e.target)}` : ""}.`
-    case "attack": return e.miss ? `${uname(e.attacker)} attacks ${uname(e.target)} and misses.` : `${uname(e.attacker)} attacks ${uname(e.target)}${e.crit ? " (critical hit)" : ""}${e.free ? " for free" : ""}.`
+    case "attack": return e.miss ? `${uname(e.attacker)} attacks ${uname(e.target)} and misses.` : `${uname(e.attacker)} attacks ${uname(e.target)}${e.crit ? " (critical hit)" : ""}${e.cardless ? " without a card (66%)" : e.free ? " for free" : ""}.`
     case "damage": return `${uname(e.target)} takes ${e.amount} ${e.kind} damage${e.src ? ` from ${uname(e.src)}` : ""}${e.absorbed ? ` (${e.absorbed} absorbed)` : ""}.`
     case "heal": return `${uname(e.target)} heals ${e.amount} HP.`
     case "shield": return `${uname(e.target)} gains a ${e.amount} Shield.`
@@ -558,10 +471,17 @@ export function eventText(e: GameEvent, g?: Game): string | undefined {
     case "draw": return `${side(e.side)} draws ${cname(e.card)}.`
     case "drawAuto": return `${side(e.side)} draws ${cname(e.card)}, which triggers at once.`
     case "discard": return `${side(e.side)} discards ${cname(e.card)}.`
+    case "cardBurned": return `${side(e.side)}'s hand is full: ${cname(e.card)} is burned.`
+    case "tempExpired": return `${cname(e.card)} (temporary) fades away from ${side(e.side)}'s hand.`
+    case "manaChange": return `${uname(e.unit)} ${e.delta >= 0 ? "gains" : "spends"} ${Math.abs(e.delta)} mana (${e.mana}/${e.max}).`
+    case "attackCount": return `${side(e.side)} has made ${e.used}/${e.limit} attacks this turn.`
+    case "blindStart": return `Summon phase (round ${e.round}): choose face-down, up to ${e.cap} champion(s) each.`
+    case "blindLocked": return `${side(e.side)} has locked in their summon.`
     case "burn": return `${cname(e.card)} is burned from ${side(e.side)}'s deck.`
     case "create": return `${cname(e.card)} is added to ${side(e.side)}'s ${e.zone === "hand" ? "hand" : e.zone === "deck" ? "deck" : "graveyard"}.`
     case "steal": return `${side(e.to)} steals ${cname(e.card)} from ${side(e.from)}.`
     case "returnToHand": return `${cname(e.card)} returns to ${side(e.side)}'s hand.`
+    case "reveal": return `${side(e.side)} reveals ${e.cards.length} card(s) to ${side(e.to)}: ${e.cards.map(cname).join(", ")}.`
     case "shuffle": return e.what === "graveIntoDeck" ? `${side(e.side)} shuffles ${e.count} cards from the graveyard into the deck.` : `${side(e.side)} shuffles the deck.`
     case "craft": return e.unit ? `${side(e.side)} forges ${e.item} onto ${uname(e.unit)}.` : `${side(e.side)} crafts ${e.item} (the item card goes to the hand).`
     case "equip": return `${uname(e.unit)} equips ${e.item}.`
@@ -575,6 +495,13 @@ export function eventText(e: GameEvent, g?: Game): string | undefined {
     case "prize": return `${side(e.side)} takes a Prize card (${e.left} left).`
     case "pass": return `${side(e.side)} passes.`
     case "marker": return e.on ? `A ${e.id} marker is placed on ${side(e.side)}'s lane ${e.lane + 1}.` : `The ${e.id} marker on ${side(e.side)}'s lane ${e.lane + 1} is removed.`
+    case "chainCancel": return `Chain Link ${e.n} is cancelled${e.card ? `: ${cname(e.card)}` : ""}.`
+    case "cardFrozen": return `${side(e.side)}'s ${cname(e.card)} is Frozen and can't be played.`
+    case "cardThawed": return `${side(e.side)}'s ${cname(e.card)} thaws.`
+    case "revealEnd": return `${side(e.side)}'s hand is no longer revealed.`
+    case "upgrade": return `${uname(e.unit)} upgrades ${itemText(e.from,
+        "en")?.name ?? e.from} into ${itemText(e.item,
+        "en")?.name ?? e.item}.`
     case "end": return `${side(e.winner)} wins (${WIN_REASON_EN[e.reason]}).`
     case "log": return e.text
     }

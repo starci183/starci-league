@@ -1,139 +1,131 @@
-// Darius (Đấu sĩ, vật lý): máu 940 · AD 82 · giáp/kháng 36/30.
-// MỤC ĐÍCH: Đao phủ. Rải Chảy Máu (status "bleed", số dấu hiện trên tướng), kéo kẻ đang chảy máu ra trước mặt, rồi kết liễu
-// khi máu nó tụt dưới ngưỡng "Kề Đao" = 10% máu tối đa mỗi dấu (người chơi tự đọc được từ dấu + thanh máu).
-// Engine: marks (Chảy Máu là đồng hồ kết liễu), lanes (E kéo về đối diện). Độ khó: ĐƠN GIẢN (đánh bằng sức mạnh thô).
-// Đối thủ trả lời: thả diều / chặn bằng tướng khác, hồi máu ra khỏi ngưỡng Kề Đao, hoặc dồn chết Darius trước khi hắn lăn cầu tuyết.
-import {
-    defineHero
-} from "../registry"
-import type {
-    Ctx, Unit
-} from "../types"
+// Darius (Đấu sĩ, vật lý): máu 400 · AD 70 · giáp/kháng 35/30.
+// CHẤT: "Xay một thằng". Đòn đánh nào của Darius cũng cắm Chảy Máu (cộng dồn, hiện số trên tướng); Q cắm thêm 2;
+// E giữ kẻ đối diện (trống thì Kéo một địch về); R Máy Chém xả toàn bộ Chảy Máu thành sát thương chuẩn, hạ được thì lá về tay.
+// Engine: status cộng dồn (g.status add), g.moveTo (Kéo), SkillDef.options, c.toHand.
+// Đối thủ trả lời: thả diều (đổi người đứng đối diện), Choáng/Câm Lặng Darius, hoặc hồi/Khiên cho kẻ đang chảy máu.
 import type {
     Game
 } from "../game"
+import {
+    defineHero
+} from "../registry"
+import {
+    otherSide,
+    type PlayArgs,
+    type Unit
+} from "../types"
 
 const BLEED = "bleed"
-const MAX_BLEED = 5
-/** Ngưỡng Kề Đao: mỗi dấu = 10% máu tối đa */
-const BLOCK_PCT = 0.1
-/** Darius gây thêm 6% sát thương cho mỗi dấu trên mục tiêu */
-const AMP_PER = 0.06
-const F_Q = "55 + 75% AD + 25% AP"
-const F_E = "25 + 40% AD"
-const F_R = "90 + 60% AD + 20% AP"
+/** Tối đa 8 Chảy Máu; hết sau 2 lượt của tướng mang kể từ lần cộng cuối */
+const MAX_BLEED = 6
+const BLEED_TURNS = 2
+const F_Q = "5 + 80% AD"
+const F_E = "10 + 65% AD"
+/** R: mỗi Chảy Máu = từng này sát thương chuẩn */
+const F_R_STACK = "16 + 25% AD"
+const Q_BLEED = 2
 
-const bleedOf = (g: Game, t: Unit) => g.statusV(t,
+export const bleedOf = (g: Game, t: Unit) => g.statusV(t,
     BLEED)
-/** Mục tiêu đang "Kề Đao": máu hiện tại ≤ 10% máu tối đa × số dấu */
-export const onTheBlock = (g: Game, t: Unit) => t.status === "board" && !t.token && bleedOf(g,
-    t) > 0 && t.hp <= t.maxHp * BLOCK_PCT * bleedOf(g,
-    t)
-const addBleed = (g: Game, t: Unit, n = 1) => {
-    if (t.status !== "board") return
+const addBleed = (g: Game, t: Unit, n: number) => {
+    if (t.status !== "board" || t.token) return
     g.status(t,
         BLEED,
-        2,
+        BLEED_TURNS,
         {
             v: n, add: true, max: MAX_BLEED
         })
 }
-/** Sát thương chiêu của Darius (cộng 6%/dấu) rồi cộng dấu */
-function cut(c: Ctx, t: Unit, raw: number, kind: "physical" | "true" = "physical", bleed = 1) {
-    const amp = 1 + AMP_PER * bleedOf(c.g,
-        t)
-    c.g.damage(c.self,
-        t,
-        raw * amp,
-        kind,
-        {
-            tag: "skill"
-        })
-    addBleed(c.g,
-        t,
-        bleed)
-}
-/** Kết liễu: sát thương chuẩn đủ lớn để hạ (vẫn đi qua hook như onLethal) */
-function execute(c: Ctx, t: Unit): boolean {
-    if (!onTheBlock(c.g,
-        t)) return false
-    c.g.log(`Darius executes ${t.id}`)
-    c.g.damage(c.self,
-        t,
-        (t.hp + t.shield) * 3 + 50,
-        "true",
-        {
-            tag: "skill"
-        })
-    return t.status !== "board"
-}
 
 export default defineHero({
-    id: "darius", name: "Darius", role: "fighter", damage: "physical", hp: 950, atk: 82, armor: 36, mr: 30,
-    skillCopies: {
-        Q: 3, E: 3, R: 2
+    id: "darius", name: "Darius", role: "fighter", damage: "physical", hp: 300, atk: 62, armor: 35, mr: 30,
+    bot: {
+        markValue: {
+            bleed: 25,
+        },
     },
-    desc: "Đao phủ Noxus: rải Chảy Máu, kéo kẻ đang chảy máu ra trước mặt, rồi kết liễu khi máu nó tụt dưới ngưỡng Kề Đao.",
+    desc: "Đao phủ Noxus: mỗi đòn đánh cắm thêm Chảy Máu, xay một mục tiêu đến khi Máy Chém xả hết dấu thành sát thương chuẩn.",
     passive: {
         name: "Xuất Huyết",
-        desc: `Mỗi đòn đánh và chiêu của Darius cho mục tiêu 1 dấu Chảy Máu (tối đa ${MAX_BLEED}, hết sau 2 lượt của mục tiêu kể từ lần cộng cuối). Darius gây thêm ${AMP_PER * 100}% sát thương mỗi dấu trên mục tiêu. Tướng có máu ≤ ${BLOCK_PCT * 100}% máu tối đa × số dấu đang **Kề Đao**.`,
+        desc: `Khi đòn đánh của Darius trúng 1 tướng: tướng đó +1 Chảy Máu (tối đa ${MAX_BLEED}, hết sau ${BLEED_TURNS} lượt của nó kể từ lần cộng cuối).`,
     },
     hooks: {
-        onAttack(g, me, d) {
-            if (d.attacker.id !== me.id) return
-            d.info.mult *= 1 + AMP_PER * bleedOf(g,
-                d.target)
-        },
         onAttackHit(g, me, d) {
             if (d.attacker.id !== me.id || d.info.miss) return
             addBleed(g,
-                d.target)
+                d.target,
+                1)
         },
     },
     skills: {
         Q: {
             key: "Q", name: "Tàn Sát", target: "opposite",
-            desc: `{${F_Q}} sát thương vật lý lên tướng đối diện, +1 dấu. **Điều kiện:** tướng đối diện đang Kề Đao sau đòn này thì bị kết liễu.`,
+            desc: `Chọn tướng địch đối diện Darius; gây {${F_Q}} sát thương vật lý và +${Q_BLEED} Chảy Máu.`,
             resolve(c) {
                 const t = c.target!
-                cut(c,
+                c.g.damage(c.self,
                     t,
-                    c.f(F_Q))
-                execute(c,
-                    t)
+                    c.f(F_Q),
+                    "physical",
+                    {
+                        tag: "skill"
+                    })
+                addBleed(c.g,
+                    t,
+                    Q_BLEED)
             },
         },
         E: {
             key: "E", name: "Bắt Giữ", target: "enemy",
-            desc: `Kéo 1 tướng địch bất kỳ ra đứng đối diện Darius (đổi chỗ với tướng địch đang đứng đó), gây {${F_E}} sát thương vật lý và +1 dấu. **Điều kiện:** nó đã có dấu từ trước thì +2 dấu thay vì 1.`,
+            desc: `Chọn tướng địch đối diện Darius; gây {${F_E}} sát thương vật lý. Nếu Darius không có tướng đối diện: chọn 1 tướng địch, Kéo nó về đối diện Darius trước khi gây sát thương.`,
+            options(c): PlayArgs[] {
+                const front = c.g.opposite(c.self)
+                if (front) return [{
+                    target: front.id
+                }]
+                // đường đối diện đang giữ cho tướng chết: không Kéo vào được
+                if (c.g.laneHolder(otherSide(c.side),
+                    c.self.lane)) return []
+                return c.g.heroes(otherSide(c.side)).filter((u) => !c.g.has(u,
+                    "stealth")).map((u) => ({
+                    target: u.id
+                }))
+            },
             resolve(c) {
                 const t = c.target!
-                const had = bleedOf(c.g,
-                    t) > 0
-                if (!t.token && c.self.lane >= 0 && c.self.lane < 5) c.g.moveTo(t,
+                if (t.lane !== c.self.lane) c.g.moveTo(t,
                     c.self.lane)
-                cut(c,
+                c.g.damage(c.self,
                     t,
                     c.f(F_E),
                     "physical",
-                    had ? 2 : 1)
+                    {
+                        tag: "skill"
+                    })
             },
         },
         R: {
             key: "R", name: "Máy Chém Noxus", target: "opposite",
-            desc: `Kết liễu tướng đối diện nếu nó đang Kề Đao; nếu không, gây {${F_R}} sát thương chuẩn (+${AMP_PER * 100}% mỗi dấu) rồi kết liễu nếu giờ nó Kề Đao. **Điều kiện:** hạ gục được thì lá R này quay về tay.`,
+            desc: `Chọn tướng địch đối diện Darius đang có Chảy Máu; gây {${F_R_STACK}} sát thương chuẩn cho mỗi Chảy Máu của nó rồi xoá hết Chảy Máu. Nếu lá này hạ gục: nó quay về tay.`,
+            canPlay: (c) => {
+                const o = c.g.opposite(c.self)
+                return !!o && bleedOf(c.g,
+                    o) > 0
+            },
             resolve(c) {
                 const t = c.target!
-                if (!execute(c,
-                    t)) {
-                    cut(c,
-                        t,
-                        c.f(F_R),
-                        "true",
-                        0)
-                    execute(c,
-                        t)
-                }
+                const n = bleedOf(c.g,
+                    t)
+                c.g.removeStatus(t,
+                    BLEED)
+                if (n <= 0) return
+                c.g.damage(c.self,
+                    t,
+                    n * c.f(F_R_STACK),
+                    "true",
+                    {
+                        tag: "skill"
+                    })
                 if (t.status !== "board") c.toHand()
             },
         },

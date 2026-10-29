@@ -8,21 +8,7 @@ const specials = new Map<string, SpecialCardDef>()
 
 export function defineHero(def: HeroDef): HeroDef {
     if (heroes.has(def.id)) throw new Error(`Trùng tướng: ${def.id}`)
-    // số lá chiêu riêng mỗi tướng: Q 3..10, E 3..10, R 1..3
-    for (const [k,
-        lo,
-        hi] of [["Q",
-            3,
-            10],
-        ["E",
-            3,
-            10],
-        ["R",
-            1,
-            3]] as const) {
-        const n = def.skillCopies?.[k]
-        if (n !== undefined && (!Number.isInteger(n) || n < lo || n > hi)) throw new Error(`${def.id}: số lá ${k} phải trong ${lo}..${hi} (đang ${n})`)
-    }
+    // V2: số lá chiêu cố định 4Q/4E/1R (RULES.skillCopies); HeroDef.skillCopies/supportCopies bị bỏ qua
     heroes.set(def.id,
         def)
     return def

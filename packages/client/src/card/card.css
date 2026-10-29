@@ -7,3 +7,7 @@
 .cg-error { color: #ff8a7a; }
 /* Ảnh tướng là chân dung dọc (308x560): ô vuông/ngang thì căn phía trên để không cụt đầu */
 .cg-host img[src*="/heroes/"] { object-position: 50% 12%; }
+
+/* Từ khoá trong mô tả (RichText): gạch chấm, rê chuột xem định nghĩa */
+.cg-kw { color: #f5d27a; border-bottom: 1px dotted #f5d27a; cursor: help; }
+.cg-rich b { color: #fff3c8; font-weight: 800; }

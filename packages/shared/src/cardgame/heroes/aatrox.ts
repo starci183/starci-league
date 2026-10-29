@@ -1,136 +1,104 @@
-// Aatrox (Đấu sĩ, vật lý): máu 960 · AD 80 · giáp/kháng 34/30.
-// MỤC ĐÍCH: Máu là đạn. Q tiêu máu của chính Aatrox để chém, càng mất máu càng đau (nội tại đọc từ thanh máu),
-// E hút máu địch để nạp đạn, R Kẻ Diệt Thế: đốt nửa máu còn lại, đổi lại không gục ở đòn chí mạng đầu tiên. Engine: scaling. Độ khó: VỪA.
-// Đối thủ trả lời: dồn sát thương lớn khi Aatrox đang thấp máu (sát thương chuẩn / theo % máu), hoặc thả diều để hắn tự tiêu máu mà không hồi lại được.
+// Aatrox (Đấu sĩ, vật lý): máu 420 · AD 72 · giáp/kháng 34/30.
+// CHẤT: "Đổi máu lấy máu". Máu ĐÃ MẤT là tài nguyên (hiện ngay trên thanh máu): nội tại biến nó thành sát thương đòn đánh,
+// Q trả máu lấy sát thương (và nạp nội tại), E (Quick) biến sát thương đòn đánh thành hồi máu, R xả toàn bộ máu đã mất rồi đứng dậy đầy máu.
+// Engine: g.payHp (trả máu, không tự giết), AttackInfo.bonus (nội tại), status theo lượt (E), onDamage (hút máu).
+// Đối thủ trả lời: Janna Q huỷ đòn (không hút được), dồn chết lúc thấp máu, Vết Thương Sâu.
+import {
+    pct
+} from "../formula"
 import {
     defineHero
 } from "../registry"
 import type {
-    Ctx, Unit
+    Unit
 } from "../types"
-import type {
-    Game
-} from "../game"
 
-const AMP_CAP = 0.6
-const AMP_CAP_R = 1
-const F_Q_COST = "8% máu tối đa"
-const F_Q = "60 + 80% AD + 20% AP"
-const LOW = 0.5
-const F_E = "40 + 45% AD"
-const E_LOW = 0.3
-const R_STATUS = "aatrox_r"
-const F_R_HP = "15% máu tối đa"
-const F_R = "50 + 60% AD"
-const R_PAY = 0.3
+/** Nội tại: đòn đánh gây thêm 25% máu đã mất */
+const PASSIVE_PCT = 0.15
+/** Q: trả 25% máu tối đa, địch nhận gấp 2 lượng đó */
+const Q_PAY_PCT = 0.25
+const Q_MULT = 1.2
+/** R: địch nhận 2 lần máu đã mất */
+const R_MULT = 2
+const E_STATUS = "aatrox_e"
 
-/** +1% sát thương mỗi 1% máu đã mất (tối đa 60%, Kẻ Diệt Thế 100%) */
-export const bloodAmp = (g: Game, u: Unit) => 1 + Math.min(g.has(u,
-    R_STATUS) ? AMP_CAP_R : AMP_CAP,
-1 - u.hp / u.maxHp)
-/** Trả máu: trừ thẳng máu (không qua khiên, không thể tự hạ), phát sự kiện damage tag "blood" */
-export function payHp(g: Game, u: Unit, amount: number): number {
-    const pay = Math.min(Math.round(amount),
-        u.hp - 1)
-    if (pay <= 0) return 0
-    u.hp -= pay
-    g.emit({
-        t: "damage", src: u.id, target: u.id, amount: pay, hpLost: pay, absorbed: 0, kind: "true", tag: "blood", hp: u.hp
-    })
-    return pay
-}
-function slash(c: Ctx, t: Unit, raw: number): number {
-    const before = t.hp
-    c.g.damage(c.self,
-        t,
-        raw * bloodAmp(c.g,
-            c.self),
-        "physical",
-        {
-            tag: "skill"
-        })
-    return Math.max(0,
-        before - Math.max(0,
-            t.hp))
-}
+/** Máu Aatrox đã mất */
+export const lostHp = (u: Unit) => Math.max(0,
+    u.maxHp - u.hp)
 
 export default defineHero({
-    id: "aatrox", name: "Aatrox", role: "fighter", damage: "physical", hp: 660, atk: 67, armor: 34, mr: 30,
-    skillCopies: {
-        Q: 4, E: 3, R: 1
-    },
-    desc: "Kẻ Diệt Thế: tiêu máu của mình làm đạn, càng thấp máu càng chém đau, hút máu địch để nạp lại.",
+    id: "aatrox", name: "Aatrox", role: "fighter", damage: "physical", hp: 300, atk: 64, armor: 30, mr: 30,
+    desc: "Kẻ Diệt Thế: trả máu lấy sát thương, càng cạn máu đòn càng nặng, chém trúng thì hút lại và R xả hết máu đã mất thành một nhát.",
     passive: {
         name: "Cái Giá Bằng Máu",
-        desc: `Aatrox gây thêm 1% sát thương cho mỗi 1% máu đã mất (tối đa +${AMP_CAP * 100}%; +${AMP_CAP_R * 100}% khi Kẻ Diệt Thế).`,
+        desc: `Đòn đánh của Aatrox (cả đòn không cần lá) gây thêm sát thương vật lý bằng ${pct(PASSIVE_PCT)}% máu Aatrox đã mất.`,
     },
     hooks: {
-        onAttack(g, me, d) {
+        onAttack(_g, me, d) {
             if (d.attacker.id !== me.id) return
-            d.info.mult *= bloodAmp(g,
-                me)
+            const extra = lostHp(me) * PASSIVE_PCT
+            if (extra > 0) d.info.bonus.push({
+                raw: extra, kind: "physical"
+            })
         },
-        onLethal(g, me, d) {
-            if (d.target.id !== me.id || !g.has(me,
-                R_STATUS)) return
-            me.hp = Math.max(1,
-                Math.round(g.f(me,
-                    F_R_HP)))
-            g.removeStatus(me,
-                R_STATUS)
-            g.log("Aatrox refuses to fall")
+        onDamage(g, me, d) {
+            if (d.src?.id !== me.id || d.tag !== "attack" || d.target.id === me.id) return
+            if (!g.has(me,
+                E_STATUS)) return
+            g.heal(me,
+                me,
+                d.amount)
         },
     },
     skills: {
         Q: {
             key: "Q", name: "Lưỡi Gươm Darkin", target: "opposite",
-            desc: `Aatrox trả {${F_Q_COST}} máu (không thể tự hạ mình), rồi gây {${F_Q}} sát thương vật lý lên tướng đối diện. **Điều kiện:** sau khi trả máu Aatrox dưới ${LOW * 100}% máu thì chém thêm tướng địch ở 2 đường kề bên.`,
+            desc: `Chọn tướng địch đối diện Aatrox; Aatrox Trả Máu ${pct(Q_PAY_PCT)}% máu tối đa, rồi nó nhận sát thương vật lý bằng ${Q_MULT} lần lượng máu đã Trả.`,
+            canPlay: (c) => c.self.hp > 1 && !!c.g.opposite(c.self),
             resolve(c) {
-                const t = c.target!
-                payHp(c.g,
-                    c.self,
-                    c.f(F_Q_COST))
-                const low = c.self.hp < c.self.maxHp * LOW
-                slash(c,
-                    t,
-                    c.f(F_Q))
-                if (!low) return
-                for (const l of [c.self.lane - 1,
-                    c.self.lane + 1]) {
-                    const o = l >= 0 && l < 5 ? c.g.at(t.side,
-                        l) : undefined
-                    if (o && o.status === "board") slash(c,
-                        o,
-                        c.f(F_Q))
-                }
+                const paid = c.g.payHp(c.self,
+                    c.self.maxHp * Q_PAY_PCT,
+                    1)
+                if (paid <= 0) return
+                c.g.damage(c.self,
+                    c.target!,
+                    paid * Q_MULT,
+                    "physical",
+                    {
+                        tag: "skill"
+                    })
             },
         },
         E: {
-            key: "E", name: "Xiềng Xích Hút Máu", target: "enemy",
-            desc: `{${F_E}} sát thương vật lý lên 1 tướng địch, Aatrox hồi máu bằng lượng máu nó mất. **Điều kiện:** Aatrox dưới ${E_LOW * 100}% máu thì hồi gấp đôi.`,
+            key: "E", name: "Xiềng Xích Hút Máu", target: "none", quick: true,
+            desc: "Quick. Tới hết lượt: đòn đánh của Aatrox hồi máu cho Aatrox bằng 100% sát thương gây ra.",
             resolve(c) {
-                const low = c.self.hp < c.self.maxHp * E_LOW
-                const lost = slash(c,
-                    c.target!,
-                    c.f(F_E))
-                c.g.heal(c.self,
-                    c.self,
-                    lost * (low ? 2 : 1))
+                // tới hết lượt đang chạy (lượt mình hoặc lượt địch khi nối Chuỗi)
+                c.g.status(c.self,
+                    E_STATUS,
+                    1,
+                    {
+                        until: c.g.s.turnNo
+                    })
             },
         },
         R: {
-            key: "R", name: "Kẻ Diệt Thế", target: "all_enemies",
-            desc: `Aatrox trả ${R_PAY * 100}% máu hiện có, thành Kẻ Diệt Thế 2 lượt của mình (nội tại tối đa +${AMP_CAP_R * 100}%; lần đầu nhận đòn hạ gục thì không gục mà còn {${F_R_HP}} máu, rồi hết trạng thái), rồi gây {${F_R}} sát thương vật lý lên mọi tướng địch.`,
+            key: "R", name: "Kẻ Diệt Thế", target: "opposite",
+            desc: `Chọn tướng địch đối diện Aatrox; nó nhận sát thương vật lý bằng ${R_MULT} lần máu Aatrox đã mất, rồi Aatrox hồi đúng lượng máu đã mất đó.`,
+            canPlay: (c) => lostHp(c.self) > 0 && !!c.g.opposite(c.self),
             resolve(c) {
-                payHp(c.g,
+                const lost = lostHp(c.self)
+                if (lost <= 0) return
+                c.g.damage(c.self,
+                    c.target!,
+                    lost * R_MULT,
+                    "physical",
+                    {
+                        tag: "skill"
+                    })
+                c.g.heal(c.self,
                     c.self,
-                    c.self.hp * R_PAY)
-                c.g.status(c.self,
-                    R_STATUS,
-                    2)
-                for (const t of c.g.enemies(c.self)) slash(c,
-                    t,
-                    c.f(F_R))
+                    lost)
             },
         },
     },

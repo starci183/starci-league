@@ -91,6 +91,13 @@ export function deckPt(side: Side, me: Side): Pt {
         me)
 }
 
+/** Nút Mộ bài của phe `side` trên dải người chơi (đích bay của lá bị đốt) */
+export function gravePt(side: Side, me: Side): Pt {
+    const r = rectOf(`.bd-strip.${side === me ? "me" : "foe"} .bd-cnt.grave`)
+    return r ? ptOf(r) : deckPt(side,
+        me)
+}
+
 /** Chuỗi transform đặt phần tử (đã render) có tâm tại pt */
 export function place(el: HTMLElement, pt: Pt, scale = 1, rot = 0): string {
     return `translate(${pt.x - el.offsetWidth / 2}px, ${pt.y - el.offsetHeight / 2}px) rotate(${rot}deg) scale(${scale})`

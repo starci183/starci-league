@@ -1,102 +1,100 @@
-// Blitzcrank (Đỡ đòn, phép): máu 1000 · AD 68 · giáp/kháng 36/34.
-// MỤC ĐÍCH: Kẻ cướp bài — lá trên tay đối thủ là kho vũ khí của Blitzcrank; tay địch càng mỏng địch càng dễ bị đấm gục.
-// Q cướp 1 lá, lá là chiêu của tướng nào thì móc tướng đó về đối diện Blitzcrank (đường). E đấm tướng đối diện, Choáng nếu tay địch mỏng.
-// R ép đối thủ bỏ bài. Nội tại: mỗi lá cướp được, +giáp/kháng vĩnh viễn (stack bonusRes hiện trên tướng). Engine: hand, lanes.
-// Cơ chế engine dùng: g.stealCard (lá chiêu cướp được thành lá Đánh thường), hook onSteal, stack "bonusRes", g.moveTo.
+// Blitzcrank (Đỡ đòn): máu 450 · AD 65 · giáp/kháng 35/32.
+// CHẤT: "Thò tay vào bài địch": phạt việc giữ bài, cướp đúng lá địch cần.
+// Nội tại: lá chung cướp được Blitz giữ dùng; lá chiêu của tướng địch bị Đốt vào mộ chủ và tướng đó Choáng 1 lượt.
+// Q cướp 1 lá ngẫu nhiên (chọn lá nếu tay địch đang lộ). E (Quick) giật lá địch vừa đánh. R lộ tay địch và Choáng tướng có chiêu trên tay.
+// Cơ chế engine dùng: g.stealCard (skill: "burn"), g.chainFx().cancel + stealBy, g.revealHand, g.handRevealed, hook onSteal.
+import type {
+    Game
+} from "../game"
 import {
     defineHero
 } from "../registry"
 import {
-    otherSide
+    otherSide, type Card, type PlayArgs, type Unit
 } from "../types"
 
-const F_Q = "120 + 50% AP + 80% AD"
-const F_E = "100 + 80% AD"
-const F_R = "140 + 40% AP"
-const RES_PER_CARD = 5
-const RES_MAX = 30
-const THIN = 5
+/** Lá chiêu của một tướng (kể cả Bóng sao chép chiêu) */
+const isSkillCard = (c: Card) => c.kind === "skill" || !!c.copyOf
+
+/** Choáng 1 lượt tướng chủ lá: nếu đang là lượt của nó thì tính cả lượt kế tiếp (Choáng đủ 1 lượt đầy đủ) */
+function stunOwner(g: Game, u: Unit | undefined) {
+    if (!u || u.status !== "board" || u.token) return
+    g.status(u,
+        "stun",
+        1,
+        {
+            until: g.turnsUntil(u.side,
+                g.s.active === u.side ? 2 : 1)
+        })
+}
 
 export default defineHero({
-    id: "blitzcrank", name: "Blitzcrank", role: "tank", damage: "magic", hp: 1800, atk: 91, armor: 36, mr: 34,
-    skillCopies: {
-        Q: 10, E: 6, R: 3
-    },
-    desc: "Người máy cướp bài: móc lá trên tay đối thủ, kéo luôn chủ của lá về trước mặt, và đấm gục kẻ đã cạn bài.",
+    id: "blitzcrank", name: "Blitzcrank", role: "tank", damage: "magic", hp: 450, atk: 90, armor: 38, mr: 38,
+    desc: "Người máy cướp bài: thò tay vào bài địch, cướp đúng lá chúng cần. Lá chiêu bị cướp là lá cháy, tướng chủ lá đứng hình.",
     passive: {
-        name: "Lò Phản Ứng",
-        desc: `Lá chiêu cướp được từ đối thủ thành 1 lá Đánh thường trên tay bạn. Mỗi lá bạn cướp được, Blitzcrank +${RES_PER_CARD} giáp và kháng phép vĩnh viễn (tối đa +${RES_MAX}, hiện trên tướng).`,
+        name: "Bàn Tay Sắt",
+        desc: "Lá bạn Cướp Bài được: lá chung về tay bạn; lá chiêu của tướng địch bị Đốt và tướng đó Choáng 1 lượt.",
     },
     hooks: {
         onSteal(g, me, d) {
-            if (d.side === me.side) g.stack(me,
-                "bonusRes",
-                RES_PER_CARD,
-                RES_MAX)
+            if (d.side !== me.side || !isSkillCard(d.card) || !d.card.hero) return
+            const owner = g.unit(`${d.card.side ?? d.from}:${d.card.hero}`)
+            if (owner && owner.side !== me.side) stunOwner(g,
+                owner)
         },
     },
     skills: {
         Q: {
             key: "Q", name: "Bàn Tay Hoả Tiễn", target: "none",
-            desc: `Cướp 1 lá ngẫu nhiên trên tay đối thủ và gây {${F_Q}} sát thương phép lên tướng đối diện Blitzcrank. **Điều kiện:** lá cướp được là lá chiêu của một tướng địch đang trên sân thì móc tướng đó về đường đối diện Blitzcrank trước khi đánh (đánh nó thay vì tướng đối diện cũ).`,
+            desc: "Đối thủ có ít nhất 1 lá trên tay; Cướp Bài 1 lá ngẫu nhiên trên tay đối thủ. Nếu bạn đang Xem Tay: chọn lá.",
             canPlay: (c) => c.g.player(otherSide(c.side)).hand.length > 0,
+            options(c) {
+                const foe = otherSide(c.side)
+                const hand = c.g.player(foe).hand
+                if (!hand.length) return []
+                if (!c.g.handRevealed(foe)) return [{
+                }]
+                const seen = new Set<string>()
+                const out: PlayArgs[] = []
+                for (const x of hand) {
+                    const key = `${x.kind}:${x.id}`
+                    if (seen.has(key)) continue
+                    seen.add(key)
+                    out.push({
+                        pick: x.uid
+                    })
+                }
+                return out
+            },
             resolve(c) {
                 const foe = otherSide(c.side)
-                const got = c.g.stealCard(c.side,
-                    foe)
-                const hooked = got && (got.kind === "skill" || got.copyOf) && got.hero ? c.g.unit(`${got.side ?? foe}:${got.hero}`) : undefined
-                if (hooked && hooked.status === "board" && hooked.side === foe && c.self.lane >= 0 && c.self.lane < 5 && c.g.isOpen(c.self.lane)) c.g.moveTo(hooked,
-                    c.self.lane)
-                const t = c.g.opposite(c.self)
-                if (!t) return
-                c.g.damage(c.self,
-                    t,
-                    c.f(F_Q),
-                    "magic",
+                const uid = c.args.pick && c.g.handRevealed(foe) ? c.args.pick : undefined
+                c.g.stealCard(c.side,
+                    foe,
                     {
-                        tag: "skill"
+                        uid, skill: "burn"
                     })
             },
         },
         E: {
-            key: "E", name: "Đấm Móc", target: "opposite",
-            desc: `Đánh thường tướng đối diện ngay (không cần lá Đánh thường), thêm {${F_E}} sát thương, rồi Choáng mục tiêu 1 lượt. **Điều kiện:** tay đối thủ còn từ ${THIN} lá trở xuống thì Choáng 2 lượt.`,
+            key: "E", name: "Tay Giật", target: "none", quick: true, chainOnly: true,
+            desc: "Quick, Chỉ Nối Chuỗi. Khi địch đánh 1 lá: Vô Hiệu lá đó rồi Cướp Bài nó.",
+            quickWhen: (c) => c.trigger.side !== c.side && !!c.trigger.card,
             resolve(c) {
-                const t = c.target!
-                c.g.attack(c.self,
-                    t,
-                    {
-                        free: true, bonusRaw: c.f(F_E)
-                    })
-                if (t.status === "board") c.g.status(t,
-                    "stun",
-                    c.g.player(t.side).hand.length <= THIN ? 2 : 1)
+                const fx = c.g.chainFx()
+                fx.cancel = true
+                fx.stealBy = c.side
             },
         },
         R: {
-            key: "R", name: "Trường Điện Từ", target: "all_enemies",
-            desc: `Đối thủ bỏ 2 lá ngẫu nhiên trên tay. Rồi mọi tướng địch nhận {${F_R}} sát thương phép và bị Câm Lặng 1 lượt. **Điều kiện:** tay đối thủ còn từ 2 lá trở xuống thì chúng bị Choáng 1 lượt thay vì Câm Lặng.`,
+            key: "R", name: "Trường Điện Từ", target: "none",
+            desc: "Xem Tay tới hết lượt; mọi tướng địch có lá chiêu của mình trên tay đối thủ bị Choáng 1 lượt.",
             resolve(c) {
                 const foe = otherSide(c.side)
-                for (let i = 0; i < 2; i++) {
-                    const pick = c.g.pick(c.g.player(foe).hand)
-                    if (pick) c.g.discard(foe,
-                        pick.uid,
-                        "effect")
-                }
-                const cc = c.g.player(foe).hand.length <= 2 ? "stun" : "silence"
-                for (const t of c.g.enemies(c.self)) {
-                    c.g.damage(c.self,
-                        t,
-                        c.f(F_R),
-                        "magic",
-                        {
-                            tag: "skill"
-                        })
-                    c.g.status(t,
-                        cc,
-                        1)
-                }
+                c.g.revealHand(foe)
+                const hand = c.g.player(foe).hand
+                for (const t of c.g.heroes(foe)) if (hand.some((x) => isSkillCard(x) && x.hero === t.hero)) stunOwner(c.g,
+                    t)
             },
         },
     },

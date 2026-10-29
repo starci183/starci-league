@@ -24,6 +24,9 @@ import {
     ChainPanel
 } from "./ChainPanel"
 import {
+    ChainStage
+} from "./chain/ChainStage"
+import {
     UnitPanel
 } from "./stats/UnitPanel"
 import {
@@ -57,6 +60,7 @@ function CardApp() {
                     <ChainPanel />
                 </div>
             </aside>
+            <ChainStage />
             <AnimLayer />
             <VfxCanvas />
             {stage === "ended" ? <EndScreen /> : null}
