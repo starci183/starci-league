@@ -163,12 +163,6 @@ async function homeView(me: Me, msg = "") {
             true).maybeSingle()
         active = data
     }
-    const deckLine = me.session
-        ? active ? t("home.deck_active",
-            {
-                name: `<b>${esc(active.name)}</b>`, n: active.cards.length
-            }) : t("home.deck_none")
-        : t("home.deck_guest")
     root().innerHTML = `
     <div class="lb-home">
       <header class="lb-bar nine-header">
@@ -188,17 +182,6 @@ async function homeView(me: Me, msg = "") {
             <button class="lb-tile" id="lb-cg-hard"><b>${CG.hard}</b><small>${CG.hardSub}</small></button>
           </div>
           <form class="lb-code" id="lb-cg-join"><input name="code" required placeholder="${CG.codePh}" autocomplete="off"><button class="lb-btn">${CG.join}</button></form>
-        </section>
-        <section class="lb-panel nine-panel lb-play">
-          <h2>${t("home.play")}</h2>
-          <p class="lb-hint">${deckLine}</p>
-          <button class="lb-tile gold" id="lb-quick"><b>${t("home.quick")}</b><small>${t("home.quick_sub")}</small></button>
-          <button class="lb-tile" id="lb-create"><b>${t("home.create")}</b><small>${t("home.create_sub")}</small></button>
-          <div class="lb-bots">
-            <button class="lb-tile" id="lb-bot-easy"><b>${t("home.bot_easy")}</b><small>${t("home.bot_easy_sub")}</small></button>
-            <button class="lb-tile" id="lb-bot-hard"><b>${t("home.bot_hard")}</b><small>${t("home.bot_hard_sub")}</small></button>
-          </div>
-          <form class="lb-code" id="lb-join"><input name="code" required placeholder="${t("home.code_ph")}" autocomplete="off"><button class="lb-btn">${t("home.join")}</button></form>
           <p class="lb-msg">${esc(msg)}</p>
         </section>
         <section class="lb-panel nine-panel">
@@ -216,30 +199,6 @@ async function homeView(me: Me, msg = "") {
     wireLang()
     const $ = <T extends HTMLElement>(s: string) => root().querySelector<T>(s)!
     $("#lb-out").onclick = async () => { if (me.session) await supabase.auth.signOut(); loginView() }
-    $("#lb-quick").onclick = () => play(me,
-        {
-            kind: "quick"
-        })
-    $("#lb-create").onclick = () => play(me,
-        {
-            kind: "create"
-        })
-    $("#lb-bot-easy").onclick = () => play(me,
-        {
-            kind: "bot", level: "easy"
-        })
-    $("#lb-bot-hard").onclick = () => play(me,
-        {
-            kind: "bot", level: "hard"
-        })
-    $<HTMLFormElement>("#lb-join").onsubmit = (ev) => {
-        ev.preventDefault()
-        const code = String(new FormData(ev.target as HTMLFormElement).get("code")).trim()
-        if (code) play(me,
-            {
-                kind: "join", roomId: code
-            })
-    }
     $("#lb-deck").onclick = () => deckBuilder(me)
     $("#lb-cg-quick").onclick = () => play(me,
         {

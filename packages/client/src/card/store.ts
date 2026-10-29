@@ -18,7 +18,25 @@ type GameEvent = cg.GameEvent
 
 /** Tướng trong màn chọn (cg:draft) */
 export interface DraftHero { id: string; name: string; role: cg.Role; hp: number; atk: number; armor: number; mr: number; damage: "physical" | "magic" }
-export interface DraftInfo { pool: DraftHero[]; size: number; deadlineMs: number; picked?: { A: boolean; B: boolean } }
+/** Một lượt cấm/chọn */
+export interface DraftTurn { side: Side; action: "ban" | "pick" }
+/** cg:draft: trạng thái cấm/chọn kiểu LMHT (gửi lại sau mỗi lượt) */
+export interface DraftInfo {
+    pool: DraftHero[];
+    /** Số tướng mỗi đội */
+    size: number;
+    order: DraftTurn[];
+    /** Chỉ số lượt hiện tại trong order */
+    step: number;
+    /** Lượt hiện tại (null = xong) */
+    turn: DraftTurn | null;
+    bans: string[];
+    picks: Record<Side, string[]>;
+    /** Phe của bạn (null = khách xem) */
+    you: Side | null;
+    /** Thời gian còn lại của lượt này (0 = không giới hạn) */
+    deadlineMs: number;
+}
 
 /** Phần công khai của một người chơi trong cg:state */
 export interface PlayerView {
@@ -147,8 +165,7 @@ export const cardActions = {
             }))
         room.onMessage("cg:draft",
             (d: DraftInfo) => set({
-                stage: "draft", draft: d, picked: d.picked ?? {
-                }
+                stage: "draft", draft: d
             }))
         room.onMessage("cg:picked",
             ({ side }: { side: Side }) => set({
@@ -197,10 +214,10 @@ export const cardActions = {
             {
             })
     },
-    /** Chọn đội (đúng draft.size tướng) */
-    pick(heroes: string[]) { room?.send("cg:pick",
+    /** Cấm hoặc chọn 1 tướng trong lượt cấm/chọn của bạn */
+    draftAct(hero: string) { room?.send("cg:draftAct",
         {
-            heroes
+            hero
         }) },
     /** Gửi một hành động (nên lấy từ legal) */
     act(action: Action) {

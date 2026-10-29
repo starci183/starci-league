@@ -48,6 +48,23 @@ const hidden = (c: cg.Card): Hidden => ({
 })
 
 const pickRand = <T,>(a: T[], rnd = Math.random) => a[Math.floor(rnd() * a.length)]
+
+/** Số tướng tối đa mỗi bên được cấm */
+const DRAFT_BANS = 2
+/** Thời gian cho mỗi lượt cấm/chọn của người chơi */
+const DRAFT_TURN_MS = 30_000
+interface DraftTurn { side: Side; action: "ban" | "pick" }
+/** Cấm xen kẽ A B A B..., rồi chọn kiểu rắn A · B B · A A · ... tới khi mỗi bên đủ `size` tướng */
+function draftOrderOf(bans: number, size: number): DraftTurn[] {
+    const out: DraftTurn[] = []
+    for (let i = 0; i < bans * 2; i++) out.push({
+        side: i % 2 === 0 ? "A" : "B", action: "ban"
+    })
+    for (let i = 0; i < size * 2; i++) out.push({
+        side: Math.floor((i + 1) / 2) % 2 === 0 ? "A" : "B", action: "pick"
+    })
+    return out
+}
 const shuffled = <T,>(a: T[]) => { const r = [...a]; for (let i = r.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [r[i],
     r[j]] = [r[j],
     r[i]] } return r }
@@ -104,6 +121,14 @@ export class CardRoom extends Room<CardRoomState> {
     private disposed = false
     private botTimer: { clear(): void } | null = null
     private draftTimer: { clear(): void } | null = null
+    /** Cấm/chọn kiểu LMHT: thứ tự lượt, lượt hiện tại, tướng bị cấm, tướng đã chọn từng bên */
+    private draftOrder: DraftTurn[] = []
+    private draftStep = 0
+    private banCount = 0
+    private bans: string[] = []
+    private chosen: Record<Side, string[]> = {
+        A: [], B: []
+    }
     /** Số hành động bot trong trận (chống vòng lặp vô hạn ở phòng sim) */
     private steps = 0
     /** Tay đối phương đang được lộ cho người xem (hiệu ứng kiểu TF R): viewer -> các phe bị lộ, xoá sau message state kế */
@@ -121,7 +146,11 @@ export class CardRoom extends Room<CardRoomState> {
         if (options?.private || options?.bot || options?.sim) this.setPrivate(true)
         this.pool = cg.implementedHeroes().map((h) => h.id)
         this.teamSize = Math.min(5,
-            this.pool.length)
+            Math.floor(this.pool.length / 2))
+        // mỗi bên cấm tối đa DRAFT_BANS tướng, miễn còn đủ tướng cho cả hai đội
+        this.banCount = Math.max(0,
+            Math.min(DRAFT_BANS,
+                Math.floor((this.pool.length - 2 * this.teamSize) / 2)))
 
         if (options?.bot) {
             this.bots.B = options.bot === "easy" ? "easy" : "hard"
@@ -149,17 +178,16 @@ export class CardRoom extends Room<CardRoomState> {
 
         this.onMessage("cg:sync",
             (client) => this.sendFull(client))
-        this.onMessage("cg:pick",
-            (client, msg: { heroes?: string[] }) => {
+        this.onMessage("cg:draftAct",
+            (client, msg: { hero?: string }) => {
                 const side = this.sides.get(client.sessionId)
-                if (!side || this.state.phase !== "draft" || this.picks[side]) return
-                const err = this.checkTeam(msg?.heroes)
-                if (err) return client.send("cg:error",
+                if (!side) return
+                const err = this.draftAct(side,
+                    String(msg?.hero ?? ""))
+                if (err) client.send("cg:error",
                     {
                         code: "bad_team", msg: err
                     })
-                this.setPick(side,
-msg.heroes!)
             })
         this.onMessage("cg:action",
             (client, msg: { action?: cg.Action }) => {
@@ -241,42 +269,92 @@ msg.heroes!)
     private startDraft() {
         this.lock()
         this.state.phase = "draft"
-        const info = () => ({
+        // cả hai bên mang đội chọn sẵn (test/script): bỏ qua cấm/chọn
+        if (this.preset.A && this.preset.B) {
+            this.picks = {
+                A: this.preset.A, B: this.preset.B
+            }
+            this.finishDraft()
+            return
+        }
+        this.draftOrder = draftOrderOf(this.banCount,
+            this.teamSize)
+        this.draftStep = 0
+        this.bans = []
+        this.chosen = {
+            A: [], B: []
+        }
+        this.nextDraftTurn()
+    }
+
+    private draftTaken(id: string) { return this.bans.includes(id) || this.chosen.A.includes(id) || this.chosen.B.includes(id) }
+
+    /** Gửi trạng thái cấm/chọn cho từng người (mỗi người biết phe mình) */
+    private draftPayload(you: Side | null) {
+        const turn = this.draftOrder[this.draftStep] ?? null
+        return {
             pool: this.pool.map((id) => { const d = cg.getHero(id)!; return {
                 id, name: d.name, role: d.role, hp: d.hp, atk: d.atk, armor: d.armor, mr: d.mr, damage: d.damage
             } }),
             size: this.teamSize,
-        })
-        this.draftInfo = info()
-        this.broadcast("cg:draft",
-            {
-                ...this.draftInfo, deadlineMs: this.fast ? 0 : 90_000
-            })
-        for (const side of SIDES) {
-            if (this.bots[side]) this.setPick(side,
-                this.randomTeam())
-            else if (this.preset[side]) this.setPick(side,
-this.preset[side]!)
-        }
-        if (this.state.phase === "draft" && !this.fast) {
-            this.draftTimer = this.clock.setTimeout(() => {
-                for (const side of SIDES) if (!this.picks[side]) this.setPick(side,
-                    this.randomTeam())
-            },
-            90_000)
+            order: this.draftOrder,
+            step: this.draftStep,
+            turn,
+            bans: this.bans,
+            picks: this.chosen,
+            you,
+            deadlineMs: turn && !this.fast && !this.bots[turn.side] ? DRAFT_TURN_MS : 0,
         }
     }
-    private draftInfo: object = {
+    private broadcastDraft() {
+        for (const c of this.clients) c.send("cg:draft",
+            this.draftPayload(this.sides.get(c.sessionId) ?? null))
     }
 
-    private setPick(side: Side, heroes: string[]) {
-        this.picks[side] = [...heroes]
-        if (side === "A") this.state.pickedA = true; else this.state.pickedB = true
-        this.broadcast("cg:picked",
+    /** Sang lượt cấm/chọn kế tiếp: máy tự chọn, người có DRAFT_TURN_MS giây (hết giờ chọn ngẫu nhiên) */
+    private nextDraftTurn() {
+        this.draftTimer?.clear()
+        this.draftTimer = null
+        const turn = this.draftOrder[this.draftStep]
+        if (!turn) { this.finishDraft(); return }
+        this.broadcastDraft()
+        const auto = () => {
+            const free = this.pool.filter((id) => !this.draftTaken(id))
+            if (free.length) this.draftAct(turn.side,
+                pickRand(free))
+        }
+        if (this.bots[turn.side]) this.draftTimer = this.clock.setTimeout(auto,
+            this.fast ? 0 : 700)
+        else if (!this.fast) this.draftTimer = this.clock.setTimeout(auto,
+            DRAFT_TURN_MS)
+    }
+
+    /** Một lượt cấm/chọn của `side`. Trả về lỗi (chuỗi) nếu không hợp lệ */
+    private draftAct(side: Side, hero: string): string | null {
+        const turn = this.draftOrder[this.draftStep]
+        if (this.state.phase !== "draft" || !turn) return "Không phải lúc cấm/chọn"
+        if (turn.side !== side) return "Chưa tới lượt bạn"
+        if (!this.pool.includes(hero)) return `Tướng không hợp lệ: ${hero}`
+        if (this.draftTaken(hero)) return "Tướng này đã bị cấm hoặc đã được chọn"
+        if (turn.action === "ban") this.bans.push(hero)
+        else this.chosen[side].push(hero)
+        this.draftStep++
+        this.nextDraftTurn()
+        return null
+    }
+
+    private finishDraft() {
+        this.draftTimer?.clear()
+        this.draftTimer = null
+        if (!this.picks.A || !this.picks.B) this.picks = {
+            A: [...this.chosen.A], B: [...this.chosen.B]
+        }
+        this.state.pickedA = this.state.pickedB = true
+        for (const side of SIDES) this.broadcast("cg:picked",
             {
                 side
             })
-        if (this.picks.A && this.picks.B && this.state.phase === "draft") { this.draftTimer?.clear(); this.startGame() }
+        this.startGame()
     }
 
     // ================= Vào trận =================
@@ -457,13 +535,9 @@ this.picks.B!)
     }
 
     private sendFull(client: Client) {
-        if (this.state.phase === "draft") {
+        if (this.state.phase === "draft" && this.draftOrder.length) {
             client.send("cg:draft",
-                {
-                    ...this.draftInfo, deadlineMs: 0, picked: {
-                        A: !!this.picks.A, B: !!this.picks.B
-                    }
-                })
+                this.draftPayload(this.sides.get(client.sessionId) ?? null))
         } else if (this.state.phase === "waiting") client.send("cg:waiting",
             {
             })

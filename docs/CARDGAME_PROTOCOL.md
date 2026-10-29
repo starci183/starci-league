@@ -22,7 +22,7 @@ Mọi thứ còn lại qua message JSON bên dưới. **Đăng ký handler `onMe
 | Tên | Payload | Khi nào |
 |---|---|---|
 | `cg:waiting` | `{}` | phòng chờ đối thủ |
-| `cg:draft` | `{ pool: {id,name,role,hp,atk,armor,mr,damage}[], size: 5, deadlineMs, picked? }` | bắt đầu chọn tướng (`size` = min(5, số tướng đã viết xong)); `deadlineMs` 90000 (0 = không giới hạn); hết giờ server tự chọn ngẫu nhiên cho bên chưa chọn |
+| `cg:draft` | `{ pool: {id,name,role,hp,atk,armor,mr,damage}[], size, order: {side, action: "ban"\|"pick"}[], step, turn, bans: string[], picks: {A,B}, you, deadlineMs }` | cấm/chọn kiểu LMHT, gửi lại sau mỗi lượt. Cấm xen kẽ A B A B (tối đa 2/bên, chỉ khi kho đủ tướng), rồi chọn kiểu rắn A · B B · A A … tới khi mỗi bên đủ `size`. Tướng đã cấm/chọn thì không ai lấy được. Mỗi lượt của người 30s (`deadlineMs`), hết giờ server chọn ngẫu nhiên; máy tự chọn |
 | `cg:picked` | `{ side }` | một bên đã chọn xong (không lộ đội) |
 | `cg:events` | `GameEvent[]` | sau mỗi hành động, **gửi trước `cg:state`**; chơi hiệu ứng/log theo thứ tự mảng |
 | `cg:state` | xem 3.1 | sau mỗi hành động, và khi `cg:sync` |
@@ -62,7 +62,7 @@ PlayerView = {
 | Tên | Payload | Ghi chú |
 |---|---|---|
 | `cg:sync` | `{}` | xin gửi lại `cg:draft`/`cg:state`/`cg:legal` (sau khi mới vào, hoặc nghi lệch) |
-| `cg:pick` | `{ heroes: string[] }` | trong `draft`: đúng `size` tướng trong `pool`, không trùng. Mỗi bên chọn một lần, chọn kín. Hai bên có thể trùng tướng |
+| `cg:draftAct` | `{ hero: string }` | trong `draft`, đúng lượt của bạn (`turn.side`): cấm hoặc chọn 1 tướng còn trống. Sai thì nhận `cg:error {code:"bad_team"}` |
 | `cg:action` | `{ action: Action }` | hành động engine (`summon/play/attack/craft/chain/pass/end`); server ép `side` đúng phe của bạn |
 | `cg:resign` | `{}` | đầu hàng |
 
@@ -73,7 +73,7 @@ PlayerView = {
 - Hết lượt: gửi `{ t:"end", side }`. Bot/đối thủ đi xong sẽ có `cg:state` mới với `toMove` về bạn.
 
 ## 5. Luồng điển hình
-1. `create("card", {bot:"hard", name})` -> nhận `cg:draft` -> UI chọn 5 -> `cg:pick`.
+1. `create("card", {bot:"hard", name})` -> nhận `cg:draft` -> tới lượt thì gửi `cg:draftAct` -> nhận `cg:draft` mới ... tới khi đủ đội.
 2. Đủ hai bên chọn -> `cg:events` (roundStart, turnStart, draw...) -> `cg:state` (+ `cg:legal` nếu tới lượt bạn).
 3. Người chơi: `cg:action` -> `cg:events` + `cg:state` (+ `cg:legal`) cho cả hai bên; bot tự đi sau nhịp 1s (`fast` thì ngay).
 4. `cg:end`; phòng đóng khi mọi người rời.
