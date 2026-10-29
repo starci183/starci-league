@@ -160,7 +160,19 @@ const STATUS_VI_BASE: Record<string, { name: string; desc: string }> = {
         name: "Vết thương sâu", desc: "Giảm hiệu quả hồi máu và khiên nhận được."
     },
     stealth: {
-        name: "Tàng hình", desc: "Không bị địch nhắm tới cho đến khi ra đòn."
+        name: "Tàng hình", desc: "Không bị chọn làm mục tiêu, nhưng vẫn nhận sát thương diện rộng, nổ và theo thời gian."
+    },
+    stasis: {
+        name: "Đóng băng thân", desc: "Miễn mọi sát thương, không bị chọn, không hành động được tới hết lượt."
+    },
+    guard: {
+        name: "Hộ vệ", desc: "Hứng mọi sát thương địch định gây cho đồng minh; lượng đã hứng được lưu lại."
+    },
+    dmgCut: {
+        name: "Giảm sát thương", desc: "Nhận ít sát thương hơn."
+    },
+    attackCut: {
+        name: "Giảm sát thương đòn đánh", desc: "Nhận ít sát thương từ đòn đánh hơn."
     },
     ignite: {
         name: "Thiêu Đốt", desc: "Mất máu (sát thương chuẩn) đầu lượt của chủ."
@@ -176,6 +188,9 @@ const STATUS_VI_BASE: Record<string, { name: string; desc: string }> = {
     },
     see_hand: {
         name: "Thấy Bài", desc: "Đang xem tay bài đối thủ."
+    },
+    armor_up: {
+        name: "Tăng Giáp", desc: "Giáp cộng thêm tạm thời (số trên biểu tượng) tới hết lượt kế của địch (Renata Q)."
     },
 }
 const STATUS_VI: Record<string, { name: string; desc: string }> = {
@@ -197,11 +212,125 @@ export const stackInfoV2 = (key: string): { name: string; desc: string } | undef
     const t = cg.STACK_V2[key]
     return t ? (isEn() ? t.en : t.vi) : undefined
 }
+/** Icon dự phòng của trạng thái (khi không có icon lá/nội tại): tên file trong /ui/status hoặc đường dẫn đầy đủ */
 const STATUS_ICON: Record<string, string> = {
     bleed: "wounds",
-    blind: "exhaust",
+    blind: "/fx/status/blind.png",
+    grievous: "wounds",
+    noheal: "wounds",
+    ignite: "burn",
+    armor_up: "shield",
+    berserk: "taunt",
+    see_hand: "reveal",
+    stasis: "invuln",
+    stealth: "reveal",
+    dmgCut: "guard",
+    attackCut: "guard",
+    frost: "chill",
+    guilt: "true",
+    aatrox_e: "lifesteal",
+    ornn_shred: "shred",
+    sun: "reveal",
+    braum_mark: "chill",
+    frenzy: "empower",
+    janna_ward: "shield",
+    janna_gale: "knockup",
+    malphite_stolen: "shred",
+    malphite_loot: "empower",
+    malphite_e: "shield",
+    zed_chain: "empower",
+    zed_mark: "true",
+    kat_dagger: "attack_speed",
+    qiyana_mark: "root",
+    alwaysCrit: "true",
+    isolated: "reveal",
+    ahri_charm: "/fx/status/charm.png",
+    ashe_e: "attack_speed",
+    jinx_q: "attack_speed",
+    kog_e: "attack_speed",
+    vayne_e: "empower",
+    vayne_r: "empower",
+    tri_bomb: "burn",
+    tri_q: "attack_speed",
 }
-export const statusIcon = (id: string) => `/ui/status/${STATUS_ICON[id] ?? id}.png`
+export const statusIcon = (id: string) => {
+    const f = STATUS_ICON[id] ?? id
+    return f.startsWith("/") ? f : `/ui/status/${f}.png`
+}
+
+/** Bộ đếm -> tướng sở hữu (để lấy icon nội tại; vd Phân Rã nằm trên địch nhưng thuộc Vel'Koz) */
+const STACK_OWNER: Record<string, string> = {
+    kegs: "gangplank",
+    braum_dual: "braum",
+    renata_rev: "renata",
+    element: "qiyana",
+    fire: "annie",
+    lux_pool: "lux",
+    evolve: "viktor",
+    frenzy: "jinx",
+    hunger: "kogmaw",
+    night: "vayne",
+    mf_rain: "missfortune",
+    velkoz_decay: "velkoz",
+}
+/** Icon của bộ đếm: icon nội tại của tướng sở hữu (không biết thì tướng đang mang) */
+export const stackIcon = (key: string, carrier: string) => `/card_skills/${STACK_OWNER[key] ?? carrier}_p.png`
+
+/** Nguyên tố Qiyana (stack "element": 1 Đỏ · 2 Xanh · 3 Lục) */
+const ELEMENT_VI = ["Đỏ",
+    "Xanh",
+    "Lục"]
+const ELEMENT_EN = ["Red",
+    "Blue",
+    "Green"]
+export const ELEMENT_CLS = ["red",
+    "blue",
+    "green"]
+export const elementName = (v: number) => (isEn() ? ELEMENT_EN : ELEMENT_VI)[v - 1] ?? "?"
+
+/** Giá trị bộ đếm dạng chữ (nguyên tố hiện tên màu, còn lại là số) */
+export function stackValueText(key: string, v: number): string {
+    if (key === "element") return elementName(v)
+    if (key === "mf_rain") return v > 0 ? (isEn() ? "armed" : "chờ nổ") : "0"
+    return `${Math.round(v * 100) / 100}`
+}
+
+/** Dấu trúng đòn (g.addMark): tên + mô tả */
+const MARK_TEXT: Record<string, { vi: { name: string; desc: string }; en: { name: string; desc: string } }> = {
+    nami_q: {
+        vi: {
+            name: "Dấu Bong Bóng", desc: "Mỗi đòn đánh của đồng minh Nami lên tướng này tiêu 1 nấc và gây thêm sát thương phép."
+        },
+        en: {
+            name: "Bubble Mark", desc: "Each attack by one of Nami's allies on this champion uses 1 charge and deals bonus magic damage."
+        },
+    },
+}
+export function markInfo(id: string): { name: string; desc: string } {
+    const m = MARK_TEXT[id]
+    if (m) return isEn() ? m.en : m.vi
+    return statusInfo(id)
+}
+
+/** Hình dạng biến hình (u.transform.id) */
+const FORM_TEXT: Record<string, [string, string]> = {
+    aatrox_r: ["Kẻ Diệt Thế",
+        "World Ender"],
+}
+export const formName = (id: string) => FORM_TEXT[id]?.[isEn() ? 1 : 0] ?? id.replace(/_/g,
+    " ")
+
+/** Tên vật triệu hồi theo id loại (engine ghi tên tiếng Anh) */
+const TOKEN_TEXT: Record<string, [string, string]> = {
+    keg: ["Thùng Thuốc Súng",
+        "Powder Keg"],
+    maiden: ["Thiếu Nữ Sương Mù",
+        "Maiden of the Mist"],
+}
+/** Ảnh vật triệu hồi không có file riêng: dùng ảnh chiêu tạo ra nó */
+const TOKEN_ART: Record<string, string> = {
+    maiden: "/card_skills/yorick_r.png",
+}
 
 export function heroName(id: string): string {
     const h = cg.getHero(id)
@@ -209,7 +338,8 @@ export function heroName(id: string): string {
     return h?.name ?? id
 }
 export function unitName(u: cg.Unit): string {
-    return u.token ? u.token.name : heroName(u.hero)
+    if (!u.token) return heroName(u.hero)
+    return TOKEN_TEXT[u.token.id]?.[isEn() ? 1 : 0] ?? u.token.name
 }
 export function passiveOf(u: cg.Unit, g: cg.Game): { name: string; desc: string } | undefined {
     if (u.token) return undefined
@@ -234,7 +364,7 @@ export const itemName = (id: string) => cg.itemText(id,
 export const itemEmoji = (id: string) => getItem(id)?.emoji ?? itemName(id).slice(0,
     1)
 export const itemIcon = (id: string) => `/items/${id}.png`
-export const portrait = (u: cg.Unit) => (u.token ? `/card_tokens/${u.token.id}.png` : `/heroes/${u.hero}.jpg`)
+export const portrait = (u: cg.Unit) => (u.token ? TOKEN_ART[u.token.id] ?? `/card_tokens/${u.token.id}.png` : `/heroes/${u.hero}.jpg`)
 
 /** Số lượt còn lại của một trạng thái (until là turnNo cuối cùng nó còn hiệu lực) */
 export const turnsLeft = (until: number, turnNo: number) => Math.max(0,
@@ -255,41 +385,39 @@ const DEBUFFS = new Set(["stun",
     "bleed",
     "guilt",
     "sun",
-    "zed_stack",
     "isolated",
     "burn",
-    "disarm",
     "frost",
-    "poison",
-    "root",
-    "freeze",
-    "knockup",
-    "reveal"])
+    "ornn_shred",
+    "braum_mark",
+    "malphite_stolen",
+    "zed_mark",
+    "kat_dagger",
+    "qiyana_mark",
+    "ahri_charm",
+    "tri_bomb"])
 const BUFFS = new Set(["empower",
-    "shield",
     "stealth",
+    "stasis",
     "guard",
-    "invuln",
-    "unstoppable",
-    "lifesteal",
-    "attack_speed",
+    "dmgCut",
+    "attackCut",
+    "armor_up",
+    "see_hand",
     "aatrox_e",
-    "yorick_r",
-    "gp_e",
-    "forge_e",
-    "leona_e",
-    "braum_dbl",
-    "braum_wall",
     "frenzy",
-    "renata_ward",
     "janna_ward",
     "janna_gale",
+    "malphite_loot",
+    "malphite_e",
+    "zed_chain",
     "alwaysCrit",
     "ashe_e",
-    "jinx_trap",
+    "jinx_q",
     "kog_e",
     "vayne_e",
-    "vayne_r"])
+    "vayne_r",
+    "tri_q"])
 export const statusKind = (id: string): StatusKind => (DEBUFFS.has(id) ? "debuff" : BUFFS.has(id) ? "buff" : "neutral")
 
 /** Trường tùy chọn mà engine ghi thêm vào StatusInst: đơn vị gây ra và lá bài gây ra */

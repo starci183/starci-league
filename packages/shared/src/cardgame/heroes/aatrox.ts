@@ -1,7 +1,8 @@
-// Aatrox (Đấu sĩ, vật lý): máu 420 · AD 72 · giáp/kháng 34/30.
+// Aatrox (Đấu sĩ, vật lý): máu 370 · AD 108 · giáp/kháng 30/29 (V3).
 // CHẤT: "Đổi máu lấy máu". Máu ĐÃ MẤT là tài nguyên (hiện ngay trên thanh máu): nội tại biến nó thành sát thương đòn đánh,
-// Q trả máu lấy sát thương (và nạp nội tại), E (Quick) biến sát thương đòn đánh thành hồi máu, R xả toàn bộ máu đã mất rồi đứng dậy đầy máu.
-// Engine: g.payHp (trả máu, không tự giết), AttackInfo.bonus (nội tại), status theo lượt (E), onDamage (hút máu).
+// Q trả máu lấy sát thương (và nạp nội tại), E (Quick) biến sát thương đòn đánh thành hồi máu, R biến hình Kẻ Diệt Thế 2 lượt.
+// Engine: g.payHp (trả máu, không tự giết), AttackInfo.bonus (nội tại), status theo lượt (E), onDamage (hút máu),
+// g.transform / extendTransform (R: +AD, +máu tối đa, hồi nhận +50%, hồi sinh tại chỗ một lần), onKill (kéo dài).
 // Đối thủ trả lời: Janna Q huỷ đòn (không hút được), dồn chết lúc thấp máu, Vết Thương Sâu.
 import {
     pct
@@ -13,30 +14,40 @@ import type {
     Unit
 } from "../types"
 
-/** Nội tại: đòn đánh gây thêm 25% máu đã mất */
-const PASSIVE_PCT = 0.15
-/** Q: trả 25% máu tối đa, địch nhận gấp 2 lượng đó */
-const Q_PAY_PCT = 0.25
-const Q_MULT = 1.2
-/** R: địch nhận 2 lần máu đã mất */
-const R_MULT = 2
+/** Nội tại: đòn đánh gây thêm 15% máu đã mất + (5% AD + 2% AP) */
+export const PASSIVE_PCT = 0.15
+export const F_PASSIVE = "5% AD + 2% AP"
+/** Q: trả 25% máu tối đa, địch nhận 120% lượng đó + (60% AD + 10% AP) */
+export const Q_PAY_PCT = 0.25
+export const Q_MULT = 1.2
+export const F_Q = "60% AD + 10% AP"
 const E_STATUS = "aatrox_e"
+export const FORM = "aatrox_r"
+/** R: biến hình 2 lượt của bạn; +30% AD, +30% máu tối đa; hồi nhận +50% */
+const R_TURNS = 2
+export const R_AD_PCT = 0.3
+export const R_HP_PCT = 0.3
+export const R_HEAL_BONUS = 0.5
+/** Hồi sinh khi đang biến hình bị hạ: 30% máu tối đa + (50% AD) */
+export const R_REVIVE_PCT = 0.3
+export const F_R_REVIVE = "50% AD"
 
 /** Máu Aatrox đã mất */
 export const lostHp = (u: Unit) => Math.max(0,
     u.maxHp - u.hp)
 
 export default defineHero({
-    id: "aatrox", name: "Aatrox", role: "fighter", damage: "physical", hp: 300, atk: 64, armor: 30, mr: 30,
-    desc: "Kẻ Diệt Thế: trả máu lấy sát thương, càng cạn máu đòn càng nặng, chém trúng thì hút lại và R xả hết máu đã mất thành một nhát.",
+    id: "aatrox", name: "Aatrox", role: "fighter", damage: "physical", hp: 370, atk: 108, armor: 30, mr: 29,
+    desc: "Kẻ Diệt Thế: trả máu lấy sát thương, càng cạn máu đòn càng nặng, chém trúng thì hút lại, R biến hình quỷ và chết một lần không sao.",
     passive: {
         name: "Cái Giá Bằng Máu",
-        desc: `Đòn đánh của Aatrox (cả đòn không cần lá) gây thêm sát thương vật lý bằng ${pct(PASSIVE_PCT)}% máu Aatrox đã mất.`,
+        desc: `Đòn đánh của Aatrox (cả đòn không cần lá) gây thêm sát thương vật lý bằng ${pct(PASSIVE_PCT)}% máu Aatrox đã mất + {${F_PASSIVE}}.`,
     },
     hooks: {
-        onAttack(_g, me, d) {
+        onAttack(g, me, d) {
             if (d.attacker.id !== me.id) return
-            const extra = lostHp(me) * PASSIVE_PCT
+            const extra = lostHp(me) * PASSIVE_PCT + g.f(me,
+                F_PASSIVE)
             if (extra > 0) d.info.bonus.push({
                 raw: extra, kind: "physical"
             })
@@ -45,15 +56,22 @@ export default defineHero({
             if (d.src?.id !== me.id || d.tag !== "attack" || d.target.id === me.id) return
             if (!g.has(me,
                 E_STATUS)) return
+            // hồi máu nhận +50% khi biến hình do engine nhân (Transform.healMult)
             g.heal(me,
                 me,
                 d.amount)
+        },
+        onKill(g, me, d) {
+            // hạ gục khi đang biến hình: kéo dài thêm 1 lượt của bạn
+            if (d.killer.id === me.id && g.isTransformed(me,
+                FORM)) g.extendTransform(me,
+                1)
         },
     },
     skills: {
         Q: {
             key: "Q", name: "Lưỡi Gươm Darkin", target: "opposite",
-            desc: `Chọn tướng địch đối diện Aatrox; Aatrox Trả Máu ${pct(Q_PAY_PCT)}% máu tối đa, rồi nó nhận sát thương vật lý bằng ${Q_MULT} lần lượng máu đã Trả.`,
+            desc: `Chọn tướng địch đối diện Aatrox; Aatrox Trả Máu ${pct(Q_PAY_PCT)}% máu tối đa, rồi nó nhận sát thương vật lý bằng ${pct(Q_MULT)}% máu đã Trả + {${F_Q}}.`,
             canPlay: (c) => c.self.hp > 1 && !!c.g.opposite(c.self),
             resolve(c) {
                 const paid = c.g.payHp(c.self,
@@ -62,7 +80,7 @@ export default defineHero({
                 if (paid <= 0) return
                 c.g.damage(c.self,
                     c.target!,
-                    paid * Q_MULT,
+                    paid * Q_MULT + c.f(F_Q),
                     "physical",
                     {
                         tag: "skill"
@@ -70,7 +88,7 @@ export default defineHero({
             },
         },
         E: {
-            key: "E", name: "Xiềng Xích Hút Máu", target: "none", quick: true,
+            key: "E", name: "Huyết Tế", target: "none", quick: true,
             desc: "Quick. Tới hết lượt: đòn đánh của Aatrox hồi máu cho Aatrox bằng 100% sát thương gây ra.",
             resolve(c) {
                 // tới hết lượt đang chạy (lượt mình hoặc lượt địch khi nối Chuỗi)
@@ -83,22 +101,23 @@ export default defineHero({
             },
         },
         R: {
-            key: "R", name: "Kẻ Diệt Thế", target: "opposite",
-            desc: `Chọn tướng địch đối diện Aatrox; nó nhận sát thương vật lý bằng ${R_MULT} lần máu Aatrox đã mất, rồi Aatrox hồi đúng lượng máu đã mất đó.`,
-            canPlay: (c) => lostHp(c.self) > 0 && !!c.g.opposite(c.self),
+            key: "R", name: "Kẻ Diệt Thế", target: "none",
+            desc: `Biến hình trong ${R_TURNS} lượt của bạn: +${pct(R_AD_PCT)}% AD, +${pct(R_HP_PCT)}% máu tối đa và hồi ngay lượng đó, mọi hồi máu Aatrox nhận +${pct(R_HEAL_BONUS)}%. Hạ gục khi đang biến hình thì kéo dài thêm 1 lượt. Đang biến hình mà bị hạ: Aatrox hồi sinh ngay tại chỗ với ${pct(R_REVIVE_PCT)}% máu tối đa + {${F_R_REVIVE}} máu và hết biến hình (1 lần mỗi lần R).`,
+            canPlay: (c) => !c.g.isTransformed(c.self,
+                FORM),
             resolve(c) {
-                const lost = lostHp(c.self)
-                if (lost <= 0) return
-                c.g.damage(c.self,
-                    c.target!,
-                    lost * R_MULT,
-                    "physical",
+                const me = c.self
+                c.g.transform(me,
+                    FORM,
+                    R_TURNS,
                     {
-                        tag: "skill"
+                        bonus: {
+                            atk: Math.round(c.g.atk(me) * R_AD_PCT)
+                        },
+                        maxHp: me.maxHp * R_HP_PCT,
+                        healMult: 1 + R_HEAL_BONUS,
+                        reviveHp: me.maxHp * R_REVIVE_PCT + c.f(F_R_REVIVE),
                     })
-                c.g.heal(c.self,
-                    c.self,
-                    lost)
             },
         },
     },

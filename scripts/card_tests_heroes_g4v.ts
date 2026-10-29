@@ -1,10 +1,9 @@
-// Test cơ chế V2 của 6 pháp sư nhóm G4V: Brand, Lux, Ahri, Annie, Lissandra, Twisted Fate.
+// Test cơ chế V3 của 6 pháp sư nhóm G4V: Brand, Lux, Ahri, Annie, Lissandra, Twisted Fate.
 // Chạy: npx tsx scripts/card_tests_heroes_g4v.ts [--only=chuỗi] [--verbose]. Khung test chép từ scripts/card_tests.ts.
 import assert from "node:assert/strict"
 import {
     cg
 } from "@starci/shared"
-
 type St = ReturnType<typeof cg.newGame>;
 type Act = Parameters<typeof cg.applyAction>[1];
 type Ev = ReturnType<typeof cg.applyAction>["events"];
@@ -192,6 +191,7 @@ const lost = (s0: St, s1: St, side: S, hero: string) => hpOf(s0,
 const mana = (s: St, hero: string) => u(s,
     "A",
     hero).mana ?? 0
+/** Phí mana của chiêu (số) đọc từ định nghĩa tướng */
 const burnV = (s: St, side: S, hero: string) => gm(s).statusV(u(s,
     side,
     hero),
@@ -199,34 +199,51 @@ const burnV = (s: St, side: S, hero: string) => gm(s).statusV(u(s,
 const charmV = (s: St, side: S, hero: string) => gm(s).statusV(u(s,
     side,
     hero),
-"disarm")
+"ahri_charm")
 const near = (a: number, b: number, tol: number, msg?: string) => assert.ok(Math.abs(a - b) <= tol,
     `${msg ?? ""} ${a} không gần ${b} (±${tol})`)
+/** Dùng lá chiêu `k` của `hero` (phe A) với args, trả trạng thái sau khi chuỗi giải quyết xong */
+const cast = (s: St, hero: string, k: cg.SkillKey, args: cg.PlayArgs = {
+}) => play(s,
+    "A",
+    give(s,
+        "A",
+        skill(s,
+            hero,
+            "A",
+            k)),
+    args).s
+/** Sát thương phép lên dummy (Kháng phép 30) sau giảm: raw × 100 / 130 */
+const afterMr = (raw: number) => raw * 100 / 130
+const stunned = (s: St, side: S, hero: string) => gm(s).has(u(s,
+    side,
+    hero),
+"stun")
+/** Công thức tính theo chỉ số hiện tại của tướng phe A */
+const fA = (s: St, hero: string, expr: string) => gm(s).f(u(s,
+    "A",
+    hero),
+expr)
 
 // ======================================================================
 G("Brand")
 // ======================================================================
-test("Q tốn 10 mana, gây sát thương và +1 Bỏng không bao giờ hết",
+test("Q (10 mana): sát thương phép + 1 Bỏng không hết; từ 3 Bỏng trở lên thì Choáng",
     () => {
-        const s0 = mk({
+        const base = () => mk({
             A: {
                 brand: 2
             }, B: {
                 g4v_fighter: 2
             }
         })
-        const q = give(s0,
-            "A",
-            skill(s0,
-                "brand",
-                "A",
-                "Q"))
-        const s = play(s0,
-            "A",
-            q,
+        const s0 = base()
+        const s = cast(s0,
+            "brand",
+            "Q",
             {
                 target: "B:g4v_fighter"
-            }).s
+            })
         assert.equal(mana(s,
             "brand"),
         90,
@@ -235,88 +252,25 @@ test("Q tốn 10 mana, gây sát thương và +1 Bỏng không bao giờ hết",
             "B",
             "g4v_fighter"),
         1)
-        assert.ok(lost(s0,
+        near(lost(s0,
             s,
             "B",
-            "g4v_fighter") > 0,
-        "Q gây sát thương")
-        assert.ok(gm(s).has(u(s,
-            "B",
             "g4v_fighter"),
-        "burn") && u(s,
+        afterMr(fA(s0,
+            "brand",
+            "35 + 45% AD + 90% AP")),
+        2,
+        "sát thương Q")
+        assert.ok(u(s,
             "B",
             "g4v_fighter").statuses.burn.until >= cg.FOREVER,
         "Bỏng vĩnh viễn")
-    })
-test("E (20 mana) +1 Bỏng mọi địch; R (50 mana) nhân đôi, có trần 12",
-    () => {
-        let s = mk({
-            A: {
-                brand: 2
-            }, B: {
-                g4v_fighter: 2, g4v_tank: 1, g4v_mark: 3
-            }
-        })
-        const e = give(s,
-            "A",
-            skill(s,
-                "brand",
-                "A",
-                "E"))
-        s = play(s,
-            "A",
-            e).s
-        assert.equal(mana(s,
-            "brand"),
-        80)
-        for (const h of ["g4v_fighter",
-            "g4v_tank",
-            "g4v_mark"]) assert.equal(burnV(s,
-            "B",
-            h),
-        1,
-        h)
-        gm(s).status(u(s,
-            "B",
-            "g4v_tank"),
-        "burn",
-        1,
-        {
-            v: 8, until: cg.FOREVER
-        })
-        const r = give(s,
-            "A",
-            skill(s,
-                "brand",
-                "A",
-                "R"))
-        s = play(s,
-            "A",
-            r).s
-        assert.equal(mana(s,
-            "brand"),
-        30)
-        assert.equal(burnV(s,
+        assert.ok(!stunned(s,
             "B",
             "g4v_fighter"),
-        2,
-        "1 -> 2")
-        assert.equal(burnV(s,
-            "B",
-            "g4v_tank"),
-        12,
-        "8 x2 bị chặn ở trần 12")
-    })
-test("Đầu lượt đối thủ: mỗi địch mất máu theo số Bỏng; Bỏng không hết qua nhiều lượt",
-    () => {
-        let s = mk({
-            A: {
-                brand: 2
-            }, B: {
-                g4v_fighter: 2, g4v_tank: 1
-            }
-        })
-        gm(s).status(u(s,
+        "chưa đủ 3 Bỏng thì không Choáng")
+        const s1 = base()
+        gm(s1).status(u(s1,
             "B",
             "g4v_fighter"),
         "burn",
@@ -324,196 +278,238 @@ test("Đầu lượt đối thủ: mỗi địch mất máu theo số Bỏng; B�
         {
             v: 3, until: cg.FOREVER
         })
-        const r = end(s,
-            "A")
-        s = r.s
-        const ticks = evs(r.ev,
-            "damage").filter((d) => d.tag === "dot" && d.target === "B:g4v_fighter")
-        assert.equal(ticks.length,
-            1,
-            "đúng 1 lần cháy đầu lượt B")
-        assert.equal(gm(s).statusV(u(s,
-            "B",
-            "g4v_tank"),
-        "burn"),
-        0)
-        const per = evs(end(mk({
-            A: {
-                brand: 2
-            }, B: {
-                g4v_fighter: 2
-            }
-        }),
-        "A").ev,
-        "damage").filter((d) => d.tag === "dot").length
-        assert.equal(per,
-            0,
-            "không Bỏng thì không cháy")
-        // qua thêm 2 vòng vẫn còn Bỏng
-        s = end(end(s,
-            "B").s,
-        "A").s
-        assert.equal(burnV(s,
+        const t = cast(s1,
+            "brand",
+            "Q",
+            {
+                target: "B:g4v_fighter"
+            })
+        assert.ok(stunned(t,
             "B",
             "g4v_fighter"),
-        3,
-        "Bỏng không tự hết")
+        "đang có 3 Bỏng thì Choáng")
+        assert.equal(burnV(t,
+            "B",
+            "g4v_fighter"),
+        4)
     })
-test("Bỏng chỉ cháy khi Brand còn trên sân (Brand chết thì ngừng)",
+test("E (20 mana) sát thương + 1 Bỏng mọi địch; R (50 mana) sát thương rồi nhân đôi Bỏng (trần 12) và cháy ngay 1 lần",
     () => {
-        let s = mk({
+        const s0 = mk({
             A: {
                 brand: 2
             }, B: {
-                g4v_fighter: 2
+                g4v_fighter: 2, g4v_tank: 1
             }
         })
-        gm(s).status(u(s,
+        const s = cast(s0,
+            "brand",
+            "E")
+        assert.equal(mana(s,
+            "brand"),
+        80,
+        "E tốn 20 mana")
+        for (const h of ["g4v_fighter",
+            "g4v_tank"]) {
+            assert.equal(burnV(s,
+                "B",
+                h),
+            1)
+            near(lost(s0,
+                s,
+                "B",
+                h),
+            afterMr(fA(s0,
+                "brand",
+                "20 + 10% AD + 30% AP")),
+            2,
+            "sát thương E")
+        }
+        const r0 = mk({
+            A: {
+                brand: 2
+            }, B: {
+                g4v_fighter: 2, g4v_tank: 1
+            }
+        })
+        gm(r0).status(u(r0,
             "B",
             "g4v_fighter"),
         "burn",
         1,
         {
-            v: 4, until: cg.FOREVER
+            v: 3, until: cg.FOREVER
         })
-        gm(s).kill(u(s,
+        gm(r0).status(u(r0,
+            "B",
+            "g4v_tank"),
+        "burn",
+        1,
+        {
+            v: 8, until: cg.FOREVER
+        })
+        const r = cast(r0,
+            "brand",
+            "R")
+        assert.equal(mana(r,
+            "brand"),
+        50,
+        "R tốn 50 mana")
+        assert.equal(burnV(r,
+            "B",
+            "g4v_fighter"),
+        6,
+        "3 nhân đôi thành 6")
+        assert.equal(burnV(r,
+            "B",
+            "g4v_tank"),
+        12,
+        "trần 12")
+        const burnPerStack = (hero: string) => u(r0,
+            "B",
+            hero).maxHp * 0.01 + fA(r0,
+            "brand",
+            "1% AD + 2% AP")
+        near(lost(r0,
+            r,
+            "B",
+            "g4v_fighter"),
+        afterMr(fA(r0,
+            "brand",
+            "60 + 20% AD + 50% AP") + 6 * burnPerStack("g4v_fighter")),
+        3,
+        "R: sát thương + cháy ngay 6 Bỏng")
+        near(lost(r0,
+            r,
+            "B",
+            "g4v_tank"),
+        afterMr(fA(r0,
+            "brand",
+            "60 + 20% AD + 50% AP") + 12 * burnPerStack("g4v_tank")),
+        3,
+        "R: cháy ngay 12 Bỏng")
+    })
+test("Nội tại: đầu lượt đối thủ mỗi Bỏng gây (1% máu tối đa của nó + 1% AD + 2% AP); Brand chết thì ngừng",
+    () => {
+        const mkB = () => {
+            const s = mk({
+                A: {
+                    brand: 2
+                }, B: {
+                    g4v_fighter: 2, g4v_tank: 1
+                }
+            })
+            gm(s).status(u(s,
+                "B",
+                "g4v_fighter"),
+            "burn",
+            1,
+            {
+                v: 3, until: cg.FOREVER
+            })
+            return s
+        }
+        const s0 = mkB()
+        const r = end(s0,
+            "A")
+        const ticks = evs(r.ev,
+            "damage").filter((d) => d.tag === "dot" && d.target === "B:g4v_fighter")
+        assert.equal(ticks.length,
+            1,
+            "đúng 1 lần cháy đầu lượt B")
+        near(ticks[0].amount,
+            afterMr(3 * (u(s0,
+                "B",
+                "g4v_fighter").maxHp * 0.01 + fA(s0,
+                "brand",
+                "1% AD + 2% AP"))),
+            2,
+            "3 Bỏng")
+        assert.equal(evs(r.ev,
+            "damage").filter((d) => d.tag === "dot" && d.target === "B:g4v_tank").length,
+        0,
+        "không Bỏng thì không cháy")
+        const s2 = end(end(r.s,
+            "B").s,
+        "A").s
+        assert.equal(burnV(s2,
+            "B",
+            "g4v_fighter"),
+        3,
+        "Bỏng không tự hết")
+        const k = mkB()
+        gm(k).kill(u(k,
             "A",
             "brand"))
-        const r = end(s,
-            "A")
-        s = r.s
-        assert.equal(evs(r.ev,
-            "damage").filter((d) => d.tag === "dot" && d.target === "B:g4v_fighter").length,
-        0)
+        assert.equal(evs(end(k,
+            "A").ev,
+        "damage").filter((d) => d.tag === "dot").length,
+        0,
+        "Brand chết thì không cháy")
     })
 
 // ======================================================================
 G("Lux")
 // ======================================================================
-test("Nội tại: AP cộng thêm theo mana đang có",
+test("Nội tại: mana tiêu cộng vào Bể Mana, giữ nguyên khi Lux chết; Q (0 mana) hồi mana và Khiên, không cộng Bể",
     () => {
-        const s = mk({
-            A: {
-                lux: 2
-            }
-        })
-        const g = gm(s)
-        const lux = u(s,
-            "A",
-            "lux")
-        lux.mana = 100
-        const full = g.ap(lux)
-        lux.mana = 40
-        const mid = g.ap(lux)
-        lux.mana = 0
-        const none = g.ap(lux)
-        assert.ok(full > mid && mid > none,
-            `${full} ${mid} ${none}`)
-        assert.equal(none,
-            0)
-        assert.equal(full,
-            70)
-    })
-test("Q tốn 0 mana, hồi 40 mana (kẹp theo tối đa)",
-    () => {
-        let s = mk({
-            A: {
-                lux: 2
-            }
-        })
-        u(s,
-            "A",
-            "lux").mana = 30
-        const q = give(s,
-            "A",
-            skill(s,
-                "lux",
-                "A",
-                "Q"))
-        s = play(s,
-            "A",
-            q).s
-        assert.equal(mana(s,
-            "lux"),
-        70)
-        u(s,
-            "A",
-            "lux").mana = 80
-        const q2 = give(s,
-            "A",
-            skill(s,
-                "lux",
-                "A",
-                "Q"))
-        s = play(s,
-            "A",
-            q2).s
-        assert.equal(mana(s,
-            "lux"),
-        100,
-        "kẹp ở 100")
-    })
-test("E tốn 30 mana; sát thương tăng theo mana Lux đang có",
-    () => {
-        const dmg = (m: number) => {
-            const s0 = mk({
-                A: {
-                    lux: 2
-                }, B: {
-                    g4v_fighter: 2
-                }
-            })
-            u(s0,
-                "A",
-                "lux").mana = m
-            const e = give(s0,
-                "A",
-                skill(s0,
-                    "lux",
-                    "A",
-                    "E"))
-            const s = play(s0,
-                "A",
-                e,
-                {
-                    target: "B:g4v_fighter"
-                }).s
-            assert.equal(mana(s,
-                "lux"),
-            m - 30)
-            return lost(s0,
-                s,
-                "B",
-                "g4v_fighter")
-        }
-        const hi = dmg(100), lo = dmg(40)
-        assert.ok(hi > lo,
-            `${hi} > ${lo}`)
-        // E không đánh được khi dưới 30 mana
-        const s1 = mk({
+        const s0 = mk({
             A: {
                 lux: 2
             }, B: {
                 g4v_fighter: 2
             }
         })
+        const s1 = cast(s0,
+            "lux",
+            "E",
+            {
+                target: "B:g4v_fighter"
+            })
+        assert.equal(mana(s1,
+            "lux"),
+        70)
+        assert.equal(u(s1,
+            "A",
+            "lux").stacks.lux_pool,
+        30,
+        "E tốn 30 mana vào Bể")
         u(s1,
             "A",
-            "lux").mana = 20
-        const e1 = give(s1,
+            "lux").mana = 40
+        const s2 = cast(s1,
+            "lux",
+            "Q")
+        assert.equal(mana(s2,
+            "lux"),
+        40 + Math.round(fA(s1,
+            "lux",
+            "20 + 5% AD + 10% AP")),
+        "Q hồi mana")
+        assert.equal(u(s2,
             "A",
-            skill(s1,
-                "lux",
-                "A",
-                "E"))
-        assert.equal(legalPlays(s1,
+            "lux").shield,
+        Math.round(fA(s1,
+            "lux",
+            "20 + 10% AD + 40% AP")),
+        "Q nhận Khiên")
+        assert.equal(u(s2,
             "A",
-            e1.uid).length,
-        0)
+            "lux").stacks.lux_pool,
+        30,
+        "Q không tốn mana nên Bể không đổi")
+        gm(s2).kill(u(s2,
+            "A",
+            "lux"))
+        assert.equal(u(s2,
+            "A",
+            "lux").stacks.lux_pool,
+        30,
+        "Bể không mất khi chết")
     })
-test("R tiêu toàn bộ mana, sát thương theo mana đã tiêu; dưới 20 mana không đánh được",
+test("E (30 mana): sát thương cộng 10% Bể Mana; Bể từ 150 trở lên thì Choáng 1 lượt",
     () => {
-        const run = (m: number) => {
+        const run = (pool: number) => {
             const s0 = mk({
                 A: {
                     lux: 2
@@ -523,370 +519,621 @@ test("R tiêu toàn bộ mana, sát thương theo mana đã tiêu; dưới 20 ma
             })
             u(s0,
                 "A",
-                "lux").mana = m
-            const r = give(s0,
-                "A",
-                skill(s0,
-                    "lux",
-                    "A",
-                    "R"))
-            if (m < 20) {
-                assert.equal(legalPlays(s0,
-                    "A",
-                    r.uid).length,
-                0)
-                return 0
-            }
-            const s = play(s0,
-                "A",
-                r,
+                "lux").stacks.lux_pool = pool
+            const s = cast(s0,
+                "lux",
+                "E",
                 {
                     target: "B:g4v_fighter"
-                }).s
-            assert.equal(mana(s,
-                "lux"),
-            0,
-            "hết mana")
-            assert.equal(gm(s).ap(u(s,
-                "A",
-                "lux")),
-            0,
-            "Lux tụt yếu (AP về 0)")
-            return lost(s0,
-                s,
-                "B",
-                "g4v_fighter")
+                })
+            return {
+                s0, s, pool: u(s,
+                    "A",
+                    "lux").stacks.lux_pool
+            }
         }
-        const full = run(100), half = run(50)
-        run(10)
-        assert.ok(full > 0 && half > 0)
-        near(full / half,
-            2,
-            0.1,
-            "R tỉ lệ theo mana")
+        const lo = run(0)
+        assert.equal(lo.pool,
+            30)
+        near(lost(lo.s0,
+            lo.s,
+            "B",
+            "g4v_fighter"),
+        afterMr(fA(lo.s0,
+            "lux",
+            "20 + 30% AD + 60% AP") + 0.1 * 30),
+        2,
+        "Bể 30")
+        assert.ok(!stunned(lo.s,
+            "B",
+            "g4v_fighter"),
+        "Bể thấp không Choáng")
+        const hi = run(150)
+        assert.equal(hi.pool,
+            180)
+        near(lost(hi.s0,
+            hi.s,
+            "B",
+            "g4v_fighter"),
+        afterMr(fA(hi.s0,
+            "lux",
+            "20 + 30% AD + 60% AP") + 0.1 * 180),
+        2,
+        "Bể 180")
+        assert.ok(stunned(hi.s,
+            "B",
+            "g4v_fighter"),
+        "Bể từ 150 thì Choáng")
+    })
+test("R: tiêu toàn bộ mana, sát thương = (15% AD + 30% AP) + 1.5 mỗi mana tiêu + 25% Bể; dưới 20 mana không đánh được",
+    () => {
+        const s0 = mk({
+            A: {
+                lux: 2
+            }, B: {
+                g4v_fighter: 2
+            }
+        })
+        u(s0,
+            "A",
+            "lux").mana = 60
+        u(s0,
+            "A",
+            "lux").stacks.lux_pool = 40
+        const s = cast(s0,
+            "lux",
+            "R",
+            {
+                target: "B:g4v_fighter"
+            })
+        assert.equal(mana(s,
+            "lux"),
+        0,
+        "xả hết mana")
+        assert.equal(u(s,
+            "A",
+            "lux").stacks.lux_pool,
+        100,
+        "60 mana vừa tiêu vào Bể")
+        near(lost(s0,
+            s,
+            "B",
+            "g4v_fighter"),
+        afterMr(fA(s0,
+            "lux",
+            "15% AD + 30% AP") + 60 * 1.5 + 0.25 * 100),
+        2,
+        "sát thương R")
+        const t = mk({
+            A: {
+                lux: 2
+            }, B: {
+                g4v_fighter: 2
+            }
+        })
+        u(t,
+            "A",
+            "lux").mana = 10
+        const r = give(t,
+            "A",
+            skill(t,
+                "lux",
+                "A",
+                "R"))
+        assert.equal(legalPlays(t,
+            "A",
+            r.uid).length,
+        0,
+        "dưới 20 mana không đánh được R")
     })
 
 // ======================================================================
 G("Ahri")
 // ======================================================================
-test("Q tốn 20 mana, +2 Say Mê; tướng Say Mê không đánh được, hết 1 stack mỗi cuối lượt của nó",
+test("E (25 mana): sát thương phép + chắc chắn +1 Say Mê, vĩnh viễn và tối đa 3 tầng",
     () => {
         let s = mk({
             A: {
                 ahri: 2
             }, B: {
-                g4v_mark: 2, g4v_tank: 1
+                g4v_fighter: 2
             }
         })
-        const q = give(s,
-            "A",
-            skill(s,
-                "ahri",
-                "A",
-                "Q"))
-        s = play(s,
-            "A",
-            q,
+        const s0 = s
+        s = cast(s,
+            "ahri",
+            "E",
             {
-                target: "B:g4v_mark"
-            }).s
+                target: "B:g4v_fighter"
+            })
         assert.equal(mana(s,
             "ahri"),
-        80)
+        75,
+        "E tốn 25 mana")
+        assert.ok(charmV(s,
+            "B",
+            "g4v_fighter") >= 1,
+        "chắc chắn +1 Say Mê")
+        near(lost(s0,
+            s,
+            "B",
+            "g4v_fighter"),
+        afterMr(fA(s0,
+            "ahri",
+            "30 + 20% AD + 50% AP")),
+        2,
+        "sát thương E")
+        for (let i = 0; i < 3; i++) s = cast(s,
+            "ahri",
+            "E",
+            {
+                target: "B:g4v_fighter"
+            })
         assert.equal(charmV(s,
             "B",
-            "g4v_mark"),
-        2)
-        assert.ok(!gm(s).canAttack(u(s,
+            "g4v_fighter"),
+        3,
+        "trần 3 tầng")
+        assert.ok(u(s,
             "B",
-            "g4v_mark")))
-        assert.ok(gm(s).canAttack(u(s,
-            "B",
-            "g4v_tank")))
-        // lượt B: có lá Đánh thường vẫn không có đòn nào từ tướng Say Mê
-        s = end(s,
-            "A").s
-        give(s,
-            "B",
-            basic(s))
-        const atk = cg.legalActions(s,
-            "B").filter((a) => a.t === "attack" || (a.t === "play" && "actor" in (a.args ?? {
-        }) && a.args?.actor === "B:g4v_mark"))
-        assert.equal(atk.length,
-            0,
-            "tướng Say Mê không đánh được")
-        s = end(s,
-            "B").s
-        assert.equal(charmV(s,
-            "B",
-            "g4v_mark"),
-        1,
-        "mất 1 Say Mê cuối lượt của nó")
+            "g4v_fighter").statuses.ahri_charm.until >= cg.FOREVER,
+        "Say Mê vĩnh viễn")
         s = end(end(s,
             "A").s,
         "B").s
         assert.equal(charmV(s,
             "B",
-            "g4v_mark"),
-        0,
-        "hết Say Mê")
-        assert.ok(gm(s).canAttack(u(s,
-            "B",
-            "g4v_mark")))
+            "g4v_fighter"),
+        3,
+        "Say Mê không tự hết")
     })
-test("E (25 mana): mỗi Say Mê trên mục tiêu +50% sát thương, không tiêu Say Mê",
+test("Mỗi tầng Say Mê: địch gây ít hơn 7.5% sát thương, nhận thêm 5% sát thương từ Ahri (không tăng sát thương của đồng minh Ahri)",
     () => {
-        const dmg = (charm: number) => {
-            const s0 = mk({
+        const mkC = (n: number) => {
+            const s = mk({
                 A: {
-                    ahri: 2
+                    ahri: 2, g4v_tank: 1
                 }, B: {
                     g4v_fighter: 2
                 }
             })
-            if (charm) {
-                gm(s0).status(u(s0,
-                    "B",
-                    "g4v_fighter"),
-                "disarm",
-                1,
-                {
-                    v: charm, until: cg.FOREVER, decay: 1
-                })
-            }
-            const e = give(s0,
-                "A",
-                skill(s0,
-                    "ahri",
-                    "A",
-                    "E"))
-            const s = play(s0,
-                "A",
-                e,
-                {
-                    target: "B:g4v_fighter"
-                }).s
-            assert.equal(mana(s,
-                "ahri"),
-            75)
-            assert.equal(charmV(s,
+            if (n > 0) gm(s).status(u(s,
                 "B",
                 "g4v_fighter"),
-            charm,
-            "không tiêu Say Mê")
-            return lost(s0,
-                s,
+            "ahri_charm",
+            1,
+            {
+                v: n, until: cg.FOREVER
+            })
+            return s
+        }
+        // địch gây sát thương lên đồng đội Ahri
+        const hit = (n: number) => {
+            const s = mkC(n)
+            gm(s).damage(u(s,
+                "B",
+                "g4v_fighter"),
+            u(s,
+                "A",
+                "g4v_tank"),
+            200,
+            "true",
+            {
+                tag: "effect"
+            })
+            return hpOf(s,
+                "A",
+                "g4v_tank")
+        }
+        assert.equal(1000 - hit(0),
+            200)
+        assert.equal(1000 - hit(3),
+            Math.round(200 * (1 - 3 * 0.075)),
+            "3 tầng gây ít hơn 22.5%")
+        // sát thương của Ahri lên địch
+        const take = (n: number) => {
+            const s = mkC(n)
+            gm(s).damage(u(s,
+                "A",
+                "ahri"),
+            u(s,
+                "B",
+                "g4v_fighter"),
+            200,
+            "true",
+            {
+                tag: "effect"
+            })
+            return 1000 - hpOf(s,
                 "B",
                 "g4v_fighter")
         }
-        const d0 = dmg(0), d2 = dmg(2)
-        near(d2 / d0,
-            2,
-            0.1,
-            "2 Say Mê = x2")
+        assert.equal(take(0),
+            200)
+        assert.equal(take(3),
+            Math.round(200 * (1 + 3 * 0.05)),
+            "3 tầng nhận thêm 15% từ Ahri")
+        // sát thương của đồng minh Ahri lên địch Mê không đổi
+        const s = mkC(3)
+        gm(s).damage(u(s,
+            "A",
+            "g4v_tank"),
+        u(s,
+            "B",
+            "g4v_fighter"),
+        200,
+        "true",
+        {
+            tag: "effect"
+        })
+        assert.equal(1000 - hpOf(s,
+            "B",
+            "g4v_fighter"),
+        200,
+        "chỉ sát thương từ Ahri tăng")
     })
-test("R (50 mana) mọi địch +2 Say Mê, trần 5",
+test("Q (10 mana): 1 mục tiêu nhận sát thương phép, 1 địch ngẫu nhiên KHÁC nhận sát thương chuẩn",
     () => {
-        let s = mk({
+        const s0 = mk({
             A: {
                 ahri: 2
             }, B: {
-                g4v_fighter: 2, g4v_tank: 1
+                g4v_fighter: 2, g4v_tank: 1, g4v_mark: 3
             }
         })
-        gm(s).status(u(s,
-            "B",
-            "g4v_tank"),
-        "disarm",
-        1,
-        {
-            v: 4, until: cg.FOREVER, decay: 1
-        })
-        const r = give(s,
-            "A",
-            skill(s,
-                "ahri",
-                "A",
-                "R"))
-        s = play(s,
-            "A",
-            r).s
+        const s = cast(s0,
+            "ahri",
+            "Q",
+            {
+                target: "B:g4v_fighter"
+            })
         assert.equal(mana(s,
             "ahri"),
-        50)
-        assert.equal(charmV(s,
+        90,
+        "Q tốn 10 mana")
+        near(lost(s0,
+            s,
             "B",
             "g4v_fighter"),
-        2)
-        assert.equal(charmV(s,
+        afterMr(fA(s0,
+            "ahri",
+            "40 + 20% AD + 70% AP")),
+        2,
+        "sát thương phép lên mục tiêu")
+        const others = ["g4v_tank",
+            "g4v_mark"].map((h) => lost(s0,
+            s,
             "B",
-            "g4v_tank"),
-        5,
-        "4 + 2 bị chặn ở trần 5")
+            h))
+        assert.equal(others.filter((x) => x > 0).length,
+            1,
+            "đúng 1 địch khác bị trúng")
+        near(Math.max(...others),
+            fA(s0,
+                "ahri",
+                "20 + 10% AD + 30% AP"),
+            1,
+            "sát thương chuẩn (không giảm giáp)")
+    })
+test("R (50 mana): đổi chỗ với đồng minh rồi đánh kẻ đối diện chỗ mới; nội tại +1 Say Mê theo cơ hội khi chiêu trúng",
+    () => {
+        const s0 = mk({
+            A: {
+                ahri: 2, g4v_tank: 1
+            }, B: {
+                g4v_fighter: 1, g4v_mark: 2
+            }
+        })
+        const s = cast(s0,
+            "ahri",
+            "R",
+            {
+                target: "A:g4v_tank"
+            })
+        assert.equal(mana(s,
+            "ahri"),
+        50,
+        "R tốn 50 mana")
+        assert.equal(u(s,
+            "A",
+            "ahri").lane,
+        1)
+        assert.equal(u(s,
+            "A",
+            "g4v_tank").lane,
+        2)
+        near(lost(s0,
+            s,
+            "B",
+            "g4v_fighter"),
+        afterMr(fA(s0,
+            "ahri",
+            "80 + 30% AD + 90% AP")),
+        2,
+        "đánh kẻ đối diện chỗ mới")
+        assert.equal(lost(s0,
+            s,
+            "B",
+            "g4v_mark"),
+        0,
+        "kẻ cũ đối diện không trúng")
+        // nội tại: ≈ (10% + 5%/100 AD + 10%/100 AP)
+        let hits = 0
+        const N = 300
+        for (let i = 0; i < N; i++) {
+            const t = mk({
+                A: {
+                    ahri: 2
+                }, B: {
+                    g4v_fighter: 2, g4v_tank: 1
+                }, seed: SEED + i * 7919
+            })
+            const q = cast(t,
+                "ahri",
+                "Q",
+                {
+                    target: "B:g4v_fighter"
+                })
+            if (charmV(q,
+                "B",
+                "g4v_fighter") > 0) hits++
+        }
+        const expected = 0.1 + 0.05 * 0.98 + 0.1 * 0.76
+        assert.ok(hits / N > expected - 0.12 && hits / N < expected + 0.15,
+            `tỉ lệ +1 Say Mê ${hits / N} lệch xa ${expected}`)
     })
 
 // ======================================================================
 G("Annie")
 // ======================================================================
-test("Q (10 mana) gây sát thương +1 Lửa; E (20 mana) +2 Lửa",
+test("Mỗi chiêu +1 Lửa; đủ 4 Lửa thì chiêu kế tiếp Choáng đúng mục tiêu của nó rồi Lửa về 0",
     () => {
         let s = mk({
             A: {
                 annie: 2
             }, B: {
-                g4v_fighter: 2
+                g4v_fighter: 2, g4v_tank: 1
             }
         })
-        const q = give(s,
-            "A",
-            skill(s,
-                "annie",
-                "A",
-                "Q"))
-        const s0 = s
-        s = play(s,
-            "A",
-            q,
+        const q = (st: St) => cast(st,
+            "annie",
+            "Q",
             {
                 target: "B:g4v_fighter"
-            }).s
+            })
+        for (let i = 1; i <= 4; i++) {
+            s = q(s)
+            assert.equal(u(s,
+                "A",
+                "annie").stacks.fire,
+            i,
+            `sau ${i} chiêu`)
+            assert.ok(!stunned(s,
+                "B",
+                "g4v_fighter"),
+            "chưa đủ Lửa thì không Choáng")
+        }
         assert.equal(mana(s,
             "annie"),
-        90)
-        assert.equal(u(s,
-            "A",
-            "annie").stacks.fire,
-        1)
-        assert.ok(lost(s0,
-            s,
+        60)
+        s = q(s)
+        assert.ok(stunned(s,
             "B",
-            "g4v_fighter") > 0)
-        const e = give(s,
-            "A",
-            skill(s,
-                "annie",
-                "A",
-                "E"))
-        s = play(s,
-            "A",
-            e).s
-        assert.equal(mana(s,
-            "annie"),
-        70)
-        assert.equal(u(s,
-            "A",
-            "annie").stacks.fire,
-        3)
-    })
-test("Đủ 5 Lửa: Tibbers vồ mọi địch rồi biến mất, Lửa về 0, không chiếm đường",
-    () => {
-        let s = mk({
-            A: {
-                annie: 2
-            }, B: {
-                g4v_fighter: 2, g4v_tank: 1, g4v_mark: 3
-            }
-        })
-        u(s,
-            "A",
-            "annie").stacks.fire = 4
-        const lanesBefore = JSON.stringify(s.lanes)
-        const unitsBefore = Object.keys(s.units).length
-        const e = give(s,
-            "A",
-            skill(s,
-                "annie",
-                "A",
-                "E"))
-        const s0 = s
-        s = play(s,
-            "A",
-            e).s
+            "g4v_fighter"),
+        "chiêu thứ 5 Choáng mục tiêu")
+        assert.ok(!stunned(s,
+            "B",
+            "g4v_tank"),
+        "chỉ đúng mục tiêu")
         assert.equal(u(s,
             "A",
             "annie").stacks.fire,
         0,
         "Lửa về 0")
-        for (const h of ["g4v_fighter",
-            "g4v_tank",
-            "g4v_mark"]) assert.ok(lost(s0,
-            s,
-            "B",
-            h) > 0,
-        `${h} trúng Tibbers`)
-        assert.equal(JSON.stringify(s.lanes),
-            lanesBefore,
-            "đường không đổi")
-        assert.equal(Object.keys(s.units).length,
-            unitsBefore,
-            "không có đơn vị mới")
-        assert.equal(gm(s).tokenOf("A"),
-            undefined)
-    })
-test("R (40 mana): sát thương x(1 + Lửa) lên mọi địch, Lửa về 0",
-    () => {
-        const run = (fire: number) => {
-            const s0 = mk({
-                A: {
-                    annie: 2
-                }, B: {
-                    g4v_fighter: 2, g4v_tank: 1
-                }
-            })
-            u(s0,
-                "A",
-                "annie").stacks.fire = fire
-            const r = give(s0,
-                "A",
-                skill(s0,
-                    "annie",
-                    "A",
-                    "R"))
-            const s = play(s0,
-                "A",
-                r).s
-            assert.equal(mana(s,
-                "annie"),
-            60)
-            assert.equal(u(s,
-                "A",
-                "annie").stacks.fire,
-            0)
-            assert.ok(lost(s0,
-                s,
-                "B",
-                "g4v_tank") > 0,
-            "trúng mọi địch")
-            return lost(s0,
-                s,
-                "B",
-                "g4v_fighter")
-        }
-        const d0 = run(0), d4 = run(4)
-        near(d4 / d0,
-            5,
-            0.2,
-            "Lửa 4 = gấp 5")
-    })
-test("Annie chết: Lửa về 0",
-    () => {
-        const s = mk({
+        const d = mk({
             A: {
                 annie: 2
             }, B: {
                 g4v_fighter: 2
             }
         })
-        u(s,
+        u(d,
             "A",
             "annie").stacks.fire = 3
-        gm(s).kill(u(s,
+        gm(d).kill(u(d,
             "A",
             "annie"))
-        assert.equal(u(s,
+        assert.equal(u(d,
             "A",
             "annie").stacks.fire,
-        0)
+        0,
+        "Annie chết thì Lửa về 0")
+    })
+test("Q (10 mana) và R (50 mana) gây thêm 50% lên địch đang Choáng; R Choáng địch chưa Choáng",
+    () => {
+        const mkA = () => mk({
+            A: {
+                annie: 2
+            }, B: {
+                g4v_fighter: 2, g4v_tank: 1
+            }
+        })
+        const plain = mkA()
+        const qPlain = cast(plain,
+            "annie",
+            "Q",
+            {
+                target: "B:g4v_fighter"
+            })
+        const stun0 = mkA()
+        gm(stun0).status(u(stun0,
+            "B",
+            "g4v_fighter"),
+        "stun",
+        1)
+        const qStun = cast(stun0,
+            "annie",
+            "Q",
+            {
+                target: "B:g4v_fighter"
+            })
+        near(lost(stun0,
+            qStun,
+            "B",
+            "g4v_fighter"),
+        lost(plain,
+            qPlain,
+            "B",
+            "g4v_fighter") * 1.5,
+        2,
+        "Q ×1.5 lên địch Choáng")
+        near(lost(plain,
+            qPlain,
+            "B",
+            "g4v_fighter"),
+        afterMr(fA(plain,
+            "annie",
+            "60 + 20% AD + 80% AP")),
+        2,
+        "Q thường")
+        assert.equal(mana(qPlain,
+            "annie"),
+        90)
+        const r0 = mkA()
+        gm(r0).status(u(r0,
+            "B",
+            "g4v_fighter"),
+        "stun",
+        1)
+        const r = cast(r0,
+            "annie",
+            "R")
+        assert.equal(mana(r,
+            "annie"),
+        50,
+        "R tốn 50 mana")
+        near(lost(r0,
+            r,
+            "B",
+            "g4v_fighter"),
+        afterMr(fA(r0,
+            "annie",
+            "120 + 30% AD + 100% AP")) * 1.5,
+        3,
+        "R ×1.5 lên địch đã Choáng")
+        near(lost(r0,
+            r,
+            "B",
+            "g4v_tank"),
+        afterMr(fA(r0,
+            "annie",
+            "120 + 30% AD + 100% AP")),
+        3,
+        "R thường lên địch chưa Choáng")
+        assert.ok(stunned(r,
+            "B",
+            "g4v_tank"),
+        "địch chưa Choáng thì bị R Choáng")
+    })
+test("E (15 mana, Quick): Khiên; đáp lại đòn nhắm Annie khi đủ 4 Lửa thì Vô Hiệu đòn, Choáng kẻ đánh và trả sát thương",
+    () => {
+        const mkE = (fire: number) => {
+            const s = mk({
+                A: {
+                    annie: 2
+                }, B: {
+                    g4v_fighter: 2
+                }
+            })
+            u(s,
+                "A",
+                "annie").stacks.fire = fire
+            give(s,
+                "A",
+                skill(s,
+                    "annie",
+                    "A",
+                    "E"))
+            give(s,
+                "B",
+                basic(s))
+            return s
+        }
+        const react = (fire: number) => {
+            const s = mkE(fire)
+            const hp0 = hpOf(s,
+                "A",
+                "annie")
+            let t = end(s,
+                "A").s
+            const b = t.players.B.hand[0]
+            t = act(t,
+                {
+                    t: "play", side: "B", uid: b.uid, args: {
+                        actor: "B:g4v_fighter", target: "A:annie"
+                    }
+                }).s
+            assert.equal(t.phase,
+                "chain")
+            const resp = cg.legalActions(t,
+                "A").filter((a) => a.t === "chain" && t.players.A.hand.find((c) => c.uid === a.uid)?.id === "annie_e")
+            assert.ok(resp.length > 0,
+                "E nối chuỗi được")
+            return {
+                s: settle(act(t,
+                    resp[0])).s, hp0, t
+            }
+        }
+        const trap = react(4)
+        assert.equal(mana(trap.s,
+            "annie"),
+        85,
+        "E tốn 15 mana")
+        assert.equal(hpOf(trap.s,
+            "A",
+            "annie"),
+        trap.hp0,
+        "đòn bị huỷ")
+        assert.ok(u(trap.s,
+            "A",
+            "annie").shield > 0,
+        "Annie có Khiên")
+        assert.ok(stunned(trap.s,
+            "B",
+            "g4v_fighter"),
+        "kẻ đánh bị Choáng")
+        assert.equal(u(trap.s,
+            "A",
+            "annie").stacks.fire,
+        0,
+        "Lửa về 0")
+        near(1000 - hpOf(trap.s,
+            "B",
+            "g4v_fighter"),
+        afterMr(fA(trap.t,
+            "annie",
+            "40 + 10% AD + 60% AP")) * 1.5,
+        3,
+        "trả {40 + 10% AD + 60% AP} ×1.5 vì đã Choáng")
+        const calm = react(2)
+        assert.ok(!stunned(calm.s,
+            "B",
+            "g4v_fighter"),
+        "chưa đủ Lửa thì chỉ Khiên")
+        assert.equal(1000 - hpOf(calm.s,
+            "B",
+            "g4v_fighter"),
+        0,
+        "không sát thương")
+        assert.equal(u(calm.s,
+            "A",
+            "annie").shield > 0,
+        true)
+        assert.equal(u(calm.s,
+            "A",
+            "annie").stacks.fire,
+        3,
+        "E thường +1 Lửa")
     })
 
 // ======================================================================
@@ -898,48 +1145,141 @@ const handB = (s: St, n: number) => Array.from({
 () => give(s,
     "B",
     basic(s)))
-test("Q là Quick, tốn 20 mana, Hoá Băng 2 lá ngẫu nhiên trên tay đối thủ; lá băng không đánh được",
+test("Nội tại: sát thương của Lissandra có cơ hội Hoá Băng 1 lá ngẫu nhiên trên tay đối thủ (≈ 10% + 5%/100 AD + 10%/100 AP)",
     () => {
-        let s = mk({
+        let hits = 0
+        const N = 300
+        for (let i = 0; i < N; i++) {
+            const s0 = mk({
+                A: {
+                    lissandra: 2
+                }, B: {
+                    g4v_fighter: 2
+                }, seed: SEED + i * 104729
+            })
+            handB(s0,
+                4)
+            const s = cast(s0,
+                "lissandra",
+                "Q",
+                {
+                    target: "B:g4v_fighter"
+                })
+            const n = s.players.B.hand.filter((c) => c.frozen === "A:lissandra").length
+            assert.ok(n <= 1,
+                "tối đa 1 lá mỗi lần trúng")
+            hits += n
+        }
+        const expected = 0.1 + 0.05 * 0.94 + 0.1 * 0.72
+        assert.ok(hits / N > expected - 0.12 && hits / N < expected + 0.15,
+            `tỉ lệ Hoá Băng ${hits / N} lệch xa ${expected}`)
+        const s1 = mk({
             A: {
                 lissandra: 2
             }, B: {
                 g4v_fighter: 2
             }
         })
-        const cards = handB(s,
-            4)
-        const q = give(s,
-            "A",
-            skill(s,
-                "lissandra",
-                "A",
-                "Q"))
-        s = play(s,
-            "A",
-            q).s
-        assert.equal(mana(s,
+        const q = cast(s1,
+            "lissandra",
+            "Q",
+            {
+                target: "B:g4v_fighter"
+            })
+        assert.equal(mana(q,
             "lissandra"),
-        80)
-        const frozen = s.players.B.hand.filter((c) => c.frozen === "A:lissandra")
-        assert.equal(frozen.length,
-            2)
-        assert.equal(s.players.B.hand.length,
-            4,
-            "vẫn chiếm chỗ")
-        s = end(s,
-            "A").s
-        for (const c of frozen) assert.equal(legalPlays(s,
+        80,
+        "Q tốn 20 mana")
+        near(lost(s1,
+            q,
             "B",
-            c.uid).length,
-        0,
-        "lá băng không đánh được")
-        assert.ok(cards.some((c) => !c.frozen && legalPlays(s,
-            "B",
-            c.uid).length > 0),
-        "lá không băng vẫn đánh được")
+            "g4v_fighter"),
+        afterMr(fA(s1,
+            "lissandra",
+            "50 + 30% AD + 80% AP")),
+        2,
+        "sát thương Q")
+        // băng tan khi Lissandra rời sân
+        const t = mk({
+            A: {
+                lissandra: 2
+            }, B: {
+                g4v_fighter: 2
+            }
+        })
+        const cs = handB(t,
+            3)
+        gm(t).freezeCard("B",
+            cs[0],
+            "A:lissandra")
+        gm(t).kill(u(t,
+            "A",
+            "lissandra"))
+        assert.equal(t.players.B.hand.filter((c) => c.frozen).length,
+            0,
+            "Lissandra bị hạ thì băng tan")
     })
-test("Q Quick nối được trong lượt đối thủ (có mana) và không có tác dụng nếu hết mana",
+test("E (30 mana): sát thương phép; Choáng chỉ khi tay đối thủ có lá chiêu Hoá Băng của chính tướng bị đánh",
+    () => {
+        const run = (freezeSkill: boolean) => {
+            const s = mk({
+                A: {
+                    lissandra: 2
+                }, B: {
+                    brand: 2
+                }
+            })
+            const sk = give(s,
+                "B",
+                skill(s,
+                    "brand",
+                    "B",
+                    "Q"))
+            const other = give(s,
+                "B",
+                basic(s))
+            gm(s).freezeCard("B",
+                freezeSkill ? sk : other,
+                "A:lissandra")
+            return {
+                s, after: cast(s,
+                    "lissandra",
+                    "E",
+                    {
+                        target: "B:brand"
+                    })
+            }
+        }
+        const yes = run(true)
+        assert.equal(mana(yes.after,
+            "lissandra"),
+        70,
+        "E tốn 30 mana")
+        assert.ok(stunned(yes.after,
+            "B",
+            "brand"),
+        "lá chiêu Brand bị băng thì Brand bị Choáng")
+        const no = run(false)
+        assert.ok(!stunned(no.after,
+            "B",
+            "brand"),
+        "lá băng không phải chiêu của Brand thì không Choáng")
+        assert.ok(lost(no.s,
+            no.after,
+            "B",
+            "brand") > 0,
+        "vẫn gây sát thương")
+        near(lost(no.s,
+            no.after,
+            "B",
+            "brand"),
+        fA(no.s,
+            "lissandra",
+            "30 + 35% AD + 70% AP") * 100 / (100 + cg.getHero("brand")!.mr),
+        3,
+        "sát thương E")
+    })
+test("R (50 mana, Quick): mọi địch nhận sát thương mỗi lá băng; Lissandra miễn sát thương, không bị chọn, không hành động tới hết lượt",
     () => {
         const s = mk({
             A: {
@@ -953,216 +1293,160 @@ test("Q Quick nối được trong lượt đối thủ (có mana) và không c�
             skill(s,
                 "lissandra",
                 "A",
-                "Q"))
-        handB(s,
+                "R"))
+        const cs = handB(s,
             3)
+        gm(s).freezeCard("B",
+            cs[1],
+            "A:lissandra")
+        gm(s).freezeCard("B",
+            cs[2],
+            "A:lissandra")
+        const hp0 = hpOf(s,
+            "A",
+            "lissandra")
         let t = end(s,
             "A").s
-        const b = t.players.B.hand[0]
         t = act(t,
             {
-                t: "play", side: "B", uid: b.uid, args: {
+                t: "play", side: "B", uid: cs[0].uid, args: {
                     actor: "B:g4v_fighter", target: "A:lissandra"
                 }
             }).s
         assert.equal(t.phase,
             "chain")
         const resp = cg.legalActions(t,
-            "A").filter((a) => a.t === "chain" && t.players.A.hand.find((c) => c.uid === a.uid)?.id === "lissandra_q")
+            "A").filter((a) => a.t === "chain" && t.players.A.hand.find((c) => c.uid === a.uid)?.id === "lissandra_r")
         assert.ok(resp.length > 0,
-            "Q nối chuỗi được")
-        const after = settle(act(t,
-            resp[0])).s
-        assert.equal(after.players.B.hand.filter((c) => c.frozen === "A:lissandra").length,
-            2,
-            "Q nối chuỗi vẫn Hoá Băng 2 lá")
+            "R Quick nối chuỗi được")
+        const mid = act(t,
+            resp[0]).s
+        const liss = u(mid,
+            "A",
+            "lissandra")
+        assert.ok(gm(mid).has(liss,
+            "stasis") && !gm(mid).canAct(liss) && !gm(mid).targetable(liss),
+        "tự đóng băng")
+        const after = settle({
+            s: mid, ev: []
+        }).s
+        assert.equal(hpOf(after,
+            "A",
+            "lissandra"),
+        hp0,
+        "đòn đánh không gây sát thương")
         assert.equal(mana(after,
             "lissandra"),
-        80)
-        u(t,
-            "A",
-            "lissandra").mana = 10
-        const resp2 = cg.legalActions(t,
-            "A").filter((a) => a.t === "chain" && t.players.A.hand.find((c) => c.uid === a.uid)?.id === "lissandra_q")
-        assert.equal(resp2.length,
-            0,
-            "thiếu mana thì không nối")
-    })
-test("E (30 mana): sát thương tăng theo số lá Hoá Băng",
-    () => {
-        const dmg = (frozen: number) => {
-            const s0 = mk({
-                A: {
-                    lissandra: 2
-                }, B: {
-                    g4v_fighter: 2
-                }
-            })
-            const cs = handB(s0,
-                4)
-            for (const c of cs.slice(0,
-                frozen)) gm(s0).freezeCard("B",
-                c,
-                "A:lissandra")
-            const e = give(s0,
-                "A",
-                skill(s0,
-                    "lissandra",
-                    "A",
-                    "E"))
-            const s = play(s0,
-                "A",
-                e,
-                {
-                    target: "B:g4v_fighter"
-                }).s
-            assert.equal(mana(s,
-                "lissandra"),
-            70)
-            return lost(s0,
-                s,
-                "B",
-                "g4v_fighter")
-        }
-        const d0 = dmg(0), d3 = dmg(3)
-        assert.ok(d3 > d0,
-            `${d3} > ${d0}`)
-    })
-test("R (50 mana): bỏ mọi lá băng vào mộ, mỗi lá gây sát thương lên mọi địch; lá không băng ở lại",
-    () => {
-        const s0 = mk({
-            A: {
-                lissandra: 2
-            }, B: {
-                g4v_fighter: 2, g4v_tank: 1
-            }
-        })
-        const cs = handB(s0,
-            4)
-        gm(s0).freezeCard("B",
-            cs[0],
-            "A:lissandra")
-        gm(s0).freezeCard("B",
-            cs[1],
-            "A:lissandra")
-        const graveBefore = s0.players.B.grave.length
-        const r = give(s0,
-            "A",
-            skill(s0,
-                "lissandra",
-                "A",
-                "R"))
-        const s = play(s0,
-            "A",
-            r).s
-        assert.equal(mana(s,
-            "lissandra"),
         50)
-        assert.equal(s.players.B.hand.length,
-            2)
-        assert.equal(s.players.B.grave.length,
-            graveBefore + 2,
-            "2 lá băng vào mộ")
-        assert.equal(s.players.B.hand.filter((c) => c.frozen).length,
-            0)
-        const d1 = lost(s0,
-            s,
-            "B",
-            "g4v_fighter")
-        assert.ok(d1 > 0 && lost(s0,
-            s,
-            "B",
-            "g4v_tank") > 0,
-        "trúng mọi địch")
-        // 2 lá = gấp đôi 1 lá
-        const t0 = mk({
-            A: {
-                lissandra: 2
-            }, B: {
-                g4v_fighter: 2
-            }
-        })
-        const c1 = handB(t0,
-            2)
-        gm(t0).freezeCard("B",
-            c1[0],
-            "A:lissandra")
-        const t = play(t0,
-            "A",
-            give(t0,
-                "A",
-                skill(t0,
-                    "lissandra",
-                    "A",
-                    "R"))).s
-        near(d1 / lost(t0,
-            t,
+        const per = fA(t,
+            "lissandra",
+            "30 + 10% AD + 20% AP")
+        near(1000 - hpOf(after,
             "B",
             "g4v_fighter"),
+        afterMr(per * 2),
         2,
-        0.1)
-    })
-test("Lissandra bị hạ: băng tan hết",
-    () => {
-        const s = mk({
-            A: {
-                lissandra: 2
-            }, B: {
-                g4v_fighter: 2
-            }
-        })
-        const cs = handB(s,
-            3)
-        gm(s).freezeCard("B",
-            cs[0],
-            "A:lissandra")
-        gm(s).freezeCard("B",
-            cs[1],
-            "A:lissandra")
-        gm(s).kill(u(s,
-            "A",
-            "lissandra"))
-        assert.equal(s.players.B.hand.filter((c) => c.frozen).length,
-            0)
+        "2 lá băng")
     })
 
 // ======================================================================
 G("Twisted Fate")
 // ======================================================================
-test("Nội tại: TF trên sân thì lượt rút của bạn rút 3 lá thay vì 2",
+test("Nội tại: đòn đánh của TF gây thêm sát thương phép theo số lá trên tay",
     () => {
-        const s = mk({
-            A: {
-                twistedfate: 2
-            }, B: {
-                g4v_fighter: 2
+        const hit = (extra: number) => {
+            const s = mk({
+                A: {
+                    twistedfate: 2
+                }, B: {
+                    g4v_fighter: 2
+                }
+            })
+            for (let i = 0; i < extra; i++) give(s,
+                "A",
+                basic(s))
+            const b = give(s,
+                "A",
+                basic(s))
+            const hp0 = hpOf(s,
+                "B",
+                "g4v_fighter")
+            const r = play(s,
+                "A",
+                b,
+                {
+                    actor: "A:twistedfate", target: "B:g4v_fighter"
+                }).s
+            return {
+                dmg: hp0 - hpOf(r,
+                    "B",
+                    "g4v_fighter"), s
             }
-        })
-        assert.equal(gm(s).drawCount("A"),
-            3)
-        assert.equal(gm(s).drawCount("B"),
-            2)
-        // thực tế qua một vòng lượt
-        const h0 = s.players.A.hand.length
-        const t = end(end(s,
-            "A").s,
-        "B").s
-        assert.equal(t.players.A.hand.length - h0,
-            3,
-            "rút 3 lá")
-        const s2 = mk({
-            A: {
-                g4v_fighter: 2
-            }
-        })
-        const t2 = end(end(s2,
-            "A").s,
-        "B").s
-        assert.equal(t2.players.A.hand.length,
+        }
+        const a = hit(0), b = hit(4)
+        const per = fA(a.s,
+            "twistedfate",
+            "3 + 1% AD + 2% AP")
+        near(b.dmg - a.dmg,
+            afterMr(4 * per),
             2,
-            "không có TF rút 2")
+            "4 lá nữa trên tay")
     })
-test("Q (15 mana): xem 3 lá trên cùng, lấy 2 lên tay, lá chọn xuống đáy bộ bài",
+test("Q (20 mana): sát thương phép; Xanh hồi 30 mana, Đỏ Rã Giáp tới hết lượt, Vàng Choáng",
+    () => {
+        const run = (color: "blue" | "red" | "gold") => {
+            const s = mk({
+                A: {
+                    twistedfate: 2
+                }, B: {
+                    g4v_fighter: 2
+                }
+            })
+            u(s,
+                "A",
+                "twistedfate").mana = 50
+            return {
+                s, after: cast(s,
+                    "twistedfate",
+                    "Q",
+                    {
+                        target: "B:g4v_fighter", color
+                    })
+            }
+        }
+        const blue = run("blue")
+        assert.equal(mana(blue.after,
+            "twistedfate"),
+        50 - 20 + 30,
+        "Xanh hồi 30 mana")
+        near(lost(blue.s,
+            blue.after,
+            "B",
+            "g4v_fighter"),
+        afterMr(fA(blue.s,
+            "twistedfate",
+            "50 + 30% AD + 80% AP")),
+        2,
+        "sát thương Q")
+        assert.ok(!stunned(blue.after,
+            "B",
+            "g4v_fighter"))
+        const red = run("red")
+        assert.equal(mana(red.after,
+            "twistedfate"),
+        30)
+        assert.ok(gm(red.after).has(u(red.after,
+            "B",
+            "g4v_fighter"),
+        "shred"),
+        "Đỏ Rã Giáp")
+        const gold = run("gold")
+        assert.ok(stunned(gold.after,
+            "B",
+            "g4v_fighter"),
+        "Vàng Choáng")
+    })
+test("E (15 mana): xem 3 lá trên cùng, lấy 2 lên tay, lá chọn xuống đáy bộ bài",
     () => {
         let s = mk({
             A: {
@@ -1178,27 +1462,27 @@ test("Q (15 mana): xem 3 lá trên cùng, lấy 2 lên tay, lá chọn xuống �
             c3,
             ...s.players.A.deck]
         const deckLen = s.players.A.deck.length
-        const q = give(s,
+        const e = give(s,
             "A",
             skill(s,
                 "twistedfate",
                 "A",
-                "Q"))
-        const opts = legalPlays(s,
+                "E"))
+        assert.equal(legalPlays(s,
             "A",
-            q.uid)
-        assert.equal(opts.length,
-            3,
-            "3 lựa chọn lá xuống đáy")
+            e.uid).length,
+        3,
+        "3 lựa chọn lá xuống đáy")
         s = play(s,
             "A",
-            q,
+            e,
             {
                 pick: c2.uid
             }).s
         assert.equal(mana(s,
             "twistedfate"),
-        85)
+        85,
+        "E tốn 15 mana")
         const hand = s.players.A.hand.map((c) => c.uid)
         assert.ok(hand.includes(c1.uid) && hand.includes(c3.uid),
             "lấy 2 lá còn lại")
@@ -1209,95 +1493,60 @@ test("Q (15 mana): xem 3 lá trên cùng, lấy 2 lên tay, lá chọn xuống �
             c2.uid,
             "lá chọn nằm đáy bộ")
     })
-test("E (25 mana): sát thương tăng theo số lá trên tay",
+test("R (50 mana): bỏ cả tay vào mộ, mỗi lá (tối đa tính 7) gây (30 + 20% AD + 30% AP) lên mọi địch",
     () => {
-        const dmg = (n: number) => {
-            const s0 = mk({
-                A: {
-                    twistedfate: 2
-                }, B: {
-                    g4v_fighter: 2
-                }
-            })
-            for (let i = 0; i < n; i++) give(s0,
-                "A",
-                basic(s0))
-            const e = give(s0,
-                "A",
-                skill(s0,
-                    "twistedfate",
-                    "A",
-                    "E"))
-            const s = play(s0,
-                "A",
-                e,
-                {
-                    target: "B:g4v_fighter"
-                }).s
-            assert.equal(mana(s,
-                "twistedfate"),
-            75)
-            return lost(s0,
-                s,
-                "B",
-                "g4v_fighter")
-        }
-        assert.ok(dmg(6) > dmg(1),
-            "tay dày đau hơn")
-    })
-test("R (45 mana): bỏ cả tay vào mộ, mỗi lá gây sát thương lên mọi địch",
-    () => {
-        const run = (n: number) => {
-            const s0 = mk({
+        const run = (cards: number) => {
+            const s = mk({
                 A: {
                     twistedfate: 2
                 }, B: {
                     g4v_fighter: 2, g4v_tank: 1
                 }
             })
-            for (let i = 0; i < n; i++) give(s0,
+            for (let i = 0; i < cards; i++) give(s,
                 "A",
-                basic(s0))
-            const graveBefore = s0.players.A.grave.length
-            const r = give(s0,
-                "A",
-                skill(s0,
+                basic(s))
+            return {
+                s, after: cast(s,
                     "twistedfate",
-                    "A",
-                    "R"))
-            const s = play(s0,
-                "A",
-                r).s
-            assert.equal(mana(s,
-                "twistedfate"),
-            55)
-            assert.equal(s.players.A.hand.length,
-                0,
-                "tay rỗng")
-            assert.equal(s.players.A.grave.length,
-                graveBefore + n + 1,
-                "mọi lá + lá R vào mộ")
-            assert.ok(lost(s0,
-                s,
-                "B",
-                "g4v_tank") > 0,
-            "trúng mọi địch")
-            return lost(s0,
-                s,
-                "B",
-                "g4v_fighter")
+                    "R")
+            }
         }
-        const d2 = run(2), d6 = run(6)
-        near(d6 / d2,
-            3,
-            0.15,
-            "6 lá = gấp 3 lần 2 lá")
+        const few = run(3)
+        assert.equal(mana(few.after,
+            "twistedfate"),
+        50,
+        "R tốn 50 mana")
+        assert.equal(few.after.players.A.hand.length,
+            0,
+            "bỏ cả tay")
+        const per = fA(few.s,
+            "twistedfate",
+            "30 + 20% AD + 30% AP")
+        for (const h of ["g4v_fighter",
+            "g4v_tank"]) near(lost(few.s,
+            few.after,
+            "B",
+            h),
+        afterMr(per * 3),
+        3,
+        `3 lá lên ${h}`)
+        const many = run(9)
+        assert.equal(many.after.players.A.hand.length,
+            0)
+        near(lost(many.s,
+            many.after,
+            "B",
+            "g4v_fighter"),
+        afterMr(per * 7),
+        5,
+        "9 lá nhưng chỉ tính 7")
     })
 
 // ======================================================================
 G("Tổng hợp")
 // ======================================================================
-test("Mọi chiêu của 6 pháp sư đều có phí mana (Lux Q = 0, Lux R = toàn bộ)",
+test("Chi phí mana theo doc (Lux Q = 0, Lux R = toàn bộ) và AP gốc = AD gốc cũ",
     () => {
         for (const id of ["brand",
             "lux",
@@ -1325,21 +1574,53 @@ test("Mọi chiêu của 6 pháp sư đều có phí mana (Lux Q = 0, Lux R = to
                 30,
                 "all"])
         assert.deepEqual(costs("ahri"),
-            [20,
+            [10,
                 25,
                 50])
         assert.deepEqual(costs("annie"),
             [10,
-                20,
-                40])
+                15,
+                50])
         assert.deepEqual(costs("lissandra"),
             [20,
                 30,
                 50])
         assert.deepEqual(costs("twistedfate"),
-            [15,
-                25,
-                45])
+            [20,
+                15,
+                50])
+        const s = mk({
+            A: {
+                brand: 1, lux: 2, ahri: 3, annie: 0, lissandra: 4
+            }
+        })
+        const apOf = (h: string) => gm(s).ap(u(s,
+            "A",
+            h))
+        assert.deepEqual([apOf("brand"),
+            apOf("lux"),
+            apOf("ahri"),
+            apOf("annie"),
+            apOf("lissandra")],
+        [78,
+            72,
+            76,
+            74,
+            72],
+        "AP gốc = AD gốc cũ")
+        assert.deepEqual(["brand",
+            "lux",
+            "ahri",
+            "annie",
+            "lissandra",
+            "twistedfate"].map((h) => cg.getHero(h)!.atk),
+        [98,
+            94,
+            98,
+            96,
+            94,
+            96],
+        "AD gốc V3")
     })
 test("Bot đánh trọn ván có 3 pháp sư mỗi bên mà không lỗi",
     () => {

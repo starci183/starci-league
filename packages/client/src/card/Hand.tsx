@@ -97,7 +97,8 @@ function artInfo(card: Card): ArtInfo {
         }
     }
     return {
-        kind: "trap", srcs: card.id === "mushroom" ? ["/cards/nam_teemo.jpg"] : ["/ui/badge/spell.png"]
+        kind: "trap", srcs: card.id === "mushroom" ? ["/cards/nam_teemo.jpg"] : card.id === "velkoz_decay" ? ["/card_skills/velkoz_p.png",
+            "/ui/badge/spell.png"] : ["/ui/badge/spell.png"]
     }
 }
 
@@ -277,6 +278,20 @@ export function Hand() {
         if (!view || !g || !s.lastEvents.length) return
         const fresh: BurnToast[] = []
         for (const e of s.lastEvents) {
+            if (e.t === "freeCard") { // V3: quà tặng đều đặn (không lấy từ bộ bài)
+                const what = e.kind === "basic" ? L("lá Đánh Thường",
+                    "Basic Attack card") : L("mảnh đồ",
+                    "item component")
+                fresh.push({
+                    k: ++burnSeq,
+                    text: e.side === view.you
+                        ? L(`Bạn được tặng 1 ${what} (không lấy từ bộ bài)`,
+                            `You received a free ${what} (not from the deck)`)
+                        : L(`Đối thủ được tặng 1 ${what}`,
+                            `Opponent received a free ${what}`)
+                })
+                continue
+            }
             if (e.t !== "cardBurned") continue
             const hid = (e.card as { hidden?: boolean }).hidden === true
             let name = L("một lá",
@@ -442,6 +457,7 @@ export function Hand() {
     const attacks = legal.filter((a): a is Extract<Action, { t: "attack" }> => a.t === "attack" && !a.cardless)
     const quickHits = legal.filter((a): a is Extract<Action, { t: "attack" }> => a.t === "attack" && !!a.cardless)
     const upgrades = dedupe(legal.filter((a) => a.t === "upgrade")) as Extract<Action, { t: "upgrade" }>[]
+    const unequips = legal.filter((a): a is Extract<Action, { t: "unequip" }> => a.t === "unequip")
     const foeHand = view.players[me === "A" ? "B" : "A"].hand
     const quickers = [...new Set(quickHits.map((a) => a.actor))]
     const cardlessPct = Math.round((view.rules.fighterCardlessMult ?? .66) * 100)
@@ -623,6 +639,29 @@ export function Hand() {
                                         onClick={() => cardActions.act(a)}>
                                         {L("Nâng cấp",
                                             "Upgrade")} {unitName(a.unit)} · {nm}
+                                    </button>
+                                )
+                            })}
+                        </div>
+                    </div>
+                ) : null}
+                {unequips.length ? (
+                    <div className="hd-group">
+                        <label>{L("Tháo đồ",
+                            "Unequip")}</label>
+                        <div className="hd-row">
+                            {unequips.map((a, i) => {
+                                const nm = cg.itemText(a.item,
+                                    lang === "en" ? "en" : "vi")?.name ?? a.item
+                                const full = hand.length >= handMax
+                                return (
+                                    <button key={i} className="hd-btn up" title={full ? L("Tay đầy: lá đồ sẽ bị đốt vào mộ",
+                                        "Hand full: the item card will be burned") : L("Lá đồ về tay, lắp lại được cho tướng khác",
+                                        "The item card returns to your hand")}
+                                    onClick={() => cardActions.act(a)}>
+                                        {L("Tháo",
+                                            "Unequip")} {nm} · {unitName(a.unit)}{full ? ` ⚠ ${L("tay đầy",
+                                            "hand full")}` : ""}
                                     </button>
                                 )
                             })}

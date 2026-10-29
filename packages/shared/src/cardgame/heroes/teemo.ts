@@ -1,5 +1,6 @@
-// Teemo (Xạ thủ, phép): máu 360 · AD 72 · giáp/kháng 24/26. Chất: NẤM TRONG BỘ BÀI ĐỊCH, địch rút trúng là nổ vào đứa yếu nhất.
-// Nấm = lá đặc biệt "mushroom" (SpecialCardDef.onDraw). Lá Nấm nhớ phe Teemo (card.side). Nấm chiếm lượt rút rồi biến mất.
+// Teemo (Xạ thủ, phép): máu 310 · AD 112 · AP gốc 78 · giáp/kháng 25/26. Chất: NẤM TRONG BỘ BÀI ĐỊCH, địch rút trúng là nổ vào đứa yếu nhất.
+// Nấm = lá đặc biệt "mushroom" (SpecialCardDef.onDraw). Lá Nấm nhớ phe Teemo (card.side). Nấm nổ rồi biến mất, địch vẫn rút 1 lá như thường.
+// AP gốc = AD cũ của tướng phép (đề xuất V3, đã vào engine: HeroDef.ap).
 import type {
     Game
 } from "../game"
@@ -7,37 +8,54 @@ import {
     defineHero, defineSpecialCard
 } from "../registry"
 import {
-    otherSide, type Side
+    otherSide, type Side, type Unit
 } from "../types"
 
-const F_MUSH = "50 + 35% AD"
-const F_E = "25 + 45% AD"
+/** AP gốc = AD cũ (78) */
+const BASE_AP = 78
+const F_MUSH = "50 + 12% AD + 23% AP"
+const F_E = "25 + 15% AD + 30% AP"
 /** Sát thương E thêm mỗi Nấm trong bộ bài địch */
-const E_PER = 20
-const F_R = "18 + 12% AD"
+const F_E_PER = "8 + 5% AD + 10% AP"
+const Q_MUSH = 3
+
+/** Nấm nổ lên tướng máu thấp nhất của `side` (sát thương theo chỉ số Teemo `teemo`) */
+function explode(g: Game, teemo: Unit | undefined, side: Side, tag: "effect" | "skill") {
+    const t = g.lowestHp(g.heroes(side))
+    if (teemo && t) {
+        g.damage(teemo,
+            t,
+            g.f(teemo,
+                F_MUSH),
+            "magic",
+            {
+                tag
+            })
+    }
+}
 
 defineSpecialCard({
     id: "mushroom", name: "Nấm",
-    desc: `Lá nằm trong bộ bài bạn. Rút trúng thì nổ: tướng máu thấp nhất của bạn nhận {${F_MUSH}} sát thương phép (theo Teemo). Nấm chiếm chỗ lá rút đó rồi biến mất.`,
+    desc: `Lá nằm trong bộ bài bạn. Rút trúng thì nổ: tướng máu thấp nhất của bạn nhận {${F_MUSH}} sát thương phép (theo Teemo), rồi bạn vẫn rút 1 lá như thường. Nấm không vào tay.`,
     onDraw(g, card, side) {
-        const teemo = g.unit(`${card.side ?? otherSide(side)}:teemo`)
-        const t = g.lowestHp(g.heroes(side))
-        if (teemo && t) {
-            g.damage(teemo,
-                t,
-                g.f(teemo,
-                    F_MUSH),
-                "magic",
-                {
-                    tag: "effect"
-                })
-        }
+        explode(g,
+            g.unit(`${card.side ?? otherSide(side)}:teemo`),
+            side,
+            "effect")
+        // Nấm không chiếm lượt rút: rút bù 1 lá như thường
+        g.draw(side,
+            1,
+            {
+                reason: "effect"
+            })
     },
 })
 
+const isMushroom = (c: { kind: string; id: string }) => c.kind === "special" && c.id === "mushroom"
+
 /** Số Nấm của Teemo đang nằm trong bộ bài của phe địch với `side` */
 export const mushroomsIn = (g: Game, side: Side) => g.countInDeck(otherSide(side),
-    (c) => c.kind === "special" && c.id === "mushroom")
+    isMushroom)
 
 /** Xáo n Nấm của Teemo (phe `side`) vào bộ bài đối thủ */
 export function plant(g: Game, side: Side, n: number) {
@@ -52,11 +70,11 @@ export function plant(g: Game, side: Side, n: number) {
 }
 
 export default defineHero({
-    id: "teemo", name: "Teemo", role: "marksman", damage: "magic", hp: 300, atk: 78, armor: 28, mr: 28,
-    desc: "Không cần giết ai: gài Nấm vào bộ bài địch, rút trúng là nổ vào đứa yếu nhất.",
+    id: "teemo", name: "Teemo", role: "marksman", damage: "magic", hp: 310, atk: 112, ap: BASE_AP, armor: 25, mr: 26,
+    desc: "Không cần giết ai: gài Nấm vào bộ bài địch, rút trúng là nổ vào đứa yếu nhất; ai đánh Teemo thì bị Mù.",
     passive: {
         name: "Nấm Độc",
-        desc: `Mỗi đòn đánh của Teemo xáo 1 Nấm vào bộ bài đối thủ. Khi đối thủ rút trúng Nấm: tướng máu thấp nhất bên đó nhận {${F_MUSH}} sát thương phép (thay cho lá rút).`,
+        desc: `Mỗi đòn đánh của Teemo xáo 1 Nấm vào bộ bài đối thủ. Khi đối thủ rút trúng Nấm: tướng máu thấp nhất bên đó nhận {${F_MUSH}} sát thương phép, rồi họ vẫn rút 1 lá như thường.`,
     },
     hooks: {
         onAttackHit(g, me, d) {
@@ -67,44 +85,47 @@ export default defineHero({
     },
     skills: {
         Q: {
-            key: "Q", name: "Gieo Nấm", target: "self",
-            desc: "Xáo 3 Nấm vào bộ bài đối thủ.",
+            key: "Q", name: "Gài Nấm", target: "self",
+            desc: `Xáo ${Q_MUSH} Nấm vào bộ bài đối thủ.`,
             resolve(c) {
                 plant(c.g,
                     c.side,
-                    3)
+                    Q_MUSH)
             },
         },
         E: {
-            key: "E", name: "Phi Tiêu Độc", target: "enemy", targetsTokens: true,
-            desc: `Chọn 1 tướng địch (kể cả ô phụ); gây {${F_E}} sát thương phép, thêm ${E_PER} cho mỗi Nấm trong bộ bài đối thủ (Nấm vẫn ở nguyên).`,
+            key: "E", name: "Phi Tiêu Mù", target: "none", quick: true, chainOnly: true,
+            desc: `Quick, Chỉ Nối Chuỗi. Khi địch đánh Teemo: kẻ đó bị Mù (đòn đánh đó trượt) và nhận {${F_E}} + {${F_E_PER}} mỗi Nấm trong bộ bài đối thủ sát thương phép.`,
+            quickWhen: (c) => c.trigger.side !== c.side && c.trigger.target === c.self.id && (!c.trigger.card || c.trigger.card.id === "basic"),
             resolve(c) {
+                const foe = c.g.unit(c.trigger?.actor ?? "")
+                if (!foe || foe.status !== "board") return
+                c.g.status(foe,
+                    "blind",
+                    1)
                 c.g.damage(c.self,
-c.target!,
-c.f(F_E) + E_PER * mushroomsIn(c.g,
-    c.side),
-"magic",
-{
-    tag: "skill"
-})
+                    foe,
+                    c.f(F_E) + c.f(F_E_PER) * mushroomsIn(c.g,
+                        c.side),
+                    "magic",
+                    {
+                        tag: "skill"
+                    })
             },
         },
         R: {
-            key: "R", name: "Nấm Độc Hàng Loạt", target: "all_enemies",
-            desc: `Mọi tướng địch nhận {${F_R}} sát thương phép cho mỗi Nấm trong bộ bài đối thủ (Nấm vẫn ở nguyên).`,
+            key: "R", name: "Kích Nổ", target: "all_enemies",
+            desc: `Mọi Nấm trong bộ bài đối thủ nổ cùng lúc: mỗi Nấm nổ lên tướng địch máu thấp nhất lúc đó ({${F_MUSH}} sát thương phép), rồi biến mất.`,
             resolve(c) {
-                const n = mushroomsIn(c.g,
-                    c.side)
-                if (n <= 0) return
-                for (const t of c.g.enemies(c.self)) {
-                    if (t.token) continue
-                    c.g.damage(c.self,
-                        t,
-                        c.f(F_R) * n,
-                        "magic",
-                        {
-                            tag: "skill"
-                        })
+                const foe = otherSide(c.side)
+                for (const m of c.g.deckCards(foe,
+                    isMushroom)) {
+                    c.g.takeFromDeck(foe,
+                        m.uid)
+                    explode(c.g,
+                        c.self,
+                        foe,
+                        "skill")
                 }
             },
         },

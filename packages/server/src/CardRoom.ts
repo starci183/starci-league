@@ -614,7 +614,7 @@ export class CardRoom extends Room<CardRoomState> {
             offTurnAttacks: g.turnAttacks(other(s.active)),
             attackLimit: g.attackLimit(s.active),
             names: this.names, bots: this.bots, rules: {
-                lives: cg.RULES.lives, handMax: cg.RULES.handMax, laneOpenRound: cg.RULES.laneOpenRound,
+                lives: cg.RULES.lives, handMax: cg.RULES.handMax, laneOpenRound: cg.RULES.laneOpenRound, summonRounds: cg.RULES.summonRounds,
                 attackLimit: cg.RULES.attackLimit, drawPerTurn: cg.RULES.drawPerTurn, fighterCardlessMult: cg.RULES.fighterCardlessMult,
                 mage: {
                     manaMax: cg.RULES.mage.manaMax
@@ -706,6 +706,10 @@ export class CardRoom extends Room<CardRoomState> {
                 return e.card.temp && e.side !== viewer ? {
                     ...e, card: hidden(e.card)
                 } : e
+            case "freeCard":
+                return e.side === viewer ? e : {
+                    ...e, card: hidden(e.card)
+                }
             case "tempExpired":
                 return e.side === viewer ? e : {
                     ...e, card: hidden(e.card)

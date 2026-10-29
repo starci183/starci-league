@@ -53,6 +53,16 @@ Các mục "CHỐT MỚI" và mục 1-6 bên dưới là lịch sử của bản
 3. Đánh bài tuỳ ý, nhưng tối đa 3 đòn đánh. Đấu sĩ có thể dùng nút "Đánh không cần lá".
 4. Kết thúc lượt: trạng thái hết hạn, lá tạm trên tay biến mất, đòn tự động của tướng (Kog'Maw) chạy.
 
+### Cân bằng V2 (bot tự đấu, 30/10/2026, CHƯA xong)
+Đo bằng `npx tsx scripts/card_selfplay.ts 2000 5 <seed> --jobs=27` (bot hard hai bên). Số cuối (2000 trận, seed 9): cạn bài 14%, TB 19,5 vòng, bên A thắng 54%, tướng trên sân lúc kết thúc 3,98/bên, lá bị đốt 7/trận (trước: 38). Tỉ lệ thắng tướng còn 40-59%, chưa đạt 45-55%.
+- **Luật:** `RULES.respawnRounds` 3 → **2**. `laneOpenEvery` giữ 1.
+- **Bot:** giữ bài quá chỗ trống cho lượt rút kế (tay tối đa − số lá sẽ rút) bị trừ giá một lá bị đốt (`EVAL.burnCost` 50, `overflowKeep` 0,3); lá chiêu trên sân trên tay 60 → 45. Stack giữ ngoài sân (Đêm Vayne, Đói Kog'Maw) được tính cả khi chưa gọi/chờ hồi sinh; `HeroBotHint.holdBack` (Vayne: hoãn gọi tới khi đủ 4 Đêm).
+- **Chỉ số gốc** đưa về dải luật (Giáp 28-39, Kháng 28-38, AD 60-90): mọi tướng máu ×0,9 (sàn 300) rồi chỉnh riêng; Janna/Renata/Braum/Nami/Soraka AD lên 60+. Đấu sĩ (Garen 60, Yorick 60, Darius 62, Aatrox 64 AD, máu 300) bị hạ mạnh nhất vì đòn không cần lá làm họ trội.
+- **Giảm:** Yorick 0,5 AD + 2 máu mỗi lá mộ, R 1,5/lá · Aatrox nội tại 15%, Q ×1,2 · Garen Q {15 + 80% AD}, E {6 + 35% AD}, R {15 + 40% AD}/Tội · Darius Q {5 + 80% AD}, E {10 + 65% AD}, R {16 + 25% AD}, tối đa 6 Chảy Máu · Qiyana Q {30 + 90% AD}, R {30 + 70% AD} · Katarina Q {45 + 90% AD}, E {25 + 60% AD}, R {40 + 80% AD} · TF E {5 + 25% AD + 30% AP} + {3 + 5% AP}/lá, R {8 + 6% AD + 12% AP}/lá, mana Q/E/R 20/30/55 · Renata hồi sinh 15%, Cuồng Bạo ×1,15, Q Khiên {70 + 50% AD}, phạt {60 + 70% AD}, E phản 40% · Malphite 3,5%/lá, {10 + 16% AD}/lá · Soraka Q {100 + 100% AP}, R {190 + 100% AP} · Teemo Nấm {50 + 35% AD}, E {25 + 45% AD} · Janna nội tại {24 + 25% AD}, E {70 + 55% AD} · Viktor E {55 + 50% AD + 50% AP}.
+- **Tăng:** Ashe Buốt −15% đòn/−8% chiêu, E {100% AD}, R {60 + 55% AD}/Buốt · Vayne Đêm {24 + 36% AD}, R ×3 · Kog'Maw 2,6%/Đói, R 4,5% · Ornn mỗi Rèn +15% sát thương và +12 Giáp, Q +5 Rèn · Lux 1,1 AP/mana, E {20 + 60% AD + 30% AP} + 1,5/mana, R 3,5/mana · Ahri E {50 + 110% AD + 40% AP}, +70%/Say Mê, mana Q/E 10/20 · Annie Q {35 + 85% AD + 40% AP}, Tibbers {25 + 65% AD + 40% AP}, mana E 15 · Kha'Zix Q {80 + 180% AD} · Zed Q {80 + 160% AD}, R {36 + 60% AD}/Dồn · Jinx Q {70 + 170% AD} · Brand Q {35 + 95% AD + 40% AP}, Bỏng {10 + 4% AP} · Lissandra E {30 + 75% AD + 30% AP}, R {18 + 35% AD + 25% AP}/lá · Leona/Blitzcrank AD 90, Giáp/Kháng 39/38 và 38/38.
+- **Gangplank:** Ô phụ tối đa **1 Thùng** (chủ chốt), máu 370 (theo đợt ×0,9).
+- **Vấn đề còn lại (cần luật, không sửa bằng số được):** tướng rút bài (Nami: ~20 lá rút thêm mỗi ván có Nami, 30% ván có Nami thua do cạn bài; TF ~20%) làm cạn bài; nhịp ván chậm, sát thương nhỏ so với máu. Xem báo cáo cân bằng.
+
 ---
 
 > **CHỐT MỚI (thay các mục cũ bên dưới nếu khác):**

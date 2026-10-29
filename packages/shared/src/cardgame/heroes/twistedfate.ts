@@ -1,6 +1,7 @@
-// Twisted Fate (Pháp sư, phép) V2: "Tay bài là đạn": TF rút nhiều, giữ dày, rồi ném cả tay.
-// Nội tại: drawBonus +1 (rút 3 lá mỗi lượt khi TF trên sân). Q (15 mana) Chọn Bài: xem 3 lá trên cùng, lấy 2, lá còn lại xuống đáy.
-// E (25) sát thương theo số lá trên tay · R (45) bỏ cả tay vào mộ, mỗi lá gây sát thương lên mọi địch.
+// Twisted Fate (Pháp sư, phép) V3: "Tay bài là đạn": tay càng dày đánh càng đau, cuối trận lên đồ là R xoá sổ. Máu 320 · AD 96 · giáp/kháng 25/28 · AP gốc 72.
+// Nội tại: đòn đánh của TF gây thêm sát thương phép theo số lá trên tay (hook onAttack, AttackInfo.bonus).
+// Q (20 mana) Chọn Bài: sát thương + hiệu ứng theo màu (Xanh hồi mana, Đỏ Rã Giáp, Vàng Choáng) · E (15) Xáo Bài: xem 3 lá trên cùng, lấy 2 · R (50) bỏ cả tay vào mộ, mỗi lá (tối đa 7) gây sát thương lên mọi địch.
+// Cơ chế engine dùng: SkillDef.extra "color", g.peekDeck/takeFromDeck/putOnBottom, g.discard.
 import type {
     PlayArgs
 } from "../types"
@@ -8,24 +9,64 @@ import {
     defineHero
 } from "../registry"
 
-export const DRAW_BONUS = 1
-/** Q xem bấy nhiêu lá trên cùng bộ bài, lấy (PEEK - 1) lá */
+/** AP gốc (V3: bằng AD gốc cũ) */
+export const BASE_AP = 72
+/** E xem bấy nhiêu lá trên cùng bộ bài, lấy (PEEK - 1) lá */
 export const PEEK = 3
-const F_E = "5 + 25% AD + 30% AP"
-const F_E_CARD = "3 + 5% AP"
-const F_R_CARD = "8 + 6% AD + 12% AP"
+/** Q Xanh: TF hồi bấy nhiêu mana */
+export const Q_BLUE_MANA = 30
+/** R chỉ tính tối đa bấy nhiêu lá bỏ */
+export const R_MAX_CARDS = 7
+const F_PASSIVE = "3 + 1% AD + 2% AP"
+const F_Q = "50 + 30% AD + 80% AP"
+const F_R_CARD = "30 + 20% AD + 30% AP"
 
 export default defineHero({
-    id: "twistedfate", name: "Twisted Fate", role: "mage", damage: "magic", hp: 300, atk: 72, armor: 28, mr: 30,
-    desc: "Tay bài là đạn: rút nhiều hơn, chọn lá hay từ đỉnh bộ, E đánh theo độ dày của tay, R ném cả tay thành bão bài.",
+    id: "twistedfate", name: "Twisted Fate", role: "mage", damage: "magic", hp: 320, atk: 96, armor: 25, mr: 28, ap: BASE_AP,
+    desc: "Tay bài là đạn: giữ tay dày thì đòn đánh đau thêm, Q chọn màu bài (hồi mana, Rã Giáp hoặc Choáng), E xáo bài nạp đạn, R ném cả tay thành bão bài.",
     passive: {
         name: "Bàn Tay Vàng",
-        desc: `Khi TF trên sân: lượt rút của bạn rút thêm ${DRAW_BONUS} lá.`,
+        desc: `Đòn đánh của TF gây thêm {${F_PASSIVE}} sát thương phép mỗi lá trên tay bạn.`,
     },
-    drawBonus: () => DRAW_BONUS,
+    hooks: {
+        onAttack(g, me, d) {
+            if (d.attacker.id !== me.id) return
+            const n = g.player(me.side).hand.length
+            if (n > 0) d.info.bonus.push({
+                raw: n * g.f(me,
+                    F_PASSIVE), kind: "magic"
+            })
+        },
+    },
     skills: {
         Q: {
-            key: "Q", name: "Chọn Bài", target: "none", mana: 20,
+            key: "Q", name: "Chọn Bài", target: "enemy", mana: 20, extra: "color",
+            desc: `Chọn 1 màu và 1 tướng địch; ném 1 lá bài vào nó, gây {${F_Q}} sát thương phép. Xanh: TF hồi ${Q_BLUE_MANA} mana. Đỏ: nó bị Rã Giáp tới hết lượt. Vàng: Choáng nó 1 lượt.`,
+            resolve(c) {
+                const t = c.target!
+                c.g.damage(c.self,
+                    t,
+                    c.f(F_Q),
+                    "magic",
+                    {
+                        tag: "skill"
+                    })
+                if (c.args.color === "blue") c.g.gainMana(c.self,
+                    Q_BLUE_MANA,
+                    "restore")
+                else if (c.args.color === "red") c.g.status(t,
+                    "shred",
+                    1,
+                    {
+                        until: c.g.s.turnNo
+                    })
+                else if (c.args.color === "gold") c.g.status(t,
+                    "stun",
+                    1)
+            },
+        },
+        E: {
+            key: "E", name: "Xáo Bài", target: "none", mana: 15,
             desc: `Xem ${PEEK} lá trên cùng bộ bài, lấy ${PEEK - 1} lá lên tay, lá còn lại xuống đáy bộ bài.`,
             options(c) {
                 const top = c.g.peekDeck(c.side,
@@ -54,23 +95,9 @@ export default defineHero({
                     })
             },
         },
-        E: {
-            key: "E", name: "Lá Bài Định Mệnh", target: "enemy", mana: 30,
-            desc: `Chọn 1 tướng địch; gây {${F_E}} sát thương phép, cộng {${F_E_CARD}} cho mỗi lá trên tay bạn.`,
-            resolve(c) {
-                const n = c.g.player(c.side).hand.length
-                c.g.damage(c.self,
-                    c.target!,
-                    c.f(F_E) + c.f(F_E_CARD) * n,
-                    "magic",
-                    {
-                        tag: "skill"
-                    })
-            },
-        },
         R: {
-            key: "R", name: "Ném Hết Bài", target: "all_enemies", mana: 55,
-            desc: `Bỏ mọi lá trên tay vào mộ; mỗi lá bỏ gây {${F_R_CARD}} sát thương phép lên mọi tướng địch.`,
+            key: "R", name: "Định Mệnh", target: "all_enemies", mana: 50,
+            desc: `Bỏ cả tay vào mộ; mỗi lá bỏ (tối đa tính ${R_MAX_CARDS}) gây {${F_R_CARD}} sát thương phép lên mọi tướng địch.`,
             resolve(c) {
                 const hand = [...c.g.player(c.side).hand]
                 let n = 0
@@ -78,7 +105,8 @@ export default defineHero({
                     card.uid,
                     "throw")) n++
                 const per = c.f(F_R_CARD)
-                for (let i = 0; i < n; i++) {
+                for (let i = 0; i < Math.min(n,
+                    R_MAX_CARDS); i++) {
                     for (const t of c.g.enemies(c.self).filter((u) => !u.token)) {
                         c.g.damage(c.self,
                             t,

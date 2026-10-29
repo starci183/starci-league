@@ -155,7 +155,7 @@ export function chooseActionGreedy(state: GameState, side: Side): Action {
     const dead = new Game(state)
     for (const a of legal) {
         let sc: number
-        if (a.t === "end" || a.t === "pass" || a.t === "draw" || a.t === "ready") continue
+        if (a.t === "end" || a.t === "pass" || a.t === "draw" || a.t === "ready" || a.t === "unequip") continue
         if (a.t === "summon") {
             // chọn tướng theo tay bài (summonValue: chỉ tay mình + sân công khai, không nhìn lựa chọn úp của địch);
             // đường chỉ phân thứ hạng giữa các đường của CÙNG một tướng

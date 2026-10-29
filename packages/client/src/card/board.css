@@ -125,7 +125,14 @@
 
 /* trạng thái, tích điểm, buff */
 .bd-stacks { position: absolute; left: 4px; top: 24px; z-index: 2; display: flex; flex-direction: column; gap: 2px; }
-.bd-stacks b { min-width: 18px; text-align: center; font-size: 11px; line-height: 16px; border-radius: 8px; background: rgba(60, 20, 90, .85); border: 1px solid #c79bff; color: #eadcff; }
+.bd-stacks b { min-width: 18px; padding: 0 4px; text-align: center; font-weight: 800; font-size: 11px; line-height: 16px; border-radius: 8px; background: rgba(60, 20, 90, .85); border: 1px solid #c79bff; color: #eadcff; }
+.bd-stacks b i { font-style: normal; font-size: 8px; font-weight: 700; opacity: .8; margin-right: 2px; letter-spacing: -.3px; }
+.bd-stacks b.mk { background: rgba(10, 60, 90, .9); border-color: #7fd8ff; color: #dff6ff; }
+/* Huy hiệu nguyên tố Qiyana: màu theo nguyên tố hiện tại */
+.bd-elem { position: absolute; right: 4px; top: 24px; z-index: 2; padding: 1px 6px; font-size: 10px; font-weight: 800; border-radius: 8px; color: #fff; border: 1px solid rgba(255, 255, 255, .7); text-shadow: 0 1px 1px rgba(0, 0, 0, .6); }
+.bd-elem.el-red { background: linear-gradient(#e0402a, #8a1a0e); box-shadow: 0 0 6px rgba(255, 70, 40, .8); }
+.bd-elem.el-blue { background: linear-gradient(#2a8ae0, #0e3a8a); box-shadow: 0 0 6px rgba(40, 140, 255, .8); }
+.bd-elem.el-green { background: linear-gradient(#3ab84a, #11621c); box-shadow: 0 0 6px rgba(60, 220, 80, .8); }
 .bd-next { position: absolute; left: 4px; bottom: 40px; z-index: 2; width: 18px; height: 18px; display: grid; place-items: center; border-radius: 50%; font-size: 11px; font-weight: 800; background: #6a2a10; border: 1px solid #ffb36b; color: #ffd9b0; box-shadow: 0 0 6px rgba(255, 179, 107, .7); }
 .bd-soak { position: absolute; right: 4px; bottom: 40px; z-index: 2; width: 18px; height: 20px; background: #3fa89a; clip-path: polygon(50% 0, 100% 15%, 100% 60%, 50% 100%, 0 60%, 0 15%); box-shadow: 0 0 6px #3fa89a; }
 .bd-unit.stunned .bd-img { filter: grayscale(.7) brightness(.7); animation: bd-dizzy 1.4s ease-in-out infinite; }

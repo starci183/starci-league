@@ -18,7 +18,7 @@ import {
     CARD_ITEMS, cardCombine, hasAnyTarget, itemText
 } from "./items"
 import {
-    getHero, getSpecialCard
+    getHero, getSpecialCard, getTokenBehavior, implementedHeroes
 } from "./registry"
 import {
     SPELL_VI, resolveSpell, spellOf, spellOptions
@@ -121,6 +121,30 @@ export function newGameEx(seed: number, teamA: string[], teamB: string[], decks:
 export const newGame = (seed: number, teamA: string[], teamB: string[]) => newGameEx(seed,
     teamA,
     teamB).state
+
+const previewCache = new Map<string, { g: Game; u: Unit }>()
+/** Tướng mẫu (chỉ số gốc, chưa đồ, đang trên sân) để tính công thức khi chưa vào trận (màn cấm/chọn) */
+export function previewUnit(hero: string): { g: Game; u: Unit } | undefined {
+    const hit = previewCache.get(hero)
+    if (hit) return hit
+    if (!getHero(hero)) return undefined
+    const others = implementedHeroes().map((h) => h.id).filter((id) => id !== hero)
+    const s = newGame(1,
+        [hero,
+            ...others.slice(0,
+                4)],
+        others.slice(4,
+            9))
+    const u = s.units[`A:${hero}`]
+    if (!u) return undefined
+    u.status = "board"
+    const out = {
+        g: new Game(s), u
+    }
+    previewCache.set(hero,
+        out)
+    return out
+}
 const PRIZE_POOL = ["basic",
     "basic",
     "gold",
@@ -153,9 +177,8 @@ export function skillOfCard(card: Card, wildHero?: string): SkillDef | undefined
 const heroUnitOfCard = (g: Game, card: Card, side: Side) => (isSkillLike(card) ? g.unit(`${card.side ?? side}:${card.hero}`) : undefined)
 
 function tauntFilter(g: Game, side: Side, list0: Unit[]): Unit[] {
-    // Tàng hình (status "stealth"): không bị chọn làm mục tiêu đơn / tối đa N / đòn đánh (chiêu mọi tướng vẫn trúng)
-    const list = list0.filter((u) => !g.has(u,
-        "stealth"))
+    // Tàng hình (stealth) / đóng băng bản thân (stasis): không bị chọn làm mục tiêu đơn / tối đa N / đòn đánh (chiêu mọi tướng, nổ, DoT vẫn trúng stealth)
+    const list = list0.filter((u) => g.targetable(u))
     const taunters = list.filter((u) => g.has(u,
         "taunt"))
     // taunt nằm trên tướng bất kỳ của phe địch: nếu có, mọi lá đơn mục tiêu phải nhắm tướng đó
@@ -178,12 +201,12 @@ export function attackTargets(g: Game, a: Unit, viaCard: boolean): Unit[] {
         const o = g.opposite(a)
         list = o ? [o] : []
     }
-    // ngoại lệ: Thùng của Gangplank địch nhắm được bởi MỌI vai (đòn đánh thường / Đánh nhanh); token ô phụ khác vẫn chỉ Xạ thủ
+    // Ô phụ (Thùng, Thiếu Nữ, token khác): Xạ thủ VÀ Đấu sĩ đánh được (Đấu sĩ chỉ đánh kẻ đối diện + ô phụ); vai khác không
     const base0 = tauntFilter(g,
         a.side,
         list)
     const base = [...base0]
-    if (!(role === "marksman" || any)) for (const t of g.enemies(a)) if (t.token?.id === "keg" && !base.includes(t)) base.push(t)
+    if (role === "fighter" && !a.token) for (const t of g.enemies(a)) if (t.token && !base.includes(t)) base.push(t)
     // mục tiêu thêm của tướng (HeroDef.extraAttackTargets: Thùng của chính mình cho Gangplank), không qua khiêu khích
     const extra = a.token ? [] : getHero(a.hero)?.extraAttackTargets?.(g,
         a) ?? []
@@ -213,8 +236,8 @@ function targetValues(g: Game, side: Side, self: Unit, k: TargetKind, max: numbe
     switch (k) {
     case "none": case "self": case "all_enemies": case "all_allies": return [{
     }]
-    case "opposite": return g.opposite(self) ? [{
-    }] : []
+    case "opposite": { const o = g.opposite(self); return o && g.targetable(o) ? [{
+    }] : [] }
     case "enemy": return tauntFilter(g,
         side,
         foes).map((u) => ({
@@ -490,6 +513,10 @@ export function legalActions(state: GameState, side: Side): Action[] {
             false)) out.push({
             t: "attack", side, actor: a.id, target: t.id, cardless: true
         })
+        // tháo đồ (V3): lá đồ về tay (tay đầy thì đốt)
+        for (const u of g.heroes(side)) for (const item of new Set(u.items)) out.push({
+            t: "unequip", side, unit: u.id, item
+        })
         // ghép tại chỗ: tướng đang mang 1 mảnh + 1 mảnh trên tay + 1 Vàng
         {
             const hd = s.players[side].hand
@@ -632,6 +659,13 @@ export function applyAction(state: GameState, action: Action): { state: GameStat
             action.cardless ? "cardless" : "free")
         break
     }
+    case "unequip": {
+        const u = g.unit(action.unit)
+        if (!u || u.side !== action.side || u.status !== "board" || u.token || !u.items.includes(action.item)) throw new Error("Không tháo được món này")
+        g.unequip(u,
+            action.item)
+        break
+    }
     case "craft": doCraft(g,
         action); break
     case "upgrade": doUpgrade(g,
@@ -673,6 +707,7 @@ function payMana(g: Game, side: Side, card: Card): number {
 function blindOptions(g: Game, side: Side): Extract<Action, { t: "summon" }>[] {
     const b = g.s.blind
     if (!b || b.ready[side] || b.picks[side].length >= b.cap) return []
+    if (!RULES.summonRounds.includes(g.s.round)) return [] // V3: chỉ gọi tướng ở các mốc RULES.summonRounds
     const out: Extract<Action, { t: "summon" }>[] = []
     const taken = b.picks[side]
     for (const h of g.s.players[side].heroes) {
@@ -1013,7 +1048,7 @@ function resolveLink(g: Game, L: ChainLink, opened = false) {
     if (L.kind === "attack") {
         const a = g.unit(args.actor), t = g.unit(args.target)
         const cardless = L.mode === "cardless"
-        if (a && t && a.status === "board" && t.status === "board") g.attack(a,
+        if (a && t && a.status === "board" && t.status === "board" && (t.side === a.side || g.targetable(t))) g.attack(a,
             t,
             cardless ? {
                 cardless: true, mult: RULES.fighterCardlessMult
@@ -1064,7 +1099,7 @@ function resolveCardInner(g: Game, side: Side, card: Card, args: PlayArgs, trigg
         switch (card.id) {
         case "basic": {
             const a = g.unit(args.actor)
-            if (a && tgt && g.canAttack(a) && tgt.status === "board") g.attack(a,
+            if (a && tgt && g.canAttack(a) && tgt.status === "board" && (tgt.side === a.side || g.targetable(tgt))) g.attack(a,
                 tgt)
             break
         }
@@ -1110,12 +1145,14 @@ function resolveCardInner(g: Game, side: Side, card: Card, args: PlayArgs, trigg
             const kinds0 = Array.isArray(def.target) ? def.target : [def.target]
             const redirected = kinds0.includes("opposite") && args.target && g.unit(args.target)?.side !== side ? g.unit(args.target) : undefined // Braum Q đổi mục tiêu chiêu "đối diện"
             const target = trigger && def.chainOnly ? g.unit(trigger.target) : kinds0.includes("opposite") ? redirected ?? g.opposite(self) : g.unit(args.target)
-            const picked = kinds0.includes("opposite") ? (target ? [target] : []) : (args.targets ?? (args.target ? [args.target] : [])).map((id) => g.unit(id)).filter((u): u is Unit => !!u && u.status === "board")
+            // mục tiêu địch đã Tàng Hình/đóng băng trong lúc chờ Chuỗi: chiêu trượt (không chọn được nữa)
+            const lost = (u: Unit | undefined) => !!u && u.side !== self.side && !g.targetable(u)
+            const picked = kinds0.includes("opposite") ? (target ? [target] : []) : (args.targets ?? (args.target ? [args.target] : [])).map((id) => g.unit(id)).filter((u): u is Unit => !!u && u.status === "board" && !lost(u))
             const targets = trigger && def.chainOnly ? (target ? [target] : []) : picked
             const kinds = Array.isArray(def.target) ? def.target : [def.target]
             const needsTarget = !def.chainOnly && kinds.some((k) => k === "opposite" || k === "enemy" || k === "ally" || k === "ally_other")
             const needsAny = !def.chainOnly && kinds.some((k) => k === "enemies_upto" || k === "allies_upto") && (args.targets?.length ?? 0) > 0
-            if (!(needsTarget && (!target || target.status !== "board")) && !(needsAny && !targets.length) && self.status === "board") {
+            if (!(needsTarget && (!target || target.status !== "board" || lost(target))) && !(needsAny && !targets.length) && self.status === "board") {
                 const ctx: Ctx = {
                     g, self, side, card, args, target, targets, lane: args.lane, trigger, manaPaid,
                     f: (expr) => g.f(self,
@@ -1229,6 +1266,8 @@ function doCraft(g: Game, a: Extract<Action, { t: "craft" }>) {
 function beginTurn(g: Game) {
     const s = g.s, side = s.active
     s.actionsThisTurn = 0
+    ;(s.ownTurns ??= {
+    })[side] = (s.ownTurns[side] ?? 0) + 1
     s.turnAttacks = {
         used: 0, cardless: []
     }
@@ -1253,6 +1292,15 @@ function beginTurn(g: Game) {
         {
             side
         })
+    for (const tok of Object.values(s.units)) { // hành vi của vật triệu hồi (Thiếu Nữ của Yorick...)
+        if (isOver(g)) break
+        if (!tok.token || tok.status !== "board" || tok.side !== side) continue
+        getTokenBehavior(tok.token.id)?.onOwnerTurnStart?.(g,
+            tok,
+            g.unit(tok.token.ownerId))
+    }
+    g.fireDelayed("turnStart",
+        side)
     if (isOver(g)) return
     // Thiêu Đốt (phép bổ trợ): mất máu đầu lượt của chủ tướng
     for (const u of g.board(side)) { const v = g.statusV(u,
@@ -1265,6 +1313,17 @@ function beginTurn(g: Game) {
         }) }
     if (isOver(g)) return
     drawStep(g)
+    if (!isOver(g)) giveFreeCards(g,
+        side)
+}
+
+/** Quà tặng đều đặn (không lấy từ bộ bài): lượt thứ 2, 4... của mình +1 Đánh Thường; lượt thứ 3, 6... +1 mảnh đồ ngẫu nhiên */
+function giveFreeCards(g: Game, side: Side) {
+    const n = g.s.ownTurns?.[side] ?? 0
+    if (n > 0 && n % RULES.freeBasicEvery === 0) g.giveFreeCard(side,
+        "basic")
+    if (n > 0 && n % RULES.freeItemEvery === 0) g.giveFreeCard(side,
+        "item")
 }
 
 /** Rút bài đầu lượt: lượt đầu của mỗi phe không rút (tay đầu đã rút trước bước gọi tướng); các lượt sau rút RULES.drawPerTurn. Bộ trống ngay lúc bắt đầu rút: thua; hết giữa chừng thì dừng. */
@@ -1299,6 +1358,16 @@ function endTurn(g: Game) {
             })
     }
     if (isOver(g)) return
+    for (const tok of Object.values(s.units)) {
+        if (isOver(g)) break
+        if (!tok.token || tok.status !== "board" || tok.side !== side) continue
+        getTokenBehavior(tok.token.id)?.onOwnerTurnEnd?.(g,
+            tok,
+            g.unit(tok.token.ownerId))
+    }
+    g.fireDelayed("turnEnd",
+        side)
+    if (isOver(g)) return
     g.hook("onTurnEnd",
         {
             side
@@ -1306,7 +1375,7 @@ function endTurn(g: Game) {
     g.expireTemps(side)
     g.expireTokens()
     g.expireReveals()
-    // trạng thái có decay giảm cuối lượt của CHỦ nó (Say Mê của Ahri)
+    // trạng thái có decay giảm cuối lượt của CHỦ nó
     for (const u of Object.values(s.units)) {
         if (u.side !== side) continue
         for (const [id,
@@ -1320,6 +1389,8 @@ function endTurn(g: Game) {
             })
         }
     }
+    g.expireTransforms(side)
+    g.expireMarks()
     for (const u of Object.values(s.units)) {
         for (const id of Object.keys(u.statuses)) if (u.statuses[id].until <= s.turnNo) g.removeStatus(u,
             id)
@@ -1362,9 +1433,18 @@ export function cardInfo(g: Game, card: Card, unit?: Unit): { name: string; desc
     if (card.kind === "support") return {
         name: SUPPORT_NAME[card.id] ?? SPELL_VI[spellOf(card.id) ?? "heal"]?.name ?? card.id, desc: SUPPORT_DESC[card.id] ?? (spellOf(card.id) ? SPELL_VI[spellOf(card.id)!].desc : ""), type: "support"
     }
-    if (card.kind === "special") { const sp = getSpecialCard(card.id); return {
-        name: sp?.name ?? card.id, desc: sp?.desc ?? "", type: "special"
-    } }
+    if (card.kind === "special") {
+        const sp = getSpecialCard(card.id)
+        let name = sp?.name ?? card.id
+        if (card.id === "pick_card") { // V3: lá chọn lá từ mộ (g.offerPick) ghi tên lá sẽ lấy
+            const target = Object.values(g.s.players).flatMap((pl) => pl.grave).find((c) => c.uid === String(card.data?.uid))
+            if (target) name = `${name}: ${cardInfo(g,
+                target).name}`
+        }
+        return {
+            name, desc: sp?.desc ?? "", type: "special"
+        }
+    }
     const def = skillOfCard(card)
     const u = unit ?? heroUnitOfCard(g,
         card,

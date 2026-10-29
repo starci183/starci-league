@@ -1,6 +1,7 @@
-// Kog'Maw (Xạ thủ, phép): máu 400 · AD 70 · giáp/kháng 24/28. Chất: ĐÓI, trận càng dài, sống càng dai càng mạnh.
+// Kog'Maw (Xạ thủ, phép): máu 340 · AD 116 · AP gốc 84 · giáp/kháng 25/27. Chất: ĐÓI, trận càng dài, sống càng dai càng mạnh.
 // Đói = bộ đếm (stack "hunger", tối đa 20): +1 mỗi lượt Kog còn sống, +1 mỗi khi có tướng chết (bất kỳ phe); Kog chết thì mất nửa.
-// Đòn đánh của Kog gây thêm % máu tối đa của mục tiêu theo Đói (sát thương phép).
+// Đòn đánh của Kog gây thêm % máu tối đa của mục tiêu theo Đói + một phần AD/AP (sát thương phép).
+// AP gốc = AD cũ của tướng phép (đề xuất V3, đã vào engine: HeroDef.ap).
 import {
     pct
 } from "../formula"
@@ -11,13 +12,20 @@ import {
 const HUNGER = "hunger"
 const GORGE = "kog_e"
 export const MAX_HUNGER = 20
-/** % máu tối đa của mục tiêu mỗi Đói cho đòn đánh (E nhân đôi) */
-const ATTACK_PCT = 0.026
+/** AP gốc = AD cũ (84) */
+const BASE_AP = 84
+/** % máu tối đa của mục tiêu mỗi Đói cho đòn đánh (E nhân đôi phần này) */
+const ATTACK_PCT = 0.008
+/** Phần cộng thêm cố định mỗi đòn đánh */
+const F_ATTACK = "10% AD + 15% AP"
+const F_Q = "40 + 80% AD + 40% AP"
+const Q_HUNGER = 3
 /** % máu tối đa mỗi Đói cho R */
-const R_PCT = 0.045
+const R_PCT = 0.015
+const F_R = "30% AD + 50% AP"
 
 export default defineHero({
-    id: "kogmaw", name: "Kog'Maw", role: "marksman", damage: "magic", hp: 380, atk: 84, armor: 28, mr: 28,
+    id: "kogmaw", name: "Kog'Maw", role: "marksman", damage: "magic", hp: 340, atk: 116, ap: BASE_AP, armor: 25, mr: 27,
     bot: {
         stackValue: {
             hunger: 10,
@@ -26,7 +34,7 @@ export default defineHero({
     desc: "Sống càng lâu càng đói: bắn theo % máu tối đa, tank càng trâu càng lủng.",
     passive: {
         name: "Đói Khát",
-        desc: `Đầu lượt của bạn, Kog'Maw còn sống: +1 Đói. Có tướng chết (bất kỳ phe): +1 Đói. Đòn đánh của Kog'Maw gây thêm ${pct(ATTACK_PCT)}% máu tối đa của mục tiêu mỗi Đói (sát thương phép, tối đa ${MAX_HUNGER} Đói). Kog'Maw chết: mất nửa Đói.`,
+        desc: `Đầu lượt của bạn, Kog'Maw còn sống: +1 Đói. Có tướng chết (bất kỳ phe): +1 Đói (tối đa ${MAX_HUNGER}). Kog'Maw chết: mất nửa Đói. Đòn đánh của Kog'Maw gây thêm ${pct(ATTACK_PCT)}% máu tối đa của mục tiêu mỗi Đói + {${F_ATTACK}} sát thương phép.`,
     },
     hooks: {
         onTurnStart(g, me, d) {
@@ -50,27 +58,34 @@ export default defineHero({
             if (d.attacker.id !== me.id || d.info.miss) return
             const n = g.stackOf(me,
                 HUNGER)
-            if (n <= 0) return
             d.info.bonus.push({
                 raw: d.target.maxHp * ATTACK_PCT * n * (g.has(me,
-                    GORGE) ? 2 : 1), kind: "magic"
+                    GORGE) ? 2 : 1) + g.f(me,
+                    F_ATTACK), kind: "magic"
             })
         },
     },
     skills: {
         Q: {
-            key: "Q", name: "Nuôi Dưỡng", target: "self",
-            desc: "Kog'Maw +3 Đói.",
+            key: "Q", name: "Tạt Axit", target: "enemy",
+            desc: `Chọn 1 tướng địch; nó nhận {${F_Q}} sát thương phép, Kog'Maw +${Q_HUNGER} Đói.`,
             resolve(c) {
+                c.g.damage(c.self,
+                    c.target!,
+                    c.f(F_Q),
+                    "magic",
+                    {
+                        tag: "skill"
+                    })
                 c.g.stack(c.self,
                     HUNGER,
-                    3,
+                    Q_HUNGER,
                     MAX_HUNGER)
             },
         },
         E: {
             key: "E", name: "Xả Đạn", target: "self",
-            desc: "Tới hết lượt này: mỗi đòn đánh của Kog'Maw gây gấp đôi % máu tối đa từ Đói.",
+            desc: "Tới hết lượt này: phần % máu tối đa từ Đói trên mỗi đòn đánh của Kog'Maw nhân đôi.",
             resolve(c) {
                 c.g.status(c.self,
                     GORGE,
@@ -79,16 +94,16 @@ export default defineHero({
         },
         R: {
             key: "R", name: "Đại Bác Sinh Học", target: "all_enemies",
-            desc: `Mọi tướng địch nhận sát thương phép bằng ${pct(R_PCT)}% máu tối đa của chúng mỗi Đói của Kog'Maw.`,
+            desc: `Mọi tướng địch nhận sát thương phép bằng ${pct(R_PCT)}% máu tối đa của chúng mỗi Đói + {${F_R}}.`,
             resolve(c) {
                 const n = c.g.stackOf(c.self,
                     HUNGER)
-                if (n <= 0) return
+                const flat = c.f(F_R)
                 for (const t of c.g.enemies(c.self)) {
                     if (t.token) continue
                     c.g.damage(c.self,
                         t,
-                        t.maxHp * R_PCT * n,
+                        t.maxHp * R_PCT * n + flat,
                         "magic",
                         {
                             tag: "skill"

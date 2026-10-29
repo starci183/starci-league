@@ -6,7 +6,7 @@ import {
     cg
 } from "@starci/shared"
 import {
-    itemEmoji, itemIcon, itemName, passiveOf, portrait, roleName, tr, unitName
+    ELEMENT_CLS, elementName, formName, itemEmoji, itemIcon, itemName, markInfo, passiveOf, portrait, roleName, stackInfoV2, stackValueText, tr, unitName
 } from "./helpers"
 import {
     RichText
@@ -36,6 +36,12 @@ export function Img(p: { src: string; alt?: string; className?: string; fallback
     if (bad) return p.fallback ? <span className={`${p.className ?? ""} bd-fb`}>{p.fallback}</span> : null
     return <img src={p.src} alt={p.alt ?? ""} className={p.className} draggable={false} onError={() => setBad(true)} />
 }
+
+/** Khoá kỹ thuật của engine/đồ, không phải bộ đếm cho người chơi */
+const HIDDEN_STACK = /^(once:|aura:|tc:|item:|itemT|lissFrozen$|frenzyLow$)/
+/** Chữ viết tắt của tên bộ đếm/dấu: chữ đầu mỗi từ, tối đa 2 (Song Giáp -> SG) */
+const initials = (name: string) => name.split(/\s+/).filter(Boolean).map((w) => w[0]).join("").slice(0,
+    2).toUpperCase()
 
 const clampPct = (n: number) => `${Math.max(0,
     Math.min(100,
@@ -136,11 +142,14 @@ export function UnitCard(p: UnitCardProps) {
     const stunned = !!u.statuses.stun
     const silenced = !!u.statuses.silence
     const role = g.role(u)
-    const stacks = Object.entries(u.stacks).filter(([, v]) => v > 0)
+    const stacks = Object.entries(u.stacks).filter(([k,
+        v]) => v > 0 && k !== "element" && !HIDDEN_STACK.test(k)) // khoá kỹ thuật không hiện; nguyên tố có huy hiệu riêng
+    const element = u.stacks.element ?? 0
+    const marks = (u.marks ?? []).filter((m) => m.hits > 0)
     return (
         <div
             data-unit-id={u.id}
-            className={`bd-unit ${p.mine ? "mine" : "foe"} role-${role} ${u.token ? "token" : ""} ${stunned ? "stunned" : ""} ${silenced ? "silenced" : ""} ${u.statuses.stealth ? "stealthed" : ""} ${p.cls}`}
+            className={`bd-unit ${p.mine ? "mine" : "foe"} role-${role} ${u.token ? "token" : ""} ${stunned ? "stunned" : ""} ${silenced ? "silenced" : ""} ${u.statuses.stealth ? "stealthed" : ""} ${u.statuses.stasis ? "stasis" : ""} ${u.transform ? `transformed tf-${u.transform.id}` : ""} ${p.cls}`}
             onMouseEnter={p.onEnter}
             onMouseMove={p.onMove}
             onMouseLeave={p.onLeave}
@@ -158,11 +167,37 @@ export function UnitCard(p: UnitCardProps) {
                 <Img src={portrait(u)} className="bd-img" fallback={unitName(u).slice(0,
                     1)} />
                 <span className={`bd-role r-${role}`}>{roleName(role)}</span>
+                {u.transform ? <span className="bd-form" title={formName(u.transform.id)}>{formName(u.transform.id)}</span> : null}
+                {element > 0 ? (
+                    <span className={`bd-elem el-${ELEMENT_CLS[element - 1] ?? "red"}`} title={stackInfoV2("element")?.desc}>{elementName(element)}</span>
+                ) : null}
                 {p.soaked ? <span className="bd-soak" title={t.soakFor} /> : null}
-                {stacks.length ? (
+                {stacks.length || marks.length ? (
                     <span className="bd-stacks">
                         {stacks.map(([k,
-                            v]) => <b key={k} title={k}>{v}</b>)}
+                            v]) => {
+                            const info = stackInfoV2(k)
+                            const name = info?.name ?? k
+                            return (
+                                <b key={k} title={`${name}: ${stackValueText(k,
+                                    v)}${info ? `
+${info.desc}` : ""}`}>
+                                    <i>{initials(name)}</i>
+                                    {stackValueText(k,
+                                        v)}
+                                </b>
+                            )
+                        })}
+                        {marks.map((m, i) => {
+                            const info = markInfo(m.id)
+                            return (
+                                <b key={`mk${i}`} className="mk" title={`${info.name}: ${m.hits}
+${info.desc}`}>
+                                    <i>{initials(info.name)}</i>
+                                    {m.hits}
+                                </b>
+                            )
+                        })}
                     </span>
                 ) : null}
                 {u.nextAttack.length ? <span className="bd-next" title={t.next}>{u.nextAttack.length}</span> : null}

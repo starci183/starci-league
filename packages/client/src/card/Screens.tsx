@@ -146,6 +146,12 @@ const BRIEF: Record<string, [string, string]> = {
         "Kiểm soát bộ bài: tìm lá, soi/huỷ Nấm, xem và phá tay"],
     teemo: ["Phức tạp",
         "Ép cạn bài: Nấm trong bộ địch, rút càng nhiều càng nổ"],
+    tristana: ["Vừa",
+        "Bom nổ chậm: gắn Bom rồi nện cho nổ, nổ hạ gục thì lá E về tay"],
+    missfortune: ["Đơn giản",
+        "Mưa đạn: đổi mục tiêu liên tục, Bão Đạn bắn hai nhịp"],
+    velkoz: ["Vừa",
+        "Phân Rã: chiêu trúng đủ 3 lần thì nổ sát thương chuẩn"],
 }
 const syn = (id: string) => cg.SYNERGY[id] as cg.HeroSynergy | undefined
 const nameOf = (id: string) => (EN ? cg.HERO_EN[id]?.name : undefined) ?? cg.getHero(id)?.name ?? id
@@ -277,7 +283,11 @@ function HeroBrief({ id, rect, avail }: { id: string; rect: DOMRect; avail: Avai
     const top = Math.max(8,
         Math.min(rect.top - 20,
             window.innerHeight - 320))
-    const txt = (raw: string) => cg.formulaText(raw)
+    // tính công thức theo chỉ số gốc của tướng (chưa vào trận, chưa đồ)
+    const pv = cg.previewUnit(id)
+    const txt = (raw: string) => cg.formulaText(raw,
+        pv?.g,
+        pv?.u)
     const keys = ["Q",
         "E",
         "R"] as const

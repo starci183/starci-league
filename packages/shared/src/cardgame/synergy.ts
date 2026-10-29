@@ -61,7 +61,8 @@ export const SYNERGY: Record<string, HeroSynergy> = {
         engines: ["chain"], combos: ["kogmaw",
             "viktor",
             "jinx"], counteredBy: ["twistedfate",
-            "malphite"]
+            "malphite",
+            "velkoz"]
     },
     blitzcrank: {
         engines: ["hand",
@@ -93,7 +94,8 @@ export const SYNERGY: Record<string, HeroSynergy> = {
         engines: ["recycle"], combos: ["kogmaw",
             "nami",
             "garen"], counteredBy: ["zed",
-            "katarina"]
+            "katarina",
+            "missfortune"]
     },
     teemo: {
         engines: ["mill"], combos: ["ashe",
@@ -106,14 +108,16 @@ export const SYNERGY: Record<string, HeroSynergy> = {
             "soraka",
             "nami"], counteredBy: ["teemo",
             "darius",
-            "ashe"]
+            "ashe",
+            "tristana"]
     },
     aatrox: {
         engines: ["prizes",
             "scaling"], combos: ["soraka",
             "janna",
             "leona"], counteredBy: ["lissandra",
-            "vayne"]
+            "vayne",
+            "missfortune"]
     },
     garen: {
         engines: ["items"], combos: ["ornn",
@@ -147,7 +151,8 @@ export const SYNERGY: Record<string, HeroSynergy> = {
         engines: ["items"], combos: ["ornn",
             "leona"], counteredBy: ["kogmaw",
             "vayne",
-            "jinx"]
+            "jinx",
+            "velkoz"]
     },
     ornn: {
         engines: ["items"], combos: ["gangplank",
@@ -236,6 +241,26 @@ export const SYNERGY: Record<string, HeroSynergy> = {
             "chain"], combos: ["blitzcrank",
             "lux"], counteredBy: ["twistedfate",
             "malphite"]
+    },
+    // V3: 3 tướng mới (REDESIGN_V2.md mục H)
+    tristana: {
+        engines: ["marks"], combos: ["braum",
+            "leona"], counteredBy: ["janna",
+            "zed"]
+    },
+    missfortune: {
+        engines: ["marks"], combos: ["brand",
+            "leona"], counteredBy: ["janna",
+            "braum",
+            "annie"]
+    },
+    velkoz: {
+        engines: ["marks",
+            "scaling"], combos: ["janna",
+            "braum",
+            "brand"], counteredBy: ["zed",
+            "khazix",
+            "janna"]
     },
 }
 

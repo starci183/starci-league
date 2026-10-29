@@ -239,7 +239,7 @@ const TEAM = ["t_guard",
 // ======================================================================
 G("Mở đường & ván đầu")
 // ======================================================================
-test("V2: mỗi vòng mở đúng 1 đường theo RULES.laneOrder (nhịp laneOpenEvery), tới đủ 5",
+test("V3: mỗi mốc RULES.summonRounds (1, 4, 8, 13, 19) mở đúng 1 đường theo RULES.laneOrder, tới đủ 5",
     () => {
         let s = cg.newGame(SEED,
             ["darius",
@@ -259,14 +259,13 @@ test("V2: mỗi vòng mở đúng 1 đường theo RULES.laneOrder (nhịp laneO
             open(s))
         // chỉ tướng gọi ra thì mới không cạn bài: bộ gốc 22 lá, đi 8 vòng cần ~16 lá
         let guard = 0
-        while (s.round < 8 && guard++ < 40) { s = end(s,
+        while (s.round < 9 && guard++ < 80) { s = end(s,
             s.active).s; if (!seen.has(s.round)) seen.set(s.round,
             open(s)); if (s.phase === "over") break }
         for (const [rd,
             lanes] of seen) assert.deepEqual([...lanes].sort(),
             cg.RULES.laneOrder.slice(0,
-                Math.min(5,
-                    1 + Math.floor((rd - 1) / cg.RULES.laneOpenEvery))).sort(),
+                cg.RULES.summonRounds.filter((r) => r <= rd).length).sort(),
             `vòng ${rd}`)
         assert.deepEqual(seen.get(1),
             [2],
@@ -1178,12 +1177,14 @@ test("V2: tướng bị hạ GIỮ đường (xám, đếm ngược), hồi sinh
                     "braum").status === "board") break
             }
         }
+        const R = cg.RULES.respawnRounds
         assert.deepEqual(st.slice(0,
-            4),
-        ["5:dead",
-            "6:dead",
-            "7:dead",
-            "8:board"])
+            R + 1),
+        [...Array.from({
+            length: R
+        },
+        (_, i) => `${5 + i}:dead`),
+        `${5 + R}:board`])
         const r = u(s,
             "B",
             "braum")
@@ -1439,7 +1440,12 @@ test("Sát thủ: Đánh thường lên tướng cùng đường, RULES.roleAtta
                 "A:zed",
                 "B:braum",
                 cg.RULES.roleAttack.assassin))
-        assert.ok(got > 1.5 * expectDmg(s,
+        assert.equal(cg.RULES.roleAttack.assassin,
+            1.25,
+            "V3: Sát thủ 1.25× AD, mọi vai khác 1×")
+        assert.ok(Object.entries(cg.RULES.roleAttack).every(([r,
+            m]) => r === "assassin" || m === 1))
+        assert.ok(got > 1.2 * expectDmg(s,
             "A:zed",
             "B:braum",
             1))
@@ -2338,7 +2344,7 @@ test("Trạng thái/bộ đếm V2 có đủ tên + mô tả VI/EN; STATUS_EN/ST
         assert.deepEqual(cg.missingTranslations().filter((id) => !id.startsWith("t_")),
             [])
         assert.equal(Object.keys(cg.HERO_EN).length,
-            30)
+            cg.implementedHeroes().filter((h) => !h.id.startsWith("t_")).length)
     })
 test("applyCardLocale('en') đổi tên + mô tả tướng đã dịch, 'vi' khôi phục nguyên bản",
     () => {
@@ -2457,6 +2463,41 @@ test("eventText: mọi loại sự kiện phát ra trong một ván mẫu đều
         [],
         `${all.length} sự kiện, ${types.size} loại`)
     })
+test("Chữ tướng/đồ/phép (VI + EN) không lộ số thực dài kiểu 2.1999999999999997",
+    () => {
+        const bad: string[] = []
+        const check = (where: string, t: string | undefined) => { if (t && /\d\.\d{4,}/.test(t)) bad.push(`${where}: ${t}`) }
+        for (const h of cg.implementedHeroes()) {
+            check(`${h.id} passive`,
+                h.passive.desc)
+            for (const k of ["Q",
+                "E",
+                "R"] as const) check(`${h.id} ${k}`,
+                h.skills[k]?.desc)
+            const en = cg.HERO_EN[h.id]
+            if (!en) continue
+            check(`${h.id} passive EN`,
+                en.passive.desc)
+            for (const k of ["Q",
+                "E",
+                "R"] as const) check(`${h.id} ${k} EN`,
+                en.skills[k]?.desc)
+        }
+        for (const id of Object.keys(cg.CARD_ITEMS)) {
+            for (const lang of ["vi",
+                "en"] as const) {
+                const t = cg.itemText(id,
+                    lang)
+                check(`${id} ${lang}`,
+                    `${t?.stats} ${t?.desc}`)
+            }
+        }
+        for (const sp of cg.SPELLS) check(`spell ${sp}`,
+            cg.SPELL_VI[sp].desc)
+        assert.deepEqual(bad.slice(0,
+            5),
+        [])
+    })
 test("Các bảng EN đủ khoá: thẻ hỗ trợ + 8 phép bổ trợ, 3 wild, 6 vai",
     () => {
         assert.deepEqual(Object.keys(cg.SUPPORT_EN).sort(),
@@ -2480,7 +2521,7 @@ test("Các bảng EN đủ khoá: thẻ hỗ trợ + 8 phép bổ trợ, 3 wild,
                 "marksman",
                 "support",
                 "tank"])
-        assert.ok("mushroom" in cg.SPECIAL_EN && "ornn_forge" in cg.SPECIAL_EN)
+        assert.ok("mushroom" in cg.SPECIAL_EN && "pick_card" in cg.SPECIAL_EN)
     })
 
 // ======================================================================
@@ -3201,7 +3242,7 @@ console.log(`\nTỔNG (lõi + nhóm lead): ${results.length} test | PASS ${c("PA
 let total = results.length, pass = c("PASS"), fail = c("FAIL")
 if (!only && !process.argv.includes("--core")) {
     const dir = path.dirname(fileURLToPath(import.meta.url))
-    for (const f of fs.readdirSync(dir).filter((x) => /^card_tests_(g\d+|items|bot|v2|heroes_g\d+v?)\.ts$/.test(x)).sort()) {
+    for (const f of fs.readdirSync(dir).filter((x) => /^card_tests_(g\d+|items|bot|v2|v3|heroes_g\d+v?|heroes_new)\.ts$/.test(x)).sort()) {
         const r = spawnSync(process.execPath,
             ["--import",
                 "tsx",

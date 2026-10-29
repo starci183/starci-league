@@ -1,4 +1,4 @@
-// Văn bản V2 nhóm G2V: Blitzcrank, Braum, Leona, Malphite, Renata, Janna.
+// Văn bản V2 (cập nhật V3) nhóm G2V: Blitzcrank, Braum, Leona, Malphite, Renata, Janna.
 // Người tích hợp gộp HERO_EN_V2_G2V / STATUS_V2_G2V / STACK_V2_G2V vào i18n_en.ts + client, KEYWORDS_V2_G2V vào keywords/index.ts.
 import type {
     HeroTextEn
@@ -9,128 +9,128 @@ import type {
 
 export const HERO_EN_V2_G2V: Record<string, HeroTextEn> = {
     blitzcrank: {
-        desc: "The steam golem reaches into the enemy hand: he steals exactly the card they need. A stolen skill card is burned and its champion freezes in place.",
+        desc: "The steam golem reaches into the enemy hand: whichever champion's skill he steals takes the hit, and the stolen skill becomes his team's.",
         passive: {
             name: "Iron Grip",
-            desc: "A card you Card-Steal: a shared card goes to your hand; an enemy champion's skill card is Burned and that champion is Stunned for 1 turn.",
+            desc: "Each card Blitzcrank Card-Steals: Blitzcrank gains a Shield of {20 + 10% AD + 15% AP}. A shared card goes to your hand; an enemy champion's skill card becomes a random Q or E card of one of your champions on the board.",
         },
         skills: {
             Q: {
                 name: "Rocket Grab",
-                desc: "The opponent has at least 1 card in hand; Card-Steal 1 random card from the opponent's hand. If you have Revealed Hand: choose the card.",
+                desc: "The opponent has at least 1 card in hand; Card-Steal 1 random card from the opponent's hand (choose the card while you have Revealed Hand). If it is a skill card: its champion takes {60 + 60% AD + 60% AP} magic damage; if that champion is dead or not on the board, the damage hits a random living enemy champion instead.",
             },
             E: {
                 name: "Grab Back",
-                desc: "Quick, Chain Only. When an enemy plays a card: Negate that card, then Card-Steal it.",
+                desc: "Quick, Chain Only. When an enemy plays a skill card: Negate that card, then Card-Steal it; the champion that cast it is Stunned for 1 turn.",
             },
             R: {
                 name: "Static Field",
-                desc: "Reveal Hand until the end of the turn; every enemy champion with one of its own skill cards in the opponent's hand is Stunned for 1 turn.",
+                desc: "Reveal Hand until the end of the turn; every enemy champion with one of its own skill cards in the opponent's hand takes {80 + 50% AD + 80% AP} magic damage and is Stunned for 1 turn.",
             },
         },
     },
     braum: {
-        desc: "Shield of the Freljord: he soaks hits for the whole team and gets Steady with every blow. He never deals skill damage.",
+        desc: "Shield of the Freljord: he opens the fight with a Frost Mark, soaks hits for the whole team, hardens with every blow, then locks down the enemy line.",
         passive: {
             name: "Iron Hide",
-            desc: "Each attack that hits Braum: +1 Steady (permanent, max 6). Each Steady: Braum takes 10% less damage.",
+            desc: "Each attack that hits Braum: +1 Twin Armor (permanent, no cap). Each Twin Armor: +1.5 Armor and +1.5 Magic Resist.",
         },
         skills: {
             Q: {
-                name: "Stand Behind Me",
-                desc: "Quick, Chain Only. When an enemy attacks 1 ally other than Braum: Intercept that attack; Braum +2 Steady.",
+                name: "Winter's Bite",
+                desc: "Choose 1 enemy champion; deal {40 + 40% AD + 40% AP} magic damage and place a Frost Mark on it until the end of this turn. The first time an ally other than Braum hits it: it is Stunned for 1 turn and Braum gains +2 Twin Armor.",
             },
             E: {
-                name: "Unbreakable",
-                desc: "Quick, Chain Only. When an enemy attacks: until the end of this turn, Braum's Steady counts ×2 (Braum takes up to 80% less damage).",
+                name: "Stand Behind Me",
+                desc: "Quick, Chain Only. When an enemy attacks 1 ally other than Braum: Intercept that attack; Braum gains +2 Twin Armor and a Shield of {40 + 30% AD + 30% AP}.",
             },
             R: {
-                name: "Glacial Fissure",
-                desc: "Quick. Until the end of the opponent's turn: every ally takes 10% less damage for each of Braum's Steady.",
+                name: "Glacial Seal",
+                desc: "Quick. Choose 1 enemy champion; it is Stunned for 1 turn. Every other enemy champion has a {5% + 1% per 100 max HP + 1% per 10 Armor} chance (Braum's stats) to be Stunned for 1 turn. Can be used in the opponent's turn to cut off a fight.",
             },
         },
     },
     leona: {
-        desc: "The Radiant Dawn: gather Sun on enemies, three Sun is a Stun. Leona deals no skill damage, her team strikes after.",
+        desc: "The Radiant Dawn: she locks down with skills, marks enemies with Sun for her team to cash in, and raises an Eclipse to soak the hits for everyone.",
         passive: {
             name: "Sunlight",
-            desc: "Leona's attacks give the target +1 Sun. An enemy champion with 3 Sun: Stunned for 1 turn and loses all Sun.",
+            desc: "Leona's skills put Sun on enemies. An ally other than Leona who hits a champion with Sun deals {20 + 20% AD + 30% AP} bonus damage (Leona's stats), then the Sun fades.",
         },
         skills: {
             Q: {
                 name: "Shield of Daybreak",
-                desc: "Choose 1 enemy champion; it gets +2 Sun.",
+                desc: "The enemy champion opposite Leona takes {40 + 60% AD + 40% AP} physical damage, is Stunned for 1 turn and gets Sun.",
             },
             E: {
                 name: "Eclipse",
-                desc: "Until the end of this turn: each attack of an ally other than Leona gives the target +1 Sun.",
+                desc: "Quick. Until the end of the opponent's turn: Leona gains +60 Armor and +60 Magic Resist, and absorbs all damage enemies deal to her allies. At the end of that turn, 1 random enemy champion takes 40% of the total damage Leona absorbed + {20 + 20% AD + 30% AP} physical damage and gets Sun.",
             },
             R: {
                 name: "Solar Flare",
-                desc: "Every enemy champion gets +2 Sun.",
+                desc: "Every enemy champion takes {60 + 40% AD + 60% AP} physical damage and gets Sun. A champion that already had Sun is Stunned for 1 turn.",
             },
         },
     },
     malphite: {
-        desc: "The walking mountain: the thicker your hand, the harder he is and the harder he hits, then he throws the whole hand as boulders.",
+        desc: "The walking mountain: Armor is his weapon, his Shield and his damage; he steals Armor, punishes whoever hits him, and opens the fight with Unstoppable Force.",
         passive: {
             name: "Granite Shield",
-            desc: "Malphite takes 5% less damage for each card in your hand.",
+            desc: "At the start of your turn: Malphite gains a Shield of {5% max HP + 100% Armor} (does not stack).",
         },
         skills: {
             Q: {
                 name: "Seismic Shard",
-                desc: "Choose 1 enemy champion; deal magic damage to it, {12 + 18% AD} for each card in your hand.",
+                desc: "Choose 1 enemy champion; deal {40 + 30% AD + 40% AP + 50% Armor} magic damage. Malphite takes 15 Armor from it until the end of the next turn.",
             },
             E: {
-                name: "Rolling Rock",
-                desc: "Quick, Chain Only. When an enemy attacks Malphite: you draw 2 cards before damage is dealt.",
+                name: "Thunderclap",
+                desc: "Quick, Chain Only. When an enemy attacks Malphite: until the end of this turn Malphite gains +{10 + 30% Armor} Armor, and the attacker takes {20 + 60% Armor + 20% AP} magic damage.",
             },
             R: {
                 name: "Unstoppable Force",
-                desc: "Discard your whole hand; every enemy champion takes magic damage, {12 + 18% AD} for each discarded card, ×2.",
+                desc: "Every enemy champion takes {80 + 30% AD + 50% AP + 100% Armor} magic damage; each has a {15% + 1% per 10 Armor} chance (Malphite's Armor) to be Stunned for 1 turn.",
             },
         },
     },
     renata: {
-        desc: "The Zaunite baroness, master of comebacks: a fallen ally stands up in a frenzy, whoever breaks her Ward is punished, and the enemy turns on itself.",
+        desc: "The Zaunite baroness, master of comebacks: a fallen ally stands up in a rampage, whoever hits her team gets hit back, and the enemy turns on itself.",
         passive: {
             name: "Bailout",
-            desc: "When an ally other than Renata is about to be taken down: it revives with 25% of its max HP, gains Rampage and 1 Free Attack (once per ally per game).",
+            desc: "When an ally other than Renata is about to be taken down: it revives with 25% of its max HP + {20 + 15% AD + 25% AP} HP, gains Rampage and 1 Free Attack (once per ally per game). Rampage: until the end of its next turn, each of its attacks deals {15 + 15% AD + 25% AP} bonus damage.",
         },
         skills: {
             Q: {
                 name: "Handshake",
-                desc: "Quick. Choose 1 allied champion; it gets a Shield of {110 + 90% AD} and Counter Ward. When that Shield is broken: the breaker takes {80 + 90% AD} magic damage and is Stunned for 1 turn.",
+                desc: "Your whole team gains +{10 + 10% AD + 15% AP} Armor until the end of the enemy's next turn; every enemy champion takes {20 + 20% AD + 30% AP} magic damage.",
             },
             E: {
                 name: "Hostile Takeover Pack",
-                desc: "Quick, Chain Only. When an enemy attacks exactly 1 allied champion: that champion reflects 60% of the damage it takes from that attack to the attacker (true damage).",
+                desc: "Quick, Chain Only. When an enemy attacks exactly 1 allied champion: that champion reflects 40% of the damage it takes from that attack + {10 + 10% AD + 15% AP} to the attacker (true damage).",
             },
             R: {
                 name: "Hostile Takeover",
-                desc: "Every enemy champion goes Berserk: one by one, each attacks its lowest-HP ally (itself if it has none).",
+                desc: "Every enemy champion goes Berserk: each attacks 2 times a random ally of its own (using its own AD). It never attacks itself; with no ally it does nothing.",
             },
         },
     },
     janna: {
-        desc: "Embodiment of the Storm: enemy attacks on your team whiff, crowd control cannot cling to a shielded ally, and the storm blocks a whole enemy turn.",
+        desc: "Embodiment of the Storm: Howling Gale knocks enemies out, Eye of the Storm shields and frees from crowd control, and Monsoon blocks every attack of an enemy turn, then heals the team.",
         passive: {
             name: "Windeye",
-            desc: "At the start of your turn: your lowest-HP champion gets a Shield of {30 + 30% AD}.",
+            desc: "At the start of your turn: your lowest-HP champion gains a Shield of {30 + 20% AD + 40% AP}.",
         },
         skills: {
             Q: {
                 name: "Howling Gale",
-                desc: "Quick, Chain Only. When an enemy plays a Strike card or attacks one of your champions: Negate that attack.",
+                desc: "Quick. Choose 1 enemy champion; deal {40 + 30% AD + 60% AP} magic damage and Stun it for 1 turn.",
             },
             E: {
                 name: "Eye of the Storm",
-                desc: "Quick. Choose 1 allied champion; it gets a Shield of {90 + 70% AD}. While it keeps that Shield: it is immune to Crowd Control.",
+                desc: "Quick. Choose 1 allied champion; it gains a Shield of {80 + 40% AD + 70% AP}. While it keeps that Shield: it is immune to Crowd Control.",
             },
             R: {
                 name: "Monsoon",
-                desc: "Quick. Until the end of the opponent's turn: all hits on your team deal 50% less damage. At the end of that turn, every ally heals the amount blocked.",
+                desc: "Quick. Until the end of the opponent's turn: your whole team takes no damage from attacks. At the end of that turn, every ally heals {80 + 40% AD + 80% AP}.",
             },
         },
     },
@@ -139,50 +139,42 @@ export const HERO_EN_V2_G2V: Record<string, HeroTextEn> = {
 export const STATUS_V2_G2V: Record<string, { vi: { name: string; desc: string }; en: { name: string; desc: string } }> = {
     sun: {
         vi: {
-            name: "Nắng", desc: "Dấu của Leona (số Nắng hiện trên tướng, tối đa 3). Đủ 3 Nắng: Choáng 1 lượt và mất hết Nắng.",
+            name: "Nắng", desc: "Dấu của Leona. Đồng minh khác Leona đánh trúng tướng này gây thêm sát thương rồi Nắng tan.",
         },
         en: {
-            name: "Sun", desc: "Leona's mark (shows the count, max 3). At 3 Sun: Stunned for 1 turn and loses all Sun.",
+            name: "Sun", desc: "Leona's mark. An ally other than Leona who hits this champion deals bonus damage, then the Sun fades.",
         },
     },
-    leona_e: {
+    guard: {
         vi: {
-            name: "Nhật Thực", desc: "Tới hết lượt: mỗi đòn đánh của đồng minh khác Leona +1 Nắng lên mục tiêu.",
+            name: "Nhật Thực", desc: "Tới hết lượt đối thủ: Leona +60 Giáp, +60 Kháng Phép và hứng mọi sát thương địch gây ra cho đồng đội (số hứng hiện trên tướng); cuối lượt đó trả lại một phần cho 1 địch.",
         },
         en: {
-            name: "Eclipse", desc: "Until end of turn: each attack of an ally other than Leona gives the target +1 Sun.",
+            name: "Eclipse", desc: "Until the end of the opponent's turn: Leona gains +60 Armor, +60 Magic Resist and absorbs all damage enemies deal to her allies (the amount shows on her); at the end of that turn she returns part of it to 1 enemy.",
         },
     },
-    braum_dbl: {
+    attackCut: {
         vi: {
-            name: "Vững Kép", desc: "Tới hết lượt: Vững của Braum tính ×2 (giảm sát thương tối đa 80%).",
+            name: "Miễn Đòn Đánh", desc: "Gió Mùa của Janna: tới hết lượt đối thủ không nhận sát thương từ đòn đánh (chiêu và hiệu ứng vẫn trúng).",
         },
         en: {
-            name: "Double Steady", desc: "Until end of turn: Braum's Steady counts ×2 (up to 80% damage reduction).",
+            name: "Attack Immunity", desc: "Janna's Monsoon: until the end of the opponent's turn, takes no damage from attacks (skills and effects still hit).",
         },
     },
-    braum_wall: {
+    braum_mark: {
         vi: {
-            name: "Bức Tường Băng", desc: "Tới hết lượt đối thủ: mọi đồng minh nhận ít hơn 10% sát thương cho mỗi Vững của Braum.",
+            name: "Dấu Băng", desc: "Tới hết lượt: đồng minh khác Braum đánh trúng tướng này lần đầu thì nó Choáng 1 lượt và Braum +2 Song Giáp.",
         },
         en: {
-            name: "Ice Wall", desc: "Until end of the opponent's turn: all allies take 10% less damage per Braum Steady.",
+            name: "Frost Mark", desc: "Until end of turn: the first time an ally other than Braum hits this champion, it is Stunned for 1 turn and Braum gains +2 Twin Armor.",
         },
     },
     frenzy: {
         vi: {
-            name: "Cuồng Bạo", desc: "Sát thương đòn đánh và chiêu ×1.5 tới hết lượt của tướng này (Renata còn trên sân).",
+            name: "Cuồng Bạo", desc: "Tới hết lượt kế của tướng này: mỗi đòn đánh gây thêm sát thương (Renata còn trên sân).",
         },
         en: {
-            name: "Rampage", desc: "Attack and skill damage ×1.5 until the end of this champion's turn (while Renata is on the board).",
-        },
-    },
-    renata_ward: {
-        vi: {
-            name: "Giáp Phản", desc: "Khi Khiên của tướng này bị phá: kẻ phá nhận sát thương phép lớn và Choáng 1 lượt.",
-        },
-        en: {
-            name: "Counter Ward", desc: "When this champion's Shield is broken: the breaker takes heavy magic damage and is Stunned for 1 turn.",
+            name: "Rampage", desc: "Until the end of this champion's next turn: each of its attacks deals bonus damage (while Renata is on the board).",
         },
     },
     janna_ward: {
@@ -195,21 +187,45 @@ export const STATUS_V2_G2V: Record<string, { vi: { name: string; desc: string };
     },
     janna_gale: {
         vi: {
-            name: "Gió Mùa", desc: "Tới hết lượt đối thủ: mọi đòn lên đội Janna −50% sát thương; cuối lượt cả đội hồi máu bằng lượng đã chặn.",
+            name: "Gió Mùa", desc: "Tới hết lượt đối thủ: cả đội Janna miễn sát thương từ đòn đánh; cuối lượt đó cả đội hồi máu.",
         },
         en: {
-            name: "Monsoon", desc: "Until the end of the opponent's turn: all hits on Janna's team deal 50% less damage; at turn end the team heals the amount blocked.",
+            name: "Monsoon", desc: "Until the end of the opponent's turn: Janna's whole team takes no damage from attacks; at the end of that turn the team heals.",
+        },
+    },
+    malphite_stolen: {
+        vi: {
+            name: "Mất Giáp", desc: "Malphite đã lấy bớt Giáp của tướng này: sát thương vật lý nó nhận tăng như thể nó mất chừng đó Giáp, tới hết lượt sau.",
+        },
+        en: {
+            name: "Armor Stolen", desc: "Malphite took some of this champion's Armor: it takes physical damage as if it had lost that much Armor, until the end of the next turn.",
+        },
+    },
+    malphite_loot: {
+        vi: {
+            name: "Giáp Đá", desc: "Malphite +Giáp lấy được từ địch bằng Mảnh Vỡ Địa Chấn, tới hết lượt sau.",
+        },
+        en: {
+            name: "Stone Plating", desc: "Malphite has bonus Armor taken from enemies with Seismic Shard, until the end of the next turn.",
+        },
+    },
+    malphite_e: {
+        vi: {
+            name: "Sấm Động", desc: "Tới hết lượt: Malphite +Giáp.",
+        },
+        en: {
+            name: "Thunderclap", desc: "Until end of turn: Malphite has bonus Armor.",
         },
     },
 }
 
 export const STACK_V2_G2V: Record<string, { vi: { name: string; desc: string }; en: { name: string; desc: string } }> = {
-    braum_steady: {
+    braum_dual: {
         vi: {
-            name: "Vững", desc: "Braum nhận ít hơn 10% sát thương cho mỗi Vững (giữ mãi, tối đa 6).",
+            name: "Song Giáp", desc: "Bộ đếm của Braum (giữ mãi, không giới hạn). Mỗi Song Giáp: +1.5 Giáp và +1.5 Kháng Phép.",
         },
         en: {
-            name: "Steady", desc: "Braum takes 10% less damage per Steady (permanent, max 6).",
+            name: "Twin Armor", desc: "Braum's counter (permanent, no cap). Each Twin Armor: +1.5 Armor and +1.5 Magic Resist.",
         },
     },
     renata_rev: {
@@ -220,46 +236,38 @@ export const STACK_V2_G2V: Record<string, { vi: { name: string; desc: string }; 
             name: "Revived", desc: "Renata has already revived this champion once this game.",
         },
     },
-    janna_blk: {
-        vi: {
-            name: "Sát Thương Đã Chặn", desc: "Lượng sát thương Gió Mùa đã chặn; cuối lượt đối thủ cả đội hồi bằng chừng đó.",
-        },
-        en: {
-            name: "Damage Blocked", desc: "Damage Monsoon has blocked; at the end of the opponent's turn the team heals that much.",
-        },
-    },
 }
 
 export const KEYWORDS_V2_G2V: Record<string, Keyword> = {
     sun: {
         vi: "Nắng",
         en: "Sun",
-        descVi: "Dấu của Leona (tối đa 3, giữ cho tới khi đủ). Đủ 3 Nắng: tướng đó Choáng 1 lượt và mất hết Nắng.",
-        descEn: "Leona's mark (max 3, kept until full). At 3 Sun: that champion is Stunned for 1 turn and loses all Sun.",
+        descVi: "Dấu của Leona (có hoặc không, giữ cho tới khi dùng). Đồng minh khác Leona đánh trúng tướng có Nắng gây thêm sát thương rồi Nắng tan.",
+        descEn: "Leona's mark (on or off, kept until used). An ally other than Leona who hits a champion with Sun deals bonus damage, then the Sun fades.",
     },
-    braum_steady: {
-        vi: "Vững",
-        en: "Steady",
-        descVi: "Bộ đếm của Braum (giữ mãi, tối đa 6). Mỗi Vững: Braum nhận ít hơn 10% sát thương.",
-        descEn: "Braum's counter (permanent, max 6). Each Steady: Braum takes 10% less damage.",
+    braum_dual: {
+        vi: "Song Giáp",
+        en: "Twin Armor",
+        descVi: "Bộ đếm của Braum (giữ mãi, không giới hạn). Mỗi Song Giáp: +1.5 Giáp và +1.5 Kháng Phép.",
+        descEn: "Braum's counter (permanent, no cap). Each Twin Armor: +1.5 Armor and +1.5 Magic Resist.",
+    },
+    braum_mark: {
+        vi: "Dấu Băng",
+        en: "Frost Mark",
+        descVi: "Dấu của Braum tới hết lượt. Đồng minh khác Braum đánh trúng lần đầu: tướng mang dấu Choáng 1 lượt và Braum +2 Song Giáp.",
+        descEn: "Braum's mark until the end of the turn. The first time an ally other than Braum hits it: the marked champion is Stunned for 1 turn and Braum gains +2 Twin Armor.",
     },
     renata_frenzy: {
         vi: "Cuồng Bạo",
         en: "Rampage",
-        descVi: "Đòn đánh và chiêu của tướng này gây ×1.5 sát thương tới hết lượt của nó.",
-        descEn: "This champion's attacks and skills deal ×1.5 damage until the end of its turn.",
-    },
-    renata_ward: {
-        vi: "Giáp Phản",
-        en: "Counter Ward",
-        descVi: "Gắn lên tướng mình cùng Khiên của Renata. Khi Khiên bị phá: kẻ phá nhận sát thương phép và Choáng 1 lượt.",
-        descEn: "Placed on an ally with Renata's Shield. When the Shield is broken: the breaker takes magic damage and is Stunned for 1 turn.",
+        descVi: "Tới hết lượt kế của tướng này: mỗi đòn đánh gây thêm sát thương cố định (Renata còn trên sân).",
+        descEn: "Until the end of this champion's next turn: each attack deals fixed bonus damage (while Renata is on the board).",
     },
     blitz_steal: {
         vi: "Cướp Bài",
         en: "Card-Steal",
-        descVi: "Lấy 1 lá của đối thủ. Lá chung về tay bạn; lá chiêu bị Đốt vào mộ chủ lá (không thành Đánh thường).",
-        descEn: "Take 1 card from the opponent. A shared card goes to your hand; a skill card is Burned into its owner's graveyard (it does not become a Strike).",
+        descVi: "Lấy 1 lá của đối thủ. Lá chung về tay bạn; lá chiêu bị Đốt vào mộ chủ lá (Blitzcrank biến nó thành 1 lá Q/E của tướng mình).",
+        descEn: "Take 1 card from the opponent. A shared card goes to your hand; a skill card is Burned into its owner's graveyard (Blitzcrank turns it into a Q/E card of one of his allies).",
     },
     cc: {
         vi: "Khống Chế",

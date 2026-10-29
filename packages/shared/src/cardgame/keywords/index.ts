@@ -33,6 +33,9 @@ import {
 import {
     KEYWORDS_V2_G5V
 } from "../i18n/v2_g5v"
+import {
+    KEYWORDS_V3_NEW
+} from "../i18n/v3_new"
 
 export type {
     Keyword
@@ -49,4 +52,5 @@ export const KEYWORDS: Record<string, Keyword> = {
     ...KEYWORDS_V2_G3V,
     ...KEYWORDS_V2_G4V,
     ...KEYWORDS_V2_G5V,
+    ...KEYWORDS_V3_NEW,
 }

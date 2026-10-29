@@ -1,8 +1,8 @@
-// Gangplank (Đấu sĩ, vật lý): máu 410 · AD 74 · giáp/kháng 33/30.
-// CHẤT: "Ăn cam trụ đường, gài thùng nổ cả đội": đấu sĩ bền, bịp bằng Thùng giả. Thùng KHÔNG tự xuất hiện: E đặt Thùng thật,
+// Gangplank (Đấu sĩ, vật lý): máu 380 · AD 106 · giáp/kháng 30/29 (V3).
+// CHẤT: "Ăn cam trụ đường, gài thùng nổ một tướng địch": đấu sĩ bền, bịp bằng Thùng giả. Thùng KHÔNG tự xuất hiện: E đặt Thùng thật,
 // hoặc úp BẤT KỲ lá trên tay làm Thùng giả (lá đó mất). Thùng thật +1 Thuốc Súng đầu mỗi lượt của Gangplank, không hết hạn.
-// Đòn đánh của Gangplank (kể cả nút Đánh nhanh 66%) vào Thùng của mình = nổ 1 Thùng thật: MỌI tướng địch nhận sát thương theo Thuốc Súng.
-// Ô phụ chứa tối đa 1 Thùng (thật hoặc giả). Chỉ Xạ thủ địch nhắm được Thùng; đòn đánh của Xạ thủ vỡ 1 Thùng NGẪU NHIÊN (địch không
+// Đòn đánh của Gangplank (kể cả nút Đánh nhanh 66%) vào Thùng của mình = nổ 1 Thùng thật: 1 tướng địch NGẪU NHIÊN nhận sát thương theo Thuốc Súng.
+// Ô phụ chứa tối đa 1 Thùng (thật hoặc giả). Xạ thủ và Đấu sĩ địch nhắm được Thùng; đòn đánh của họ vỡ 1 Thùng NGẪU NHIÊN (địch không
 // biết cái nào thật): Thùng giả lật mặt, lá úp vào mộ (đòn đó coi như phí); Thùng thật vỡ KHÔNG nổ (mất luôn Thuốc Súng).
 // Engine: engine chỉ có 1 ô triệu hồi phụ mỗi bên nên mọi Thùng nằm trong MỘT token úp "keg"; danh sách từng Thùng (thật/giả,
 // Thuốc Súng, lá úp của Thùng giả) là JSON trong token.secret.list (bí mật với đối thủ tới khi lật). Token hp 1 nhưng không chết vì
@@ -14,9 +14,8 @@ import type {
 import {
     defineHero
 } from "../registry"
-import {
-    otherSide,
-    type Card, type Unit
+import type {
+    Card, Unit
 } from "../types"
 
 const KEG = "keg"
@@ -25,9 +24,9 @@ const MAX_KEGS = 1
 const START_POWDER = 1
 const FAKE_ID = "gp_fake"
 /** Sát thương vật lý lên mỗi tướng địch cho mỗi Thuốc Súng của Thùng nổ */
-const F_POWDER = "15 + 30% AD"
+export const F_POWDER = "40 + 60% AD + 10% AP"
 /** Q: hồi máu cho chính Gangplank */
-const F_HEAL = "100 + 60% AD"
+export const F_HEAL = "100 + 60% AD + 15% AP"
 
 interface Keg {
     real: boolean;
@@ -102,24 +101,27 @@ const healQ = (g: Game, me: Unit) => g.f(me,
 /** Thùng giả là lá Cam (Q của Gangplank) */
 const isOrange = (k: Keg) => k.card?.id === "gangplank_q"
 const HEAL_FAKE = 0.3
-const HEAL_ORANGE_ENEMY = 1
-const HEAL_ORANGE_EAT = 0.6
-/** Nổ 1 Thùng thật: mọi tướng địch nhận sát thương theo Thuốc Súng của nó */
+const HEAL_ORANGE_ENEMY = 1.6
+const HEAL_ORANGE_EAT = 0.4
+/** Nổ 1 Thùng thật: 1 tướng địch NGẪU NHIÊN nhận sát thương theo Thuốc Súng của nó */
 function blast(g: Game, me: Unit, keg: Keg) {
     if (keg.powder <= 0) return
     const dmg = keg.powder * g.f(me,
         F_POWDER)
-    for (const t of g.heroes(otherSide(me.side))) g.damage(me,
+    const t = g.pick(g.targetableEnemies(me).filter((x) => !x.token))
+    if (!t) return
+    const dealt = g.damage(me,
         t,
         dmg,
         "physical",
         {
             tag: "skill"
         })
+    g.log(`Thùng nổ trúng ${g.nameOf(t)} (−${Math.round(dealt)})`)
 }
 
 export default defineHero({
-    id: "gangplank", name: "Gangplank", role: "fighter", damage: "physical", hp: 370, atk: 74, armor: 33, mr: 30,
+    id: "gangplank", name: "Gangplank", role: "fighter", damage: "physical", hp: 380, atk: 106, armor: 30, mr: 29,
     bot: {
         tokenValue: 30,
         tokenStackValue: {
@@ -130,7 +132,7 @@ export default defineHero({
     desc: "Đấu sĩ trụ đường nhờ Cam, gài Thùng thuốc súng nổ cả đội. Thùng thật to dần mỗi lượt; Thùng giả (úp bất kỳ lá nào) khiến địch phải đoán cái nào đáng phá.",
     passive: {
         name: "Thuốc Súng Bilgewater",
-        desc: `Đầu lượt của bạn: Thùng thật của Gangplank +1 Thuốc Súng. Bạn có thể úp BẤT KỲ lá trên tay làm Thùng giả (lá đó mất; tốn 1 lượt đánh). Ô phụ chứa tối đa ${MAX_KEGS} Thùng; địch không phân biệt thật/giả. Chỉ đòn đánh của Xạ Thủ nhắm được Thùng (vỡ 1 Thùng ngẫu nhiên: Thùng giả bị lật và lá vào mộ, Thùng thật mất mà không nổ). Địch phá Thùng giả: Gangplank hồi 30% lượng hồi của Q (nếu là lá Cam: 100%). Trong lượt của bạn, đòn đánh của Gangplank (cả Đánh nhanh) có thể nhắm Thùng của bạn: Kích Nổ 1 Thùng thật, mọi tướng địch nhận {${F_POWDER}} sát thương vật lý mỗi Thuốc Súng. Hết Thùng thật, đòn đánh vào Thùng giả = ăn nó: lá vào mộ, nếu là lá Cam hồi 60% lượng hồi của Q.`,
+        desc: `Đầu lượt của bạn: Thùng thật của Gangplank +1 Thuốc Súng. Bạn có thể úp BẤT KỲ lá trên tay làm Thùng giả (lá đó mất; tốn 1 lượt đánh). Ô phụ chứa tối đa ${MAX_KEGS} Thùng; địch không phân biệt thật/giả. Đòn đánh của Xạ Thủ và Đấu Sĩ địch nhắm được Thùng (vỡ 1 Thùng ngẫu nhiên: Thùng giả bị lật và lá vào mộ, Thùng thật mất mà không nổ). Địch phá Thùng giả: Gangplank hồi 30% lượng hồi của Q (nếu là lá Cam: 160%). Trong lượt của bạn, đòn đánh của Gangplank (cả Đánh nhanh) có thể nhắm Thùng của bạn: Kích Nổ 1 Thùng thật, 1 tướng địch ngẫu nhiên nhận {${F_POWDER}} sát thương vật lý mỗi Thuốc Súng. Hết Thùng thật, đòn đánh vào Thùng giả = ăn nó: lá vào mộ, nếu là lá Cam hồi 40% lượng hồi của Q.`,
     },
     extraAttackTargets(g, me) {
         if (g.s.active !== me.side) return []
@@ -173,7 +175,7 @@ export default defineHero({
             if (!ks.length) return
             if (d.src.side === me.side) {
                 // đòn của chính Gangplank: Kích Nổ Thùng thật nhiều Thuốc Súng nhất; hết Thùng thật thì "ăn" Thùng giả
-                // (ưu tiên lá Cam: hồi 60% H; Thùng giả khác chỉ vào mộ, đòn đánh bị phí)
+                // (ưu tiên lá Cam: hồi 40% H; Thùng giả khác chỉ vào mộ, đòn đánh bị phí)
                 if (d.src.id !== me.id || !g.oncePerTurn(me,
                     `blast:${n}`)) return
                 let best = -1
@@ -229,7 +231,7 @@ export default defineHero({
     skills: {
         Q: {
             key: "Q", name: "Ăn Cam", target: "self",
-            desc: `Gangplank hồi {${F_HEAL}} máu (chỉ hồi cho chính hắn).`,
+            desc: `Gangplank hồi {${F_HEAL}} máu (chỉ hồi cho chính hắn). Lá này cũng úp được làm Thùng giả (lá Cam): địch phá thì hồi 160% lượng hồi này, tự đánh thì hồi 40%.`,
             resolve(c) {
                 c.g.heal(c.self,
                     c.self,

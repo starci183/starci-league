@@ -73,7 +73,8 @@ export function artInfo(card: Card): ArtInfo {
         }
     }
     return {
-        kind: "trap", srcs: card.id === "mushroom" ? ["/cards/nam_teemo.jpg"] : ["/ui/badge/spell.png"]
+        kind: "trap", srcs: card.id === "mushroom" ? ["/cards/nam_teemo.jpg"] : card.id === "velkoz_decay" ? ["/card_skills/velkoz_p.png",
+            "/ui/badge/spell.png"] : ["/ui/badge/spell.png"]
     }
 }
 

@@ -1,8 +1,11 @@
-// Garen (Đấu sĩ, vật lý): máu 460 · AD 66 · giáp/kháng 40/36.
+// Garen (Đấu sĩ, vật lý): máu 400 · AD 104 · giáp/kháng 33/31 (V3).
 // CHẤT: "Tay đôi với kẻ trước mặt". Kẻ đối diện Garen mỗi lần đánh (bất kỳ ai) tự +1 Tội; Garen đánh vào Tội thì nặng thêm.
 // Q dùng Tội (không tiêu), E nuôi Tội (3 nhát, mỗi nhát +1), R Phán Quyết xả Tội thành sát thương chuẩn.
 // Engine: status cộng dồn "guilt" (g.status add), AttackInfo.bonus, hook onAttack của tướng đối diện.
 // Đối thủ trả lời: bỏ trống đường đối diện Garen, để kẻ yếu đánh ít đứng trước Garen (Ashe), hoặc thả diều.
+import {
+    pct
+} from "../formula"
 import type {
     Game
 } from "../game"
@@ -18,15 +21,17 @@ const GUILT = "guilt"
 const MAX_GUILT = 10
 const GUILT_TURNS = 3
 /** Nội tại: đòn đánh của Garen thêm từng này sát thương mỗi Tội của mục tiêu */
-const F_PASSIVE = "6% AD"
-const F_Q = "15 + 80% AD"
+export const F_PASSIVE = "6% AD + 2% AP"
+export const F_Q = "30 + 100% AD + 15% AP"
 /** Q: thêm từng này mỗi Tội */
-const F_Q_GUILT = "15% AD"
-/** E: mỗi nhát */
-const F_E = "6 + 35% AD"
-const E_HITS = 3
-/** R: mỗi Tội */
-const F_R_GUILT = "15 + 40% AD"
+export const F_Q_GUILT = "15% AD + 3% AP"
+/** Q: Garen hồi 30% sát thương Q gây ra */
+export const Q_HEAL = 0.3
+export const F_E = "20 + 100% AD + 20% AP"
+const E_GUILT = 3
+/** R: phần cố định + từng này mỗi Tội (sát thương chuẩn) */
+export const F_R = "100 + 80% AD + 20% AP"
+export const R_PER_GUILT = 15
 
 export const guiltOf = (g: Game, t: Unit) => g.statusV(t,
     GUILT)
@@ -41,7 +46,7 @@ const addGuilt = (g: Game, t: Unit, n: number) => {
 }
 
 export default defineHero({
-    id: "garen", name: "Garen", role: "fighter", damage: "physical", hp: 300, atk: 60, armor: 33, mr: 31,
+    id: "garen", name: "Garen", role: "fighter", damage: "physical", hp: 400, atk: 104, armor: 33, mr: 31,
     desc: "Tay đôi: kẻ đứng trước Garen cứ đánh là tự chất Tội lên mình, Garen chém vào Tội và Phán Quyết xả hết.",
     passive: {
         name: "Công Lý",
@@ -72,10 +77,10 @@ export default defineHero({
     skills: {
         Q: {
             key: "Q", name: "Đòn Quyết Định", target: "opposite",
-            desc: `Chọn tướng địch đối diện Garen; gây {${F_Q}} sát thương vật lý, thêm {${F_Q_GUILT}} mỗi Tội của nó.`,
+            desc: `Chọn tướng địch đối diện Garen; gây {${F_Q}} sát thương vật lý, thêm {${F_Q_GUILT}} mỗi Tội của nó. Garen hồi ${pct(Q_HEAL)}% sát thương gây ra.`,
             resolve(c) {
                 const t = c.target!
-                c.g.damage(c.self,
+                const dealt = c.g.damage(c.self,
                     t,
                     c.f(F_Q) + guiltOf(c.g,
                         t) * c.f(F_Q_GUILT),
@@ -83,45 +88,37 @@ export default defineHero({
                     {
                         tag: "skill"
                     })
+                c.g.heal(c.self,
+                    c.self,
+                    dealt * Q_HEAL)
             },
         },
         E: {
             key: "E", name: "Phán Xét", target: "opposite",
-            desc: `Chọn tướng địch đối diện Garen; chém nó ${E_HITS} nhát, mỗi nhát gây {${F_E}} sát thương vật lý và +1 Tội (không tính vào 3 đòn đánh).`,
+            desc: `Chọn tướng địch đối diện Garen; gây {${F_E}} sát thương vật lý và +${E_GUILT} Tội (sát thương chiêu, không tính vào 3 đòn đánh).`,
             resolve(c) {
                 const t = c.target!
-                for (let i = 0; i < E_HITS && t.status === "board"; i++) {
-                    c.g.damage(c.self,
-                        t,
-                        c.f(F_E),
-                        "physical",
-                        {
-                            tag: "skill"
-                        })
-                    addGuilt(c.g,
-                        t,
-                        1)
-                }
+                c.g.damage(c.self,
+                    t,
+                    c.f(F_E),
+                    "physical",
+                    {
+                        tag: "skill"
+                    })
+                addGuilt(c.g,
+                    t,
+                    E_GUILT)
             },
         },
         R: {
             key: "R", name: "Phán Quyết Demacia", target: "opposite",
-            desc: `Chọn tướng địch đối diện Garen đang có Tội; gây {${F_R_GUILT}} sát thương chuẩn cho mỗi Tội của nó rồi xoá hết Tội.`,
-            canPlay: (c) => {
-                const o = c.g.opposite(c.self)
-                return !!o && guiltOf(c.g,
-                    o) > 0
-            },
+            desc: `Chọn tướng địch đối diện Garen; gây {${F_R}} + ${R_PER_GUILT} mỗi Tội của nó sát thương chuẩn. Tội giữ nguyên.`,
             resolve(c) {
                 const t = c.target!
-                const n = guiltOf(c.g,
-                    t)
-                c.g.removeStatus(t,
-                    GUILT)
-                if (n <= 0) return
                 c.g.damage(c.self,
                     t,
-                    n * c.f(F_R_GUILT),
+                    c.f(F_R) + guiltOf(c.g,
+                        t) * R_PER_GUILT,
                     "true",
                     {
                         tag: "skill"

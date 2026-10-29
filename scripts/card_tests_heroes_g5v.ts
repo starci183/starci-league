@@ -4,6 +4,7 @@ import assert from "node:assert/strict"
 import {
     cg
 } from "@starci/shared"
+import * as VAYNE from "../packages/shared/src/cardgame/heroes/vayne"
 
 type St = ReturnType<typeof cg.newGame>;
 type Act = Parameters<typeof cg.applyAction>[1];
@@ -185,13 +186,18 @@ const turnStart = (s: St, side: S) => {
 // ======================================================================
 G("Viktor")
 // ======================================================================
-test("Q: bỏ 2 lá => +2 Tiến Hoá, trừ 10 mana, 2 lá vào mộ",
+test("Q: bỏ 2 lá => +2 Tiến Hoá, mỗi lá 1 Khiên (20 + 10% AD + 20% AP), trừ 10 mana, 2 lá vào mộ; AP gốc 68",
     () => {
         let s = mk({
             A: {
                 viktor: 2
             }
         })
+        assert.equal(gm(s).ap(u(s,
+            "A",
+            "viktor")),
+        68,
+        "AP gốc = AD cũ")
         const q = give(s,
             "A",
             skill(s,
@@ -209,14 +215,17 @@ test("Q: bỏ 2 lá => +2 Tiến Hoá, trừ 10 mana, 2 lá vào mộ",
         const mana = u(s,
             "A",
             "viktor").mana ?? 0
-        const r = play(s,
+        const per = Math.round(gm(s).f(u(s,
+            "A",
+            "viktor"),
+        "20 + 10% AD + 20% AP"))
+        s = play(s,
             "A",
             q,
             {
                 discard: [d1.uid,
                     d2.uid]
-            })
-        s = r.s
+            }).s
         assert.equal(stack(s,
             "A",
             "viktor",
@@ -224,11 +233,16 @@ test("Q: bỏ 2 lá => +2 Tiến Hoá, trừ 10 mana, 2 lá vào mộ",
         2)
         assert.equal(u(s,
             "A",
+            "viktor").shield,
+        2 * per,
+        "mỗi lá bỏ một Khiên")
+        assert.equal(u(s,
+            "A",
             "viktor").mana,
         mana - 10)
         assert.ok(s.players.A.grave.some((c) => c.uid === d1.uid) && s.players.A.grave.some((c) => c.uid === d2.uid))
     })
-test("E: sát thương phép mọi địch (35 mana), lớn hơn khi có Tiến Hoá",
+test("E: sát thương phép mọi địch (35 mana), mỗi Tiến Hoá thêm 8% (5 nấc = ×1.4)",
     () => {
         const run = (evo: number) => {
             const s = mk({
@@ -253,60 +267,74 @@ test("E: sát thương phép mọi địch (35 mana), lớn hơn khi có Tiến 
                 "viktor").mana,
             (u(s,
                 "A",
-                "viktor").mana ?? 0) - 35 + 0)
+                "viktor").mana ?? 0) - 35)
             return r.ev
         }
         const base = run(0)
-        const evolved = run(6)
-        const foes = ["B:g5v_tank",
+        const evolved = run(5)
+        const raw = 55 + 0.35 * 92 + 0.65 * 68
+        for (const f of ["B:g5v_tank",
             "B:g5v_fighter",
             "B:g5v_mage",
             "B:g5v_mark",
-            "B:g5v_sup"]
-        for (const f of foes) assert.ok(dmgTo(base,
-            f) > 0,
+            "B:g5v_sup"]) assert.equal(dmgTo(base,
+            f),
+        Math.round(raw * 100 / 130),
         `${f} trúng E`)
-        assert.ok(dmgTo(evolved,
-            "B:g5v_tank") > dmgTo(base,
-            "B:g5v_tank") * 1.5,
-        "6 nấc = +90%")
+        assert.equal(dmgTo(evolved,
+            "B:g5v_tank"),
+        Math.round(raw * 1.4 * 100 / 130),
+        "5 nấc = +40%")
     })
-test("R: nhân đôi Tiến Hoá (trần 10), Tiến Hoá giữ khi Viktor chết",
+test("R: sát thương mọi địch, tướng nhiều máu nhất bị Choáng, Viktor +2 Tiến Hoá (trần 10), Tiến Hoá giữ khi chết",
     () => {
         let s = mk({
             A: {
                 viktor: 2
+            }, B: {
+                g5v_tank: 0, g5v_fighter: 1, g5v_mage: 2, g5v_mark: 3, g5v_sup: 4
             }
         })
-        s.units["A:viktor"].stacks.evolve = 4
-        s = play(s,
+        for (const h of ["g5v_fighter",
+            "g5v_mage",
+            "g5v_mark",
+            "g5v_sup"]) u(s,
+            "B",
+            h).hp = 800
+        s.units["A:viktor"].stacks.evolve = 9
+        const r = play(s,
             "A",
             give(s,
                 "A",
                 skill(s,
                     "viktor",
                     "A",
-                    "R"))).s
-        assert.equal(stack(s,
-            "A",
-            "viktor",
-            "evolve"),
-        8)
-        s.units["A:viktor"].mana = 100
-        s = play(s,
-            "A",
-            give(s,
-                "A",
-                skill(s,
-                    "viktor",
-                    "A",
-                    "R"))).s
+                    "R")))
+        s = r.s
+        const raw = (80 + 0.3 * 92 + 0.6 * 68) * (1 + 0.08 * 9)
+        for (const f of ["g5v_tank",
+            "g5v_fighter",
+            "g5v_sup"]) assert.equal(dmgTo(r.ev,
+            `B:${f}`),
+        Math.round(raw * 100 / 130),
+        f)
+        assert.ok(u(s,
+            "B",
+            "g5v_tank").statuses.stun,
+        "nhiều máu nhất bị Choáng")
+        for (const h of ["g5v_fighter",
+            "g5v_mage",
+            "g5v_mark",
+            "g5v_sup"]) assert.ok(!u(s,
+            "B",
+            h).statuses.stun,
+        `${h} không Choáng`)
         assert.equal(stack(s,
             "A",
             "viktor",
             "evolve"),
         10,
-        "trần 10")
+        "9 + 2 = trần 10")
         gm(s).kill(u(s,
             "A",
             "viktor"),
@@ -323,7 +351,20 @@ test("R: nhân đôi Tiến Hoá (trần 10), Tiến Hoá giữ khi Viktor chế
 // ======================================================================
 G("Ashe")
 // ======================================================================
-test("Nội tại: đòn đánh trúng gắn 1 Buốt; Buốt làm đòn đánh của địch yếu đi",
+const FOREVER = 1_000_000
+/** Các mục tiêu lá Đánh thường của `side` đánh được cho tướng `actor` */
+function basicTargets(s: St, side: S, actor: string): string[] {
+    s.active = side
+    const c = give(s,
+        side,
+        sup(s,
+            "basic"))
+    const out = cg.legalActions(s,
+        side).filter((a) => a.t === "play" && a.uid === c.uid && a.args?.actor === `${side}:${actor}`).map((a) => (a as { args: cg.PlayArgs }).args.target as string)
+    s.players[side].hand = s.players[side].hand.filter((x) => x.uid !== c.uid)
+    return out
+}
+test("Nội tại: đòn đánh gắn Buốt (không tự hết); mỗi Buốt làm sát thương địch gây ra giảm 2.5%",
     () => {
         let s = mk({
             A: {
@@ -336,30 +377,91 @@ test("Nội tại: đòn đánh trúng gắn 1 Buốt; Buốt làm đòn đánh 
             "A",
             "ashe",
             "B:g5v_mark").s
-        assert.equal(gm(s).statusV(u(s,
+        const t = u(s,
             "B",
-            "g5v_mark"),
-        "frost"),
+            "g5v_mark")
+        assert.equal(gm(s).statusV(t,
+            "frost"),
         1)
+        assert.ok(t.statuses.frost.until >= FOREVER,
+            "Buốt không tự hết")
         const hit = (st: St) => dmgTo(strike(st,
             "B",
             "g5v_mark",
             "A:ashe").ev,
         "A:ashe",
         "attack")
-        const frosted = hit(s)
-        const s2 = mk({
+        const clean = hit(mk({
             A: {
                 ashe: 2
             }, B: {
                 g5v_mark: 2
             }
-        })
-        const clean = hit(s2)
-        assert.ok(frosted < clean,
-            `${frosted} < ${clean}`)
+        }))
+        gm(s).status(t,
+            "frost",
+            1,
+            {
+                v: 4, add: true, until: FOREVER
+            })
+        assert.equal(gm(s).statusV(t,
+            "frost"),
+        5)
+        const frosted = hit(s)
+        assert.ok(Math.abs(frosted - clean * (1 - 0.025 * 5)) <= 1,
+            `${frosted} vs ${clean} giảm 12.5%`)
     })
-test("Q: +3 Buốt không gây sát thương; E: đòn đánh gây thêm và gắn 2 Buốt",
+test("Nội tại: đánh được địch có Buốt bỏ qua đỡ đòn; đòn lên tướng có Buốt không chí mạng",
+    () => {
+        const s = mk({
+            A: {
+                ashe: 2
+            }, B: {
+                g5v_tank: 2, g5v_mage: 1
+            }
+        })
+        assert.deepEqual(basicTargets(s,
+            "A",
+            "ashe"),
+        ["B:g5v_tank"],
+        "đỡ đòn khiêu khích lá Đánh thường")
+        gm(s).status(u(s,
+            "B",
+            "g5v_mage"),
+        "frost",
+        1,
+        {
+            until: FOREVER
+        })
+        const t = basicTargets(s,
+            "A",
+            "ashe")
+        assert.ok(t.includes("B:g5v_tank") && t.includes("B:g5v_mage"),
+            `đánh được cả tướng có Buốt: ${t.join()}`)
+        // Chí mạng: lần đầu lên tướng chưa Buốt thì chí mạng, các lần sau (đã Buốt) thì không
+        gm(s).status(u(s,
+            "A",
+            "ashe"),
+        "alwaysCrit",
+        1)
+        const first = strike(s,
+            "A",
+            "ashe",
+            "B:g5v_tank")
+        assert.equal(evs(first.ev,
+            "attack")[0].crit,
+        true,
+        "chưa Buốt thì chí mạng")
+        const second = strike(first.s,
+            "A",
+            "ashe",
+            "B:g5v_tank")
+        assert.equal(evs(second.ev,
+            "attack")[0].crit,
+        false,
+        "đã Buốt thì không chí mạng")
+    })
+test("Q: (40 + 80% AD + 20% AP) + 3 Buốt; E: đòn đánh gây thêm (30 + 40% AD + 10% AP) và gắn 2 Buốt",
     () => {
         let s = mk({
             A: {
@@ -382,21 +484,20 @@ test("Q: +3 Buốt không gây sát thương; E: đòn đánh gây thêm và g�
         s = r.s
         assert.equal(dmgTo(r.ev,
             "B:g5v_tank"),
-        0)
+        Math.round((40 + 0.8 * 120) * 100 / 130))
         assert.equal(gm(s).statusV(u(s,
             "B",
             "g5v_tank"),
         "frost"),
         3)
-        r = play(s,
+        s = play(s,
             "A",
             give(s,
                 "A",
                 skill(s,
                     "ashe",
                     "A",
-                    "E")))
-        s = r.s
+                    "E"))).s
         r = strike(s,
             "A",
             "ashe",
@@ -407,224 +508,174 @@ test("Q: +3 Buốt không gây sát thương; E: đòn đánh gây thêm và g�
         "frost"),
         5,
         "3 + 2")
+        assert.equal(dmgTo(r.ev,
+            "B:g5v_tank",
+            "attack"),
+        Math.round(120 * 100 / 130) + Math.round((30 + 0.4 * 120) * 100 / 130),
+        "đòn thường + phần thêm của E")
     })
-test("R: Choáng + sát thương theo Buốt lên mọi địch có Buốt, Buốt tan; cần có Buốt",
+test("R: (100 + 80% AD + 30% AP) + Choáng + 5 Buốt lên 1 địch, không cần có Buốt, Buốt không bị xoá",
     () => {
         let s = mk({
             A: {
                 ashe: 2
             }, B: {
-                g5v_tank: 2, g5v_mage: 1, g5v_sup: 3
+                g5v_tank: 2, g5v_mage: 1
             }
-        })
-        const g = gm(s)
-        const r0 = give(s,
-            "A",
-            skill(s,
-                "ashe",
-                "A",
-                "R"))
-        assert.equal(cg.legalActions(s,
-            "A").filter((a) => a.t === "play" && a.uid === r0.uid).length,
-        0,
-        "không có Buốt thì không đánh được")
-        g.status(u(s,
-            "B",
-            "g5v_tank"),
-        "frost",
-        2,
-        {
-            v: 4
-        })
-        g.status(u(s,
-            "B",
-            "g5v_mage"),
-        "frost",
-        2,
-        {
-            v: 1
         })
         const r = play(s,
             "A",
-            r0)
+            give(s,
+                "A",
+                skill(s,
+                    "ashe",
+                    "A",
+                    "R")),
+            {
+                target: "B:g5v_tank"
+            })
         s = r.s
-        assert.ok(dmgTo(r.ev,
-            "B:g5v_tank") > dmgTo(r.ev,
-            "B:g5v_mage") * 2,
-        "4 Buốt đau hơn 1 Buốt")
         assert.equal(dmgTo(r.ev,
-            "B:g5v_sup"),
-        0,
-        "không có Buốt thì không trúng")
+            "B:g5v_tank"),
+        Math.round((100 + 0.8 * 120) * 100 / 130))
         assert.ok(u(s,
             "B",
-            "g5v_tank").statuses.stun && u(s,
-            "B",
-            "g5v_mage").statuses.stun)
+            "g5v_tank").statuses.stun)
         assert.equal(gm(s).statusV(u(s,
             "B",
             "g5v_tank"),
         "frost"),
-        0)
+        5)
+        assert.equal(dmgTo(r.ev,
+            "B:g5v_mage"),
+        0,
+        "chỉ 1 mục tiêu")
+        const r2 = play(s,
+            "A",
+            give(s,
+                "A",
+                skill(s,
+                    "ashe",
+                    "A",
+                    "Q")),
+            {
+                target: "B:g5v_tank"
+            })
+        assert.equal(gm(r2.s).statusV(u(r2.s,
+            "B",
+            "g5v_tank"),
+        "frost"),
+        8,
+        "chiêu của Ashe không bao giờ xoá Buốt")
     })
 
 // ======================================================================
 G("Jinx")
 // ======================================================================
-test("Nội tại: đánh trúng địch dưới 50% máu +1 Điên; địch đầy máu thì không",
+test("Nội tại: đánh trúng địch dưới 75% máu +1 Điên, dưới 25% máu +2, đầy máu 0; hạ gục +10",
     () => {
-        let s = mk({
-            A: {
-                jinx: 2
-            }, B: {
-                g5v_tank: 2
-            }
-        })
-        s = strike(s,
-            "A",
-            "jinx",
-            "B:g5v_tank").s
-        assert.equal(stack(s,
-            "A",
-            "jinx",
-            "frenzy"),
-        0)
-        u(s,
-            "B",
-            "g5v_tank").hp = 400
-        s = strike(s,
-            "A",
-            "jinx",
-            "B:g5v_tank").s
-        assert.equal(stack(s,
-            "A",
-            "jinx",
-            "frenzy"),
-        1)
-    })
-test("Hạ gục +10 Điên; Điên làm đòn đánh đau hơn",
-    () => {
-        let s = mk({
-            A: {
-                jinx: 2
-            }, B: {
-                g5v_tank: 2
-            }
-        })
-        const plain = dmgTo(strike(s,
-            "A",
-            "jinx",
-            "B:g5v_tank").ev,
-        "B:g5v_tank",
-        "attack")
-        s = mk({
-            A: {
-                jinx: 2
-            }, B: {
-                g5v_tank: 2
-            }
-        })
-        u(s,
-            "B",
-            "g5v_tank").hp = 10
-        s = strike(s,
-            "A",
-            "jinx",
-            "B:g5v_tank").s
-        assert.equal(u(s,
-            "B",
-            "g5v_tank").status,
-        "dead")
-        assert.ok(stack(s,
-            "A",
-            "jinx",
-            "frenzy") >= 10,
-        "kill +10")
-        const s2 = mk({
-            A: {
-                jinx: 2
-            }, B: {
-                g5v_tank: 2
-            }
-        })
-        s2.units["A:jinx"].stacks.frenzy = 10
-        const mad = dmgTo(strike(s2,
-            "A",
-            "jinx",
-            "B:g5v_tank").ev,
-        "B:g5v_tank",
-        "attack")
-        assert.ok(mad > plain,
-            `${mad} > ${plain}`)
-    })
-test("R: dưới ngưỡng thì chết luôn (ngưỡng tăng theo Điên), trên ngưỡng thì chịu sát thương",
-    () => {
-        let s = mk({
-            A: {
-                jinx: 2
-            }, B: {
-                g5v_tank: 2, g5v_mage: 1
-            }
-        })
-        u(s,
-            "B",
-            "g5v_tank").hp = 140 // 14% < 15%
-        u(s,
-            "B",
-            "g5v_mage").hp = 200 // 20%
-        let r = play(s,
-            "A",
-            give(s,
-                "A",
-                skill(s,
-                    "jinx",
-                    "A",
-                    "R")),
-            {
-                target: "B:g5v_mage"
+        const run = (hp: number) => {
+            const s = mk({
+                A: {
+                    jinx: 2
+                }, B: {
+                    g5v_tank: 2
+                }
             })
-        assert.equal(u(r.s,
-            "B",
-            "g5v_mage").status,
-        "board",
-        "20% > 15% ngưỡng gốc")
-        assert.ok(dmgTo(r.ev,
-            "B:g5v_mage") > 0)
-        s = mk({
+            u(s,
+                "B",
+                "g5v_tank").hp = hp
+            return stack(strike(s,
+                "A",
+                "jinx",
+                "B:g5v_tank").s,
+            "A",
+            "jinx",
+            "frenzy")
+        }
+        assert.equal(run(1000),
+            0,
+            "đầy máu")
+        assert.equal(run(700),
+            1,
+            "dưới 75%")
+        assert.equal(run(200),
+            2,
+            "dưới 25%")
+        assert.equal(run(50),
+            12,
+            "hạ gục: +2 bậc máu thấp và +10")
+    })
+test("Nội tại: mỗi Điên đòn đánh thêm (1 + 1% AD + 0.5% AP); Điên tối đa 30; Jinx chết mất nửa",
+    () => {
+        const hit = (n: number) => {
+            const s = mk({
+                A: {
+                    jinx: 2
+                }, B: {
+                    g5v_tank: 2
+                }
+            })
+            s.units["A:jinx"].stacks.frenzy = n
+            return dmgTo(strike(s,
+                "A",
+                "jinx",
+                "B:g5v_tank").ev,
+            "B:g5v_tank",
+            "attack")
+        }
+        const per = 1 + 0.01 * 124
+        assert.equal(hit(10),
+            Math.round(124 * 100 / 130) + Math.round(10 * per * 100 / 130))
+        assert.ok(hit(10) > hit(0))
+        const s = mk({
             A: {
                 jinx: 2
             }, B: {
-                g5v_tank: 2, g5v_mage: 1
+                g5v_tank: 2
+            }
+        })
+        s.units["A:jinx"].stacks.frenzy = 29
+        gm(s).stack(u(s,
+            "A",
+            "jinx"),
+        "frenzy",
+        10,
+        30)
+        assert.equal(stack(s,
+            "A",
+            "jinx",
+            "frenzy"),
+        30,
+        "trần 30")
+        gm(s).kill(u(s,
+            "A",
+            "jinx"),
+        u(s,
+            "B",
+            "g5v_tank"))
+        assert.equal(stack(s,
+            "A",
+            "jinx",
+            "frenzy"),
+        15,
+        "chết mất nửa")
+    })
+test("Q: đòn đánh kế gây (20 + 100% AD + 20% AP) lên mục tiêu, 25% lên mọi địch còn lại, mỗi đứa trúng đều tính Điên",
+    () => {
+        let s = mk({
+            A: {
+                jinx: 2
+            }, B: {
+                g5v_tank: 2, g5v_mage: 1, g5v_sup: 3, g5v_fighter: 0
             }
         })
         u(s,
             "B",
             "g5v_mage").hp = 200
-        s.units["A:jinx"].stacks.frenzy = 10 // ngưỡng 30%
-        r = play(s,
-            "A",
-            give(s,
-                "A",
-                skill(s,
-                    "jinx",
-                    "A",
-                    "R")),
-            {
-                target: "B:g5v_mage"
-            })
-        assert.equal(u(r.s,
+        u(s,
             "B",
-            "g5v_mage").status,
-        "dead",
-        "20% < 30%")
-    })
-test("E: bẫy Choáng tướng địch được gọi ra sân đúng đường đối diện, chỉ một lần",
-    () => {
-        let s = mk({
-            A: {
-                jinx: 2
-            }
-        })
+            "g5v_sup").hp = 600
         s = play(s,
             "A",
             give(s,
@@ -632,44 +683,137 @@ test("E: bẫy Choáng tướng địch được gọi ra sân đúng đường 
                 skill(s,
                     "jinx",
                     "A",
-                    "E"))).s
-        assert.ok(u(s,
+                    "Q"))).s
+        assert.ok(gm(s).has(u(s,
             "A",
-            "jinx").statuses.jinx_trap,
-        "bẫy gài")
-        const g = gm(s)
-        g.summon("B",
-            "g5v_tank",
-            1)
-        assert.equal(u(s,
-            "B",
-            "g5v_tank").statuses.stun,
-        undefined,
-        "sai đường")
-        g.summon("B",
-            "g5v_mage",
-            2)
-        assert.ok(u(s,
-            "B",
-            "g5v_mage").statuses.stun,
-        "đúng đường: Choáng")
-        assert.equal(u(s,
+            "jinx"),
+        "jinx_q"))
+        const r = strike(s,
             "A",
-            "jinx").statuses.jinx_trap,
-        undefined)
-        g.summon("B",
-            "g5v_mark",
-            3)
-        assert.equal(u(s,
+            "jinx",
+            "B:g5v_tank")
+        const base = 20 + 124
+        assert.equal(dmgTo(r.ev,
+            "B:g5v_tank"),
+        Math.round(base * 100 / 130),
+        "phát chính thay đòn thường")
+        for (const h of ["g5v_mage",
+            "g5v_sup",
+            "g5v_fighter"]) assert.equal(dmgTo(r.ev,
+            `B:${h}`),
+        Math.round(base * 0.25 * 100 / 130),
+        `${h} nhận 25%`)
+        assert.equal(stack(r.s,
+            "A",
+            "jinx",
+            "frenzy"),
+        3,
+        "mage dưới 25% (+2) và sup dưới 75% (+1)")
+        assert.ok(!gm(r.s).has(u(r.s,
+            "A",
+            "jinx"),
+        "jinx_q"),
+        "Q dùng một lần")
+        const again = strike(r.s,
+            "A",
+            "jinx",
+            "B:g5v_tank")
+        assert.equal(dmgTo(again.ev,
+            "B:g5v_sup"),
+        0,
+        "đòn sau không lan")
+    })
+test("E (Quick, Chỉ Nối Chuỗi): địch đánh Jinx => Jinx nhận ít hơn 20% sát thương và lấy 1 lá Q từ bộ bài lên tay",
+    () => {
+        const run = (react: boolean) => {
+            const s = mk({
+                A: {
+                    jinx: 2
+                }, B: {
+                    g5v_fighter: 2
+                }
+            })
+            s.active = "B"
+            const e = give(s,
+                "A",
+                skill(s,
+                    "jinx",
+                    "A",
+                    "E"))
+            const c = give(s,
+                "B",
+                sup(s,
+                    "basic"))
+            const o = cg.applyAction(s,
+                {
+                    t: "play", side: "B", uid: c.uid, args: {
+                        actor: "B:g5v_fighter", target: "A:jinx"
+                    }
+                })
+            assert.equal(o.state.phase,
+                "chain")
+            let state = o.state
+            const ev: Ev = [...o.events]
+            if (react) {
+                const o2 = cg.applyAction(state,
+                    {
+                        t: "chain", side: "A", uid: e.uid, args: {
+                        }
+                    })
+                state = o2.state
+                ev.push(...o2.events)
+            }
+            const done = settle({
+                s: state, ev
+            })
+            return {
+                s: done.s, dmg: dmgTo(done.ev,
+                    "A:jinx")
+            }
+        }
+        const plain = run(false)
+        const reacted = run(true)
+        assert.ok(plain.dmg > 0)
+        assert.equal(reacted.dmg,
+            Math.round(plain.dmg * 0.8),
+            `${reacted.dmg} = 80% của ${plain.dmg}`)
+        assert.ok(reacted.s.players.A.hand.some((c) => c.kind === "skill" && c.id === "jinx_q"),
+            "có 1 lá Q của Jinx trên tay")
+    })
+test("R: (100 + 80% AD + 20% AP) + 5 mỗi Điên + 20% máu đã mất của mục tiêu",
+    () => {
+        const s = mk({
+            A: {
+                jinx: 2
+            }, B: {
+                g5v_tank: 2
+            }
+        })
+        s.units["A:jinx"].stacks.frenzy = 10
+        u(s,
             "B",
-            "g5v_mark").statuses.stun,
-        undefined)
+            "g5v_tank").hp = 600
+        const r = play(s,
+            "A",
+            give(s,
+                "A",
+                skill(s,
+                    "jinx",
+                    "A",
+                    "R")),
+            {
+                target: "B:g5v_tank"
+            })
+        const raw = 100 + 0.8 * 124 + 5 * 10 + 0.2 * 400
+        assert.equal(dmgTo(r.ev,
+            "B:g5v_tank"),
+        Math.round(raw * 100 / 130))
     })
 
 // ======================================================================
 G("Kog'Maw")
 // ======================================================================
-test("Nội tại: +1 Đói mỗi lượt Kog sống, +1 khi có tướng chết; Kog chết mất nửa",
+test("Nội tại: +1 Đói mỗi lượt Kog sống, +1 khi có tướng chết; Kog chết mất nửa; AP gốc 84",
     () => {
         const s = mk({
             A: {
@@ -678,6 +822,10 @@ test("Nội tại: +1 Đói mỗi lượt Kog sống, +1 khi có tướng chết
                 g5v_tank: 2
             }
         })
+        assert.equal(gm(s).ap(u(s,
+            "A",
+            "kogmaw")),
+        84)
         turnStart(s,
             "A")
         assert.equal(stack(s,
@@ -703,7 +851,8 @@ test("Nội tại: +1 Đói mỗi lượt Kog sống, +1 khi có tướng chết
             "A",
             "kogmaw",
             "hunger"),
-        2)
+        2,
+        "có tướng chết +1")
         s.units["A:kogmaw"].stacks.hunger = 9
         gm(s).kill(u(s,
             "A",
@@ -716,11 +865,11 @@ test("Nội tại: +1 Đói mỗi lượt Kog sống, +1 khi có tướng chết
             "kogmaw",
             "hunger"),
         4,
-        "mất nửa (làm tròn xuống)")
+        "chết mất nửa")
     })
-test("Đòn đánh gây thêm % máu tối đa theo Đói; E nhân đôi phần đó",
+test("Đòn đánh thêm (0.8% máu tối đa mục tiêu mỗi Đói + 10% AD + 15% AP) phép; E nhân đôi phần % máu",
     () => {
-        const hit = (hunger: number, e = false) => {
+        const hit = (hunger: number, e: boolean) => {
             let s = mk({
                 A: {
                     kogmaw: 2
@@ -744,38 +893,54 @@ test("Đòn đánh gây thêm % máu tối đa theo Đói; E nhân đôi phần 
             "B:g5v_tank",
             "attack")
         }
-        const h0 = hit(0), h10 = hit(10), h10e = hit(10,
-            true)
-        assert.ok(h10 > h0,
-            "Đói tăng sát thương")
-        // 10 Đói x 1.5% x 1000 = 150 thô; E thêm 150 thô nữa
-        assert.ok(h10e - h10 > 80,
-            `E gấp đôi phần % máu (${h10e} vs ${h10})`)
+        const flat = 0.1 * 116 + 0.15 * 84
+        const exp = (n: number, k: number) => Math.round(116 * 100 / 130) + Math.round((1000 * 0.008 * n * k + flat) * 100 / 130)
+        assert.equal(hit(0,
+            false),
+        exp(0,
+            1),
+        "0 Đói vẫn có phần AD/AP")
+        assert.equal(hit(10,
+            false),
+        exp(10,
+            1))
+        assert.equal(hit(10,
+            true),
+        exp(10,
+            2),
+        "E nhân đôi phần % máu")
     })
-test("Q +3 Đói; R: % máu tối đa mọi địch theo Đói",
+test("Q: (40 + 80% AD + 40% AP) phép + 3 Đói; R: mọi địch nhận 1.5% máu tối đa mỗi Đói + (30% AD + 50% AP)",
     () => {
         let s = mk({
             A: {
                 kogmaw: 2
             }, B: {
-                g5v_tank: 2, g5v_mage: 1
+                g5v_tank: 0, g5v_fighter: 1, g5v_mage: 2, g5v_mark: 3, g5v_sup: 4
             }
         })
-        s = play(s,
+        let r = play(s,
             "A",
             give(s,
                 "A",
                 skill(s,
                     "kogmaw",
                     "A",
-                    "Q"))).s
+                    "Q")),
+            {
+                target: "B:g5v_tank"
+            })
+        s = r.s
+        assert.equal(dmgTo(r.ev,
+            "B:g5v_tank"),
+        Math.round((40 + 0.8 * 116 + 0.4 * 84) * 100 / 130))
         assert.equal(stack(s,
             "A",
             "kogmaw",
             "hunger"),
         3)
         s.units["A:kogmaw"].stacks.hunger = 10
-        const r = play(s,
+        r = play(s,
             "A",
             give(s,
                 "A",
@@ -783,19 +948,21 @@ test("Q +3 Đói; R: % máu tối đa mọi địch theo Đói",
                     "kogmaw",
                     "A",
                     "R")))
-        const d = dmgTo(r.ev,
-            "B:g5v_tank")
-        assert.ok(d > 200 && d < 360,
-            `10 Đói x 3.5% x 1000 máu = 350 thô, nhận ${d}`)
-        assert.ok(dmgTo(r.ev,
-            "B:g5v_mage") > 200)
+        for (const h of ["g5v_tank",
+            "g5v_fighter",
+            "g5v_mage",
+            "g5v_mark",
+            "g5v_sup"]) assert.equal(dmgTo(r.ev,
+            `B:${h}`),
+        Math.round((1000 * 0.015 * 10 + 0.3 * 116 + 0.5 * 84) * 100 / 130),
+        h)
     })
 
 // ======================================================================
 G("Teemo")
 // ======================================================================
 const mushrooms = (s: St, side: S) => s.players[side].deck.filter((c) => c.kind === "special" && c.id === "mushroom").length
-test("Nội tại: mỗi đòn đánh xáo 1 Nấm vào bộ bài địch; Q xáo 3",
+test("Nội tại: mỗi đòn đánh xáo 1 Nấm vào bộ bài địch; Q xáo 3; AP gốc 78",
     () => {
         let s = mk({
             A: {
@@ -804,14 +971,19 @@ test("Nội tại: mỗi đòn đánh xáo 1 Nấm vào bộ bài địch; Q xá
                 g5v_tank: 2
             }
         })
-        const before = s.players.B.deck.length
+        assert.equal(gm(s).ap(u(s,
+            "A",
+            "teemo")),
+        78)
+        const m0 = mushrooms(s,
+            "B")
         s = strike(s,
             "A",
             "teemo",
             "B:g5v_tank").s
         assert.equal(mushrooms(s,
             "B"),
-        1)
+        m0 + 1)
         s = play(s,
             "A",
             give(s,
@@ -822,109 +994,148 @@ test("Nội tại: mỗi đòn đánh xáo 1 Nấm vào bộ bài địch; Q xá
                     "Q"))).s
         assert.equal(mushrooms(s,
             "B"),
-        4)
-        assert.equal(s.players.B.deck.length,
-            before + 4)
+        m0 + 4)
     })
-test("Địch rút trúng Nấm: nổ lên tướng máu thấp nhất bên đó, Nấm chiếm lượt rút",
+test("Địch rút trúng Nấm: nổ (50 + 12% AD + 23% AP) lên tướng máu thấp nhất, rồi vẫn rút 1 lá như thường",
     () => {
         const s = mk({
             A: {
                 teemo: 2
             }, B: {
-                g5v_tank: 2, g5v_mage: 1
+                g5v_tank: 0, g5v_fighter: 1, g5v_mage: 2
             }
         })
-        u(s,
-            "B",
-            "g5v_mage").hp = 500
-        const g = gm(s)
-        const card = g.newCard({
+        const m = gm(s).newCard({
             kind: "special", id: "mushroom", hero: "teemo", side: "A"
         })
-        s.players.B.deck.unshift(card)
-        const hand = s.players.B.hand.length
-        g.drawOne("B",
-            "draw")
-        assert.ok(u(s,
+        s.players.B.deck = [m,
+            sup(s,
+                "gold"),
+            sup(s,
+                "gold")]
+        u(s,
             "B",
-            "g5v_mage").hp < 500,
-        "tướng ít máu nhất ăn nấm")
-        assert.equal(u(s,
+            "g5v_mage").hp = 400
+        const hp0 = u(s,
             "B",
-            "g5v_tank").hp,
-        1000)
+            "g5v_mage").hp
+        gm(s).draw("B",
+            1)
+        const raw = 50 + 0.12 * 112 + 0.23 * 78
+        assert.equal(hp0 - u(s,
+            "B",
+            "g5v_mage").hp,
+        Math.round(raw * 100 / 130))
         assert.equal(s.players.B.hand.length,
-            hand,
-            "nấm thay lá rút")
-        assert.ok(!s.players.B.deck.some((c) => c.uid === card.uid))
+            1,
+            "vẫn rút 1 lá")
+        assert.ok(!s.players.B.hand.some((c) => c.id === "mushroom"),
+            "Nấm không vào tay")
+        assert.equal(s.players.B.deck.length,
+            1,
+            "Nấm và lá bù đều rời bộ")
     })
-test("E: sát thương tăng theo số Nấm, Nấm ở nguyên; R: mọi địch theo số Nấm, Nấm ở nguyên",
+test("E (Quick): địch đánh Teemo => kẻ đó Mù (đòn trượt) và nhận (25 + 15% AD + 30% AP) + (8 + 5% AD + 10% AP) mỗi Nấm",
     () => {
         const s = mk({
             A: {
                 teemo: 2
             }, B: {
-                g5v_tank: 2, g5v_mage: 1
+                g5v_fighter: 2
             }
         })
-        const e0 = dmgTo(play(s,
+        for (let i = 0; i < 4; i++) s.players.B.deck.push(gm(s).newCard({
+            kind: "special", id: "mushroom", hero: "teemo", side: "A"
+        }))
+        const n = mushrooms(s,
+            "B")
+        s.active = "B"
+        const e = give(s,
+            "A",
+            skill(s,
+                "teemo",
+                "A",
+                "E"))
+        const c = give(s,
+            "B",
+            sup(s,
+                "basic"))
+        const o = cg.applyAction(s,
+            {
+                t: "play", side: "B", uid: c.uid, args: {
+                    actor: "B:g5v_fighter", target: "A:teemo"
+                }
+            })
+        assert.equal(o.state.phase,
+            "chain")
+        const o2 = cg.applyAction(o.state,
+            {
+                t: "chain", side: "A", uid: e.uid, args: {
+                }
+            })
+        const done = settle({
+            s: o2.state, ev: [...o.events,
+                ...o2.events]
+        })
+        const g = gm(done.s)
+        const raw = g.f(u(done.s,
+            "A",
+            "teemo"),
+        "25 + 15% AD + 30% AP") + g.f(u(done.s,
+            "A",
+            "teemo"),
+        "8 + 5% AD + 10% AP") * n
+        assert.equal(dmgTo(done.ev,
+            "B:g5v_fighter"),
+        Math.round(raw * 100 / 130),
+        "sát thương theo số Nấm")
+        assert.equal(dmgTo(done.ev,
+            "A:teemo"),
+        0,
+        "đòn đánh Teemo trượt")
+        assert.ok(evs(done.ev,
+            "attack").some((a) => a.miss))
+    })
+test("R: mọi Nấm trong bộ bài địch nổ cùng lúc, mỗi Nấm lên tướng máu thấp nhất lúc đó, rồi biến mất",
+    () => {
+        let s = mk({
+            A: {
+                teemo: 2
+            }, B: {
+                g5v_tank: 0, g5v_fighter: 1, g5v_mage: 2
+            }
+        })
+        for (let i = 0; i < 3; i++) s.players.B.deck.push(gm(s).newCard({
+            kind: "special", id: "mushroom", hero: "teemo", side: "A"
+        }))
+        const n = mushrooms(s,
+            "B")
+        assert.ok(n >= 3)
+        u(s,
+            "B",
+            "g5v_mage").hp = 50
+        const r = play(s,
             "A",
             give(s,
                 "A",
                 skill(s,
                     "teemo",
                     "A",
-                    "E")),
-            {
-                target: "B:g5v_tank"
-            }).ev,
-        "B:g5v_tank")
-        const s2 = mk({
-            A: {
-                teemo: 2
-            }, B: {
-                g5v_tank: 2, g5v_mage: 1
-            }
-        })
-        cg.getHero("teemo")
-        for (let i = 0; i < 5; i++) s2.players.B.deck.push(gm(s2).newCard({
-            kind: "special", id: "mushroom", hero: "teemo", side: "A"
-        }))
-        const r = play(s2,
-            "A",
-            give(s2,
-                "A",
-                skill(s2,
-                    "teemo",
-                    "A",
-                    "E")),
-            {
-                target: "B:g5v_tank"
-            })
-        assert.ok(dmgTo(r.ev,
-            "B:g5v_tank") > e0,
-        "5 Nấm đau hơn 0 Nấm")
-        assert.equal(mushrooms(r.s,
-            "B"),
-        5,
-        "E không gỡ Nấm")
-        const r2 = play(r.s,
-            "A",
-            give(r.s,
-                "A",
-                skill(r.s,
-                    "teemo",
-                    "A",
                     "R")))
-        assert.ok(dmgTo(r2.ev,
-            "B:g5v_tank") > 0 && dmgTo(r2.ev,
-            "B:g5v_mage") > 0,
-        "R trúng mọi địch")
-        assert.equal(mushrooms(r2.s,
+        s = r.s
+        assert.equal(mushrooms(s,
             "B"),
-        5,
-        "R không gỡ Nấm")
+        0,
+        "Nấm biến mất")
+        assert.equal(evs(r.ev,
+            "damage").filter((d) => d.src === "A:teemo").length,
+        n,
+        "mỗi Nấm một lần nổ")
+        assert.equal(u(s,
+            "B",
+            "g5v_mage").status,
+        "dead",
+        "Nấm đầu hạ tướng yếu nhất")
     })
 
 // ======================================================================
@@ -1088,7 +1299,7 @@ test("R: đòn đánh kế tiêu hết Đêm vào một phát; cần có Đêm",
             "A").filter((a) => a.t === "play" && a.uid === r0.uid).length,
         0,
         "không Đêm thì không đánh được R")
-        s.units["A:vayne"].stacks.night = 6
+        s.units["A:vayne"].stacks.night = 3
         s = play(s,
             "A",
             r0).s
@@ -1104,8 +1315,14 @@ test("R: đòn đánh kế tiêu hết Đêm vào một phát; cần có Đêm",
         const burst = evs(r.ev,
             "damage").filter((d) => d.kind === "true").reduce((x, d) => x + d.amount,
             0)
-        assert.ok(burst > 300,
-            `6 Đêm x 2.5 x ~27 = 400 thô, nhận ${burst}`)
+        const v = u(s,
+            "A",
+            "vayne")
+        assert.equal(burst,
+            Math.round(gm(s).f(v,
+                VAYNE.F_R) + 3 * gm(s).f(v,
+                VAYNE.F_R_NIGHT)),
+            "R: (60 + 100% AD + 20% AP) + 3 × (15 + 15% AD) sát thương chuẩn")
         const next = strike(r.s,
             "A",
             "vayne",
@@ -1114,6 +1331,37 @@ test("R: đòn đánh kế tiêu hết Đêm vào một phát; cần có Đêm",
             "damage").filter((d) => d.kind === "true").length,
         0,
         "buff chỉ dùng một lần")
+    })
+
+test("Vayne là Sát thủ vật lý với chỉ số V3; đòn đánh tiêu Đêm cộng (24 + 36% AD + 8% AP) sát thương chuẩn",
+    () => {
+        const h = cg.getHero("vayne")!
+        assert.equal(h.role,
+            "assassin")
+        assert.equal(h.atk,
+            124)
+        assert.equal(h.hp,
+            340)
+        const s = mk({
+            A: {
+                vayne: 2
+            }, B: {
+                g5v_tank: 2
+            }
+        })
+        s.units["A:vayne"].stacks.night = 2
+        const r = strike(s,
+            "A",
+            "vayne",
+            "B:g5v_tank")
+        const v = u(s,
+            "A",
+            "vayne")
+        assert.equal(evs(r.ev,
+            "damage").filter((d) => d.kind === "true" && d.target === "B:g5v_tank").reduce((x, d) => x + d.amount,
+            0),
+        Math.round(gm(s).f(v,
+            VAYNE.F_NIGHT)))
     })
 
 // ======================================================================

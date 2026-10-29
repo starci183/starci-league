@@ -1,100 +1,143 @@
-// Braum (Đỡ đòn): máu 500 · AD 55 · giáp/kháng 40/40.
-// CHẤT: "Đứng sau tôi": Braum hứng đòn cho đồng đội, càng hứng càng Vững.
-// Nội tại: mỗi đòn đánh trúng Braum +1 Vững (giữ mãi, tối đa 6); mỗi Vững Braum nhận ít hơn 10% sát thương.
-// Q (Quick) Đỡ Thay + 2 Vững. E (Quick) Vững ×2 đến hết lượt (giảm tối đa 80%). R (Quick) đồng minh nhận ít sát thương theo Vững tới hết lượt địch.
-// Cơ chế engine dùng: HeroDef.modifyDamage, hook onAttackHit, g.chainFx().redirect, stack, status.
-import {
-    pct
-} from "../formula"
+// Braum (Đỡ đòn, phép): máu 470 · AD 86 · AP gốc 66 · giáp/kháng 35/34.
+// CHẤT: "Đứng sau tôi": Braum mở giao tranh cho đồng đội và hứng đòn thay họ, càng hứng càng cứng (Song Giáp).
+// Nội tại: mỗi đòn đánh trúng Braum +1 Song Giáp (vĩnh viễn, không giới hạn); mỗi Song Giáp +1.5 Giáp và +1.5 Kháng Phép.
+// Q: Đấm Băng gây sát thương + Dấu Băng; đồng minh đánh trúng lần đầu thì Choáng + Braum +2 Song Giáp. E (Quick): Đỡ Thay + 2 Song Giáp + Khiên. R (Quick): Choáng 1 địch, may thì Choáng thêm.
+// Cơ chế engine dùng: HeroDef.bonusStats (Giáp/Kháng Phép theo Song Giáp), g.addMark + hook onMarkHit (Dấu Băng), hook onAttackHit, g.chainFx().redirect, stack, HeroDef.ap (AP gốc).
 import {
     defineHero
 } from "../registry"
+import type {
+    Game
+} from "../game"
 import {
-    otherSide
+    otherSide, type Unit
 } from "../types"
 
-const STEADY = "braum_steady"
-const DOUBLE = "braum_dbl"
-const WALL = "braum_wall"
-const STEADY_MAX = 6
-const CUT_PER = 0.1
-const CUT_CAP = 0.8
-const CUT_TEAM_CAP = 0.6
+const DUAL = "braum_dual"
+const MARK = "braum_mark"
+/** Mỗi Song Giáp: bấy nhiêu Giáp và Kháng Phép (chỉnh cân bằng trong khoảng 1-2) */
+export const DUAL_ARMOR = 1.5
 const Q_GAIN = 2
+const E_GAIN = 2
+export const F_Q = "40 + 40% AD + 40% AP"
+export const F_E_SHIELD = "40 + 30% AD + 30% AP"
+/** R: xác suất Choáng thêm mỗi địch còn lại = 5% + 1% mỗi 100 máu tối đa + 1% mỗi 10 Giáp của Braum */
+export const R_BASE = 0.05
+export const R_PER_100_HP = 0.01
+export const R_PER_10_ARMOR = 0.01
+
+/** Choáng 1 lượt: nếu đang là lượt của nó thì tính cả lượt kế tiếp (Quick giữa lượt địch cắt cả lượt sau) */
+function stun(g: Game, u: Unit) {
+    if (u.status !== "board" || u.token) return
+    g.status(u,
+        "stun",
+        1,
+        {
+            until: g.turnsUntil(u.side,
+                g.s.active === u.side ? 2 : 1)
+        })
+}
+
+/** AP gốc = AD cũ của Braum (V3: tướng phép có AP gốc bằng AD gốc cũ) */
+const BASE_AP = 66
 
 export default defineHero({
-    id: "braum", name: "Braum", role: "tank", damage: "magic", hp: 430, atk: 66, armor: 39, mr: 38,
+    id: "braum", name: "Braum", role: "tank", damage: "magic", hp: 470, atk: 86, ap: BASE_AP, armor: 35, mr: 34,
     bot: {
         stackValue: {
-            braum_steady: 25,
-        },
-        buffValue: {
-            braum_dbl: 30, braum_wall: 70,
+            braum_dual: 25,
         },
     },
-    desc: "Tấm khiên của Freljord: hứng đòn cho cả đội, càng bị đánh càng Vững, không gây sát thương bằng chiêu.",
+    desc: "Tấm khiên của Freljord: mở giao tranh bằng Dấu Băng, hứng đòn thay cả đội, càng bị đánh càng cứng, rồi khoá cả hàng địch.",
     passive: {
         name: "Da Sắt",
-        desc: `Mỗi đòn đánh trúng Braum: +1 Vững (giữ mãi, tối đa ${STEADY_MAX}). Mỗi Vững: Braum nhận ít hơn ${pct(CUT_PER)}% sát thương.`,
+        desc: `Mỗi đòn đánh trúng Braum: +1 Song Giáp (giữ mãi, không giới hạn). Mỗi Song Giáp: +${DUAL_ARMOR} Giáp và +${DUAL_ARMOR} Kháng Phép.`,
     },
-    modifyDamage(g, me, d) {
-        if (d.target.token) return 1
-        const steady = g.stackOf(me,
-            STEADY)
-        if (d.target.id === me.id) return 1 - Math.min(CUT_CAP,
-            steady * (g.has(me,
-                DOUBLE) ? 2 : 1) * CUT_PER)
-        if (d.target.side === me.side && g.has(me,
-            WALL)) return 1 - Math.min(CUT_TEAM_CAP,
-            steady * CUT_PER)
-        return 1
+    bonusStats(g, me) {
+        const n = g.stackOf(me,
+            DUAL)
+        return {
+            armor: n * DUAL_ARMOR, mr: n * DUAL_ARMOR
+        }
     },
     hooks: {
         onAttackHit(g, me, d) {
+            // bị đánh: +1 Song Giáp
             if (d.target.id === me.id && d.attacker.side !== me.side) g.stack(me,
-                STEADY,
-                1,
-                STEADY_MAX)
+                DUAL,
+                1)
+        },
+        onMarkHit(g, me, d) {
+            if (d.mark.id !== MARK || d.mark.src !== me.id) return
+            // chính Braum đánh: giữ nguyên dấu cho đồng đội (engine tiêu 1 nấc cho mọi đòn của phe)
+            if (d.attacker.id === me.id) {
+                g.addMark(d.target,
+                    MARK,
+                    me,
+                    {
+                        hits: 1
+                    })
+                return
+            }
+            // đồng minh khác Braum đánh trúng lần đầu: Choáng + Braum +2 Song Giáp
+            stun(g,
+                d.target)
+            g.stack(me,
+                DUAL,
+                Q_GAIN)
         },
     },
     skills: {
         Q: {
-            key: "Q", name: "Đứng Sau Tôi", target: "none", quick: true, chainOnly: true,
-            desc: `Quick, Chỉ Nối Chuỗi. Khi địch đánh 1 đồng minh khác Braum: Đỡ Thay đòn đó; Braum +${Q_GAIN} Vững.`,
+            key: "Q", name: "Đấm Băng", target: "enemy",
+            desc: `Chọn 1 tướng địch; gây {${F_Q}} sát thương phép và gắn Dấu Băng tới hết lượt này. Đồng minh khác Braum đánh trúng nó lần đầu: nó bị Choáng 1 lượt và Braum +${Q_GAIN} Song Giáp.`,
+            resolve(c) {
+                const t = c.target!
+                c.g.damage(c.self,
+                    t,
+                    c.f(F_Q),
+                    "magic",
+                    {
+                        tag: "skill"
+                    })
+                c.g.addMark(t,
+                    MARK,
+                    c.self,
+                    {
+                        hits: 1
+                    })
+            },
+        },
+        E: {
+            key: "E", name: "Đứng Sau Tôi", target: "none", quick: true, chainOnly: true,
+            desc: `Quick, Chỉ Nối Chuỗi. Khi địch đánh 1 đồng minh khác Braum: Đỡ Thay đòn đó; Braum +${E_GAIN} Song Giáp và nhận Khiên {${F_E_SHIELD}}.`,
             quickWhen: (c) => c.trigger.side !== c.side && !!c.trigger.single && c.trigger.target !== c.self.id
                 && !!c.trigger.redirectable?.includes(c.self.id),
             resolve(c) {
                 if (c.trigger?.target !== c.self.id) c.g.chainFx().redirect = c.self.id
                 c.g.stack(c.self,
-                    STEADY,
-                    Q_GAIN,
-                    STEADY_MAX)
-            },
-        },
-        E: {
-            key: "E", name: "Bất Khả Xâm Phạm", target: "none", quick: true, chainOnly: true,
-            desc: `Quick, Chỉ Nối Chuỗi. Khi địch đánh: tới hết lượt này, Vững của Braum tính ×2 (Braum nhận ít hơn tối đa ${pct(CUT_CAP)}% sát thương).`,
-            quickWhen: (c) => c.trigger.side !== c.side,
-            resolve(c) {
-                c.g.status(c.self,
-                    DOUBLE,
-                    1,
-                    {
-                        of: c.g.s.active
-                    })
+                    DUAL,
+                    E_GAIN)
+                c.g.shield(c.self,
+                    c.self,
+                    c.f(F_E_SHIELD))
             },
         },
         R: {
-            key: "R", name: "Vết Nứt Băng Giá", target: "none", quick: true,
-            desc: `Quick. Tới hết lượt của đối thủ: mọi đồng minh nhận ít hơn ${pct(CUT_PER)}% sát thương cho mỗi Vững của Braum.`,
-            quickWhen: (c) => c.trigger.side !== c.side,
+            key: "R", name: "Băng Phong Ấn", target: "enemy", quick: true,
+            desc: "Quick. Chọn 1 tướng địch; nó bị Choáng 1 lượt. Mỗi tướng địch còn lại có {5% + 1% mỗi 100 máu tối đa + 1% mỗi 10 Giáp} (theo chỉ số Braum) bị Choáng 1 lượt. Dùng được trong lượt địch để cắt giao tranh.",
             resolve(c) {
-                c.g.status(c.self,
-                    WALL,
-                    1,
-                    {
-                        of: otherSide(c.side)
-                    })
+                const main = c.target!
+                const g = c.g
+                stun(g,
+                    main)
+                const chance = R_BASE + R_PER_100_HP * (c.self.maxHp / 100) + R_PER_10_ARMOR * (g.armor(c.self) / 10)
+                for (const t of g.heroes(otherSide(c.side))) {
+                    if (t.id === main.id) continue
+                    if (g.rollLog(chance,
+                        (hit, p) => `Braum R: ${g.nameOf(t)} ${hit ? "bị" : "không bị"} Choáng (tỉ lệ ${p})`)) stun(g,
+                        t)
+                }
             },
         },
     },

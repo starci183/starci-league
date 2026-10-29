@@ -438,6 +438,8 @@ All in `packages/shared/src/cardgame/` (`types.ts` types, `game.ts` = `Game` met
 ### Hooks (`HeroHooks`, items too)
 - `onTurnStartAway { side }`: fired at the start of `side`'s turn for that side's heroes NOT on board (reserve or dead) (Vayne Đêm). Filter `d.side === me.side`.
 - `onLethal { target, src, hpLost, over, kind, tag }`: set `target.hp > 0` (or `g.surviveWith(u, hp)`) to survive without losing a life (Renata, Giáp Thiên Thần); `g.redirectLethal(d, otherUnit): boolean` moves the lethal damage to another unit (Soraka).
+- `onHeal { src?, target, amount }` (V3 integration): fires after every real heal (`amount > 0`) through `g.heal`: skills, lifesteal/omnivamp, item heals; `src` is the healing unit (undefined for potion/spell heals) (Nami passive).
+- `armor_up` status (V3 integration): its `v` is added to `g.armor(u)` as temporary Armor (Renata Q).
 - `onManaSpent`, `onTempExpired` (existing V2). `onSteal { side, from, card }` also fires for Blitz-style steals.
 
 ### Chain
@@ -468,3 +470,89 @@ All in `packages/shared/src/cardgame/` (`types.ts` types, `game.ts` = `Game` met
 
 ### Not generic (hero side)
 Interactive choices at turn start (Ornn ally, Gangplank real/fake keg) use a temp special card with `SpecialCardDef.skill`. Jinx E trap: a lane marker (`g.addMarker`) checked in `onSummon`.
+10. (2026-10-30, overrides "no unequip") Equipped items CAN be removed. Every item is a card: components and crafted items are item cards in hand; equipping puts the card on a hero; removing it (an action in your own turn) returns the same card to your hand (hand max 10 applies — if full, the card is burned, so the UI must warn), and it can be equipped on another hero later. Upgrading a worn component in place stays allowed.
+11. Stealth (Tàng Hình): the unit cannot be chosen as a target, but still takes full damage from non-targeted effects (all-enemy damage, explosions, damage-over-time). Vayne's role is now assassin.
+12. Extra summon zone: marksmen AND fighters can attack anything in the enemy extra zone (kegs, Yorick's Maiden, other tokens); other roles cannot. This replaces the keg-only fighter exception.
+
+## Hero primitives (V3)
+Added by the engine owner for the V3 hero rewrite (2026-10-30). All in `packages/shared/src/cardgame/`. Names below are FINAL. "exists" = already in V2 (see "Hero primitives (V2)"), listed so the mapping hero need -> API is in one place. Everything is JSON state (no functions stored in state): behavior lives in hero `hooks` and is looked up by id.
+
+### New global rules (engine-enforced, nothing for heroes to do)
+- `RULES.summonRounds = [1, 4, 8, 13, 19]`: heroes can be summoned (blind, 1 per side, `blind.cap` = 1) ONLY in these rounds; lane `laneOrder[i]` opens in `summonRounds[i]` (`RULES.laneOpenRound` is derived). `RULES.laneOpenEvery` is removed. Respawn is unchanged.
+- `RULES.roleAttack`: every role 1, `assassin` 1.25 (basic attack raw = AD x that).
+- Free resources: on a player's own turn #2, #4, ... (after the draw step) they get 1 Basic Attack card; on own turn #3, #6, ... 1 random item component. Not from the deck. Event `{ t: "freeCard", side, card, kind: "basic" | "item" }` plus a log line, hook `onFreeCard`. `RULES.freeBasicEvery = 2`, `RULES.freeItemEvery = 3`. Hand full -> `cardBurned`.
+- Unequip (own main phase, one action): `{ t: "unequip", side, unit, item }` (`item` = item id worn by `unit`; removes one copy). The same kind of card returns to the hand (component -> `item` card, crafted -> `legend` card); hand full -> `cardBurned`. Max HP of the unit drops by the item's HP (HP clamped to >= 1). Event `unequip`; hook `onUnequip { side, unit, item }`. Upgrading in place is unchanged.
+- Stealth (`stealth` status): not choosable as a single target / attack target / `enemies_upto` / `opposite` skill target (`g.targetable(u)` false), but it STILL takes damage and statuses from effects that did not choose it (all-enemy, `g.damage` from hooks, DoT, explosions). Engine audit done: `targetValues`, `attackTargets`, basic/attack/skill resolution (a target that became stealthy inside the chain fizzles). Hero code that picks a random/lowest enemy by itself should use `g.targetableEnemies(u)` when the effect "chooses a target" and `g.enemies(u)` when it is an area/DoT effect.
+- Extra zone: tokens (Keg, Maiden, any token) are attackable by `marksman` AND `fighter` heroes only (basic card, cardless, free attacks). Other roles cannot. Skills still need `SkillDef.targetsTokens`. The old "keg is attackable by every role" exception is gone.
+- Base AP: `HeroDef.ap?: number` (default 0). `g.ap(u)` = base AP + item AP (+ transform / `bonusStats`). Formulas `{.. AP}` use `g.ap`. If a hero file does not set `ap`, `registry.ts` applies `V3_BASE_AP[hero.id]` (= old code AD of the magic heroes, table below). A hero file that sets `ap` wins.
+  `V3_BASE_AP`: katarina 82, kogmaw 84, teemo 78, ahri 76, brand 78, annie 74, twistedfate 72, lissandra 72, lux 72, viktor 68, blitzcrank 90, ornn 78, malphite 68, braum 66, janna 66, nami 66, soraka 58, renata 60. Everyone else 0.
+- Basic card / cardless / free attacks and skill resolution check `g.targetable(target)` at resolve time.
+- Vayne's role is `assassin` (hero file).
+
+### Formulas (`formula.ts`, `ctx.f(expr)`, `g.f(u, expr, target?)`)
+Terms (summed with `+`): `n`, `n% AD`, `n% AP`, `n% máu tối đa` (caster max HP), `n% máu cộng thêm`, `n% Giáp`, `n% Kháng phép` (existing) plus NEW:
+- `n% máu đã mất` / `n% missing HP` (caster's missing HP).
+- `n% máu tối đa mục tiêu` / `n% target max HP`, `n% máu đã mất mục tiêu` / `n% target missing HP`, `n% Giáp mục tiêu` / `n% target armor`: need a target; `ctx.f` passes `ctx.target`, `g.f(u, expr, target?)` takes it as 3rd arg. Without a target `tryEvalExpr` returns `undefined` (descriptions keep the raw text) and `g.f` / `ctx.f` THROW, so only use target terms where you have a target (for all-enemy skills call `g.f(self, expr, t)` per target).
+- `g.scaling(u, { base?, ad?, ap? }): number` = `base + ad * AD / 100 + ap * AP / 100` for "(1.6% + 0.4% per 100 AD + 0.8% per 100 AP)" style rates: pass fractions, `{ base: 0.016, ad: 0.004, ap: 0.008 }` returns a fraction (e.g. of target max HP).
+- `g.chance(u, { base?, ad?, ap? }): number` = same, clamped to [0, 1]. `g.roll(p: number): boolean` = seeded `rand() < p`. Ahri: `g.roll(g.chance(me, { base: 0.10, ad: 0.05, ap: 0.10 }))`. Nami's "of that ally" rate: `g.chance(allyUnit, { base: 0.05, ad: 0.0005 * 100, ap: 0.0005 * 100 })`.
+
+### Transformation (Aatrox R): `Unit.transform?: Transform`
+```ts
+interface Transform { id: string; until: number; at: number; src?: string; bonus: Partial<UnitStats>; hpBonus: number; healMult: number; reviveHp?: number }
+g.transform(u, id, turns, { bonus?: Partial<UnitStats>, maxHp?: number, healMult?: number, reviveHp?: number, heal?: boolean }): boolean
+g.extendTransform(u, turns): void            // +turns of the owner (Aatrox kill: +1)
+g.endTransform(u, reason?: "expire" | "revive" | "manual" | "death"): void
+g.isTransformed(u, id?): boolean
+```
+- `turns` counts the OWNER's turns, the current one included (same convention as `g.status`). It ends automatically at the end of the owner's turn when `until <= turnNo` (hook `onTransformEnd { unit, id, reason }` fires for the owner's hero).
+- `bonus` is added to `g.stats(u)` (e.g. `{ atk: Math.round(0.3 * g.atk(u)) }`); `maxHp` adds to max HP and also heals that amount (`heal` default true) and is removed (HP clamped to >= 1) when the transform ends. `healMult` multiplies every heal AND shield the unit receives (1.5 = +50%).
+- `reviveHp`: once, when the unit would die (after `onLethal` hooks), it stays on board at `reviveHp` HP, loses no life, and the transform ends (`reason: "revive"`). Event `{ t: "transform", unit, id, on, reason? }`; `unit.transform.id` is public state so the UI shows the form.
+- `kill()` drops the transform ("death").
+
+### Item aura and rounds worn (Ornn)
+- `Unit.itemSince?: number[]` parallel to `items`: the round each worn copy was equipped (kept across in-place upgrade, reset by unequip). `g.itemRounds(u, index): number` = `round - since` (0 in the round it was equipped).
+- `HeroDef.itemAura?(g, me, wearer: Unit, item: string, roundsWorn: number): number`: fractional bonus (0.12 = +12%) applied to every NON-HP stat of that worn item, for every item worn by `me`'s allies (`wearer.side === me.side`, incl. `me`) while `me` is on board. Several auras add up. Computed inside `g.stats(wearer)`; inside the callback `g.stats/atk/ap` of anyone return values WITHOUT auras (re-entrancy guard), so reading `g.atk(me)` / `g.ap(me)` is safe.
+- `g.grantItem(u, item?: string): "equipped" | "hand" | "burned"`: give a finished item; equips if a slot is free, else a `legend` card to the hand (burned if full). `item` omitted -> `g.randomFinishedItem()`. `g.randomFinishedItem(): string` random finished item id from `CARD_ITEMS` (not a component).
+
+### Tokens (Maiden, keg)
+- `defineTokenBehavior({ id, onOwnerTurnStart?(g, token: Unit, owner: Unit | undefined), onOwnerTurnEnd?(g, token, owner) })` (registry.ts): the engine calls it for each token with that `id` on the board of the side whose turn starts/ends (after the `onTurnStart` hooks / before the `onTurnEnd` hooks). Do the Maiden attack inside it: `const foe = g.pick(g.targetableEnemies(token)); if (foe) g.damage(token, foe, raw, "physical", { tag: "effect" }); g.heal(owner, owner, n)`. Spawn with `g.summonToken(side, { id: "maiden", name, hp, ownerId: me.id, soak: false, role: "fighter" })`. Keep max HP in sync with `g.setAuraMaxHp(token, "grave", n)` (works for tokens).
+- `TokenDef.soak` defaults to `true` when `ownerId` is set: pass `soak: false` for the Maiden.
+- The client already draws extra-zone tokens (`unit.hero === "token:<id>"`).
+
+### Mill and pick (Yorick E / passive)
+- `g.mill(side, n): Card[]`: top n deck cards to the grave (= `g.burn`, events `burn`, hook `onBurn`).
+- `g.offerPick(side, hero: string, cards: Card[]): Card[]` creates one temp special card `pick_card` per card (in hand, `temp: true`, `data.group`, `data.uid`, `data.label`). Playing one (no target, not Quick) moves the chosen card from the grave to the hand (`g.fromGrave`) and discards its sibling pick cards; unused ones vanish at end of turn. `hero` must be on board. Typical: `const cards = g.mill(side, 3); g.offerPick(side, me.hero, cards)`.
+
+### Per-turn state, counters, stacking debuffs
+- `g.rollState(u, key: string, n: number): number` sets `u.stacks[key] = 1 + randInt(n)` (public: the opponent sees it) and emits `{ t: "roll", unit, key, value }`. Qiyana: in `onTurnStart` when `d.side === me.side`: `g.rollState(me, "element", 3)`; read with `g.stackOf(me, "element")`.
+- `g.bumpTurnCount(u, key): number` / `g.turnCount(u, key): number`: per-unit counter that resets on a new `turnNo` (Zed: bump in `onDamage` when `d.src?.id === me.id`). No events.
+- Lux spent-mana pool: hook `onManaSpent { unit, amount, card }` + `g.stack(me, "pool", amount)` (exists). `ctx.manaPaid` (exists).
+- Permanent stacking debuff with cap (Ahri Mê, Ashe Buốt): `g.status(target, "me", 1, { until: FOREVER, add: true, max: 3, v: 1 })` (exists); scale damage dealt/taken by it with `HeroDef.modifyDamage` (exists). Braum Song Giáp armor/MR: `g.stack(me, "song", 1)` + `bonusStats` returning `{ armor, mr }` (exists).
+- Ashe "cannot crit": in an `onAttack` hook set `d.info.noCrit = true` (new `AttackInfo.noCrit`); attack any Buốt target ignoring taunt: `HeroDef.extraAttackTargets` (exists).
+
+### Self stasis, guard, damage cuts, stealth
+- Status `stasis` (Lissandra R): `g.stasis(u, turns = 1, of?: Side)` = `g.status(u, "stasis", turns, { of })`. While it lasts: no damage taken (like `invulnerable`), not targetable, enemies cannot put new statuses on it, and `g.canAct(u)` is false (cannot cast, attack or chain). Cast as a Quick in the enemy turn, `turns: 1` = until the end of that turn; cast in your own turn and lasting through the enemy turn: `of: otherSide(side)`.
+- Guard (Leona E): `g.guard(u, turns, { of?: Side })` sets status `guard` (v = damage stored so far). While a living ally holds `guard`, ALL damage an ENEMY unit (`src.side !== tgt.side`, any tag) would deal to any OTHER ally of the guard is dealt to the guard instead (through the guard's own armor/MR/shield; not re-shared), and the damage the guard actually took is added to `guard.statuses.guard.v`. Read it at the end of the duration in `onTurnEnd` (`d.side` = the side whose turn is ending; the status is still there then): `g.guardStored(me)`. Several guards: the first one on the board wins.
+- Damage cut statuses (engine-known): `dmgCut` (v = fraction 0..1, all damage taken x(1 - v)) and `attackCut` (v = fraction, only `tag: "attack"` damage x(1 - v); v = 1 = immune to basic attacks, Janna R). `g.status(u, "dmgCut", 1, { v: 0.2, of: foeSide })`.
+- Stealth helper: `g.stealth(u, turns = 1, of: Side = otherSide(u.side))` = `g.status(u, "stealth", turns, { of })`. Cast in your own turn the default lasts to the end of the enemy's next turn; cast as a Quick in the enemy turn pass `turns: 2` to also cover their following turn.
+- `g.targetable(u): boolean` (on board, not `stealth`/`stasis`). `g.targetableEnemies(u: Unit | Side): Unit[]`.
+
+### Bounce, marks, delayed effects, movement
+- `g.bounceAllies(from: Unit, bounces: number, fn: (target: Unit, hop: number) => void, o?: { avoidSame?: boolean }): void` (Nami E): `fn(from, 0)` first, then `bounces` more calls on a random living ally of `from` (`hop` 1..bounces; may repeat unless `avoidSame` and another exists). The caller heals inside `fn`.
+- Hit marks (Nami Q, Braum Q): `Unit.marks?: HitMark[]`, `interface HitMark { id: string; src: string; hits: number; bonus: number; kind: DamageKind; until: number }`.
+  `g.addMark(target, id, src: Unit, { hits, bonus?, kind?, turns?, of? }): void` (same id + same src replaces), `g.marksOn(target, id?): HitMark[]`, `g.removeMark(target, id): void`.
+  Engine: after every ATTACK that hits (`g.attack`: card, cardless, free or skill-made) by a unit on the marker's side against a marked target, each matching mark loses 1 hit, `bonus` damage of `kind` is dealt (tag `effect`, source = the attacker) and hook `onMarkHit { mark, attacker, target, info, left }` fires (all hero hooks: filter `d.mark.src === me.id`; `d.attacker.id` tells whether it was the marker). Marks end at 0 hits, on target death, or at the end of turn `until` (`turns`/`of` like statuses, default 1).
+- Delayed effects (Zed R second hit): `g.delay(owner: Unit, key: string, at: "turnStart" | "turnEnd", side: Side, data?: Record<string, number | string>)` stores `{ owner: owner.id, key, at, side, data }` in `state.delayed`; the engine fires it ONCE at the start/end of `side`'s next turn (end: just before the `onTurnEnd` hooks) by calling the OWNER hero's hook `onDelayed { key, owner, data }` (skipped, dropped, when the owner is not on board). Store `data.target = target.id` and recompute damage inside the hook.
+- Movement: `g.moveTo(u, lane): boolean` (now returns whether it moved; swaps with a living ally in that lane, blocked by a dead unit holding the lane). `g.swapWith(u, ally): boolean` = `moveTo(u, ally.lane)`. `g.faceEnemy(u, enemy): boolean` = move `u` to `enemy.lane`; `g.canFace(u, enemy): boolean`. Enemies are moved the same way with `g.moveTo(enemyUnit, lane)` (Darius pull); a dead holder blocks.
+
+### Cards
+- Steal and convert (Blitzcrank): `g.stealCard(to, from, { uid?, skill: "convert" })`: an enemy SKILL card becomes a random Q or E of a living non-token hero of `to` via `g.giveSkillToHand(to, hero, key, "steal")` (taken from the deck when present, else created); the original goes to its owner's grave. Non-skill cards go to the stealer's hand as before. No hero of `to` on board -> a Basic card. Returns the original card (`card.hero` = whose skill). Hook `onSteal` fires.
+- Add a specific hero card to hand (Jinx E, Gangplank R, Kha'Zix R): `g.giveSkillToHand(side, hero, key, reason)` (exists; from the deck when present, else created; burned if hand full).
+- Heal/shield suppression `noheal` (exists); amplification by `Transform.healMult`.
+
+### Summary of type additions
+- `HeroDef`: `ap?`, `itemAura?`. `AttackInfo`: `noCrit?`. `Unit`: `marks?`, `transform?`, `itemSince?`. `GameState`: `ownTurns?`, `delayed?`.
+- Hooks: `onMarkHit`, `onDelayed` (owner only), `onUnequip`, `onTransformEnd` (owner only), `onFreeCard`.
+- Events: `unequip`, `freeCard`, `transform`, `roll`. Action: `unequip`.
+- Statuses known by the engine: `stasis`, `guard`, `dmgCut`, `attackCut` (plus the V2 list).
+13. (2026-10-30) Balance mandate from the owner: the balance work may tune hero stats, skill numbers, play details AND global rule constants (e.g. free Basic Attack every 2 vs 3 turns, free component cadence, respawn rounds, mana regen, summon rounds) to reach balance. Pacing target: most games end after the 4th hero milestone, a bit later is fine (4th summon at round 13 → typical end ≈ rounds 14-18). Keep each hero's approved identity/mechanic; list every rule change in the report.

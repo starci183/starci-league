@@ -81,7 +81,7 @@ export interface CardView {
     names: Record<Side, string>;
     bots: Partial<Record<Side, string>>;
     rules: {
-        lives: number; handMax: number; laneOpenRound: number[];
+        lives: number; handMax: number; laneOpenRound: number[]; summonRounds?: number[];
         attackLimit: number; drawPerTurn: number; fighterCardlessMult: number;
         mage: { manaMax: number }; skillCopies: Record<cg.SkillKey, number>;
     };
@@ -343,7 +343,19 @@ export function applyToDisplay(events: GameEvent[]) {
             if (e.with) fromReal(e.with)
             syncLanes(sideOfId(e.unit))
             break
+        case "transform":
+            fromReal(e.unit)
+            break
+        case "roll":
+            upd(e.unit,
+                (u) => ({
+                    ...u, stacks: {
+                        ...u.stacks, [e.key]: e.value
+                    }
+                }))
+            break
         case "equip":
+        case "unequip":
         case "upgrade":
             upd(e.unit,
                 (u) => ({

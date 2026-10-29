@@ -1,4 +1,4 @@
-// Test cơ chế đặc trưng V2 của 6 tướng nhóm G2V: Blitzcrank, Braum, Leona, Malphite, Renata, Janna.
+// Test bộ chiêu V3 của 6 tướng nhóm G2V: Blitzcrank, Braum, Leona, Malphite, Renata, Janna.
 // Chạy: npx tsx scripts/card_tests_heroes_g2v.ts [--only=chuỗi] [--verbose]. Khung test chép từ scripts/card_tests.ts.
 // Lưu ý: runner scripts/card_tests.ts chỉ quét card_tests_(g\d+|items|bot|v2).ts nên file này chạy riêng.
 import assert from "node:assert/strict"
@@ -210,22 +210,40 @@ const inHand = (s: St, side: S, card: { uid: string }) => s.players[side].hand.s
 const phys = (s: St, t: cg.Unit, raw: number, m = 1) => Math.round(raw * m * (100 / (100 + gm(s).armor(t))))
 const magic = (s: St, t: cg.Unit, raw: number, m = 1) => Math.round(raw * m * (100 / (100 + gm(s).mr(t))))
 
+/** Giá trị công thức theo chỉ số hiện tại của tướng */
+const fx = (s: St, side: S, hero: string, expr: string) => gm(s).f(u(s,
+    side,
+    hero),
+expr)
+const clear = (s: St) => { for (const side of ["A",
+    "B"] as const) s.players[side].hand = [] }
+/** Chuyển lượt và dọn tay (lượt mới rút bài) */
+const turn = (s: St, side: S) => { s = toTurn(s,
+    side); clear(s); return s }
+const fresh = (s: St, side: S, hero: string) => { const x = u(s,
+    side,
+    hero); x.hp = x.maxHp = 100000 }
+
 // ======================================================================
 G("Blitzcrank")
 // ======================================================================
-test("Q cướp lá chung về tay Blitz; lá chiêu bị Đốt vào mộ chủ và tướng đó Choáng",
+test("Q cướp lá chung: về tay Blitz, Blitz nhận Khiên, không gây sát thương",
     () => {
         let s = mk({
             A: {
                 blitzcrank: 2
             }, B: {
-                braum: 1
+                leona: 1
             }
         })
         const b = give(s,
             "B",
             basic(s))
-        s = play(s,
+        const want = Math.round(fx(s,
+            "A",
+            "blitzcrank",
+            "20 + 10% AD + 15% AP"))
+        s = settle(play(s,
             "A",
             give(s,
                 "A",
@@ -234,60 +252,167 @@ test("Q cướp lá chung về tay Blitz; lá chiêu bị Đốt vào mộ chủ
                     "A",
                     "Q")),
             {
-            }).s
+            })).s
         assert.ok(inHand(s,
             "A",
-            b),
-        "lá chung về tay Blitz")
-        assert.equal(s.players.B.hand.length,
-            0)
-        const sk = give(s,
+            b))
+        assert.equal(u(s,
+            "A",
+            "blitzcrank").shield,
+        want)
+        assert.equal(u(s,
+            "B",
+            "leona").hp,
+        u(s,
+            "B",
+            "leona").maxHp)
+    })
+test("Q cướp lá chiêu: Đốt vào mộ chủ, thành Q/E của tướng mình, chủ lá nhận sát thương phép; chủ chưa ra sân thì địch ngẫu nhiên",
+    () => {
+        let s = mk({
+            A: {
+                blitzcrank: 2
+            }, B: {
+                leona: 1
+            }
+        })
+        const lq = give(s,
             "B",
             skill(s,
+                "leona",
+                "B",
+                "Q"))
+        const raw = fx(s,
+            "A",
+            "blitzcrank",
+            "60 + 60% AD + 60% AP")
+        s = settle(play(s,
+            "A",
+            give(s,
+                "A",
+                skill(s,
+                    "blitzcrank",
+                    "A",
+                    "Q")),
+            {
+            })).s
+        assert.ok(s.players.B.grave.some((c) => c.uid === lq.uid))
+        const got = s.players.A.hand[0]
+        assert.ok(got && got.kind === "skill" && got.hero === "blitzcrank" && /_(q|e)$/.test(got.id))
+        const l = u(s,
+            "B",
+            "leona")
+        assert.equal(l.maxHp - l.hp,
+            magic(s,
+                l,
+                raw))
+        // chủ lá (Braum) chưa ra sân: sát thương vào tướng địch còn sống (Leona)
+        let s2 = mk({
+            A: {
+                blitzcrank: 2
+            }, B: {
+                leona: 1
+            }
+        })
+        give(s2,
+            "B",
+            skill(s2,
                 "braum",
                 "B",
                 "Q"))
-        s = play(s,
+        s2 = settle(play(s2,
             "A",
-            give(s,
+            give(s2,
                 "A",
-                skill(s,
+                skill(s2,
                     "blitzcrank",
                     "A",
                     "Q")),
             {
-            }).s
-        assert.ok(!inHand(s,
-            "A",
-            sk),
-        "lá chiêu không về tay Blitz")
-        assert.ok(s.players.B.grave.some((c) => c.uid === sk.uid),
-            "lá chiêu bị Đốt vào mộ chủ")
-        assert.ok(has(s,
+            })).s
+        assert.ok(u(s2,
             "B",
-            "braum",
-            "stun"),
-        "Braum Choáng")
+            "leona").hp < u(s2,
+            "B",
+            "leona").maxHp)
     })
-test("R lộ tay địch, Choáng tướng có chiêu trên tay; Q khi tay lộ cho chọn lá",
+test("E (Quick): huỷ chiêu địch, giật lá, tướng tung chiêu Choáng; chiêu không gây sát thương",
     () => {
         let s = mk({
             A: {
                 blitzcrank: 2
             }, B: {
-                braum: 1, g2v_nuker: 3
+                g2v_nuker: 2
             }
         })
-        const b = give(s,
+        s = turn(s,
+            "B")
+        const q = give(s,
             "B",
-            basic(s))
+            skill(s,
+                "g2v_nuker",
+                "B",
+                "Q"))
+        const e = give(s,
+            "A",
+            skill(s,
+                "blitzcrank",
+                "A",
+                "E"))
+        let r = play(s,
+            "B",
+            q,
+            {
+                target: "A:blitzcrank"
+            })
+        assert.equal(r.s.phase,
+            "chain")
+        r = settle(chainWith(r.s,
+            "A",
+            e,
+            {
+            }))
+        s = r.s
+        assert.equal(u(s,
+            "A",
+            "blitzcrank").hp,
+        u(s,
+            "A",
+            "blitzcrank").maxHp - 0)
+        assert.ok(s.players.B.grave.some((c) => c.uid === q.uid),
+            "lá bị Đốt vào mộ chủ")
+        assert.ok(has(s,
+            "B",
+            "g2v_nuker",
+            "stun"),
+        "kẻ tung chiêu bị Choáng")
+        assert.ok(u(s,
+            "A",
+            "blitzcrank").shield > 0,
+        "Khiên nội tại")
+        assert.ok(s.players.A.hand.some((c) => c.kind === "skill" && c.hero === "blitzcrank"),
+            "thành lá Q/E của Blitz")
+    })
+test("R: Xem Tay + tướng có chiêu trên tay địch nhận sát thương phép và Choáng; tướng khác không",
+    () => {
+        let s = mk({
+            A: {
+                blitzcrank: 2
+            }, B: {
+                g2v_nuker: 2, leona: 1
+            }
+        })
         give(s,
             "B",
             skill(s,
-                "braum",
+                "g2v_nuker",
                 "B",
                 "Q"))
-        s = play(s,
+        const raw = fx(s,
+            "A",
+            "blitzcrank",
+            "80 + 50% AD + 80% AP")
+        s = settle(play(s,
             "A",
             give(s,
                 "A",
@@ -296,215 +421,67 @@ test("R lộ tay địch, Choáng tướng có chiêu trên tay; Q khi tay lộ 
                     "A",
                     "R")),
             {
-            }).s
-        assert.ok(gm(s).handRevealed("B"),
-            "tay B đang lộ")
+            })).s
+        const n = u(s,
+            "B",
+            "g2v_nuker")
+        assert.equal(n.maxHp - n.hp,
+            magic(s,
+                n,
+                raw))
         assert.ok(has(s,
             "B",
-            "braum",
-            "stun"),
-        "Braum có chiêu trên tay nên Choáng")
+            "g2v_nuker",
+            "stun"))
+        assert.ok(gm(s).handRevealed("B"))
+        assert.equal(u(s,
+            "B",
+            "leona").hp,
+        u(s,
+            "B",
+            "leona").maxHp)
         assert.ok(!has(s,
             "B",
-            "g2v_nuker",
-            "stun"),
-        "tướng không có chiêu trên tay thì không Choáng")
-        const q = give(s,
-            "A",
-            skill(s,
-                "blitzcrank",
-                "A",
-                "Q"))
-        const opts = cg.legalActions(s,
-            "A").filter((a) => a.t === "play" && a.uid === q.uid)
-        assert.equal(opts.length,
-            2,
-            "mỗi loại lá trên tay địch là 1 lựa chọn")
-        s = play(s,
-            "A",
-            q,
-            {
-                pick: b.uid
-            }).s
-        assert.ok(inHand(s,
-            "A",
-            b),
-        "cướp đúng lá chọn")
-    })
-test("E (Quick) giật lá Đánh thường của địch: đòn bị huỷ, Blitz nhận lá",
-    () => {
-        let s = mk({
-            A: {
-                blitzcrank: 1, g2v_tank: 2
-            }, B: {
-                g2v_fighter: 2
-            }
-        })
-        const e = give(s,
-            "A",
-            skill(s,
-                "blitzcrank",
-                "A",
-                "E"))
-        s = toTurn(s,
-            "B")
-        s.players.A.hand = [e]
-        s.players.B.hand = []
-        const strike = give(s,
-            "B",
-            basic(s))
-        let r = play(s,
-            "B",
-            strike,
-            {
-                actor: "B:g2v_fighter", target: "A:g2v_tank"
-            })
-        assert.equal(r.s.phase,
-            "chain")
-        r = settle(chainWith(r.s,
-            "A",
-            e))
-        assert.equal(dmgTo(r.ev,
-            "A:g2v_tank"),
-        0,
-        "đòn bị huỷ")
-        assert.ok(r.s.players.A.hand.some((c) => c.uid === strike.uid),
-            "Blitz nhận chính lá Đánh thường đó")
-    })
-test("E giật lá chiêu: lá bị Đốt vào mộ chủ, không có sát thương, tướng tung bị Choáng",
-    () => {
-        let s = mk({
-            A: {
-                blitzcrank: 1, g2v_tank: 2
-            }, B: {
-                g2v_nuker: 2
-            }
-        })
-        const e = give(s,
-            "A",
-            skill(s,
-                "blitzcrank",
-                "A",
-                "E"))
-        s = toTurn(s,
-            "B")
-        s.players.A.hand = [e]
-        s.players.B.hand = []
-        const nuke = give(s,
-            "B",
-            skill(s,
-                "g2v_nuker",
-                "B",
-                "Q"))
-        let r = play(s,
-            "B",
-            nuke,
-            {
-                target: "A:g2v_tank"
-            })
-        assert.equal(r.s.phase,
-            "chain")
-        r = settle(chainWith(r.s,
-            "A",
-            e))
-        assert.equal(dmgTo(r.ev,
-            "A:g2v_tank"),
-        0)
-        assert.ok(!r.s.players.A.hand.some((c) => c.uid === nuke.uid),
-            "lá chiêu không về tay Blitz")
-        assert.ok(r.s.players.B.grave.some((c) => c.uid === nuke.uid),
-            "lá chiêu vào mộ chủ")
-        assert.ok(has(r.s,
-            "B",
-            "g2v_nuker",
+            "leona",
             "stun"))
     })
 
 // ======================================================================
 G("Braum")
 // ======================================================================
-test("Nội tại: đòn đánh trúng Braum +1 Vững; mỗi Vững giảm 10% sát thương (tối đa 6)",
+test("Nội tại: đòn đánh trúng Braum +1 Song Giáp (+1.5 Giáp/Kháng Phép); chiêu thì không",
     () => {
         let s = mk({
             A: {
-                braum: 2
+                braum: 2, g2v_tank: 1
             }, B: {
-                g2v_fighter: 2
+                g2v_mark: 3, g2v_nuker: 1
             }
         })
-        s = toTurn(s,
+        s = turn(s,
             "B")
-        const t = u(s,
-            "A",
-            "braum")
-        gm(s).setStack(t,
-            "braum_steady",
-            6)
-        s.players.B.hand = []
-        const r = settle(play(s,
+        const a = give(s,
             "B",
-            give(s,
-                "B",
-                basic(s)),
-            {
-                actor: "B:g2v_fighter", target: "A:braum"
-            }))
-        assert.equal(dmgTo(r.ev,
-            "A:braum"),
-        phys(s,
-            t,
-            50,
-            0.4),
-        "6 Vững = −60%")
-        assert.equal(u(r.s,
-            "A",
-            "braum").stacks.braum_steady,
-        6,
-        "đã tối đa 6")
-        const s2 = mk({
-            A: {
-                braum: 2
-            }, B: {
-                g2v_fighter: 2
-            }
-        })
-        const s3 = toTurn(s2,
-            "B")
-        s3.players.B.hand = []
-        const r2 = settle(play(s3,
+            basic(s))
+        s = settle(play(s,
             "B",
-            give(s3,
-                "B",
-                basic(s3)),
+            a,
             {
-                actor: "B:g2v_fighter", target: "A:braum"
-            }))
-        assert.equal(u(r2.s,
+                actor: "B:g2v_mark", target: "A:braum"
+            })).s
+        assert.equal(u(s,
             "A",
-            "braum").stacks.braum_steady,
-        1,
-        "trúng 1 đòn = +1 Vững")
-    })
-test("Q (Quick) Đỡ Thay chiêu nhắm đồng minh: Braum nhận chiêu đó, +2 Vững",
-    () => {
-        let s = mk({
-            A: {
-                braum: 1, g2v_tank: 2
-            }, B: {
-                g2v_nuker: 2
-            }
-        })
-        const q = give(s,
+            "braum").stacks.braum_dual,
+        1)
+        assert.equal(gm(s).stats(u(s,
             "A",
-            skill(s,
-                "braum",
-                "A",
-                "Q"))
-        s = toTurn(s,
-            "B")
-        s.players.A.hand = [q]
-        s.players.B.hand = []
-        let r = play(s,
+            "braum")).armor,
+        1.5)
+        assert.equal(gm(s).stats(u(s,
+            "A",
+            "braum")).mr,
+        1.5)
+        s = settle(play(s,
             "B",
             give(s,
                 "B",
@@ -513,166 +490,193 @@ test("Q (Quick) Đỡ Thay chiêu nhắm đồng minh: Braum nhận chiêu đó,
                     "B",
                     "Q")),
             {
-                target: "A:g2v_tank"
-            })
-        assert.equal(r.s.phase,
-            "chain")
-        r = settle(chainWith(r.s,
+                target: "A:braum"
+            })).s
+        assert.equal(u(s,
             "A",
-            q))
-        assert.equal(dmgTo(r.ev,
-            "A:g2v_tank"),
-        0,
-        "đồng minh không bị trúng")
-        assert.ok(dmgTo(r.ev,
-            "A:braum") > 0,
-        "Braum hứng")
-        assert.equal(u(r.s,
-            "A",
-            "braum").stacks.braum_steady,
-        2,
-        "chiêu không nạp Vững, chỉ +2 từ Q")
+            "braum").stacks.braum_dual,
+        1)
     })
-test("E (Quick) tính Vững ×2 tới hết lượt (tối đa giảm 80%)",
+test("Q: sát thương phép + Dấu Băng; đồng minh đánh trúng lần đầu thì Choáng và Braum +2 Song Giáp, lần hai không",
     () => {
         let s = mk({
             A: {
-                braum: 2
+                braum: 2, g2v_mark: 3
             }, B: {
-                g2v_fighter: 2
+                g2v_tank: 3
             }
         })
+        fresh(s,
+            "B",
+            "g2v_tank")
+        const raw = fx(s,
+            "A",
+            "braum",
+            "40 + 40% AD + 40% AP")
+        s = settle(play(s,
+            "A",
+            give(s,
+                "A",
+                skill(s,
+                    "braum",
+                    "A",
+                    "Q")),
+            {
+                target: "B:g2v_tank"
+            })).s
+        const t = u(s,
+            "B",
+            "g2v_tank")
+        assert.equal(t.maxHp - t.hp,
+            magic(s,
+                t,
+                raw))
+        assert.equal(gm(s).marksOn(t,
+            "braum_mark").length,
+        1)
+        s = settle(play(s,
+            "A",
+            give(s,
+                "A",
+                basic(s)),
+            {
+                actor: "A:g2v_mark", target: "B:g2v_tank"
+            })).s
+        assert.ok(has(s,
+            "B",
+            "g2v_tank",
+            "stun"))
+        assert.equal(u(s,
+            "A",
+            "braum").stacks.braum_dual,
+        2)
+        s = settle(play(s,
+            "A",
+            give(s,
+                "A",
+                basic(s)),
+            {
+                actor: "A:g2v_mark", target: "B:g2v_tank"
+            })).s
+        assert.equal(u(s,
+            "A",
+            "braum").stacks.braum_dual,
+        2)
+    })
+test("E (Quick): Đỡ Thay đòn lên đồng minh, +2 Song Giáp, nhận Khiên",
+    () => {
+        let s = mk({
+            A: {
+                braum: 2, g2v_tank: 1
+            }, B: {
+                g2v_mark: 3
+            }
+        })
+        s = turn(s,
+            "B")
         const e = give(s,
             "A",
             skill(s,
                 "braum",
                 "A",
                 "E"))
-        s = toTurn(s,
-            "B")
-        s.players.A.hand = [e]
-        s.players.B.hand = []
-        const t = u(s,
+        const shield = Math.round(fx(s,
             "A",
-            "braum")
-        gm(s).setStack(t,
-            "braum_steady",
-            5)
+            "braum",
+            "40 + 30% AD + 30% AP"))
         let r = play(s,
             "B",
             give(s,
                 "B",
                 basic(s)),
             {
-                actor: "B:g2v_fighter", target: "A:braum"
+                actor: "B:g2v_mark", target: "A:g2v_tank"
             })
         assert.equal(r.s.phase,
             "chain")
         r = settle(chainWith(r.s,
             "A",
-            e))
-        assert.equal(dmgTo(r.ev,
-            "A:braum"),
-        phys(s,
-            t,
-            50,
-            0.2),
-        "5 Vững ×2 = trần −80%")
+            e,
+            {
+            }))
+        s = r.s
+        assert.equal(u(s,
+            "A",
+            "g2v_tank").hp,
+        u(s,
+            "A",
+            "g2v_tank").maxHp)
+        const b = u(s,
+            "A",
+            "braum")
+        assert.equal(b.stacks.braum_dual,
+            3,
+            "+2 từ E, +1 vì bị đánh")
+        assert.equal(b.hp,
+            b.maxHp)
+        assert.equal(b.shield,
+            shield - dmgTo(r.ev,
+                "A:braum"))
     })
-test("R (Quick) giảm sát thương mọi đồng minh theo Vững của Braum tới hết lượt địch",
+test("R (Quick): Choáng 1 địch chọn; xác suất đủ 100% thì Choáng cả đội địch",
     () => {
         let s = mk({
             A: {
-                braum: 1, g2v_tank: 2
+                braum: 2
             }, B: {
-                g2v_fighter: 2
+                g2v_tank: 1, g2v_mark: 3
             }
         })
-        const r0 = give(s,
+        const c = (st: St) => play(st,
             "A",
-            skill(s,
-                "braum",
+            give(st,
                 "A",
-                "R"))
-        gm(s).setStack(u(s,
-            "A",
-            "braum"),
-        "braum_steady",
-        4)
-        s = settle(play(s,
-            "A",
-            r0)).s
-        s = toTurn(s,
-            "B")
-        s.players.A.hand = []
-        s.players.B.hand = []
-        const t = u(s,
-            "A",
-            "g2v_tank")
-        const r = settle(play(s,
-            "B",
-            give(s,
-                "B",
-                basic(s)),
+                skill(st,
+                    "braum",
+                    "A",
+                    "R")),
             {
-                actor: "B:g2v_fighter", target: "A:g2v_tank"
-            }))
-        assert.equal(dmgTo(r.ev,
-            "A:g2v_tank"),
-        phys(s,
-            t,
-            50,
-            0.6),
-        "4 Vững = đồng minh −40%")
+                target: "B:g2v_tank"
+            })
+        const s1 = settle(c(structuredClone(s))).s
+        assert.ok(has(s1,
+            "B",
+            "g2v_tank",
+            "stun"))
+        u(s,
+            "A",
+            "braum").maxHp = 100000
+        s = settle(c(s)).s
+        assert.ok(has(s,
+            "B",
+            "g2v_tank",
+            "stun") && has(s,
+            "B",
+            "g2v_mark",
+            "stun"))
     })
 
 // ======================================================================
 G("Leona")
 // ======================================================================
-test("Nội tại: đòn đánh của Leona +1 Nắng; đủ 3 Nắng thì Choáng 1 lượt và mất hết Nắng",
+test("Q: sát thương vật lý + Choáng + Nắng; R: sát thương mọi địch + Nắng, kẻ đã có Nắng thì Choáng",
     () => {
         let s = mk({
             A: {
                 leona: 2
             }, B: {
-                g2v_tank: 2
+                g2v_tank: 2, g2v_mark: 3, g2v_sup: 1
             }
         })
-        for (let i = 1; i <= 3; i++) {
-            s = settle(play(s,
-                "A",
-                give(s,
-                    "A",
-                    basic(s)),
-                {
-                    actor: "A:leona", target: "B:g2v_tank"
-                })).s
-            if (i < 3) assert.equal(gm(s).statusV(u(s,
-                "B",
-                "g2v_tank"),
-            "sun"),
-            i)
-        }
-        assert.ok(!has(s,
+        for (const h of ["g2v_tank",
+            "g2v_mark",
+            "g2v_sup"]) fresh(s,
             "B",
-            "g2v_tank",
-            "sun"),
-        "mất hết Nắng")
-        assert.ok(has(s,
-            "B",
-            "g2v_tank",
-            "stun"),
-        "Choáng")
-    })
-test("Q đặt 2 Nắng lên 1 địch: thêm 1 đòn đánh là Choáng",
-    () => {
-        let s = mk({
-            A: {
-                leona: 2
-            }, B: {
-                g2v_tank: 2
-            }
-        })
+            h)
+        const rawQ = fx(s,
+            "A",
+            "leona",
+            "40 + 60% AD + 40% AP")
         s = settle(play(s,
             "A",
             give(s,
@@ -682,91 +686,22 @@ test("Q đặt 2 Nắng lên 1 địch: thêm 1 đòn đánh là Choáng",
                     "A",
                     "Q")),
             {
-                target: "B:g2v_tank"
             })).s
-        assert.equal(gm(s).statusV(u(s,
+        const t = u(s,
             "B",
-            "g2v_tank"),
-        "sun"),
-        2)
-        s = settle(play(s,
-            "A",
-            give(s,
-                "A",
-                basic(s)),
-            {
-                actor: "A:leona", target: "B:g2v_tank"
-            })).s
+            "g2v_tank")
+        assert.equal(t.maxHp - t.hp,
+            phys(s,
+                t,
+                rawQ))
         assert.ok(has(s,
             "B",
             "g2v_tank",
-            "stun"))
-    })
-test("E: lượt này đòn đánh của đồng minh +1 Nắng lên mục tiêu (Leona không tính đôi)",
-    () => {
-        let s = mk({
-            A: {
-                leona: 2, g2v_mark: 0
-            }, B: {
-                g2v_tank: 2, g2v_mage: 3
-            }
-        })
-        s = settle(play(s,
-            "A",
-            give(s,
-                "A",
-                skill(s,
-                    "leona",
-                    "A",
-                    "E")),
-            {
-            })).s
-        s = settle(play(s,
-            "A",
-            give(s,
-                "A",
-                basic(s)),
-            {
-                actor: "A:g2v_mark", target: "B:g2v_tank"
-            })).s
-        assert.equal(gm(s).statusV(u(s,
+            "stun") && has(s,
             "B",
-            "g2v_tank"),
-        "sun"),
-        1,
-        "đòn của đồng minh +1 Nắng")
-        s = settle(play(s,
-            "A",
-            give(s,
-                "A",
-                basic(s)),
-            {
-                actor: "A:leona", target: "B:g2v_tank"
-            })).s
-        assert.equal(gm(s).statusV(u(s,
-            "B",
-            "g2v_tank"),
-        "sun"),
-        2,
-        "đòn của Leona chỉ +1")
-    })
-test("R: mọi địch +2 Nắng; địch đã có Nắng thì Choáng ngay",
-    () => {
-        let s = mk({
-            A: {
-                leona: 2
-            }, B: {
-                g2v_tank: 2, g2v_mage: 3
-            }
-        })
-        gm(s).status(u(s,
-            "B",
-            "g2v_tank"),
-        "sun",
-        1,
-        {
-            v: 1, until: cg.FOREVER
-        })
+            "g2v_tank",
+            "sun"))
+        delete t.statuses.stun
         s = settle(play(s,
             "A",
             give(s,
@@ -782,269 +717,379 @@ test("R: mọi địch +2 Nắng; địch đã có Nắng thì Choáng ngay",
             "g2v_tank",
             "stun"),
         "đã có Nắng thì Choáng")
-        assert.equal(gm(s).statusV(u(s,
+        assert.ok(!has(s,
             "B",
-            "g2v_mage"),
-        "sun"),
-        2,
-        "địch khác +2 Nắng")
+            "g2v_mark",
+            "stun") && !has(s,
+            "B",
+            "g2v_sup",
+            "stun"))
+        assert.ok(has(s,
+            "B",
+            "g2v_mark",
+            "sun") && has(s,
+            "B",
+            "g2v_sup",
+            "sun"))
     })
-
-// ======================================================================
-G("Malphite")
-// ======================================================================
-test("Nội tại: nhận ít hơn 5% sát thương cho mỗi lá trên tay bạn (10 lá = −50%)",
+test("Nội tại: đồng minh khác đánh trúng địch có Nắng gây thêm sát thương rồi Nắng tan; Leona tự đánh không dùng Nắng",
     () => {
         let s = mk({
             A: {
-                malphite: 2
+                leona: 2, g2v_mark: 3
             }, B: {
-                g2v_fighter: 2
+                g2v_tank: 2
             }
         })
-        s = toTurn(s,
+        fresh(s,
+            "B",
+            "g2v_tank")
+        s = settle(play(s,
+            "A",
+            give(s,
+                "A",
+                skill(s,
+                    "leona",
+                    "A",
+                    "Q")),
+            {
+            })).s
+        s = settle(play(s,
+            "A",
+            give(s,
+                "A",
+                basic(s)),
+            {
+                actor: "A:leona", target: "B:g2v_tank"
+            })).s
+        assert.ok(has(s,
+            "B",
+            "g2v_tank",
+            "sun"),
+        "Leona tự đánh: Nắng còn")
+        const bonus = fx(s,
+            "A",
+            "leona",
+            "20 + 20% AD + 30% AP")
+        const r = settle(play(s,
+            "A",
+            give(s,
+                "A",
+                basic(s)),
+            {
+                actor: "A:g2v_mark", target: "B:g2v_tank"
+            }))
+        assert.ok(!has(r.s,
+            "B",
+            "g2v_tank",
+            "sun"))
+        const extra = evs(r.ev,
+            "damage").filter((d) => d.src === "A:leona" && d.tag === "effect").reduce((x, d) => x + d.amount,
+            0)
+        assert.equal(extra,
+            phys(r.s,
+                u(r.s,
+                    "B",
+                    "g2v_tank"),
+                bonus))
+    })
+test("E (Quick) Nhật Thực: +60 Giáp/Kháng Phép, hứng sát thương lên đồng đội, cuối lượt địch trả 40% + công thức và gắn Nắng",
+    () => {
+        let s = mk({
+            A: {
+                leona: 2, g2v_tank: 1
+            }, B: {
+                g2v_mark: 3
+            }
+        })
+        fresh(s,
+            "B",
+            "g2v_mark")
+        const before = gm(s).armor(u(s,
+            "A",
+            "leona"))
+        s = settle(play(s,
+            "A",
+            give(s,
+                "A",
+                skill(s,
+                    "leona",
+                    "A",
+                    "E")),
+            {
+            })).s
+        assert.equal(gm(s).armor(u(s,
+            "A",
+            "leona")),
+        before + 60)
+        s = turn(s,
             "B")
-        s.players.A.hand = []
-        for (let i = 0; i < 10; i++) give(s,
-            "A",
-            basic(s))
-        s.players.B.hand = []
-        const t = u(s,
-            "A",
-            "malphite")
         const r = settle(play(s,
             "B",
             give(s,
                 "B",
                 basic(s)),
             {
-                actor: "B:g2v_fighter", target: "A:malphite"
+                actor: "B:g2v_mark", target: "A:g2v_tank"
             }))
-        assert.equal(dmgTo(r.ev,
-            "A:malphite"),
-        phys(s,
-            t,
-            50,
-            0.5))
+        s = r.s
+        assert.equal(u(s,
+            "A",
+            "g2v_tank").hp,
+        u(s,
+            "A",
+            "g2v_tank").maxHp,
+        "đồng đội không mất máu")
+        const l = u(s,
+            "A",
+            "leona")
+        assert.ok(l.hp < l.maxHp,
+            "Leona hứng")
+        const stored = gm(s).guardStored(l)
+        assert.ok(stored > 0)
+        const m = u(s,
+            "B",
+            "g2v_mark")
+        const hp0 = m.hp
+        const e = end(s,
+            "B")
+        const lost = hp0 - u(e.s,
+            "B",
+            "g2v_mark").hp
+        assert.equal(lost,
+            phys(e.s,
+                u(e.s,
+                    "B",
+                    "g2v_mark"),
+                stored * 0.4 + fx(e.s,
+                    "A",
+                    "leona",
+                    "20 + 20% AD + 30% AP")))
+        assert.ok(has(e.s,
+            "B",
+            "g2v_mark",
+            "sun"))
     })
-test("Q: sát thương phép theo số lá còn trên tay bạn",
+
+// ======================================================================
+G("Malphite")
+// ======================================================================
+test("Nội tại: đầu lượt nhận Khiên (5% máu tối đa + 100% Giáp), không cộng dồn",
     () => {
-        const s = mk({
+        let s = mk({
             A: {
                 malphite: 2
             }, B: {
                 g2v_tank: 2
             }
         })
-        const q = give(s,
-            "A",
-            skill(s,
-                "malphite",
-                "A",
-                "Q"))
-        for (let i = 0; i < 4; i++) give(s,
-            "A",
-            basic(s))
-        const me = u(s,
+        s = turn(turn(s,
+            "B"),
+        "A")
+        const m = u(s,
             "A",
             "malphite")
-        const per = gm(s).f(me,
-            "12 + 18% AD")
-        const r = settle(play(s,
+        const want = Math.round(0.05 * m.maxHp + gm(s).armor(m))
+        assert.equal(m.shield,
+            want)
+        s = turn(turn(s,
+            "B"),
+        "A")
+        assert.equal(u(s,
             "A",
-            q,
-            {
-                target: "B:g2v_tank"
-            }))
-        assert.equal(dmgTo(r.ev,
-            "B:g2v_tank"),
-        magic(s,
-            u(s,
-                "B",
-                "g2v_tank"),
-            4 * per))
-        assert.equal(r.s.players.A.hand.length,
-            4,
-            "không mất lá nào trên tay")
+            "malphite").shield,
+        want)
     })
-test("E (Quick): khi Malphite bị đánh, rút 2 lá trước khi tính sát thương",
+test("Q: sát thương phép theo Giáp, lấy 15 Giáp của địch (Malphite +15, địch chịu vật lý nặng hơn) tới hết lượt sau",
     () => {
         let s = mk({
             A: {
                 malphite: 2
             }, B: {
-                g2v_fighter: 2
+                g2v_nuker: 2
             }
         })
-        const e = skill(s,
+        fresh(s,
+            "B",
+            "g2v_nuker")
+        const raw = fx(s,
+            "A",
             "malphite",
+            "40 + 30% AD + 40% AP + 50% Giáp")
+        const a0 = gm(s).armor(u(s,
             "A",
-            "E")
-        s = toTurn(s,
+            "malphite"))
+        s = settle(play(s,
+            "A",
+            give(s,
+                "A",
+                skill(s,
+                    "malphite",
+                    "A",
+                    "Q")),
+            {
+                target: "B:g2v_nuker"
+            })).s
+        const n = u(s,
+            "B",
+            "g2v_nuker")
+        assert.equal(n.maxHp - n.hp,
+            magic(s,
+                n,
+                raw))
+        assert.equal(gm(s).armor(u(s,
+            "A",
+            "malphite")),
+        a0 + 15)
+        const A = gm(s).armor(n)
+        // sát thương vật lý lên nó như khi mất 15 Giáp
+        const g = gm(s)
+        g.damage(u(s,
+            "A",
+            "malphite"),
+        n,
+        1000,
+        "physical",
+        {
+            tag: "effect"
+        })
+        const dealt = evs(g.events,
+            "damage").pop()!.amount
+        assert.equal(dealt,
+            Math.round(1000 * 100 / (100 + A - 15)))
+        s = end(end(s,
+            "A").s,
+        "B").s
+        assert.equal(gm(s).armor(u(s,
+            "A",
+            "malphite")),
+        a0,
+        "hết hiệu lực")
+    })
+test("E (Quick): bị đánh thì +(10 + 30% Giáp) Giáp tới hết lượt và kẻ đánh nhận sát thương phép theo Giáp",
+    () => {
+        let s = mk({
+            A: {
+                malphite: 2
+            }, B: {
+                g2v_mark: 3
+            }
+        })
+        fresh(s,
+            "B",
+            "g2v_mark")
+        s = turn(s,
             "B")
-        s.players.A.hand = [e,
-            basic(s),
-            basic(s),
-            basic(s)]
-        s.players.B.hand = []
-        const t = u(s,
+        const a0 = gm(s).armor(u(s,
             "A",
-            "malphite")
+            "malphite"))
+        const e = give(s,
+            "A",
+            skill(s,
+                "malphite",
+                "A",
+                "E"))
         let r = play(s,
             "B",
             give(s,
                 "B",
                 basic(s)),
             {
-                actor: "B:g2v_fighter", target: "A:malphite"
+                actor: "B:g2v_mark", target: "A:malphite"
             })
         assert.equal(r.s.phase,
             "chain")
         r = settle(chainWith(r.s,
             "A",
-            e))
-        assert.equal(r.s.players.A.hand.length,
-            5,
-            "3 lá còn lại + rút 2")
-        assert.equal(dmgTo(r.ev,
-            "A:malphite"),
-        phys(s,
-            t,
-            50,
-            0.75),
-        "đã tính 5 lá trên tay")
+            e,
+            {
+            }))
+        s = r.s
+        const m = u(s,
+            "A",
+            "malphite")
+        assert.equal(gm(s).armor(m),
+            Math.round(a0 + 10 + 0.3 * a0))
+        const hit = u(s,
+            "B",
+            "g2v_mark")
+        assert.equal(hit.maxHp - hit.hp,
+            magic(s,
+                hit,
+                fx(s,
+                    "A",
+                    "malphite",
+                    "20 + 60% Giáp + 20% AP")))
     })
-test("R: bỏ toàn bộ tay vào mộ, mọi địch nhận sát thương ×2 theo số lá đã bỏ",
+test("R: mọi địch nhận sát thương phép theo Giáp; xác suất Choáng 15% + 1% mỗi 10 Giáp (đủ 100% thì Choáng hết)",
     () => {
-        const s = mk({
+        let s = mk({
             A: {
                 malphite: 2
             }, B: {
-                g2v_tank: 2, g2v_mage: 3
+                g2v_tank: 2, g2v_mark: 3
             }
         })
-        const r0 = give(s,
-            "A",
-            skill(s,
-                "malphite",
-                "A",
-                "R"))
-        for (let i = 0; i < 4; i++) give(s,
-            "A",
-            basic(s))
-        const per = gm(s).f(u(s,
-            "A",
-            "malphite"),
-        "12 + 18% AD")
-        const r = settle(play(s,
-            "A",
-            r0,
-            {
-            }))
-        assert.equal(r.s.players.A.hand.length,
-            0)
-        assert.ok(r.s.players.A.grave.length >= 5,
-            "tay + lá R vào mộ")
-        for (const id of ["g2v_tank",
-            "g2v_mage"]) assert.equal(dmgTo(r.ev,
-            `B:${id}`),
-        magic(s,
-            u(s,
-                "B",
-                id),
-            4 * 2 * per))
-    })
-
-// ======================================================================
-G("Renata")
-// ======================================================================
-test("Nội tại: đồng minh sắp bị hạ hồi sinh 25% máu, Điên + Đòn Miễn Phí; chỉ 1 lần mỗi đồng minh",
-    () => {
-        let s = mk({
-            A: {
-                renata: 1, g2v_tank: 2
-            }, B: {
-                g2v_fighter: 2
-            }
-        })
-        s = toTurn(s,
-            "B")
-        s.players.B.hand = []
-        const t = u(s,
-            "A",
-            "g2v_tank")
-        t.hp = 1
-        s = settle(play(s,
+        fresh(s,
             "B",
-            give(s,
-                "B",
-                basic(s)),
-            {
-                actor: "B:g2v_fighter", target: "A:g2v_tank"
-            })).s
-        const t1 = u(s,
-            "A",
-            "g2v_tank")
-        assert.equal(t1.status,
-            "board",
-            "không bị hạ")
-        assert.equal(t1.hp,
-            Math.round(t1.maxHp * 0.25))
-        assert.ok(t1.statuses.frenzy,
-            "Điên")
-        assert.ok(t1.nextAttack.some((b) => b.free),
-            "1 Đòn Miễn Phí")
-        t1.hp = 1
-        s = settle(play(s,
+            "g2v_tank"); fresh(s,
             "B",
-            give(s,
-                "B",
-                basic(s)),
-            {
-                actor: "B:g2v_fighter", target: "A:g2v_tank"
-            })).s
-        assert.notEqual(u(s,
+            "g2v_mark")
+        u(s,
             "A",
-            "g2v_tank").status,
-        "board",
-        "lần hai thì bị hạ")
-    })
-test("Q (Quick): Khiên lớn + Giáp Phản; Khiên vỡ thì kẻ phá nhận sát thương phép và Choáng",
-    () => {
-        let s = mk({
-            A: {
-                renata: 1, g2v_tank: 2
-            }, B: {
-                g2v_nuker: 2
-            }
-        })
-        const me = u(s,
+            "malphite").stacks.bonusRes = 900
+        const raw = fx(s,
             "A",
-            "renata")
+            "malphite",
+            "80 + 30% AD + 50% AP + 100% Giáp")
         s = settle(play(s,
             "A",
             give(s,
                 "A",
                 skill(s,
-                    "renata",
+                    "malphite",
                     "A",
-                    "Q")),
+                    "R")),
             {
-                target: "A:g2v_tank"
             })).s
+        for (const h of ["g2v_tank",
+            "g2v_mark"]) {
+            const t = u(s,
+                "B",
+                h)
+            assert.equal(t.maxHp - t.hp,
+                magic(s,
+                    t,
+                    raw))
+            assert.ok(has(s,
+                "B",
+                h,
+                "stun"))
+        }
+    })
+
+// ======================================================================
+G("Renata")
+// ======================================================================
+test("Nội tại: đồng minh sắp bị hạ hồi sinh 25% máu + công thức, Cuồng Bạo + Đòn Miễn Phí, đòn đánh +sát thương; chỉ 1 lần",
+    () => {
+        let s = mk({
+            A: {
+                renata: 2, g2v_tank: 3
+            }, B: {
+                g2v_nuker: 3
+            }
+        })
+        s = turn(s,
+            "B")
         const t = u(s,
             "A",
             "g2v_tank")
-        assert.equal(t.shield,
-            Math.round(gm(s).f(me,
-                "110 + 90% AD")))
-        assert.ok(t.statuses.renata_ward)
-        s = toTurn(s,
-            "B")
-        s.players.B.hand = []
-        const hp0 = u(s,
-            "B",
-            "g2v_nuker").hp
+        t.hp = 10
+        const heal = fx(s,
+            "A",
+            "renata",
+            "20 + 15% AD + 25% AP")
         s = settle(play(s,
             "B",
             give(s,
@@ -1056,67 +1101,205 @@ test("Q (Quick): Khiên lớn + Giáp Phản; Khiên vỡ thì kẻ phá nhận 
             {
                 target: "A:g2v_tank"
             })).s
-        assert.equal(u(s,
+        const t2 = u(s,
             "A",
-            "g2v_tank").shield,
-        0,
-        "Khiên đã vỡ")
-        assert.ok(u(s,
-            "B",
-            "g2v_nuker").hp < hp0,
-        "kẻ phá nhận sát thương")
+            "g2v_tank")
+        assert.equal(t2.status,
+            "board")
+        assert.equal(t2.hp,
+            Math.round(t2.maxHp * 0.25 + heal))
         assert.ok(has(s,
+            "A",
+            "g2v_tank",
+            "frenzy"))
+        assert.equal(t2.nextAttack.length,
+            1)
+        // lượt của nó: đòn miễn phí +sát thương
+        s = turn(s,
+            "A")
+        const bonus = fx(s,
+            "A",
+            "renata",
+            "15 + 15% AD + 25% AP")
+        const foe = u(s,
             "B",
-            "g2v_nuker",
-            "stun"),
-        "kẻ phá Choáng")
+            "g2v_nuker")
+        const r = settle(act(s,
+            {
+                t: "attack", side: "A", actor: "A:g2v_tank", target: "B:g2v_nuker"
+            }))
+        const base = gm(r.s).atk(u(r.s,
+            "A",
+            "g2v_tank"))
+        assert.equal(dmgTo(r.ev,
+            foe.id,
+            "attack"),
+        phys(r.s,
+            foe,
+            base) + phys(r.s,
+            foe,
+            bonus))
+        // chỉ 1 lần mỗi đồng minh
+        const s3 = turn(r.s,
+            "B")
+        u(s3,
+            "A",
+            "g2v_tank").hp = 10
+        const k = settle(play(s3,
+            "B",
+            give(s3,
+                "B",
+                skill(s3,
+                    "g2v_nuker",
+                    "B",
+                    "Q")),
+            {
+                target: "A:g2v_tank"
+            })).s
+        assert.equal(u(k,
+            "A",
+            "g2v_tank").status,
+        "dead")
     })
-test("E (Quick): phản 60% sát thương của đòn địch lên kẻ đánh",
+test("Q: cả đội +Giáp (không phải Khiên) tới hết lượt kế của địch, mọi địch nhận sát thương phép",
     () => {
         let s = mk({
             A: {
-                renata: 1, g2v_tank: 2
+                renata: 2, g2v_tank: 1
             }, B: {
-                g2v_fighter: 2
+                g2v_tank: 3
             }
         })
-        const e = skill(s,
-            "renata",
+        fresh(s,
+            "B",
+            "g2v_tank")
+        const ar = Math.round(fx(s,
             "A",
-            "E")
-        s = toTurn(s,
+            "renata",
+            "10 + 10% AD + 15% AP"))
+        const raw = fx(s,
+            "A",
+            "renata",
+            "20 + 20% AD + 30% AP")
+        const before = gm(s).armor(u(s,
+            "A",
+            "g2v_tank"))
+        s = settle(play(s,
+            "A",
+            give(s,
+                "A",
+                skill(s,
+                    "renata",
+                    "A",
+                    "Q")),
+            {
+            })).s
+        // không cấp Khiên
+        assert.equal(u(s,
+            "A",
+            "renata").shield,
+        0)
+        assert.equal(u(s,
+            "A",
+            "g2v_tank").shield,
+        0)
+        assert.equal(gm(s).armor(u(s,
+            "A",
+            "g2v_tank")),
+        before + ar)
+        assert.ok(has(s,
+            "A",
+            "renata",
+            "armor_up"))
+        const t = u(s,
+            "B",
+            "g2v_tank")
+        assert.equal(t.maxHp - t.hp,
+            magic(s,
+                t,
+                raw))
+        // còn trong lượt địch kế tiếp, hết khi lượt đó kết thúc
+        s = end(s,
+            "A").s
+        assert.equal(s.active,
             "B")
-        s.players.A.hand = [e]
-        s.players.B.hand = []
+        assert.ok(has(s,
+            "A",
+            "g2v_tank",
+            "armor_up"))
+        s = end(s,
+            "B").s
+        assert.ok(!has(s,
+            "A",
+            "g2v_tank",
+            "armor_up"))
+        assert.equal(gm(s).armor(u(s,
+            "A",
+            "g2v_tank")),
+        before)
+    })
+test("E (Quick): phản 40% sát thương đòn + công thức cho kẻ đánh (sát thương chuẩn)",
+    () => {
+        let s = mk({
+            A: {
+                renata: 2, g2v_tank: 1
+            }, B: {
+                g2v_mark: 3
+            }
+        })
+        fresh(s,
+            "B",
+            "g2v_mark")
+        s = turn(s,
+            "B")
+        const flat = Math.round(fx(s,
+            "A",
+            "renata",
+            "10 + 10% AD + 15% AP"))
+        const e = give(s,
+            "A",
+            skill(s,
+                "renata",
+                "A",
+                "E"))
         let r = play(s,
             "B",
             give(s,
                 "B",
                 basic(s)),
             {
-                actor: "B:g2v_fighter", target: "A:g2v_tank"
+                actor: "B:g2v_mark", target: "A:g2v_tank"
             })
         assert.equal(r.s.phase,
             "chain")
         r = settle(chainWith(r.s,
             "A",
-            e))
-        const hit = dmgTo(r.ev,
-            "A:g2v_tank")
-        assert.ok(hit > 0)
-        assert.equal(dmgTo(r.ev,
-            "B:g2v_fighter"),
-        Math.round(hit * 0.6))
+            e,
+            {
+            }))
+        const got = dmgTo(r.ev,
+            "A:g2v_tank",
+            "attack")
+        const back = evs(r.ev,
+            "damage").filter((d) => d.target === "B:g2v_mark").reduce((x, d) => x + d.amount,
+            0)
+        assert.equal(back,
+            Math.round(got * 0.4) + flat)
     })
-test("R: mọi tướng địch đánh một đồng đội của chính nó, đội mình không nhận sát thương",
+test("R: mỗi địch đánh 2 đòn vào 1 đồng đội ngẫu nhiên của nó; đội mình không mất máu",
     () => {
-        let s = mk({
+        const s = mk({
             A: {
-                renata: 1, g2v_tank: 2
+                renata: 2
             }, B: {
-                g2v_fighter: 2, g2v_tank: 1
+                g2v_tank: 1, g2v_mark: 3, g2v_nuker: 2
             }
         })
+        for (const h of ["g2v_tank",
+            "g2v_mark",
+            "g2v_nuker"]) fresh(s,
+            "B",
+            h)
         const r = settle(play(s,
             "A",
             give(s,
@@ -1127,95 +1310,142 @@ test("R: mọi tướng địch đánh một đồng đội của chính nó, đ
                     "R")),
             {
             }))
-        s = r.s
         const atks = evs(r.ev,
             "attack")
         assert.equal(atks.length,
-            gm(s).heroes("B").length,
-            "mỗi tướng địch đánh 1 lần")
-        assert.ok(atks.every((a) => a.attacker.startsWith("B:") && a.target.startsWith("B:")))
-        assert.equal(dmgTo(r.ev,
-            "A:g2v_tank"),
-        0)
+            6)
+        for (const h of ["B:g2v_tank",
+            "B:g2v_mark",
+            "B:g2v_nuker"]) {
+            const mine = atks.filter((a) => a.attacker === h)
+            assert.equal(mine.length,
+                2)
+            assert.equal(mine[0].target,
+                mine[1].target)
+            assert.notEqual(mine[0].target,
+                h)
+            assert.ok(mine[0].target.startsWith("B:"))
+        }
+        assert.equal(u(r.s,
+            "A",
+            "renata").hp,
+        u(r.s,
+            "A",
+            "renata").maxHp)
     })
 
 // ======================================================================
 G("Janna")
 // ======================================================================
-test("Nội tại: đầu lượt bạn, tướng mình có máu thấp nhất nhận Khiên nhỏ",
+test("Nội tại: đầu lượt bạn, tướng mình máu thấp nhất nhận Khiên (30 + 20% AD + 40% AP)",
     () => {
         let s = mk({
             A: {
-                janna: 1, g2v_tank: 2
+                janna: 2, g2v_tank: 1
             }, B: {
-                g2v_fighter: 2
+                g2v_tank: 2
             }
         })
         u(s,
             "A",
             "g2v_tank").hp = 100
-        s = toTurn(s,
-            "B")
-        s = end(s,
-            "B").s
-        assert.equal(s.active,
-            "A")
+        const want = Math.round(fx(s,
+            "A",
+            "janna",
+            "30 + 20% AD + 40% AP"))
+        s = turn(turn(s,
+            "B"),
+        "A")
         assert.equal(u(s,
             "A",
             "g2v_tank").shield,
-        Math.round(gm(s).f(u(s,
+        want)
+        assert.equal(u(s,
             "A",
-            "janna"),
-        "30 + 30% AD")))
+            "janna").shield,
+        0)
     })
-test("Q (Quick) huỷ 1 đòn đánh của địch lên đồng minh",
+test("Q (Quick): sát thương phép + Choáng; nối chuỗi lên chiêu địch thì chiêu đó tan và kẻ tung Choáng cả lượt sau",
     () => {
         let s = mk({
             A: {
-                janna: 1, g2v_tank: 2
+                janna: 2
             }, B: {
-                g2v_fighter: 2
+                g2v_nuker: 2
             }
         })
-        const q = skill(s,
-            "janna",
+        fresh(s,
+            "B",
+            "g2v_nuker")
+        const raw = fx(s,
             "A",
-            "Q")
-        s = toTurn(s,
+            "janna",
+            "40 + 30% AD + 60% AP")
+        s = turn(s,
             "B")
-        s.players.A.hand = [q]
-        s.players.B.hand = []
+        const q = give(s,
+            "B",
+            skill(s,
+                "g2v_nuker",
+                "B",
+                "Q"))
+        const jq = give(s,
+            "A",
+            skill(s,
+                "janna",
+                "A",
+                "Q"))
         let r = play(s,
             "B",
-            give(s,
-                "B",
-                basic(s)),
+            q,
             {
-                actor: "B:g2v_fighter", target: "A:g2v_tank"
+                target: "A:janna"
             })
         assert.equal(r.s.phase,
             "chain")
         r = settle(chainWith(r.s,
             "A",
-            q))
-        assert.equal(dmgTo(r.ev,
-            "A:g2v_tank"),
-        0)
-        assert.ok(evs(r.ev,
-            "chainCancel").length > 0)
+            jq,
+            {
+                target: "B:g2v_nuker"
+            }))
+        s = r.s
+        const n = u(s,
+            "B",
+            "g2v_nuker")
+        assert.equal(n.maxHp - n.hp,
+            magic(s,
+                n,
+                raw))
+        assert.equal(u(s,
+            "A",
+            "janna").hp,
+        u(s,
+            "A",
+            "janna").maxHp,
+        "chiêu địch tan")
+        s = toTurn(toTurn(s,
+            "A"),
+        "B")
+        assert.ok(has(s,
+            "B",
+            "g2v_nuker",
+            "stun"),
+        "Choáng đủ 1 lượt sau")
     })
-test("E (Quick): Khiên cho 1 đồng minh; còn Khiên thì miễn Khống Chế, hết Khiên thì hết miễn",
+test("E (Quick): Khiên (80 + 40% AD + 70% AP); còn Khiên thì miễn Khống Chế, hết Khiên thì hết miễn",
     () => {
         let s = mk({
             A: {
-                janna: 1, g2v_tank: 2
+                janna: 2, g2v_tank: 1
             }, B: {
-                g2v_fighter: 2
+                g2v_tank: 2
             }
         })
-        const me = u(s,
+        const want = Math.round(fx(s,
             "A",
-            "janna")
+            "janna",
+            "80 + 40% AD + 70% AP"))
         s = settle(play(s,
             "A",
             give(s,
@@ -1231,29 +1461,46 @@ test("E (Quick): Khiên cho 1 đồng minh; còn Khiên thì miễn Khống Ch�
             "A",
             "g2v_tank")
         assert.equal(t.shield,
-            Math.round(gm(s).f(me,
-                "90 + 70% AD")))
+            want)
         gm(s).status(t,
             "stun",
             1)
-        assert.ok(!t.statuses.stun,
-            "còn Khiên thì miễn Choáng")
-        t.shield = 0
+        assert.ok(!has(s,
+            "A",
+            "g2v_tank",
+            "stun"))
+        gm(s).damage(u(s,
+            "B",
+            "g2v_tank"),
+        t,
+        want + 10,
+        "true",
+        {
+            tag: "effect"
+        })
+        assert.equal(t.shield,
+            0)
         gm(s).status(t,
             "stun",
             1)
-        assert.ok(t.statuses.stun,
-            "hết Khiên thì Choáng được")
+        assert.ok(has(s,
+            "A",
+            "g2v_tank",
+            "stun"))
     })
-test("R (Quick): đội mình nhận −50% tới hết lượt địch, cuối lượt đó hồi bằng lượng đã chặn",
+test("R (Quick): tới hết lượt địch cả đội miễn sát thương từ đòn đánh (chiêu vẫn trúng); cuối lượt đó cả đội hồi (80 + 40% AD + 80% AP)",
     () => {
         let s = mk({
             A: {
-                janna: 1, g2v_tank: 2
+                janna: 2, g2v_tank: 1
             }, B: {
-                g2v_fighter: 2
+                g2v_mark: 3, g2v_nuker: 2
             }
         })
+        const heal = fx(s,
+            "A",
+            "janna",
+            "80 + 40% AD + 80% AP")
         s = settle(play(s,
             "A",
             give(s,
@@ -1264,40 +1511,45 @@ test("R (Quick): đội mình nhận −50% tới hết lượt địch, cuối 
                     "R")),
             {
             })).s
-        s = toTurn(s,
+        s = turn(s,
             "B")
-        s.players.A.hand = []
-        s.players.B.hand = []
-        const t = u(s,
+        u(s,
             "A",
-            "g2v_tank")
-        t.hp = 500
-        const r = settle(play(s,
+            "janna").hp = 100
+        const a = settle(play(s,
             "B",
             give(s,
                 "B",
                 basic(s)),
             {
-                actor: "B:g2v_fighter", target: "A:g2v_tank"
+                actor: "B:g2v_mark", target: "A:g2v_tank"
             }))
-        const hit = dmgTo(r.ev,
-            "A:g2v_tank")
-        assert.equal(hit,
-            phys(s,
-                t,
-                50,
-                0.5))
-        assert.equal(u(r.s,
-            "A",
-            "g2v_tank").hp,
-        500 - hit)
-        const e = end(r.s,
+        assert.equal(dmgTo(a.ev,
+            "A:g2v_tank"),
+        0)
+        const k = settle(play(a.s,
+            "B",
+            give(a.s,
+                "B",
+                skill(a.s,
+                    "g2v_nuker",
+                    "B",
+                    "Q")),
+            {
+                target: "A:g2v_tank"
+            }))
+        assert.ok(dmgTo(k.ev,
+            "A:g2v_tank") > 0,
+        "chiêu vẫn trúng")
+        const e = end(k.s,
             "B")
         assert.equal(u(e.s,
             "A",
-            "g2v_tank").hp,
-        500,
-        "hồi đúng lượng đã chặn")
+            "janna").hp,
+        Math.min(u(e.s,
+            "A",
+            "janna").maxHp,
+        100 + Math.round(heal)))
     })
 
 // ======================================================================

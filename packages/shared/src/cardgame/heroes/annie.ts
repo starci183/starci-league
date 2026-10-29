@@ -1,6 +1,10 @@
-// Annie (Pháp sư, phép) V2: "Đếm đến Tibbers": mỗi phép là một que diêm, đủ 5 Lửa là gấu dậy vồ cả đội địch.
-// Lửa = stack "fire" trên Annie. Tibbers KHÔNG chiếm đường: hiện ra, đánh mọi địch, biến mất.
-// Q (10 mana) sát thương + 1 Lửa · E (20) +2 Lửa · R (40) Tibbers dậy ngay, sát thương ×(1 + Lửa), Lửa về 0.
+// Annie (Pháp sư, phép) V3: "Choáng rồi đốt": đếm Lửa tới Choáng, chiêu vào kẻ đang Choáng thì đau hơn. Máu 330 · AD 96 · giáp/kháng 25/28 · AP gốc 74.
+// Lửa = stack "fire" trên Annie. Mỗi chiêu +1 Lửa; đủ FIRE_MAX Lửa thì chiêu kế tiếp Choáng đúng mục tiêu của nó rồi Lửa về 0.
+// Q, E, R gây thêm 50% sát thương lên địch đang Choáng. Q (10 mana) sát thương · E (15, Quick) Khiên, bẫy Quick khi đủ Lửa · R (50) Tibbers vồ mọi địch.
+// Tibbers không chiếm đường: chỉ là cú vồ của R. Cơ chế engine dùng: g.chainFx().cancel, status "stun".
+import {
+    pct
+} from "../formula"
 import type {
     Game
 } from "../game"
@@ -12,52 +16,48 @@ import type {
 } from "../types"
 
 export const FIRE = "fire"
-/** Đủ bấy nhiêu Lửa thì Tibbers tự vồ */
-export const FIRE_MAX = 5
-/** Sát thương nền của Tibbers; vồ nội tại ×2, R ×(1 + Lửa) */
-const F_BEAR = "25 + 65% AD + 40% AP"
-const POUNCE_MULT = 2
-const F_Q = "35 + 85% AD + 40% AP"
+/** Đủ bấy nhiêu Lửa thì chiêu kế tiếp Choáng mục tiêu */
+export const FIRE_MAX = 4
+/** Sát thương cộng thêm của Q/E/R lên địch đang Choáng */
+export const STUN_BONUS = 0.5
+/** AP gốc (V3: bằng AD gốc cũ) */
+export const BASE_AP = 74
+const F_Q = "60 + 20% AD + 80% AP"
+const F_E_SHIELD = "60 + 20% AD + 50% AP"
+const F_E_TRAP = "40 + 10% AD + 60% AP"
+const F_R = "120 + 30% AD + 100% AP"
 
-/** Tibbers hiện ra vồ mọi địch với hệ số mult rồi biến mất; Lửa về 0 */
-function pounce(g: Game, me: Unit, mult: number) {
-    for (const t of g.enemies(me).filter((u) => !u.token)) {
-        g.damage(me,
-            t,
-            g.f(me,
-                F_BEAR) * mult,
-            "magic",
-            {
-                tag: "skill"
-            })
+/** Đếm Lửa cho 1 chiêu có mục tiêu: đủ Lửa thì trả true (chiêu này Choáng mục tiêu) và Lửa về 0, chưa đủ thì +1 Lửa */
+function charge(g: Game, me: Unit): boolean {
+    if (g.stackOf(me,
+        FIRE) >= FIRE_MAX) {
+        g.setStack(me,
+            FIRE,
+            0)
+        return true
     }
-    g.setStack(me,
-        FIRE,
-        0)
-}
-/** Cộng Lửa; đủ 5 thì Tibbers vồ (nội tại) */
-function addFire(g: Game, me: Unit, n: number) {
-    if (me.status !== "board") return
     g.stack(me,
         FIRE,
-        n)
-    if (g.stackOf(me,
-        FIRE) >= FIRE_MAX) pounce(g,
-        me,
-        POUNCE_MULT)
+        1,
+        FIRE_MAX)
+    return false
 }
+/** Sát thương nền raw, thêm 50% nếu t đang Choáng */
+const boosted = (g: Game, t: Unit, raw: number) => raw * (g.has(t,
+    "stun") ? 1 + STUN_BONUS : 1)
+const foes = (g: Game, me: Unit) => g.enemies(me).filter((u) => !u.token)
 
 export default defineHero({
-    id: "annie", name: "Annie", role: "mage", damage: "magic", hp: 350, atk: 74, armor: 28, mr: 30,
+    id: "annie", name: "Annie", role: "mage", damage: "magic", hp: 330, atk: 96, armor: 25, mr: 28, ap: BASE_AP,
     bot: {
         stackValue: {
             fire: 14,
         },
     },
-    desc: "Đếm đến Tibbers: Q và E nạp Lửa, đủ 5 Lửa thì gấu dậy vồ cả đội địch rồi biến mất. R gọi gấu dậy sớm, càng nhiều Lửa càng đau.",
+    desc: "Choáng rồi đốt: mỗi chiêu nạp Lửa, đủ 4 Lửa thì chiêu kế tiếp Choáng mục tiêu, và chiêu của Annie đánh vào kẻ đang Choáng thì đau hơn. E là Khiên và bẫy Quick, R cho Tibbers vồ cả đội.",
     passive: {
         name: "Lửa Tibbers",
-        desc: `Annie có Lửa. Đủ ${FIRE_MAX} Lửa: Tibbers hiện ra, mọi tướng địch nhận {${F_BEAR}} sát thương phép ×${POUNCE_MULT}, rồi Tibbers biến mất và Lửa về 0.`,
+        desc: `Mỗi chiêu của Annie +1 Lửa (tối đa ${FIRE_MAX}). Đủ ${FIRE_MAX} Lửa: chiêu kế tiếp Choáng đúng mục tiêu của nó và Lửa về 0. Q, E, R gây thêm ${pct(STUN_BONUS)}% sát thương lên tướng địch đang Choáng.`,
     },
     hooks: {
         onDeath(g, me, d) {
@@ -69,37 +69,87 @@ export default defineHero({
     skills: {
         Q: {
             key: "Q", name: "Phi Tiêu Lửa", target: "enemy", mana: 10,
-            desc: `Chọn 1 tướng địch; gây {${F_Q}} sát thương phép và +1 Lửa.`,
+            desc: `Chọn 1 tướng địch; gây {${F_Q}} sát thương phép.`,
             resolve(c) {
+                const t = c.target!
+                if (charge(c.g,
+                    c.self)) c.g.status(t,
+                    "stun",
+                    1)
                 c.g.damage(c.self,
-                    c.target!,
-                    c.f(F_Q),
+                    t,
+                    boosted(c.g,
+                        t,
+                        c.f(F_Q)),
                     "magic",
                     {
                         tag: "skill"
                     })
-                addFire(c.g,
-                    c.self,
-                    1)
             },
         },
         E: {
-            key: "E", name: "Lá Chắn Cháy", target: "self", mana: 15,
-            desc: "+2 Lửa.",
+            key: "E", name: "Lá Chắn Cháy", target: "self", mana: 15, quick: true,
+            desc: `Quick. Annie nhận Khiên {${F_E_SHIELD}}. Nếu dùng để đáp lại lá hoặc đòn đánh của địch nhắm vào Annie khi đang đủ ${FIRE_MAX} Lửa: Vô Hiệu nó, Choáng kẻ tung nó và gây {${F_E_TRAP}} sát thương phép lên kẻ đó; Lửa về 0.`,
+            quickWhen: (c) => c.trigger.side !== c.side && c.trigger.target === c.self.id,
             resolve(c) {
-                addFire(c.g,
-                    c.self,
-                    2)
+                const g = c.g
+                const me = c.self
+                g.shield(me,
+                    me,
+                    c.f(F_E_SHIELD))
+                const foe = c.trigger ? g.unit(c.trigger.actor) : undefined
+                if (c.trigger && foe && foe.side !== me.side && c.trigger.target === me.id && g.stackOf(me,
+                    FIRE) >= FIRE_MAX) {
+                    g.setStack(me,
+                        FIRE,
+                        0)
+                    g.chainFx().cancel = true
+                    g.status(foe,
+                        "stun",
+                        1)
+                    g.damage(me,
+                        foe,
+                        boosted(g,
+                            foe,
+                            c.f(F_E_TRAP)),
+                        "magic",
+                        {
+                            tag: "skill"
+                        })
+                    return
+                }
+                g.stack(me,
+                    FIRE,
+                    1,
+                    FIRE_MAX)
             },
         },
         R: {
-            key: "R", name: "Tibbers Dậy", target: "all_enemies", mana: 40,
-            desc: `Tibbers dậy ngay: mọi tướng địch nhận {${F_BEAR}} sát thương phép ×(1 + Lửa đang có). Lửa về 0.`,
+            key: "R", name: "Tibbers Dậy", target: "all_enemies", mana: 50,
+            desc: `Tibbers vồ mọi tướng địch, gây {${F_R}} sát thương phép. Tướng đang Choáng nhận thêm sát thương; tướng chưa Choáng thì bị Choáng 1 lượt.`,
             resolve(c) {
-                pounce(c.g,
-                    c.self,
-                    1 + c.g.stackOf(c.self,
-                        FIRE))
+                const charged = charge(c.g,
+                    c.self)
+                for (const t of foes(c.g,
+                    c.self)) {
+                    if (charged) c.g.status(t,
+                        "stun",
+                        1)
+                    const was = c.g.has(t,
+                        "stun")
+                    c.g.damage(c.self,
+                        t,
+                        boosted(c.g,
+                            t,
+                            c.f(F_R)),
+                        "magic",
+                        {
+                            tag: "skill"
+                        })
+                    if (!was) c.g.status(t,
+                        "stun",
+                        1)
+                }
             },
         },
     },

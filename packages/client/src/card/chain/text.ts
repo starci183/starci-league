@@ -146,6 +146,8 @@ export function eventSide(e: GameEvent): Side | null {
     case "pass":
     case "reveal":
     case "cardBurned":
+    case "unequip":
+    case "freeCard":
     case "tempExpired":
     case "attackCount":
     case "blindLocked":
@@ -248,6 +250,10 @@ export function viText(e: GameEvent, v: CardView, g: cg.Game | null): string | u
     case "cardThawed": return `${cn(e.card)} của ${sd(e.side)} tan băng.`
     case "revealEnd": return `Tay bài của ${sd(e.side)} không còn bị lộ.`
     case "upgrade": return `${un(e.unit)} nâng cấp ${itemNameVi(e.from)} thành ${itemNameVi(e.item)}.`
+    case "unequip": return `${un(e.unit)} tháo ${itemNameVi(e.item)} (lá đồ về tay ${sd(e.side)}).`
+    case "freeCard": return `${sd(e.side)} được tặng 1 ${e.kind === "basic" ? "lá Đánh Thường" : "mảnh đồ"} (không lấy từ bộ bài).`
+    case "transform": return e.on ? `${un(e.unit)} biến hình (${e.id}).` : `${un(e.unit)} hết biến hình${e.reason === "revive" ? " và hồi sinh tại chỗ" : ""}.`
+    case "roll": return `${un(e.unit)}: ${e.key} = ${e.value}.`
     case "blindStart": return `Vòng ${e.round}: gọi tướng úp, mỗi bên tối đa ${e.cap} tướng.`
     case "blindLocked": return `${sd(e.side)} đã chốt gọi tướng.`
     case "burn": return `${cn(e.card)} trong bộ của ${sd(e.side)} bị đốt.`
@@ -313,6 +319,7 @@ export function cardArt(c: Card | undefined, actor?: string): string | null {
         return hero ? `card_skills/${hero}_${c.id.slice(-1)}.png` : null
     }
     if (c.kind === "special" && c.id === "mushroom") return "cards/nam_teemo.jpg"
+    if (c.kind === "special" && c.id === "velkoz_decay") return "card_skills/velkoz_p.png"
     if (c.kind === "support") return SUPPORT_ART[c.id] ?? null
     return null
 }

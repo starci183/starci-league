@@ -9,6 +9,11 @@ import {
     HERO_EN_V2_G3V, KEYWORDS_V2_G3V
 } from "../packages/shared/src/cardgame/i18n/v2_g3v"
 
+import * as ZED from "../packages/shared/src/cardgame/heroes/zed"
+import * as KATARINA from "../packages/shared/src/cardgame/heroes/katarina"
+import * as KHAZIX from "../packages/shared/src/cardgame/heroes/khazix"
+import * as QIYANA from "../packages/shared/src/cardgame/heroes/qiyana"
+import * as SORAKA from "../packages/shared/src/cardgame/heroes/soraka"
 type St = ReturnType<typeof cg.newGame>;
 type Act = Parameters<typeof cg.applyAction>[1];
 type Ev = ReturnType<typeof cg.applyAction>["events"];
@@ -194,44 +199,11 @@ const dmgTo = (ev: Ev, target: string, tag?: string) => evs(ev,
     0)
 const inHand = (s: St, side: S, card: { uid: string }) => s.players[side].hand.some((c) => c.uid === card.uid)
 const inGrave = (s: St, side: S, card: { uid: string }) => s.players[side].grave.some((c) => c.uid === card.uid)
-const FOREVER = 1_000_000
 
 // ======================================================================
 G("Zed")
 // ======================================================================
-test("đòn đánh thường và Q mỗi đòn trúng +1 Dồn lên mục tiêu",
-    () => {
-        let s = mk({
-            A: {
-                zed: 2
-            }, B: {
-                g3v_tank: 2
-            }
-        })
-        s = strike(s,
-            "A",
-            "A:zed",
-            "B:g3v_tank").s
-        assert.equal(gm(s).statusV(u(s,
-            "B",
-            "g3v_tank"),
-        "zed_stack"),
-        1)
-        s = play(s,
-            "A",
-            give(s,
-                "A",
-                skill(s,
-                    "zed",
-                    "A",
-                    "Q"))).s
-        assert.equal(gm(s).statusV(u(s,
-            "B",
-            "g3v_tank"),
-        "zed_stack"),
-        2)
-    })
-test("R gây sát thương theo số Dồn rồi gỡ Dồn (không tự cộng Dồn mới)",
+test("Liên Hoàn: phát đầu chỉ cộng 5% máu đã mất, phát sau cộng thêm (8 + 8% AD + 2% AP) mỗi phát trước; hết lượt đếm lại",
     () => {
         const s = mk({
             A: {
@@ -240,14 +212,76 @@ test("R gây sát thương theo số Dồn rồi gỡ Dồn (không tự cộng 
                 g3v_tank: 2
             }
         })
-        gm(s).status(u(s,
+        const zed = u(s,
+            "A",
+            "zed")
+        const tank = "B:g3v_tank"
+        const r1 = play(s,
+            "A",
+            give(s,
+                "A",
+                skill(s,
+                    "zed",
+                    "A",
+                    "Q")))
+        const q = Math.round(gm(s).f(zed,
+            ZED.F_Q) * (100 / 130))
+        assert.equal(dmgTo(r1.ev,
+            tank,
+            "skill"),
+        q)
+        assert.equal(dmgTo(r1.ev,
+            tank,
+            "effect"),
+        Math.round(q * 0.05 * (100 / 130)),
+        "phát đầu: chỉ 5% máu đã mất")
+        assert.equal(gm(r1.s).statusV(u(r1.s,
+            "A",
+            "zed"),
+        "zed_chain"),
+        1)
+        const r2 = strike(r1.s,
+            "A",
+            "A:zed",
+            tank)
+        const hit = evs(r2.ev,
+            "damage").find((d) => d.tag === "attack" && d.target === tank)!
+        const flat = gm(s).f(zed,
+            ZED.F_CHAIN)
+        assert.equal(dmgTo(r2.ev,
+            tank,
+            "effect"),
+        Math.round((flat + (u(r2.s,
             "B",
-            "g3v_tank"),
-        "zed_stack",
-        1,
-        {
-            v: 3, until: FOREVER
+            "g3v_tank").maxHp - hit.hp) * 0.05) * (100 / 130)),
+        "phát sau: thêm 1 × (8 + 8% AD) và 5% máu đã mất")
+        assert.equal(gm(r2.s).statusV(u(r2.s,
+            "A",
+            "zed"),
+        "zed_chain"),
+        2)
+        const e = end(r2.s,
+            "A")
+        assert.equal(gm(e.s).has(u(e.s,
+            "A",
+            "zed"),
+        "zed_chain"),
+        false,
+        "sang lượt mới đếm lại từ 0")
+    })
+test("R: đánh ngay rồi cuối lượt nổ thêm một lần nữa (phát nổ cũng tính Liên Hoàn)",
+    () => {
+        const s = mk({
+            A: {
+                zed: 2
+            }, B: {
+                g3v_tank: 2
+            }
         })
+        const zed = u(s,
+            "A",
+            "zed")
+        const tank = "B:g3v_tank"
         const r = play(s,
             "A",
             give(s,
@@ -257,119 +291,129 @@ test("R gây sát thương theo số Dồn rồi gỡ Dồn (không tự cộng 
                     "A",
                     "R")),
             {
-                target: "B:g3v_tank"
+                target: tank
             })
-        const per = 30 + 0.5 * gm(s).atk(u(s,
-            "A",
-            "zed"))
+        const now = Math.round(gm(s).f(zed,
+            ZED.F_R) * (100 / 130))
         assert.equal(dmgTo(r.ev,
-            "B:g3v_tank"),
-        Math.round(3 * per * (100 / 130)))
-        assert.equal(gm(r.s).statusV(u(r.s,
+            tank,
+            "skill"),
+        now)
+        assert.ok(gm(r.s).has(u(r.s,
             "B",
             "g3v_tank"),
-        "zed_stack"),
-        0)
-    })
-test("R từ 6 Dồn Kết Liễu mục tiêu 1000 máu; chưa đủ ngưỡng thì không chết",
-    () => {
-        for (const [n,
-            dead] of [[6,
-                true],
-            [5,
-                false]] as const) {
-            let s = mk({
-                A: {
-                    zed: 2
-                }, B: {
-                    g3v_tank: 2
-                }
-            })
-            gm(s).status(u(s,
-                "B",
-                "g3v_tank"),
-            "zed_stack",
+        "zed_mark"),
+        "tướng bị đánh dấu")
+        const e = end(r.s,
+            "A")
+        const later = evs(e.ev,
+            "damage").filter((d) => d.target === tank && d.tag === "skill")
+        assert.equal(later.length,
             1,
-            {
-                v: n, until: FOREVER
-            })
-            s = play(s,
-                "A",
-                give(s,
-                    "A",
-                    skill(s,
-                        "zed",
-                        "A",
-                        "R")),
-                {
-                    target: "B:g3v_tank"
-                }).s
-            assert.equal(u(s,
-                "B",
-                "g3v_tank").status === "dead",
-            dead,
-            `Dồn ${n}`)
-        }
+            "cuối lượt nổ đúng 1 lần")
+        assert.equal(later[0].amount,
+            now)
+        assert.ok(dmgTo(e.ev,
+            tank,
+            "effect") > 0,
+        "phát nổ là phát thứ 2 trong lượt nên có Liên Hoàn")
+        assert.equal(gm(e.s).has(u(e.s,
+            "B",
+            "g3v_tank"),
+        "zed_mark"),
+        false)
     })
-test("E: Zed chí mạng tới hết lượt, Q chí mạng gấp 1.5 lần và R không chọn được tướng chưa có Dồn",
+test("E: Zed đổi chỗ đứng đối diện tướng chọn rồi nó nhận sát thương",
     () => {
-        let s = mk({
+        const s = mk({
             A: {
-                zed: 2
+                zed: 1
             }, B: {
-                g3v_tank: 2
+                g3v_mage: 3, g3v_tank: 1
             }
         })
-        assert.equal(cg.legalActions(s,
-            "A").filter((a) => a.t === "play").length,
-        0)
-        const q1 = play(s,
+        const r = play(s,
             "A",
             give(s,
                 "A",
                 skill(s,
                     "zed",
                     "A",
-                    "Q")))
-        const base = dmgTo(q1.ev,
-            "B:g3v_tank")
-        s = mk({
-            A: {
-                zed: 2
-            }, B: {
-                g3v_tank: 2
-            }
-        })
-        s = play(s,
+                    "E")),
+            {
+                target: "B:g3v_mage"
+            })
+        assert.equal(u(r.s,
             "A",
-            give(s,
-                "A",
-                skill(s,
-                    "zed",
-                    "A",
-                    "E"))).s
-        assert.ok(gm(s).statusV(u(s,
+            "zed").lane,
+        3)
+        assert.equal(r.s.lanes.A[3],
+            "A:zed")
+        assert.equal(dmgTo(r.ev,
+            "B:g3v_mage",
+            "skill"),
+        Math.round(gm(s).f(u(s,
             "A",
             "zed"),
-        "alwaysCrit") > 0)
-        const q2 = play(s,
-            "A",
-            give(s,
-                "A",
-                skill(s,
-                    "zed",
-                    "A",
-                    "Q")))
-        assert.ok(Math.abs(dmgTo(q2.ev,
-            "B:g3v_tank") / base - 1.5) < 0.05,
-        `${dmgTo(q2.ev,
-            "B:g3v_tank")} / ${base}`)
+        ZED.F_E) * (100 / 130)))
     })
 
 // ======================================================================
 G("Katarina")
 // ======================================================================
-test("Q hạ gục thì lá Q quay về tay, không hạ thì vào mộ",
+test("Q gắn Dao; R gây thêm 60% lên tướng có Dao",
+    () => {
+        const s = mk({
+            A: {
+                katarina: 2
+            }, B: {
+                g3v_tank: 2, g3v_mark: 1
+            }
+        })
+        const kat = u(s,
+            "A",
+            "katarina")
+        assert.equal(gm(s).ap(kat),
+            82,
+            "AP gốc 82")
+        const rq = play(s,
+            "A",
+            give(s,
+                "A",
+                skill(s,
+                    "katarina",
+                    "A",
+                    "Q")),
+            {
+                target: "B:g3v_tank"
+            })
+        assert.equal(dmgTo(rq.ev,
+            "B:g3v_tank"),
+        Math.round(gm(s).f(kat,
+            KATARINA.F_Q) * (100 / 130)))
+        assert.ok(gm(rq.s).has(u(rq.s,
+            "B",
+            "g3v_tank"),
+        "kat_dagger"),
+        "có Dao")
+        const rr = play(rq.s,
+            "A",
+            give(rq.s,
+                "A",
+                skill(rq.s,
+                    "katarina",
+                    "A",
+                    "R")))
+        const base = gm(s).f(kat,
+            KATARINA.F_R)
+        assert.equal(dmgTo(rr.ev,
+            "B:g3v_tank"),
+        Math.round(base * 1.6 * (100 / 130)))
+        assert.equal(dmgTo(rr.ev,
+            "B:g3v_mark"),
+        Math.round(base * (100 / 130)))
+    })
+test("Tham Lam: Katarina tự hạ gục thì mọi lá Katarina đã dùng lượt này về tay, kể cả lá đang dùng",
     () => {
         let s = mk({
             A: {
@@ -380,196 +424,260 @@ test("Q hạ gục thì lá Q quay về tay, không hạ thì vào mộ",
         })
         u(s,
             "B",
-            "g3v_tank").hp = 20
-        const q = give(s,
+            "g3v_tank").hp = 150
+        const q1 = give(s,
             "A",
             skill(s,
                 "katarina",
                 "A",
                 "Q"))
-        let r = play(s,
-            "A",
-            q,
-            {
-                target: "B:g3v_tank"
-            })
-        assert.equal(u(r.s,
-            "B",
-            "g3v_tank").status,
-        "dead")
-        assert.ok(inHand(r.s,
-            "A",
-            q))
-        s = mk({
-            A: {
-                katarina: 2
-            }, B: {
-                g3v_tank: 2
-            }
-        })
         const q2 = give(s,
             "A",
             skill(s,
                 "katarina",
                 "A",
                 "Q"))
-        r = play(s,
+        s = play(s,
+            "A",
+            q1,
+            {
+                target: "B:g3v_tank"
+            }).s
+        assert.ok(inGrave(s,
+            "A",
+            q1),
+        "chưa hạ được thì vào mộ")
+        s = play(s,
             "A",
             q2,
             {
                 target: "B:g3v_tank"
-            })
-        assert.ok(inGrave(r.s,
-            "A",
-            q2) && !inHand(r.s,
-            "A",
-            q2))
-    })
-test("E gấp đôi sát thương khi mục tiêu dưới 50% máu",
-    () => {
-        const run = (hp: number) => {
-            const s = mk({
-                A: {
-                    katarina: 2
-                }, B: {
-                    g3v_tank: 2
-                }
-            })
-            u(s,
-                "B",
-                "g3v_tank").hp = hp
-            return dmgTo(play(s,
-                "A",
-                give(s,
-                    "A",
-                    skill(s,
-                        "katarina",
-                        "A",
-                        "E")),
-                {
-                    target: "B:g3v_tank"
-                }).ev,
-            "B:g3v_tank")
-        }
-        const full = run(900)
-        const low = run(400)
-        assert.ok(Math.abs(low / full - 2) < 0.05,
-            `${low} / ${full}`)
-    })
-test("R hạ 2 tướng: lấy 2 lá Katarina gần nhất từ mộ về tay và R quay về tay",
-    () => {
-        let s = mk({
-            A: {
-                katarina: 2
-            }, B: {
-                g3v_tank: 2, g3v_fighter: 3, g3v_mark: 1
-            }
-        })
-        u(s,
-            "B",
-            "g3v_tank").hp = 10
-        u(s,
-            "B",
-            "g3v_fighter").hp = 10
-        const old1 = skill(s,
-            "katarina",
-            "A",
-            "Q")
-        const old2 = skill(s,
-            "katarina",
-            "A",
-            "E")
-        const old3 = skill(s,
-            "katarina",
-            "A",
-            "Q")
-        s.players.A.grave.push(old1,
-            old2,
-            old3)
-        const r = give(s,
-            "A",
-            skill(s,
-                "katarina",
-                "A",
-                "R"))
-        s = play(s,
-            "A",
-            r).s
+            }).s
         assert.equal(u(s,
             "B",
             "g3v_tank").status,
         "dead")
-        assert.equal(u(s,
+        assert.ok(inHand(s,
+            "A",
+            q1),
+        "lá đã dùng trước đó về tay")
+        assert.ok(inHand(s,
+            "A",
+            q2),
+        "lá đang dùng cũng về tay")
+    })
+test("Tham Lam: ai hạ cũng được nhưng chỉ tính địch Katarina đã gây sát thương lên",
+    () => {
+        const setup = () => mk({
+            A: {
+                katarina: 2, g3v_fighter: 1
+            }, B: {
+                g3v_tank: 2, g3v_mark: 1
+            }
+        })
+        // địch Katarina đã chạm: đồng đội hạ gục thì lá về tay
+        let s = setup()
+        const q = give(s,
+            "A",
+            skill(s,
+                "katarina",
+                "A",
+                "Q"))
+        s = play(s,
+            "A",
+            q,
+            {
+                target: "B:g3v_mark"
+            }).s
+        u(s,
             "B",
-            "g3v_fighter").status,
-        "dead")
+            "g3v_mark").hp = 5
+        s = strike(s,
+            "A",
+            "A:g3v_fighter",
+            "B:g3v_mark").s
         assert.equal(u(s,
             "B",
             "g3v_mark").status,
-        "board")
+        "dead")
         assert.ok(inHand(s,
             "A",
-            old3) && inHand(s,
+            q),
+        "đã chạm: lá về tay")
+        // địch chưa chạm chết: lá ở lại mộ
+        s = setup()
+        const q2 = give(s,
             "A",
-            old2),
-        "2 lá gần nhất về tay")
+            skill(s,
+                "katarina",
+                "A",
+                "Q"))
+        s = play(s,
+            "A",
+            q2,
+            {
+                target: "B:g3v_tank"
+            }).s
+        u(s,
+            "B",
+            "g3v_mark").hp = 5
+        s = strike(s,
+            "A",
+            "A:g3v_fighter",
+            "B:g3v_mark").s
+        assert.equal(u(s,
+            "B",
+            "g3v_mark").status,
+        "dead")
         assert.ok(inGrave(s,
             "A",
-            old1),
-        "lá cũ nhất còn trong mộ")
-        assert.ok(inHand(s,
+            q2),
+        "chưa chạm: lá vẫn ở mộ")
+    })
+test("E (Quick): né đòn đánh, kẻ đánh nhận sát thương phép, gấp đôi nếu có Dao",
+    () => {
+        const run = (dagger: boolean) => {
+            const s = mk({
+                A: {
+                    katarina: 2
+                }, B: {
+                    g3v_fighter: 2
+                }
+            })
+            s.active = "B"
+            const foe = u(s,
+                "B",
+                "g3v_fighter")
+            if (dagger) gm(s).status(foe,
+                "kat_dagger",
+                2)
+            const e = give(s,
+                "A",
+                skill(s,
+                    "katarina",
+                    "A",
+                    "E"))
+            const atk = give(s,
+                "B",
+                basic(s))
+            let r = act(s,
+                {
+                    t: "play", side: "B", uid: atk.uid, args: {
+                        actor: "B:g3v_fighter", target: "A:katarina"
+                    }
+                })
+            assert.ok(cg.legalActions(r.s,
+                "A").some((a) => a.t === "chain" && a.uid === e.uid),
+            "E nối được lên đòn đánh")
+            r = settle(chainWith(r.s,
+                "A",
+                e))
+            const kat = u(r.s,
+                "A",
+                "katarina")
+            assert.equal(kat.hp,
+                kat.maxHp,
+                "đòn trượt")
+            assert.equal(evs(r.ev,
+                "chainCancel").length,
+            1)
+            return dmgTo(r.ev,
+                "B:g3v_fighter",
+                "skill")
+        }
+        const s0 = mk({
+            A: {
+                katarina: 2
+            }
+        })
+        const base = Math.round(gm(s0).f(u(s0,
             "A",
-            r),
-        "R hạ gục nên cũng về tay")
+            "katarina"),
+        KATARINA.F_E) * (100 / 130))
+        assert.equal(run(false),
+            base)
+        assert.equal(run(true),
+            Math.round(gm(s0).f(u(s0,
+                "A",
+                "katarina"),
+            KATARINA.F_E) * 2 * (100 / 130)))
     })
 
 // ======================================================================
 G("Kha'Zix")
 // ======================================================================
-test("Q lên tướng Cô Lập gây ×2 so với tướng có đồng minh kề",
+test("Nội tại: tướng Cô Lập nhận thêm (20 + 50% AD + 10% AP) từ đòn đánh và (40 + 90% AD + 15% AP) từ Q",
     () => {
-        const run = (b: Record<string, number>) => {
-            const s = mk({
-                A: {
-                    khazix: 2
-                }, B: b
-            })
-            return dmgTo(play(s,
-                "A",
-                give(s,
-                    "A",
-                    skill(s,
-                        "khazix",
-                        "A",
-                        "Q")),
-                {
-                    target: "B:g3v_tank"
-                }).ev,
-            "B:g3v_tank")
-        }
-        const alone = run({
-            g3v_tank: 2
-        })
-        const packed = run({
-            g3v_tank: 2, g3v_fighter: 1
-        })
-        assert.ok(Math.abs(alone / packed - 2) < 0.05,
-            `${alone} / ${packed}`)
-    })
-test("E làm 1 tướng đứng kín thành Cô Lập tới hết lượt rồi hết",
-    () => {
-        let s = mk({
+        const iso = mk({
             A: {
                 khazix: 2
             }, B: {
-                g3v_tank: 2, g3v_fighter: 1
+                g3v_tank: 2
+            }
+        })
+        const kin = mk({
+            A: {
+                khazix: 2
+            }, B: {
+                g3v_tank: 2, g3v_mage: 1
+            }
+        })
+        const kz = u(iso,
+            "A",
+            "khazix")
+        assert.equal(gm(iso).isolated(u(iso,
+            "B",
+            "g3v_tank")),
+        true)
+        assert.equal(gm(kin).isolated(u(kin,
+            "B",
+            "g3v_tank")),
+        false)
+        const atk = (s: St) => dmgTo(strike(s,
+            "A",
+            "A:khazix",
+            "B:g3v_tank").ev,
+        "B:g3v_tank",
+        "attack")
+        const diff = atk(iso) - atk(kin)
+        assert.ok(Math.abs(diff - Math.round(gm(iso).f(kz,
+            KHAZIX.F_ATK) * (100 / 130))) <= 1,
+        `đòn đánh thêm ${diff}`)
+        const q = (s: St) => dmgTo(play(s,
+            "A",
+            give(s,
+                "A",
+                skill(s,
+                    "khazix",
+                    "A",
+                    "Q")),
+            {
+                target: "B:g3v_tank"
+            }).ev,
+        "B:g3v_tank")
+        assert.equal(q(kin),
+            Math.round(gm(kin).f(kz,
+                KHAZIX.F_Q) * (100 / 130)))
+        assert.equal(q(iso),
+            Math.round((gm(iso).f(kz,
+                KHAZIX.F_Q) + gm(iso).f(kz,
+                KHAZIX.F_Q_ISO)) * (100 / 130)))
+    })
+test("E: đổi đường với đồng minh; địch đối diện sau khi đổi Cô Lập tới hết lượt và nhận sát thương",
+    () => {
+        const s = mk({
+            A: {
+                khazix: 1, g3v_tank: 3
+            }, B: {
+                g3v_mage: 3, g3v_mark: 4, g3v_fighter: 1
             }
         })
         assert.equal(gm(s).isolated(u(s,
             "B",
-            "g3v_tank")),
-        false)
-        s = play(s,
+            "g3v_mage")),
+        false,
+        "có đồng minh kề nên chưa Cô Lập")
+        const r = play(s,
             "A",
             give(s,
                 "A",
@@ -578,192 +686,437 @@ test("E làm 1 tướng đứng kín thành Cô Lập tới hết lượt rồi 
                     "A",
                     "E")),
             {
-                target: "B:g3v_tank"
-            }).s
-        assert.equal(gm(s).isolated(u(s,
+                target: "A:g3v_tank"
+            })
+        assert.equal(u(r.s,
+            "A",
+            "khazix").lane,
+        3)
+        assert.equal(u(r.s,
+            "A",
+            "g3v_tank").lane,
+        1)
+        const mage = u(r.s,
             "B",
-            "g3v_tank")),
-        true)
-        assert.equal(gm(s).isolated(u(s,
+            "g3v_mage")
+        assert.ok(gm(r.s).has(mage,
+            "isolated"),
+        "Cô Lập")
+        assert.equal(dmgTo(r.ev,
+            "B:g3v_mage",
+            "skill"),
+        Math.round(gm(s).f(u(s,
+            "A",
+            "khazix"),
+        KHAZIX.F_E) * (100 / 130)))
+        const e = end(r.s,
+            "A")
+        assert.equal(gm(e.s).has(u(e.s,
             "B",
-            "g3v_fighter")),
-        false)
+            "g3v_mage"),
+        "isolated"),
+        false,
+        "hết lượt thì hết Cô Lập")
+    })
+test("R (Quick): Tàng Hình ngay, địch đối diện Cô Lập tới hết lượt kế của bạn, thêm 1 lá Q lên tay",
+    () => {
+        let s = mk({
+            A: {
+                khazix: 2
+            }, B: {
+                g3v_tank: 2, g3v_mage: 1
+            }
+        })
+        const r = give(s,
+            "A",
+            skill(s,
+                "khazix",
+                "A",
+                "R"))
+        s = play(s,
+            "A",
+            r).s
+        assert.ok(gm(s).has(u(s,
+            "A",
+            "khazix"),
+        "stealth"),
+        "Tàng Hình")
+        assert.ok(gm(s).has(u(s,
+            "B",
+            "g3v_tank"),
+        "isolated"),
+        "địch đối diện Cô Lập")
+        assert.equal(s.players.A.hand.filter((c) => c.id === "khazix_q").length,
+            1,
+            "thêm 1 lá Q")
         s = end(s,
             "A").s
-        assert.equal(gm(s).isolated(u(s,
+        s = end(s,
+            "B").s
+        assert.equal(s.active,
+            "A")
+        assert.ok(gm(s).has(u(s,
             "B",
-            "g3v_tank")),
-        false)
-    })
-test("R làm mọi tướng địch Cô Lập: đòn đánh thường cũng ×2",
-    () => {
-        const run = (withR: boolean) => {
-            let s = mk({
-                A: {
-                    khazix: 2
-                }, B: {
-                    g3v_tank: 2, g3v_fighter: 1, g3v_mark: 3
-                }
-            })
-            if (withR) s = play(s,
-                "A",
-                give(s,
-                    "A",
-                    skill(s,
-                        "khazix",
-                        "A",
-                        "R"))).s
-            return dmgTo(strike(s,
-                "A",
-                "A:khazix",
-                "B:g3v_tank").ev,
-            "B:g3v_tank")
-        }
-        const plain = run(false)
-        const hunt = run(true)
-        assert.ok(Math.abs(hunt / plain - 2) < 0.05,
-            `${hunt} / ${plain}`)
+            "g3v_tank"),
+        "isolated"),
+        "còn Cô Lập tới hết lượt kế của bạn")
     })
 
 // ======================================================================
 G("Qiyana")
 // ======================================================================
-test("nhát đầu lên mỗi tướng địch ×2, nhát sau cùng lượt không ×2",
+test("Nguyên tố: nhận khi ra sân và đầu mỗi lượt của bạn, đúng một nguyên tố",
     () => {
-        let s = mk({
+        const s = mk({
             A: {
                 qiyana: 2
             }, B: {
                 g3v_tank: 2
             }
         })
-        const r1 = play(s,
+        const q = u(s,
+            "A",
+            "qiyana")
+        const has = () => [1,
+            2,
+            3].filter((n) => gm(s).stackOf(q,
+            "element") === n)
+        assert.equal(has().length,
+            1,
+            "ra sân có 1 nguyên tố")
+        const seen = new Set<string>()
+        for (let i = 0; i < 40; i++) {
+            gm(s).hook("onTurnStart",
+                {
+                    side: "A"
+                })
+            assert.equal(has().length,
+                1)
+            seen.add(String(has()[0]))
+        }
+        assert.equal(seen.size,
+            3,
+            "đủ ba nguyên tố")
+        gm(s).hook("onTurnStart",
+            {
+                side: "B"
+            })
+        assert.equal(has().length,
+            1)
+    })
+test("Q Đỏ: gây sát thương, rồi mỗi lần Qiyana gây sát thương lên nó, đòn sau +15% (cộng dồn) tới hết lượt",
+    () => {
+        const setup = () => {
+            const s = mk({
+                A: {
+                    qiyana: 2
+                }, B: {
+                    g3v_tank: 2
+                }
+            })
+            QIYANA.setElement(gm(s),
+                u(s,
+                    "A",
+                    "qiyana"),
+                "red")
+            return s
+        }
+        const tank = "B:g3v_tank"
+        const base = dmgTo(strike(setup(),
+            "A",
+            "A:qiyana",
+            tank).ev,
+        tank,
+        "attack")
+        let s = setup()
+        const rq = play(s,
             "A",
             give(s,
                 "A",
                 skill(s,
+                    "qiyana",
+                    "A",
+                    "Q")),
+            {
+                target: tank
+            })
+        assert.equal(dmgTo(rq.ev,
+            tank),
+        Math.round(gm(s).f(u(s,
+            "A",
+            "qiyana"),
+        QIYANA.F_Q_RED) * (100 / 130)))
+        assert.equal(gm(rq.s).statusV(u(rq.s,
+            "B",
+            "g3v_tank"),
+        "qiyana_mark"),
+        15)
+        const r1 = strike(rq.s,
+            "A",
+            "A:qiyana",
+            tank)
+        assert.ok(Math.abs(dmgTo(r1.ev,
+            tank,
+            "attack") - base * 1.15) <= 1.5,
+        `+15%: ${dmgTo(r1.ev,
+            tank,
+            "attack")} so với ${base}`)
+        const r2 = strike(r1.s,
+            "A",
+            "A:qiyana",
+            tank)
+        assert.ok(Math.abs(dmgTo(r2.ev,
+            tank,
+            "attack") - base * 1.3) <= 1.5,
+        "+30%")
+        s = end(r2.s,
+            "A").s
+        assert.equal(gm(s).has(u(s,
+            "B",
+            "g3v_tank"),
+        "qiyana_mark"),
+        false,
+        "hết lượt thì mất dấu")
+    })
+test("Xanh: Q Choáng 1 lượt; R Choáng tướng máu cao nhất và Xạ thủ (không có Xạ thủ thì thêm 1 tướng khác)",
+    () => {
+        const blue = (s: St) => QIYANA.setElement(gm(s),
+            u(s,
+                "A",
+                "qiyana"),
+            "blue")
+        const s0 = mk({
+            A: {
+                qiyana: 2
+            }, B: {
+                g3v_tank: 2
+            }
+        })
+        blue(s0)
+        const rq = play(s0,
+            "A",
+            give(s0,
+                "A",
+                skill(s0,
                     "qiyana",
                     "A",
                     "Q")),
             {
                 target: "B:g3v_tank"
             })
-        const first = dmgTo(r1.ev,
-            "B:g3v_tank")
-        assert.ok(gm(r1.s).has(u(r1.s,
+        assert.ok(gm(rq.s).has(u(rq.s,
             "B",
             "g3v_tank"),
-        "privilege_lost"))
-        s = r1.s
-        const second = dmgTo(play(s,
+        "stun"))
+        assert.equal(dmgTo(rq.ev,
+            "B:g3v_tank"),
+        Math.round(gm(s0).f(u(s0,
             "A",
-            give(s,
-                "A",
-                skill(s,
-                    "qiyana",
-                    "A",
-                    "Q")),
-            {
-                target: "B:g3v_tank"
-            }).ev,
-        "B:g3v_tank")
-        assert.ok(Math.abs(first / second - 2) < 0.05,
-            `${first} / ${second}`)
-    })
-test("đòn đánh thường tiêu Đặc Quyền; E trả lại Đặc Quyền cho mọi địch; hết lượt cũng có lại",
-    () => {
-        let s = mk({
+            "qiyana"),
+        QIYANA.F_Q_BLUE) * (100 / 130)))
+        const withMark = mk({
             A: {
                 qiyana: 2
             }, B: {
-                g3v_tank: 2, g3v_fighter: 3
+                g3v_tank: 2, g3v_mark: 1, g3v_sup: 3
             }
         })
-        const q = () => give(s,
-            "A",
-            skill(s,
-                "qiyana",
-                "A",
-                "Q"))
-        s = strike(s,
-            "A",
-            "A:qiyana",
-            "B:g3v_tank").s
-        const noPriv = dmgTo(play(s,
-            "A",
-            q(),
-            {
-                target: "B:g3v_tank"
-            }).ev,
-        "B:g3v_tank")
-        s = play(s,
-            "A",
-            give(s,
-                "A",
-                skill(s,
-                    "qiyana",
-                    "A",
-                    "E"))).s
-        assert.ok(!gm(s).has(u(s,
+        blue(withMark)
+        u(withMark,
             "B",
-            "g3v_tank"),
-        "privilege_lost"))
-        const again = dmgTo(play(s,
-            "A",
-            q(),
-            {
-                target: "B:g3v_tank"
-            }).ev,
-        "B:g3v_tank")
-        assert.ok(Math.abs(again / noPriv - 2) < 0.05,
-            `${again} / ${noPriv}`)
-        s = end(s,
-            "A").s
-        assert.ok(!gm(s).has(u(s,
+            "g3v_mark").hp = 900
+        u(withMark,
             "B",
-            "g3v_tank"),
-        "privilege_lost"))
-    })
-test("R chém mọi tướng địch, mỗi tướng ×2 một lần (Q ngay sau đó không ×2)",
-    () => {
-        const s = mk({
-            A: {
-                qiyana: 2
-            }, B: {
-                g3v_tank: 2, g3v_fighter: 3
-            }
-        })
-        const r = play(s,
+            "g3v_sup").hp = 900
+        const r1 = play(withMark,
             "A",
-            give(s,
+            give(withMark,
                 "A",
-                skill(s,
+                skill(withMark,
                     "qiyana",
                     "A",
                     "R")))
-        const raw = 40 + gm(s).atk(u(s,
+        const stunned = (s: St) => ["g3v_tank",
+            "g3v_mark",
+            "g3v_sup",
+            "g3v_fighter"].filter((h) => s.units[`B:${h}`] && gm(s).has(s.units[`B:${h}`],
+            "stun"))
+        assert.deepEqual(stunned(r1.s).sort(),
+            ["g3v_mark",
+                "g3v_tank"],
+            "máu cao nhất + Xạ thủ")
+        assert.equal(dmgTo(r1.ev,
+            "B:g3v_sup"),
+        Math.round(gm(withMark).f(u(withMark,
             "A",
-            "qiyana"))
-        for (const t of ["B:g3v_tank",
-            "B:g3v_fighter"]) assert.equal(dmgTo(r.ev,
-            t),
-        Math.round(raw * 2 * (100 / 130)))
-        const q = dmgTo(play(r.s,
+            "qiyana"),
+        QIYANA.F_R_BLUE) * (100 / 130)))
+        const noMark = mk({
+            A: {
+                qiyana: 2
+            }, B: {
+                g3v_tank: 2, g3v_sup: 3, g3v_fighter: 1
+            }
+        })
+        blue(noMark)
+        u(noMark,
+            "B",
+            "g3v_sup").hp = 900
+        u(noMark,
+            "B",
+            "g3v_fighter").hp = 900
+        const r2 = play(noMark,
             "A",
-            give(r.s,
+            give(noMark,
                 "A",
-                skill(r.s,
+                skill(noMark,
+                    "qiyana",
+                    "A",
+                    "R")))
+        assert.equal(stunned(r2.s).length,
+            2,
+            "không có Xạ thủ: máu cao nhất + 1 tướng ngẫu nhiên")
+        assert.ok(stunned(r2.s).includes("g3v_tank"))
+    })
+test("Lục: Q đổi chỗ đứng đối diện; R đổi chỗ tự do rồi lấy 1 lá Q lên tay",
+    () => {
+        const s = mk({
+            A: {
+                qiyana: 0, g3v_tank: 2
+            }, B: {
+                g3v_mage: 4, g3v_fighter: 0
+            }
+        })
+        QIYANA.setElement(gm(s),
+            u(s,
+                "A",
+                "qiyana"),
+            "green")
+        const rq = play(s,
+            "A",
+            give(s,
+                "A",
+                skill(s,
                     "qiyana",
                     "A",
                     "Q")),
             {
-                target: "B:g3v_tank"
-            }).ev,
-        "B:g3v_tank")
-        assert.equal(q,
-            Math.round((55 + 1.3 * gm(s).atk(u(s,
+                target: "B:g3v_mage"
+            })
+        assert.equal(u(rq.s,
+            "A",
+            "qiyana").lane,
+        4)
+        assert.equal(dmgTo(rq.ev,
+            "B:g3v_mage"),
+        Math.round(gm(s).f(u(s,
+            "A",
+            "qiyana"),
+        QIYANA.F_Q_GREEN) * (100 / 130)))
+        u(rq.s,
+            "B",
+            "g3v_fighter").hp = 400
+        const rr = play(rq.s,
+            "A",
+            give(rq.s,
                 "A",
-                "qiyana"))) * (100 / 130)))
+                skill(rq.s,
+                    "qiyana",
+                    "A",
+                    "R")))
+        assert.equal(u(rr.s,
+            "A",
+            "qiyana").lane,
+        0,
+        "đứng đối diện tướng ít máu nhất")
+        assert.equal(rr.s.players.A.hand.filter((c) => c.id === "qiyana_q").length,
+            1,
+            "thêm 1 lá Q")
+    })
+test("E (Quick): Đỏ đánh trả, Xanh Choáng kẻ đánh và huỷ đòn, Lục đổi chỗ với đồng minh và đòn trượt",
+    () => {
+        const run = (el: QIYANA.Element) => {
+            const s = mk({
+                A: {
+                    qiyana: 2, g3v_tank: 3
+                }, B: {
+                    g3v_fighter: 2
+                }
+            })
+            s.active = "B"
+            QIYANA.setElement(gm(s),
+                u(s,
+                    "A",
+                    "qiyana"),
+                el)
+            const e = give(s,
+                "A",
+                skill(s,
+                    "qiyana",
+                    "A",
+                    "E"))
+            const atk = give(s,
+                "B",
+                basic(s))
+            let r = act(s,
+                {
+                    t: "play", side: "B", uid: atk.uid, args: {
+                        actor: "B:g3v_fighter", target: "A:qiyana"
+                    }
+                })
+            assert.ok(cg.legalActions(r.s,
+                "A").some((a) => a.t === "chain" && a.uid === e.uid),
+            `E ${el} nối được`)
+            r = settle(chainWith(r.s,
+                "A",
+                e))
+            return r
+        }
+        const base = mk({
+            A: {
+                qiyana: 2
+            }
+        })
+        const red = run("red")
+        assert.equal(dmgTo(red.ev,
+            "B:g3v_fighter",
+            "skill"),
+        Math.round(gm(base).f(u(base,
+            "A",
+            "qiyana"),
+        QIYANA.F_E_RED) * (100 / 130)))
+        assert.ok(u(red.s,
+            "A",
+            "qiyana").hp < u(red.s,
+            "A",
+            "qiyana").maxHp,
+        "Đỏ: đòn vẫn trúng")
+        const blue = run("blue")
+        assert.ok(gm(blue.s).has(u(blue.s,
+            "B",
+            "g3v_fighter"),
+        "stun"),
+        "Xanh: kẻ đánh Choáng")
+        assert.equal(u(blue.s,
+            "A",
+            "qiyana").hp,
+        u(blue.s,
+            "A",
+            "qiyana").maxHp,
+        "Xanh: đòn bị huỷ")
+        const green = run("green")
+        assert.equal(u(green.s,
+            "A",
+            "qiyana").lane,
+        3,
+        "Lục: đổi chỗ với đồng minh")
+        assert.equal(u(green.s,
+            "A",
+            "qiyana").hp,
+        u(green.s,
+            "A",
+            "qiyana").maxHp,
+        "Lục: đòn trượt")
     })
 
 // ======================================================================
@@ -805,7 +1158,46 @@ test("đồng minh nhận đòn chí mạng: Soraka chịu thay, đồng minh s�
         assert.equal(s.players.A.lives,
             lives)
     })
-test("E (Quick) huỷ lá chiêu địch nhắm vào đồng minh",
+test("Q: gây sát thương, Soraka hồi; phần hồi thừa thành Khiên cho đồng minh máu thấp nhất",
+    () => {
+        const s = mk({
+            A: {
+                soraka: 0, g3v_tank: 2
+            }, B: {
+                g3v_fighter: 0
+            }
+        })
+        const so = u(s,
+            "A",
+            "soraka")
+        const heal = gm(s).f(so,
+            SORAKA.F_HEAL)
+        so.hp = so.maxHp - 20
+        const r = play(s,
+            "A",
+            give(s,
+                "A",
+                skill(s,
+                    "soraka",
+                    "A",
+                    "Q")),
+            {
+                target: "B:g3v_fighter"
+            })
+        assert.equal(dmgTo(r.ev,
+            "B:g3v_fighter"),
+        Math.round(gm(s).f(so,
+            SORAKA.F_Q) * (100 / 130)))
+        assert.equal(u(r.s,
+            "A",
+            "soraka").hp,
+        so.maxHp)
+        assert.equal(u(r.s,
+            "A",
+            "g3v_tank").shield,
+        Math.round(heal - 20))
+    })
+test("E (Quick): huỷ lá chiêu địch nhắm vào đồng minh và Câm Lặng kẻ tung chiêu",
     () => {
         const s = mk({
             A: {
@@ -814,6 +1206,11 @@ test("E (Quick) huỷ lá chiêu địch nhắm vào đồng minh",
                 soraka: 0, g3v_tank: 2
             }
         })
+        QIYANA.setElement(gm(s),
+            u(s,
+                "A",
+                "qiyana"),
+            "red")
         const q = give(s,
             "A",
             skill(s,
@@ -851,10 +1248,15 @@ test("E (Quick) huỷ lá chiêu địch nhắm vào đồng minh",
             "A",
             q),
         "lá bị huỷ vẫn vào mộ")
+        assert.ok(gm(r.s).has(u(r.s,
+            "A",
+            "qiyana"),
+        "silence"),
+        "kẻ tung chiêu bị Câm Lặng")
     })
-test("Q tự hồi, R hồi cả đội kể cả Soraka",
+test("R hồi cả đội kể cả Soraka",
     () => {
-        let s = mk({
+        const s = mk({
             A: {
                 soraka: 0, g3v_tank: 2
             }, B: {
@@ -869,23 +1271,10 @@ test("Q tự hồi, R hồi cả đội kể cả Soraka",
             "g3v_tank")
         so.hp = 100
         tank.hp = 100
-        s = play(s,
-            "A",
-            give(s,
-                "A",
-                skill(s,
-                    "soraka",
-                    "A",
-                    "Q"))).s
-        assert.equal(u(s,
-            "A",
-            "soraka").hp,
-        250)
-        assert.equal(u(s,
-            "A",
-            "g3v_tank").hp,
-        100)
-        s = play(s,
+        assert.equal(gm(s).ap(so),
+            58,
+            "AP gốc 58")
+        const r = play(s,
             "A",
             give(s,
                 "A",
@@ -893,147 +1282,319 @@ test("Q tự hồi, R hồi cả đội kể cả Soraka",
                     "soraka",
                     "A",
                     "R"))).s
-        assert.equal(u(s,
+        const heal = Math.round(gm(s).f(so,
+            SORAKA.F_R))
+        assert.equal(u(r,
             "A",
             "soraka").hp,
-        480)
-        assert.equal(u(s,
+        100 + heal)
+        assert.equal(u(r,
             "A",
             "g3v_tank").hp,
-        330)
+        100 + heal)
     })
 
 // ======================================================================
 G("Nami")
 // ======================================================================
-test("nội tại: đòn đánh đầu tiên của mỗi đồng minh trúng địch trong lượt rút 1 lá; đòn sau của cùng tướng thì không",
-    () => {
-        const s = mk({
-            A: {
-                nami: 0, g3v_fighter: 2
-            }, B: {
-                g3v_fighter: 2
-            }
-        })
-        const h0 = s.players.A.hand.length
-        let r = strike(s,
-            "A",
-            "A:g3v_fighter",
-            "B:g3v_fighter")
-        assert.equal(r.s.players.A.hand.length,
-            h0 + 1)
-        r = strike(r.s,
-            "A",
-            "A:g3v_fighter",
-            "B:g3v_fighter")
-        assert.equal(r.s.players.A.hand.length,
-            h0 + 1,
-            "đòn thứ 2 cùng tướng không rút")
+// Đồng minh có AD rất lớn: tỉ lệ rút của nội tại bị kẹp về 100% (g.chance), để test không phụ thuộc xúc xắc
+cg.defineHero({
+    id: "g3v_big", name: "g3v_big", role: "fighter", damage: "physical", hp: 1000, atk: 3000, armor: 30, mr: 30,
+    passive: {
+        name: "-", desc: "-"
+    },
+    skills: {
+        Q: noSkill("Q"), E: noSkill("E"), R: noSkill("R")
+    },
+})
+/** Ván có Nami + đồng minh g3v_big, địch có máu cực lớn để đòn 3000 AD không hạ gục */
+function mkNami(): St {
+    const s = mk({
+        A: {
+            nami: 0, g3v_big: 2
+        }, B: {
+            g3v_fighter: 2, g3v_tank: 1
+        }
     })
-test("E: lượt này mỗi đòn trúng của đồng minh được chọn rút 1 lá (cộng nội tại ở đòn đầu)",
+    for (const h of ["g3v_fighter",
+        "g3v_tank"]) {
+        u(s,
+            "B",
+            h).hp = 1_000_000
+        u(s,
+            "B",
+            h).maxHp = 1_000_000
+    }
+    s.active = "A"
+    return s
+}
+test("nội tại: đồng minh ra đòn là có cơ hội rút bài (tỉ lệ theo chỉ số đồng minh đó), tối đa 2 lá mỗi lượt",
     () => {
-        let s = mk({
-            A: {
-                nami: 0, g3v_fighter: 2
-            }, B: {
-                g3v_fighter: 2
-            }
-        })
-        s = play(s,
+        let s = mkNami()
+        assert.equal(gm(s).chance(u(s,
             "A",
-            give(s,
-                "A",
-                skill(s,
-                    "nami",
-                    "A",
-                    "E")),
+            "g3v_big"),
+        {
+            base: 0.05, ad: 0.05, ap: 0.05
+        }),
+        1,
+        "AD 3000 => kẹp 100%")
+        // Đồng minh thường: 5% + 0.05% mỗi điểm AD/AP (AD 88 + AP 66 của Nami)
+        const nami = u(s,
+            "A",
+            "nami")
+        assert.ok(Math.abs(gm(s).chance(nami,
             {
-                target: "A:g3v_fighter"
-            }).s
-        assert.ok(gm(s).has(u(s,
-            "A",
-            "g3v_fighter"),
-        "nami_draw"))
-        const h0 = s.players.A.hand.length
-        let r = strike(s,
-            "A",
-            "A:g3v_fighter",
-            "B:g3v_fighter")
-        assert.equal(r.s.players.A.hand.length,
-            h0 + 2,
-            "đòn đầu: nội tại + E")
-        r = strike(r.s,
-            "A",
-            "A:g3v_fighter",
-            "B:g3v_fighter")
-        assert.equal(r.s.players.A.hand.length,
-            h0 + 3,
-            "đòn sau: chỉ E")
+                base: 0.05, ad: 0.05, ap: 0.05
+            }) - (0.05 + 0.0005 * (88 + 66))) < 1e-9)
+        const hits: number[] = []
+        for (let i = 0; i < 3; i++) {
+            const r = strike(s,
+                "A",
+                "A:g3v_big",
+                "B:g3v_fighter")
+            s = r.s
+            hits.push(s.players.A.hand.length)
+        }
+        assert.deepEqual(hits,
+            [1,
+                2,
+                2],
+            "đòn 1 và 2 rút mỗi đòn 1 lá, đòn 3 chạm trần 2 lá/lượt")
     })
-test("Q rút 2 lá",
+test("Q: (40 + 25% AD + 55% AP) + Choáng 1 lượt + đánh dấu 3 đòn của đồng minh, mỗi đòn thêm (10 + 10% AD + 20% AP) phép",
     () => {
-        const s = mk({
-            A: {
-                nami: 0
-            }, B: {
-                g3v_fighter: 2
-            }
-        })
+        let s = mkNami()
         const q = give(s,
             "A",
             skill(s,
                 "nami",
                 "A",
                 "Q"))
-        const h0 = s.players.A.hand.length
+        const nami = u(s,
+            "A",
+            "nami")
+        const g = gm(s)
+        const qRaw = g.f(nami,
+            "40 + 25% AD + 55% AP")
+        const markRaw = g.f(nami,
+            "10 + 10% AD + 20% AP")
         const r = play(s,
             "A",
-            q)
-        assert.equal(r.s.players.A.hand.length,
-            h0 - 1 + 2)
+            q,
+            {
+                target: "B:g3v_fighter"
+            })
+        s = r.s
+        assert.equal(dmgTo(r.ev,
+            "B:g3v_fighter"),
+        Math.round(qRaw * 100 / 130))
+        assert.ok(u(s,
+            "B",
+            "g3v_fighter").statuses.stun,
+        "Choáng")
+        assert.equal(gm(s).marksOn(u(s,
+            "B",
+            "g3v_fighter"),
+        "nami_q")[0]?.hits,
+        3)
+        for (let i = 0; i < 3; i++) {
+            const left = gm(s).marksOn(u(s,
+                "B",
+                "g3v_fighter"),
+            "nami_q")[0]?.hits ?? 0
+            assert.equal(left,
+                3 - i)
+            const hit = strike(s,
+                "A",
+                "A:g3v_big",
+                "B:g3v_fighter")
+            s = hit.s
+            assert.equal(dmgTo(hit.ev,
+                "B:g3v_fighter",
+                "effect"),
+            Math.round(markRaw * 100 / 130),
+            `đòn ${i + 1} có phần đánh dấu`)
+        }
+        assert.equal(gm(s).marksOn(u(s,
+            "B",
+            "g3v_fighter"),
+        "nami_q").length,
+        0,
+        "hết 3 nấc")
     })
-test("R rút tới khi tay đủ 5 lá; tay từ 5 lá trở lên thì không rút",
+test("E: Nami hồi (35 + 15% AD + 35% AP), rồi nảy 5 lần giữa các đồng minh, mỗi lần hồi (35 + 15% AD + 35% AP)",
     () => {
-        const s = mk({
-            A: {
-                nami: 0
-            }, B: {
-                g3v_fighter: 2
-            }
-        })
-        s.players.A.hand.length = 0
-        const r = give(s,
+        const s = mkNami()
+        for (const h of ["nami",
+            "g3v_big"]) {
+            u(s,
+                "A",
+                h).hp = 100
+            u(s,
+                "A",
+                h).maxHp = 5000
+        }
+        const e = give(s,
+            "A",
+            skill(s,
+                "nami",
+                "A",
+                "E"))
+        const per = Math.round(gm(s).f(u(s,
+            "A",
+            "nami"),
+        "35 + 15% AD + 35% AP"))
+        const r = play(s,
+            "A",
+            e)
+        const heals = evs(r.ev,
+            "heal")
+        assert.equal(heals.length,
+            6,
+            "1 lần hồi đầu + 5 lần nảy")
+        assert.ok(heals.every((h) => h.amount === per),
+            `mỗi lần hồi ${per}: ${heals.map((h) => h.amount).join()}`)
+        assert.ok(heals.every((h) => h.target.startsWith("A:")))
+    })
+test("R: mọi đồng minh hồi (100 + 30% AD + 70% AP), mọi địch Choáng 1 lượt",
+    () => {
+        const s = mkNami()
+        for (const h of ["nami",
+            "g3v_big"]) {
+            u(s,
+                "A",
+                h).hp = 100
+            u(s,
+                "A",
+                h).maxHp = 5000
+        }
+        const rr = give(s,
             "A",
             skill(s,
                 "nami",
                 "A",
                 "R"))
-        const r1 = play(s,
+        const per = Math.round(gm(s).f(u(s,
             "A",
-            r)
-        assert.equal(r1.s.players.A.hand.length,
-            5)
-        const s2 = mk({
+            "nami"),
+        "100 + 30% AD + 70% AP"))
+        const r = play(s,
+            "A",
+            rr)
+        for (const h of ["nami",
+            "g3v_big"]) assert.equal(u(r.s,
+            "A",
+            h).hp,
+        100 + per,
+        h)
+        for (const h of ["g3v_fighter",
+            "g3v_tank"]) assert.ok(u(r.s,
+            "B",
+            h).statuses.stun,
+        `${h} Choáng`)
+    })
+
+test("nội tại: đồng minh khác hồi máu bằng chiêu cũng có cơ hội rút bài cho chủ Nami",
+    () => {
+        cg.defineHero({
+            id: "g3v_healer", name: "g3v_healer", role: "support", damage: "physical", hp: 1000, atk: 3000, armor: 30, mr: 30,
+            passive: {
+                name: "-", desc: "-"
+            },
+            skills: {
+                Q: {
+                    key: "Q", name: "-", desc: "-", target: "none", resolve(c) { c.g.heal(c.self,
+                        c.self,
+                        10) }
+                }, E: noSkill("E"), R: noSkill("R")
+            },
+        })
+        const s = mk({
             A: {
-                nami: 0
+                nami: 0, g3v_healer: 2
             }, B: {
                 g3v_fighter: 2
             }
         })
-        const r2 = give(s2,
+        s.active = "A"
+        u(s,
             "A",
-            skill(s2,
-                "nami",
+            "g3v_healer").hp = 100
+        const q = give(s,
+            "A",
+            skill(s,
+                "g3v_healer",
                 "A",
-                "R"))
-        while (s2.players.A.hand.length < 7) give(s2,
+                "Q"))
+        const r = play(s,
             "A",
-            basic(s2))
-        const h = s2.players.A.hand.length
-        assert.equal(play(s2,
+            q)
+        assert.equal(evs(r.ev,
+            "heal").length,
+        1)
+        assert.equal(r.s.players.A.hand.length,
+            1,
+            "lá Q đã dùng, hồi máu kích nội tại rút 1 lá")
+    })
+
+test("nội tại (onHeal): hút máu của đồng minh cũng là một lần kích, 1 đòn hút máu = 2 lần (sát thương + hồi)",
+    () => {
+        cg.defineHero({
+            id: "g3v_vamp", name: "g3v_vamp", role: "fighter", damage: "physical", hp: 1000, atk: 3000, armor: 30, mr: 30,
+            passive: {
+                name: "-", desc: "-"
+            },
+            bonusStats: () => ({
+                lifesteal: 0.5
+            }),
+            skills: {
+                Q: noSkill("Q"), E: noSkill("E"), R: noSkill("R")
+            },
+        })
+        let s = mk({
+            A: {
+                nami: 0, g3v_vamp: 2
+            }, B: {
+                g3v_fighter: 2
+            }
+        })
+        u(s,
+            "B",
+            "g3v_fighter").hp = 1_000_000
+        u(s,
+            "B",
+            "g3v_fighter").maxHp = 1_000_000
+        s.active = "A"
+        u(s,
             "A",
-            r2).s.players.A.hand.length,
-        h - 1)
+            "g3v_vamp").hp = 100
+        const r = strike(s,
+            "A",
+            "A:g3v_vamp",
+            "B:g3v_fighter")
+        s = r.s
+        assert.ok(evs(r.ev,
+            "heal").some((e) => e.target === "A:g3v_vamp" && e.amount > 0),
+        "có hút máu")
+        assert.equal(s.players.A.hand.length,
+            2,
+            "sát thương rút 1 lá, hút máu rút thêm 1 lá")
+    })
+test("nội tại (onHeal): hồi máu của địch không kích",
+    () => {
+        let s = mkNami()
+        const foe = u(s,
+            "B",
+            "g3v_fighter")
+        foe.hp = 100
+        const g = gm(s)
+        g.heal(foe,
+            foe,
+            50)
+        s = g.s
+        assert.equal(s.players.A.hand.length,
+            0)
     })
 
 // ======================================================================
@@ -1056,8 +1617,9 @@ test("công thức EN khớp bản Việt của 6 tướng; từ khoá có đủ
                 `${id} ${k}`)
         }
         const names = Object.values(KEYWORDS_V2_G3V).map((k) => k.vi)
-        for (const n of ["Dồn",
-            "Đặc Quyền"]) assert.ok(names.includes(n),
+        for (const n of ["Liên Hoàn",
+            "Dao",
+            "Nguyên Tố"]) assert.ok(names.includes(n),
             n)
     })
 test("6 ván bot, mỗi ván có 1 tướng nhóm G3V mỗi bên, chạy không lỗi",

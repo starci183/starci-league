@@ -72,7 +72,7 @@ const STATUS_DEBUFF: Record<string, number> = {
     stun: 170, silence: 90, chill: 35, shred: 45, blind: 55, grievous: 25, exhaust: 60, ignite: 1.4, charm: 70, berserk: 40,
 }
 const STATUS_BUFF: Record<string, number> = {
-    empower: 45, stealth: 80, taunt: 15, see_hand: 20,
+    empower: 45, stealth: 80, taunt: 15, see_hand: 20, armor_up: 3,
 }
 
 let markTable: Record<string, number> | null = null

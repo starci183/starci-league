@@ -11,7 +11,7 @@ import {
     RichText
 } from "../RichText"
 import {
-    cardIcon, cardLabel, elapsedPct, groupBySource, heroName, isEn, stackInfoV2, statusIcon, statusInfo, statusKind, turnsLeft, unitName, type StatusSrc
+    cardIcon, cardLabel, elapsedPct, formName, groupBySource, heroName, isEn, markInfo, stackIcon, stackInfoV2, stackValueText, statusIcon, statusInfo, statusKind, turnsLeft, unitName, type StatusSrc
 } from "../board/helpers"
 
 export type FxKind = "buff" | "debuff" | "neutral"
@@ -68,9 +68,10 @@ export const kindOf = (id: string): FxKind => (BUFFS.has(id) ? "buff" : DEBUFFS.
 /** Khóa nội bộ của engine, không phải thứ người chơi cần thấy */
 const HIDDEN_STACKS = new Set(["lissFrozen",
     "frenzyLow"])
-/** Tiền tố khoá kỹ thuật của engine/đồ (cờ "một lần", hào quang, bộ đếm ẩn của đồ) */
+/** Tiền tố khoá kỹ thuật của engine/đồ (cờ "một lần", hào quang, bộ đếm lượt, bộ đếm ẩn của đồ) */
 const HIDDEN_PREFIX = ["once:",
     "aura:",
+    "tc:",
     "itemT:"]
 const isHiddenStack = (key: string) => HIDDEN_STACKS.has(key) || HIDDEN_PREFIX.some((p) => key.startsWith(p))
 const STACK_BUFF = new Set(["bonusRes",
@@ -89,7 +90,8 @@ function stackText(hero: string, key: string, v: number, unitOf: (id: string) =>
     if (v2) {
         return {
             name: v2.name,
-            value: `${v}`,
+            value: stackValueText(key,
+                v),
             desc: v2.desc,
         }
     }
@@ -151,7 +153,8 @@ function stackIcons(hero: string, key: string): string[] {
         return [`/card_items/${item[1]}.png`,
             `/items/${item[1]}.png`]
     }
-    return [`/card_skills/${hero}_p.png`]
+    return [stackIcon(key,
+        hero)]
 }
 
 // ---------------- Mô hình ----------------
@@ -240,11 +243,58 @@ export function buildEffects(u: cg.Unit, turnNo: number, unitOf: (id: string) =>
                 1),
             name: tx.name,
             value: tx.value,
-            badge: max ? `${v}/${max}` : `${v}`,
+            badge: max ? `${v}/${max}` : key === "element" ? tx.value.slice(0,
+                1) : `${v}`,
             kind: STACK_BUFF.has(key) ? "buff" : "neutral",
             tip: [`${tx.name} · ${tx.value}`,
                 tx.desc,
                 max ? `${isEn() ? "Max" : "Tối đa"} ${max}` : ""].filter(Boolean),
+        })
+    }
+    // dấu trúng đòn (Nami Q, Braum Q...): số nấc còn lại
+    for (const [i,
+        m] of (u.marks ?? []).entries()) {
+        if (m.hits <= 0) continue
+        const info = markInfo(m.id)
+        const who = unitOf(m.src)
+        const srcHero = who?.hero ?? m.src.split(":")[1] ?? u.hero
+        cells.push({
+            key: `mk:${i}`,
+            icons: [`/card_skills/${m.id}.png`,
+                `/card_skills/${srcHero}_p.png`],
+            letter: info.name.slice(0,
+                1),
+            name: info.name,
+            value: `${m.hits}`,
+            badge: `${m.hits}`,
+            elapsed: undefined,
+            kind: who && who.side === u.side ? "buff" : "debuff",
+            tip: [`${info.name} · ${m.hits}`,
+                info.desc,
+                who ? `${isEn() ? "Cast by" : "Do"}: ${unitName(who)}` : "",
+                `${leftWord()} ${turnsLeft(m.until,
+                    turnNo)} ${turnWord()}`].filter(Boolean),
+        })
+    }
+    // biến hình (Aatrox R)
+    if (u.transform) {
+        const name = formName(u.transform.id)
+        cells.push({
+            key: "tf",
+            icons: [`/card_skills/${u.transform.id}.png`],
+            letter: name.slice(0,
+                1),
+            name,
+            value: isEn() ? "transformed" : "biến hình",
+            badge: "",
+            elapsed: elapsedPct(u.transform.until,
+                u.transform.at,
+                turnNo),
+            kind: "buff",
+            tip: [name,
+                isEn() ? "Transformed: different stats and frame." : "Đang biến hình: chỉ số và khung thẻ thay đổi.",
+                `${leftWord()} ${turnsLeft(u.transform.until,
+                    turnNo)} ${turnWord()}`],
         })
     }
     u.nextAttack.forEach((n, i) => {

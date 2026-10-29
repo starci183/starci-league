@@ -40,8 +40,12 @@ export const LANE_ORDER = [2,
     3,
     0,
     4]
-/** Cứ bấy nhiêu vòng mở thêm đúng 1 đường (chỉnh để cân bằng nhịp ván) */
-export const LANE_OPEN_EVERY = 1
+/** V3: các vòng được GỌI TƯỚNG (úp đồng thời, mỗi bên 1 tướng); đường LANE_ORDER[i] mở ở vòng SUMMON_ROUNDS[i] */
+export const SUMMON_ROUNDS = [1,
+    4,
+    8,
+    13,
+    19]
 
 export const RULES = {
     lives: LIVES,
@@ -54,15 +58,19 @@ export const RULES = {
     drawPerTurn: 2,
     respawnRounds: 2,
     itemSlots: 3,
-    /** Thứ tự mở đường và nhịp mở (vòng) */
+    /** Thứ tự mở đường */
     laneOrder: LANE_ORDER,
-    laneOpenEvery: LANE_OPEN_EVERY,
-    /** Vòng mở đường, theo chỉ số đường 0..4 (tính từ laneOrder + laneOpenEvery: mỗi lần mở đúng 1 đường) */
+    /** V3: chỉ được gọi tướng ở các vòng này (mỗi mốc mở đúng 1 đường, mỗi bên gọi tối đa 1 tướng) */
+    summonRounds: SUMMON_ROUNDS,
+    /** Vòng mở đường, theo chỉ số đường 0..4 (đường laneOrder[i] mở ở summonRounds[i]) */
     laneOpenRound: [0,
         1,
         2,
         3,
-        4].map((l) => 1 + LANE_ORDER.indexOf(l) * LANE_OPEN_EVERY) as number[],
+        4].map((l) => SUMMON_ROUNDS[LANE_ORDER.indexOf(l)]) as number[],
+    /** V3: cứ mỗi bấy nhiêu lượt CỦA MÌNH, người chơi được tặng 1 lá Đánh Thường / 1 mảnh đồ ngẫu nhiên (không lấy từ bộ bài) */
+    freeBasicEvery: 2,
+    freeItemEvery: 3,
     /** Số lá mỗi loại chiêu của MỖI tướng trong bộ bài (cố định, vào bộ từ đầu trận) */
     skillCopies: {
         Q: 4, E: 4, R: 1
@@ -88,7 +96,7 @@ export const RULES = {
         "E"] as SkillKey[],
     /** Hệ số sát thương của lá Đánh thường theo vai (nhân AD) */
     roleAttack: {
-        fighter: 1, tank: 1, assassin: 2, marksman: 1.5, mage: 1, support: 1
+        fighter: 1, tank: 1, assassin: 1.25, marksman: 1, mage: 1, support: 1
     } as Record<Role, number>,
     /** Đã bỏ (+40% cũ); giữ 0 để không đổi API. Pháp sư dùng mana */
     mageSkillBonus: 0,
@@ -176,6 +184,12 @@ export interface Unit {
   deaths: number;
   /** Chỉ pháp sư (undefined với vai khác và token). Công khai. Mana tối đa tính bằng g.maxMana(u). */
   mana?: number;
+  /** V3: dấu trúng đòn (Nami Q, Braum Q): đồng minh của người đánh dấu đánh trúng thì tiêu 1 nấc và gây thêm sát thương */
+  marks?: HitMark[];
+  /** V3: hình dạng biến hình (Aatrox R). Công khai: client vẽ hình/khung khác. */
+  transform?: Transform;
+  /** V3: vòng mà từng món trong `items` được đeo (song song với items): Ornn tính "số vòng đã mặc" */
+  itemSince?: number[];
   /** Có = đây là VẬT TRIỆU HỒI (token) ở ô triệu hồi phụ, không phải tướng: không tính mạng khi chết, không có lá */
   token?: TokenInfo;
 }
@@ -213,6 +227,42 @@ export type TokenInfo = Required<Pick<TokenDef, "id" | "name" | "atk" | "armor" 
   /** turnNo mà token tự biến mất (cuối lượt đó), nếu có */
   expires?: number;
 };
+/** V3: dấu trúng đòn trên một tướng */
+export interface HitMark {
+  id: string;
+  /** id tướng đã đánh dấu */
+  src: string;
+  hits: number;
+  /** sát thương thêm mỗi đòn (đã tính sẵn lúc đánh dấu) */
+  bonus: number;
+  kind: DamageKind;
+  /** turnNo mà dấu hết hạn (cuối lượt đó) */
+  until: number;
+}
+/** V3: biến hình (g.transform) */
+export interface Transform {
+  id: string;
+  /** turnNo mà biến hình hết hạn (cuối lượt đó) */
+  until: number;
+  at: number;
+  src?: string;
+  /** cộng vào g.stats */
+  bonus: Partial<UnitStats>;
+  /** máu tối đa đã cộng thêm (trừ lại khi hết) */
+  hpBonus: number;
+  /** nhân mọi hồi máu/Khiên nhận vào */
+  healMult: number;
+  /** có = hồi sinh 1 lần tại chỗ với chừng này máu khi sắp chết (rồi hết biến hình) */
+  reviveHp?: number;
+}
+/** V3: hiệu ứng hẹn giờ (g.delay) bắn hook onDelayed của chủ vào đầu/cuối lượt của `side` */
+export interface DelayedEffect {
+  owner: string;
+  key: string;
+  at: "turnStart" | "turnEnd";
+  side: Side;
+  data?: Record<string, number | string>;
+}
 export interface Player {
   side: Side;
   heroes: string[];
@@ -325,6 +375,10 @@ export interface GameState {
   offTurnAttacks?: TurnAttacks;
   /** Tay của phe này đang LỘ cho đối thủ tới hết lượt turnNo đó (g.revealHand). Server gửi tay thật cho đối thủ khi còn hiệu lực. */
   handReveal?: Partial<Record<Side, number>>;
+  /** V3: số lượt đã chơi của mỗi bên (tính cả lượt đang chạy); dùng cho quà tặng đều đặn (RULES.freeBasicEvery / freeItemEvery) */
+  ownTurns?: Partial<Record<Side, number>>;
+  /** V3: hiệu ứng hẹn giờ chưa bắn (g.delay) */
+  delayed?: DelayedEffect[];
   /** Số đòn đã đánh của từng tướng trong lượt hiện tại (id -> n); đặt lại ở beginTurn. Đọc bằng g.attacksMadeBy(u). */
   attackCounts?: Record<string, number>;
   /** Tạm thời khi một lá chiêu địch giải quyết: id tướng miễn hiệu ứng của lá đó (xem hook onTargeted) */
@@ -367,6 +421,8 @@ export type Action =
   /** Ghép tại chỗ: tướng `unit` đang mang 1 mảnh; `item` = uid lá mảnh thứ hai trên tay, `gold` = uid lá Vàng. Mảnh trong ô biến thành món theo bảng ghép (không tốn thêm ô). */
   | { t: "upgrade"; side: Side; unit: string; item: string; gold: string }
   | { t: "chain"; side: Side; uid: string; args?: PlayArgs }
+  /** V3: tháo 1 món đồ khỏi tướng `unit` (id món): lá đồ về tay (tay đầy thì đốt). Hành động trong lượt mình. */
+  | { t: "unequip"; side: Side; unit: string; item: string }
   | { t: "pass"; side: Side }
   /** (Cũ) kết thúc bước gọi tướng rồi rút bài: không còn dùng, giữ để tương thích kiểu */
   | { t: "draw"; side: Side }
@@ -421,6 +477,14 @@ export type GameEvent =
   | { t: "craft"; side: Side; unit?: string; item: string; card?: Card }
   /** Đeo món đồ lên tướng (đánh lá "legend" hoặc hiệu ứng rèn thẳng) */
   | { t: "equip"; side: Side; unit: string; item: string }
+  /** V3: tháo món `item` khỏi `unit`; `card` = lá đồ về tay (có thể bị đốt nếu tay đầy: sau đó có thêm cardBurned) */
+  | { t: "unequip"; side: Side; unit: string; item: string; card: Card }
+  /** V3: tặng lá đều đặn (không lấy từ bộ bài) */
+  | { t: "freeCard"; side: Side; card: Card; kind: "basic" | "item" }
+  /** V3: biến hình bật/tắt */
+  | { t: "transform"; unit: string; id: string; on: boolean; reason?: string }
+  /** V3: trạng thái ngẫu nhiên công khai của tướng (g.rollState) */
+  | { t: "roll"; unit: string; key: string; value: number }
   /** Mảnh `from` trong ô của `unit` được ghép tại chỗ thành món `item` */
   | { t: "upgrade"; side: Side; unit: string; from: string; item: string }
   | { t: "chainAdd"; side: Side; n: number; card?: Card; kind: "card" | "attack"; actor?: string; targets: string[] }
@@ -511,6 +575,8 @@ export interface AttackInfo {
   crit: boolean; miss: boolean; free: boolean;
   /** Đòn không cần lá của Đấu sĩ (free vẫn false) */
   cardless?: boolean;
+  /** V3: hook onAttack đặt true = đòn này không thể chí mạng (Ashe) */
+  noCrit?: boolean;
   /** Đòn thứ mấy (1, 2, 3...) của người đánh trong lượt hiện tại (Sát Thủ Kraken) */
   nth: number;
   bonus: { raw: number; kind: DamageKind }[];
@@ -532,6 +598,8 @@ export interface HookData {
   onAttackHit: { attacker: Unit; target: Unit; info: AttackInfo; dealt: number };
   onCrit: { attacker: Unit; target: Unit; info: AttackInfo };
   onDamage: { src?: Unit; target: Unit; amount: number; hpLost: number; kind: DamageKind; tag: string; crit?: boolean };
+  /** Một lần hồi máu thật (mọi nguồn: chiêu, hút máu, đồ...). src = tướng gây hồi (có thể không có), amount = máu thật được hồi (> 0). */
+  onHeal: { src?: Unit; target: Unit; amount: number };
   onShieldBreak: { target: Unit };
   onKill: { killer: Unit; victim: Unit };
   onDeath: { victim: Unit; killer?: Unit };
@@ -557,6 +625,16 @@ export interface HookData {
   onManaSpent: { unit: Unit; amount: number; card: Card };
   /** Lá tạm của `side` bị gỡ khỏi tay cuối lượt */
   onTempExpired: { side: Side; card: Card };
+  /** V3: một đòn đánh trúng tướng có dấu (g.addMark): dấu đã tiêu 1 nấc và gây thêm sát thương. Lọc d.mark.src === me.id. */
+  onMarkHit: { mark: HitMark; attacker: Unit; target: Unit; info: AttackInfo; left: number };
+  /** V3: hiệu ứng hẹn giờ (g.delay) tới hạn — CHỈ bắn cho tướng chủ */
+  onDelayed: { key: string; owner: Unit; data?: Record<string, number | string> };
+  /** V3: một món đồ được tháo khỏi tướng */
+  onUnequip: { side: Side; unit: Unit; item: string };
+  /** V3: biến hình kết thúc — CHỈ bắn cho tướng chủ */
+  onTransformEnd: { unit: Unit; id: string; reason: "expire" | "revive" | "manual" | "death" };
+  /** V3: `side` vừa nhận lá tặng đều đặn */
+  onFreeCard: { side: Side; card: Card; kind: "basic" | "item" };
 }
 export type HookName = keyof HookData;
 export type HeroHooks = { [K in HookName]?: (g: Game, me: Unit, d: HookData[K]) => void };
@@ -566,7 +644,8 @@ export interface HeroDef {
   /** Loại sát thương của đòn đánh thường */
   damage: "physical" | "magic";
   hp: number; atk: number; armor: number; mr: number;
-  /** AP gốc luôn 0: AP chỉ từ đồ */
+  /** V3: AP gốc (mặc định 0; tướng phép thiếu trường này lấy V3_BASE_AP trong registry.ts). g.ap = AP gốc + AP từ đồ. */
+  ap?: number;
   desc?: string;
   passive: { name: string; desc: string };
   skills: { Q: SkillDef; E: SkillDef; R: SkillDef };
@@ -577,6 +656,8 @@ export interface HeroDef {
   autoAttack?(g: Game, me: Unit): Unit | undefined;
   /** Nhân sát thương cho MỌI sát thương trong trận khi tướng này đang trên sân (kể cả sát thương lên đồng đội/địch): trả hệ số (1 = giữ). Nội tại giảm sát thương, "lần đầu x2" (Braum, Malphite, Garen, Qiyana, Janna R...). Có thể có tác dụng phụ (đánh dấu). Không gọi g.damage bên trong. */
   modifyDamage?(g: Game, me: Unit, d: { src?: Unit; target: Unit; kind: DamageKind; tag: string; crit?: boolean }): number;
+  /** V3: hào quang đồ (Ornn): với MỖI món đồ đang mặc của đồng minh (kể cả chính mình), trả % cộng thêm (0.12 = +12%) lên mọi chỉ số KHÔNG PHẢI máu của món đó. `roundsWorn` = số vòng món đã được mặc. Trong lúc tính, g.stats/atk/ap trả giá trị CHƯA có hào quang (an toàn khi đọc chỉ số của mình). */
+  itemAura?(g: Game, me: Unit, wearer: Unit, item: string, roundsWorn: number): number;
   /** Chỉ số cộng thêm cho CHÍNH tướng này (cộng vào g.stats): Lux AP theo mana, Yorick ATK theo mộ, Ornn Rèn. Không gọi g.stats/atk/ap bên trong. */
   bonusStats?(g: Game, me: Unit): Partial<UnitStats>;
   /** Số lá rút thêm ở bước rút đầu lượt của chủ khi tướng này đang trên sân (Twisted Fate: 1) */

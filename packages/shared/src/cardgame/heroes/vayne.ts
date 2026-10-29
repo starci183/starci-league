@@ -1,6 +1,7 @@
-// Vayne (Xạ thủ, vật lý): máu 380 · AD 82 · giáp/kháng 24/26. Chất: THỢ SĂN BÓNG ĐÊM, ở trong bóng tối càng lâu ra tay càng chí mạng.
+// Vayne (Sát thủ, vật lý): máu 340 · AD 124 · giáp/kháng 26/26. Chất: THỢ SĂN BÓNG ĐÊM, ở trong bóng tối càng lâu ra tay càng chí mạng.
 // Đêm = bộ đếm (stack "night", tối đa 10) giữ qua lần chết / lúc chưa gọi. Mỗi đòn đánh tiêu Đêm để gây thêm sát thương chuẩn.
 // Q: Tàng Hình + nạp (Quick). E: lượt xả (đòn tiêu 2 Đêm, gấp đôi). R: đòn kế tiêu hết Đêm vào một phát (buff đòn kế id "vayne_r").
+// V3: Vayne chuyển từ Xạ thủ sang Sát thủ (đòn đánh thường ×1.25 AD do engine tính theo vai).
 import {
     defineHero
 } from "../registry"
@@ -13,14 +14,17 @@ const EDGE = "vayne_e"
 const R_BUFF = "vayne_r"
 export const MAX_NIGHT = 10
 /** Sát thương chuẩn cộng thêm cho mỗi Đêm tiêu (nền) */
-const F_NIGHT = "24 + 36% AD"
+export const F_NIGHT = "24 + 36% AD + 8% AP"
 const E_RATE = 2
-const R_RATE = 3
+/** R: phần cố định của đòn kế tiếp */
+export const F_R = "60 + 100% AD + 20% AP"
+/** R: sát thương chuẩn thêm cho MỖI Đêm tiêu */
+export const F_R_NIGHT = "15 + 15% AD"
 /** Bot: hoãn gọi Vayne tới khi có bấy nhiêu Đêm */
 const HOLD_UNTIL = 4
 
 export default defineHero({
-    id: "vayne", name: "Vayne", role: "marksman", damage: "physical", hp: 390, atk: 90, armor: 31, mr: 28,
+    id: "vayne", name: "Vayne", role: "assassin", damage: "physical", hp: 340, atk: 124, armor: 26, mr: 26,
     bot: {
         stackValue: {
             night: 20,
@@ -45,18 +49,30 @@ export default defineHero({
             if (d.attacker.id !== me.id || d.info.miss) return
             const n = g.stackOf(me,
                 NIGHT)
-            if (n <= 0) return
             const r = d.info.buffs.some((b) => b.id === R_BUFF)
+            if (r) {
+                // R: tiêu hết Đêm vào một phát, phần cố định luôn có kể cả khi hết Đêm
+                g.setStack(me,
+                    NIGHT,
+                    0)
+                d.info.bonus.push({
+                    raw: g.f(me,
+                        F_R) + g.f(me,
+                        F_R_NIGHT) * n, kind: "true"
+                })
+                return
+            }
+            if (n <= 0) return
             const e = g.has(me,
                 EDGE)
-            const spend = r ? n : Math.min(n,
+            const spend = Math.min(n,
                 e ? 2 : 1)
             g.setStack(me,
                 NIGHT,
                 n - spend)
             d.info.bonus.push({
                 raw: g.f(me,
-                    F_NIGHT) * spend * (r ? R_RATE : e ? E_RATE : 1), kind: "true"
+                    F_NIGHT) * spend * (e ? E_RATE : 1), kind: "true"
             })
         },
     },
@@ -88,7 +104,7 @@ export default defineHero({
         },
         R: {
             key: "R", name: "Giờ Khắc Cuối Cùng", target: "self",
-            desc: `Đòn đánh kế tiếp của Vayne tiêu hết Đêm vào một phát: mỗi Đêm gây thêm {${F_NIGHT}} sát thương chuẩn nhân ${R_RATE}.`,
+            desc: `Đòn đánh kế tiếp của Vayne tiêu hết Đêm: gây thêm {${F_R}} sát thương chuẩn, cộng {${F_R_NIGHT}} sát thương chuẩn cho mỗi Đêm tiêu.`,
             canPlay: (c) => c.g.stackOf(c.self,
                 NIGHT) > 0,
             resolve(c) {

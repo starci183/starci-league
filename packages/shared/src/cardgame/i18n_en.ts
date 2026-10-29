@@ -43,6 +43,9 @@ import {
 import {
     HERO_EN_V2_G5V, SPECIAL_V2_G5V, STACK_V2_G5V, STATUS_V2_G5V
 } from "./i18n/v2_g5v"
+import {
+    HERO_EN_V3_NEW, SPECIAL_V3_NEW, STACK_V3_NEW, STATUS_V3_NEW
+} from "./i18n/v3_new"
 
 export type CardLang = "vi" | "en";
 let current: CardLang = "vi"
@@ -60,6 +63,7 @@ export const STATUS_V2: Record<string, BiText> = {
     ...STATUS_V2_G3V,
     ...STATUS_V2_G4V,
     ...STATUS_V2_G5V,
+    ...STATUS_V3_NEW,
 }
 /** Bộ đếm V2 hiện trên tướng (khoá = stack key) */
 export const STACK_V2: Record<string, BiText> = {
@@ -68,6 +72,7 @@ export const STACK_V2: Record<string, BiText> = {
     ...STACK_V2_G3V,
     ...STACK_V2_G4V,
     ...STACK_V2_G5V,
+    ...STACK_V3_NEW,
 }
 /** Lá đặc biệt V2 do chiêu/nội tại tạo ra (khoá = id lá) */
 export const SPECIAL_V2: Record<string, BiText> = {
@@ -148,26 +153,30 @@ export const WILD_EN: Record<"Q" | "E" | "R", { name: string; desc: string }> = 
 /** Lá đặc biệt do chiêu tạo ra (khóa theo id lá). Mô tả dùng cho lá đã đăng ký bằng defineSpecialCard. */
 export const SPECIAL_EN: Record<string, { name: string; desc: string }> = {
     ...enOf(SPECIAL_V2),
+    ...SPECIAL_V3_NEW,
+    pick_card: {
+        name: "Pick a card", desc: "Take this card from the graveyard to your hand; the other pick cards vanish. Temporary: disappears at the end of the turn if unused."
+    },
 }
 
 export const ROLE_EN: Record<Role, { name: string; rule: string }> = {
     fighter: {
-        name: "Fighter", rule: "Attacks the opposing champion by itself every turn for 100% AD, no card needed. Few, simple skills."
+        name: "Fighter", rule: "Strike card hits the opposing champion (or anything in the extra zone) for 100% AD. Once per turn, a Quick cardless attack for 66%. Sustain plus damage."
     },
     tank: {
-        name: "Tank", rule: "Strike card hits the opposing champion for 100% AD. Taunt: enemy marksmen's Strike cards must target a tank. Many versatile skills."
+        name: "Tank", rule: "Strike card hits the opposing champion for 100% AD. Taunt: enemy marksmen's Strike cards must target a tank. Crowd control plus damage reduction or Shields."
     },
     assassin: {
-        name: "Assassin", rule: "Strike card hits the champion in the same lane for 200% AD."
+        name: "Assassin", rule: "Strike card hits the champion in the same lane for 125% AD. Burst plus an escape (Stealth) or a reset."
     },
     marksman: {
-        name: "Marksman", rule: "Strike card hits any enemy champion for 150% AD (but must hit a tank if the enemy has one on the board)."
+        name: "Marksman", rule: "Strike card hits any enemy champion or extra-zone token for 100% AD (but must hit a tank if the enemy has one on the board)."
     },
     mage: {
         name: "Mage", rule: "Strike card hits the opposing champion for 100% AD as magic damage."
     },
     support: {
-        name: "Support", rule: "Strike card hits the opposing champion for 100% AD. When summoned to the board, its owner draws 1 card (once; respawning does not count)."
+        name: "Support", rule: "Strike card hits the opposing champion for 100% AD. When first summoned, its owner takes its Q and E from the deck to hand (respawning does not count)."
     },
 }
 
@@ -203,10 +212,25 @@ export const STATUS_EN: Record<string, { name: string; desc: string }> = {
         name: "Blind", desc: "Its next attacks miss."
     },
     stealth: {
-        name: "Stealth", desc: "Can't be chosen by single-target or up-to-N skills, nor by attacks (skills that hit every enemy still hit it)."
+        name: "Stealth", desc: "Can't be chosen by single-target or up-to-N skills, nor by attacks (skills that hit every enemy, explosions and damage over time still hit it)."
+    },
+    stasis: {
+        name: "Stasis", desc: "Takes no damage, can't be targeted and can't act until the end of the turn."
+    },
+    guard: {
+        name: "Guard", desc: "Takes all damage enemies would deal to its allies; the damage taken is stored."
+    },
+    dmgCut: {
+        name: "Damage Reduction", desc: "Takes reduced damage."
+    },
+    attackCut: {
+        name: "Attack Reduction", desc: "Takes reduced damage from attacks."
     },
     berserk: {
         name: "Berserk", desc: "Turned against its own team by Hostile Takeover."
+    },
+    armor_up: {
+        name: "Armor Up", desc: "Temporary bonus Armor (the number on the icon) until the end of the enemy's next turn."
     },
     ...enOf(STATUS_V2),
 }
@@ -265,6 +289,7 @@ export const HERO_EN: Record<string, HeroTextEn> = {
     ...HERO_EN_V2_G3V,
     ...HERO_EN_V2_G4V,
     ...HERO_EN_V2_G5V,
+    ...HERO_EN_V3_NEW,
 }
 /** Tên các stack hiện trên tướng (UI) */
 export const STACK_EN: Record<string, string> = Object.fromEntries(Object.entries(STACK_V2).map(([k,
@@ -342,8 +367,16 @@ export const missingTranslations = () => allHeroes().filter((h) => !h.todo && !H
 // ======================================================================
 // Kiểm tra bản dịch: công thức {…} của EN và VI phải giống nhau
 // ======================================================================
-const TOKEN_EN_TO_VI: [RegExp, string][] = [[/max HP/gi,
+const TOKEN_EN_TO_VI: [RegExp, string][] = [[/target max HP/gi,
+    "máu tối đa mục tiêu"],
+[/target missing HP/gi,
+    "máu đã mất mục tiêu"],
+[/max HP/gi,
     "máu tối đa"],
+[/\bper point of\b/g,
+    "mỗi điểm"],
+[/\bper\b/g,
+    "mỗi"],
 [/bonus HP/gi,
     "máu cộng thêm"],
 [/\bArmor\b/g,
@@ -475,6 +508,11 @@ export function eventText(e: GameEvent, g?: Game): string | undefined {
     case "tempExpired": return `${cname(e.card)} (temporary) fades away from ${side(e.side)}'s hand.`
     case "manaChange": return `${uname(e.unit)} ${e.delta >= 0 ? "gains" : "spends"} ${Math.abs(e.delta)} mana (${e.mana}/${e.max}).`
     case "attackCount": return `${side(e.side)} has made ${e.used}/${e.limit} attacks this turn.`
+    case "unequip": return `${uname(e.unit)} unequips ${itemText(e.item,
+        "en")?.name ?? e.item} (the card returns to ${side(e.side)}'s hand).`
+    case "freeCard": return `${side(e.side)} receives a free ${e.kind === "basic" ? "Basic Attack card" : "item component"}.`
+    case "transform": return e.on ? `${uname(e.unit)} transforms (${e.id}).` : `${uname(e.unit)} returns to normal form${e.reason === "revive" ? " and revives" : ""}.`
+    case "roll": return `${uname(e.unit)}: ${e.key} is now ${e.value}.`
     case "blindStart": return `Summon phase (round ${e.round}): choose face-down, up to ${e.cap} champion(s) each.`
     case "blindLocked": return `${side(e.side)} has locked in their summon.`
     case "burn": return `${cname(e.card)} is burned from ${side(e.side)}'s deck.`

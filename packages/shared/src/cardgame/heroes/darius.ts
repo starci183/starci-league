@@ -1,4 +1,4 @@
-// Darius (Đấu sĩ, vật lý): máu 400 · AD 70 · giáp/kháng 35/30.
+// Darius (Đấu sĩ, vật lý): máu 380 · AD 108 · giáp/kháng 31/29 (V3).
 // CHẤT: "Xay một thằng". Đòn đánh nào của Darius cũng cắm Chảy Máu (cộng dồn, hiện số trên tướng); Q cắm thêm 2;
 // E giữ kẻ đối diện (trống thì Kéo một địch về); R Máy Chém xả toàn bộ Chảy Máu thành sát thương chuẩn, hạ được thì lá về tay.
 // Engine: status cộng dồn (g.status add), g.moveTo (Kéo), SkillDef.options, c.toHand.
@@ -19,10 +19,14 @@ const BLEED = "bleed"
 /** Tối đa 8 Chảy Máu; hết sau 2 lượt của tướng mang kể từ lần cộng cuối */
 const MAX_BLEED = 6
 const BLEED_TURNS = 2
-const F_Q = "5 + 80% AD"
-const F_E = "10 + 65% AD"
+export const F_Q = "40 + 120% AD + 20% AP"
+export const F_E = "10 + 65% AD + 13% AP"
 /** R: mỗi Chảy Máu = từng này sát thương chuẩn */
-const F_R_STACK = "16 + 25% AD"
+export const F_R_STACK = "16 + 25% AD + 5% AP"
+/** Nội tại: đầu lượt của kẻ chảy máu, mỗi Chảy Máu gây từng này */
+export const F_TICK = "3 + 5% AD"
+/** Q: Darius hồi từng này mỗi Chảy Máu trên mục tiêu */
+export const F_Q_HEAL = "6 + 8% AD + 2% AP"
 const Q_BLEED = 2
 
 export const bleedOf = (g: Game, t: Unit) => g.statusV(t,
@@ -38,7 +42,7 @@ const addBleed = (g: Game, t: Unit, n: number) => {
 }
 
 export default defineHero({
-    id: "darius", name: "Darius", role: "fighter", damage: "physical", hp: 300, atk: 62, armor: 35, mr: 30,
+    id: "darius", name: "Darius", role: "fighter", damage: "physical", hp: 380, atk: 108, armor: 31, mr: 29,
     bot: {
         markValue: {
             bleed: 25,
@@ -47,9 +51,25 @@ export default defineHero({
     desc: "Đao phủ Noxus: mỗi đòn đánh cắm thêm Chảy Máu, xay một mục tiêu đến khi Máy Chém xả hết dấu thành sát thương chuẩn.",
     passive: {
         name: "Xuất Huyết",
-        desc: `Khi đòn đánh của Darius trúng 1 tướng: tướng đó +1 Chảy Máu (tối đa ${MAX_BLEED}, hết sau ${BLEED_TURNS} lượt của nó kể từ lần cộng cuối).`,
+        desc: `Khi đòn đánh của Darius trúng 1 tướng: tướng đó +1 Chảy Máu (tối đa ${MAX_BLEED}, hết sau ${BLEED_TURNS} lượt của nó kể từ lần cộng cuối). Đầu lượt của tướng đó, mỗi Chảy Máu gây {${F_TICK}} sát thương vật lý.`,
     },
     hooks: {
+        onTurnStart(g, me, d) {
+            // đầu lượt của kẻ chảy máu: mỗi Chảy Máu gây sát thương (nguồn là Darius)
+            if (d.side === me.side) return
+            for (const t of g.heroes(d.side)) {
+                const n = bleedOf(g,
+                    t)
+                if (n > 0) g.damage(me,
+                    t,
+                    n * g.f(me,
+                        F_TICK),
+                    "physical",
+                    {
+                        tag: "dot"
+                    })
+            }
+        },
         onAttackHit(g, me, d) {
             if (d.attacker.id !== me.id || d.info.miss) return
             addBleed(g,
@@ -60,7 +80,7 @@ export default defineHero({
     skills: {
         Q: {
             key: "Q", name: "Tàn Sát", target: "opposite",
-            desc: `Chọn tướng địch đối diện Darius; gây {${F_Q}} sát thương vật lý và +${Q_BLEED} Chảy Máu.`,
+            desc: `Chọn tướng địch đối diện Darius; gây {${F_Q}} sát thương vật lý và +${Q_BLEED} Chảy Máu; Darius hồi {${F_Q_HEAL}} máu mỗi Chảy Máu trên nó.`,
             resolve(c) {
                 const t = c.target!
                 c.g.damage(c.self,
@@ -73,11 +93,16 @@ export default defineHero({
                 addBleed(c.g,
                     t,
                     Q_BLEED)
+                const n = bleedOf(c.g,
+                    t)
+                if (n > 0) c.g.heal(c.self,
+                    c.self,
+                    n * c.f(F_Q_HEAL))
             },
         },
         E: {
             key: "E", name: "Bắt Giữ", target: "enemy",
-            desc: `Chọn tướng địch đối diện Darius; gây {${F_E}} sát thương vật lý. Nếu Darius không có tướng đối diện: chọn 1 tướng địch, Kéo nó về đối diện Darius trước khi gây sát thương.`,
+            desc: `Chọn tướng địch đối diện Darius; gây {${F_E}} sát thương vật lý. Nếu Darius không có tướng đối diện: chọn 1 tướng địch, Kéo nó về đối diện Darius, +1 Chảy Máu lên nó rồi gây sát thương.`,
             options(c): PlayArgs[] {
                 const front = c.g.opposite(c.self)
                 if (front) return [{
@@ -86,15 +111,19 @@ export default defineHero({
                 // đường đối diện đang giữ cho tướng chết: không Kéo vào được
                 if (c.g.laneHolder(otherSide(c.side),
                     c.self.lane)) return []
-                return c.g.heroes(otherSide(c.side)).filter((u) => !c.g.has(u,
-                    "stealth")).map((u) => ({
+                return c.g.heroes(otherSide(c.side)).filter((u) => c.g.targetable(u)).map((u) => ({
                     target: u.id
                 }))
             },
             resolve(c) {
                 const t = c.target!
-                if (t.lane !== c.self.lane) c.g.moveTo(t,
-                    c.self.lane)
+                if (t.lane !== c.self.lane) {
+                    c.g.moveTo(t,
+                        c.self.lane)
+                    addBleed(c.g,
+                        t,
+                        1)
+                }
                 c.g.damage(c.self,
                     t,
                     c.f(F_E),

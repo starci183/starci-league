@@ -12,8 +12,9 @@ import {
 import {
     getHero, getSpecialCard
 } from "./registry"
+import "./v3cards"
 import {
-    EXTRA_LANE, RULES, SIDES, otherSide,
+    COMPONENTS, EXTRA_LANE, RULES, SIDES, otherSide,
     type AttackInfo, type Card, type DamageKind, type GameEvent, type GameState, type HeroDef, type HookData, type HookName,
     type NextAttackBuff, type PlayArgs, type Role, type Side, type SkillDef, type SkillKey, type TokenDef, type TurnAttacks, type Unit,
 } from "./types"
@@ -44,11 +45,30 @@ export class Game {
     /** Lá/tướng đang giải quyết (engine đặt quanh resolve) để g.status tự ghi nguồn */
     cur: { src?: string; card?: string; uid?: string } = {
     }
+    /** true khi đang tính hào quang đồ (HeroDef.itemAura): g.stats lồng bên trong bỏ qua hào quang */
+    private auraBusy = false
     constructor(public s: GameState) {}
     emit(e: GameEvent) { this.events.push(e) }
     log(text: string) { this.emit({
         t: "log", text
     }) }
+    /** Tên dễ đọc của unit cho nhật ký (tướng hoặc vật triệu hồi) */
+    nameOf(u: Unit | undefined): string { return !u ? "?" : u.token ? u.token.name : this.hero(u).name }
+    /** Tỉ lệ dạng chữ cho nhật ký: 0.184 -> "18.4%" */
+    pctText(p: number): string {
+        const r = Math.round(Math.max(0,
+            Math.min(1,
+                p)) * 1000) / 10
+        return `${Number.isInteger(r) ? r : r.toFixed(1)}%`
+    }
+    /** Tung xúc xắc tỉ lệ p (như roll) và ghi nhật ký câu `text(trúng, "18.4%")` (undefined = không ghi) */
+    rollLog(p: number, text: (hit: boolean, pct: string) => string | undefined): boolean {
+        const hit = this.roll(p)
+        const line = text(hit,
+            this.pctText(p))
+        if (line) this.log(line)
+        return hit
+    }
 
     // ---------------- RNG ----------------
     rand(): number {
@@ -125,13 +145,18 @@ export class Game {
         const out = {
             ...ZERO
         }
-        for (const id of u.items) { // mỗi bản sao cộng chỉ số riêng
+        const auraOn = !this.auraBusy && u.items.length > 0 && !u.token
+        for (let i = 0; i < u.items.length; i++) { // mỗi bản sao cộng chỉ số riêng
+            const id = u.items[i]
             const def = CARD_ITEMS[id]
             const it = def ? undefined : getItem(id)
             const b: Record<string, number | undefined> = def ? def.stats : it ? cardItemStats(it) : {
             }
-            for (const k of Object.keys(ZERO) as (keyof UnitStats)[]) out[k] += b[k] ?? 0
-            if (def?.adaptive) out[this.hero(u).damage === "magic" ? "ap" : "atk"] += def.adaptive // chỉ số thích ứng: AD nếu tướng đánh vật lý, AP nếu phép
+            const f = auraOn ? 1 + this.itemAuraOf(u,
+                id,
+                i) : 1 // hào quang đồ (Ornn): nhân mọi chỉ số trừ máu
+            for (const k of Object.keys(ZERO) as (keyof UnitStats)[]) out[k] += (b[k] ?? 0) * (k === "hp" ? 1 : f)
+            if (def?.adaptive) out[this.hero(u).damage === "magic" ? "ap" : "atk"] += def.adaptive * f // chỉ số thích ứng: AD nếu tướng đánh vật lý, AP nếu phép
         }
         for (const id of distinctItems(u)) { // chỉ số theo bộ đếm: mỗi id khác nhau 1 lần
             const bo = CARD_ITEMS[id]?.bonus?.(this,
@@ -148,19 +173,58 @@ export class Game {
         // stack "itemAmp" (%): đồ của tướng mạnh thêm (Ornn rèn đồ Kiệt Tác)
         const amp = (u.stacks?.itemAmp ?? 0) / 100
         if (amp) for (const k of Object.keys(out) as (keyof UnitStats)[]) out[k] *= 1 + amp
+        if (u.transform) for (const k of Object.keys(u.transform.bonus) as (keyof UnitStats)[]) out[k] += u.transform.bonus[k] ?? 0 // biến hình (Aatrox R)
         return out
     }
+    /** Tổng % hào quang đồ (HeroDef.itemAura của đồng minh trên sân) lên món `id` ở ô `i` của `wearer` */
+    private itemAuraOf(wearer: Unit, id: string, i: number): number {
+        let sum = 0
+        this.auraBusy = true
+        try {
+            for (const a of Object.values(this.s.units)) {
+                if (a.status !== "board" || a.token || a.side !== wearer.side) continue
+                const f = getHero(a.hero)?.itemAura
+                if (f) sum += f(this,
+                    a,
+                    wearer,
+                    id,
+                    this.itemRounds(wearer,
+                        i))
+            }
+        } finally { this.auraBusy = false }
+        return sum
+    }
+    /** Số vòng món ở ô `i` của u đã được mặc (0 trong vòng được đeo) */
+    itemRounds(u: Unit, i: number): number { return Math.max(0,
+        this.s.round - (u.itemSince?.[i] ?? this.s.round)) }
     atk(u: Unit) { const st = this.stats(u); return Math.round((this.hero(u).atk + st.atk) * (1 + st.atkMult)) }
-    ap(u: Unit) { return Math.round(this.stats(u).ap) }
+    /** AP = AP gốc của tướng (HeroDef.ap, mặc định 0) + AP từ đồ/hiệu ứng */
+    ap(u: Unit) { return Math.round((this.hero(u).ap ?? 0) + this.stats(u).ap) }
     bonusHp(u: Unit) { return this.stats(u).hp }
-    armor(u: Unit) { return Math.round((this.hero(u).armor + this.stats(u).armor + (u.stacks.bonusRes ?? 0)) * (this.has(u,
+    /** Giáp = gốc + đồ/hiệu ứng + bonusRes + trạng thái "armor_up" (Giáp tạm, vd Renata Q; v = lượng Giáp) */
+    armor(u: Unit) { return Math.round((this.hero(u).armor + this.stats(u).armor + (u.stacks.bonusRes ?? 0) + this.statusV(u,
+        "armor_up")) * (this.has(u,
         "shred") ? RULES.shredMult : 1)) }
     mr(u: Unit) { return Math.round((this.hero(u).mr + this.stats(u).mr + (u.stacks.bonusRes ?? 0)) * (this.has(u,
         "shred") ? RULES.shredMult : 1)) }
     /** Công thức {…} theo chỉ số của u */
-    f(u: Unit, expr: string) { return evalExpr(this,
+    f(u: Unit, expr: string, target?: Unit) { return evalExpr(this,
         u,
-        expr) }
+        expr,
+        target) }
+    /** `base + ad·AD/100 + ap·AP/100` (tỉ lệ kiểu "1.6% + 0.4% mỗi 100 AD + 0.8% mỗi 100 AP": truyền phân số {base:0.016, ad:0.004, ap:0.008}) */
+    scaling(u: Unit, o: { base?: number; ad?: number; ap?: number }): number {
+        return (o.base ?? 0) + (o.ad ?? 0) * this.atk(u) / 100 + (o.ap ?? 0) * this.ap(u) / 100
+    }
+    /** Xác suất theo AD/AP (như scaling), kẹp [0, 1] */
+    chance(u: Unit, o: { base?: number; ad?: number; ap?: number }): number {
+        return Math.max(0,
+            Math.min(1,
+                this.scaling(u,
+                    o)))
+    }
+    /** Tung xúc xắc có seed: true với xác suất p */
+    roll(p: number): boolean { return this.rand() < p }
 
     // ---------------- Trạng thái ----------------
     /** Lượt (turnNo) mà trạng thái hết hạn: cuối lượt thứ n của `side` kể từ bây giờ (lượt đang chạy tính nếu là của side) */
@@ -185,6 +249,8 @@ export class Game {
         const src = o.src ?? by.src, card = o.card ?? by.card
         const srcUnit = this.unit(src)
         if (this.s.immune?.includes(u.id) && srcUnit && srcUnit.side !== u.side) return // Mũ Thích Nghi: miễn hiệu ứng của lá địch này
+        if (this.has(u,
+            "stasis") && srcUnit && srcUnit.side !== u.side) return // đang đóng băng bản thân: không nhận hiệu ứng địch
         const until = o.until ?? this.turnsUntil(o.of ?? u.side,
             turns)
         const cur = u.statuses[id]
@@ -228,7 +294,7 @@ export class Game {
     }) } }
     /** Bộ đếm riêng (không hết hạn) */
     stack(u: Unit, key: string, delta: number, max = Infinity) {
-        if (delta > 0 && u.status === "board" && !/^(item:|itemT|once:|aura:)/.test(key)) {
+        if (delta > 0 && u.status === "board" && !/^(item:|itemT|once:|aura:|tc:)/.test(key)) {
             const d = {
                 unit: u, key, n: delta, src: (this.srcOverride ?? this.cur).src
             }
@@ -245,9 +311,54 @@ export class Game {
         t: "stack", unit: u.id, key, value
     }); return value }
     stackOf(u: Unit, key: string) { return u.stacks[key] ?? 0 }
-    canAct(u: Unit) { return u.status === "board" && !this.has(u,
-        "stun") }
-    /** Đánh được không: còn hành động được và không bị "disarm" (trạng thái cấm đánh, vd Say Mê của Ahri; dùng g.status(u, "disarm", n, { v, decay })). Mọi chỗ đánh thường/đánh không cần lá/đánh miễn phí đều kiểm tra. */
+    canAct(u: Unit) {
+        return u.status === "board" && !this.has(u,
+            "stun") && !this.has(u,
+            "stasis")
+    }
+    /** Chọn được làm mục tiêu: trên sân, không Tàng Hình (stealth), không đóng băng bản thân (stasis) */
+    targetable(u: Unit): boolean {
+        return u.status === "board" && !this.has(u,
+            "stealth") && !this.has(u,
+            "stasis")
+    }
+    /** Tướng địch chọn được làm mục tiêu (bỏ Tàng Hình/stasis). Hiệu ứng diện rộng/DoT dùng g.enemies. */
+    targetableEnemies(u: Unit | Side): Unit[] { return this.enemies(u).filter((x) => this.targetable(x)) }
+    /** Tàng Hình `turns` lượt của phe `of` (mặc định lượt kế của đối thủ) */
+    stealth(u: Unit, turns = 1, of: Side = otherSide(u.side)) {
+        this.status(u,
+            "stealth",
+            turns,
+            {
+                of
+            })
+    }
+    /** Tự đóng băng (Lissandra R): miễn sát thương, không bị chọn, không hành động được */
+    stasis(u: Unit, turns = 1, of?: Side) {
+        this.status(u,
+            "stasis",
+            turns,
+            of ? {
+                of
+            } : {
+            })
+    }
+    /** Hộ vệ (Leona E): mọi sát thương địch lên đồng minh khác chảy về u, cộng dồn vào v của status "guard" */
+    guard(u: Unit, turns: number, o: { of?: Side } = {
+    }) {
+        this.status(u,
+            "guard",
+            turns,
+            {
+                v: 0, ...(o.of ? {
+                    of: o.of
+                } : {
+                })
+            })
+    }
+    guardStored(u: Unit): number { return this.statusV(u,
+        "guard") }
+    /** Đánh được không: còn hành động được và không bị "disarm" (trạng thái cấm đánh chung; dùng g.status(u, "disarm", n, { v, decay })). Mọi chỗ đánh thường/đánh không cần lá/đánh miễn phí đều kiểm tra. */
     canAttack(u: Unit) { return this.canAct(u) && !this.has(u,
         "disarm") }
     /** Có lá chiêu dùng được không (Choáng/Câm Lặng chặn) */
@@ -256,13 +367,31 @@ export class Game {
 
     // ---------------- Sát thương, hồi, khiên, chết ----------------
     /** Gây sát thương. `raw` là con số trước giáp. Trả về tổng đã gây (khiên + máu). */
-    damage(src: Unit | undefined, tgt: Unit, raw: number, kind: DamageKind, o: { tag?: "attack" | "skill" | "dot" | "effect"; crit?: boolean; noShare?: boolean } = {
+    damage(src: Unit | undefined, tgt: Unit, raw: number, kind: DamageKind, o: { tag?: "attack" | "skill" | "dot" | "effect"; crit?: boolean; noShare?: boolean; noGuard?: boolean } = {
     }): number {
         if (tgt.status !== "board" || this.s.phase === "over") return 0
         if (this.has(tgt,
             "invulnerable")) return 0 // trạng thái bất khả xâm phạm (Vương Miện Bảo Hộ)
+        if (this.has(tgt,
+            "stasis")) return 0 // tự đóng băng (Lissandra R): miễn mọi sát thương
         if (this.s.immune?.includes(tgt.id) && src && src.side !== tgt.side) return 0 // Mũ Thích Nghi
         const tag = o.tag ?? "effect"
+        // Hộ vệ (status "guard", Leona E): sát thương địch lên đồng minh khác chảy về người hộ vệ, ghi vào v
+        if (!o.noGuard && !tgt.token && src && src.side !== tgt.side) {
+            const gd = this.heroes(tgt.side).find((w) => w.id !== tgt.id && this.has(w,
+                "guard"))
+            if (gd) {
+                const dealt = this.damage(src,
+                    gd,
+                    raw,
+                    kind,
+                    {
+                        ...o, noGuard: true, noShare: true
+                    })
+                if (gd.statuses.guard) gd.statuses.guard.v += dealt
+                return dealt
+            }
+        }
         // Hộ vệ (Lời Thề Hộ Vệ): đồng minh đeo đồ shareDamage gánh một phần sát thương thay tgt
         if (!o.noShare && !tgt.token) {
             for (const w of this.heroes(tgt.side)) {
@@ -323,6 +452,16 @@ export class Game {
         }
         if (this.has(tgt,
             "chill")) m *= 1 + RULES.chillBonus
+        if (!src || src.side !== tgt.side) { // giảm sát thương nhận: dmgCut (mọi sát thương), attackCut (chỉ đòn đánh)
+            const dc = this.statusV(tgt,
+                "dmgCut")
+            if (dc > 0) m *= Math.max(0,
+                1 - dc)
+            const ac = tag === "attack" ? this.statusV(tgt,
+                "attackCut") : 0
+            if (ac > 0) m *= Math.max(0,
+                1 - ac)
+        }
         if (src && src.side !== tgt.side) for (const id of distinctItems(tgt)) m *= CARD_ITEMS[id]?.takenMult?.(this,
             tgt,
             {
@@ -398,6 +537,12 @@ export class Game {
                 target: tgt, src, hpLost, over: Math.max(0,
                     amount - absorbed - hpLost), kind, tag
             })
+        if (tgt.hp <= 0 && tgt.status === "board" && tgt.transform?.reviveHp) { // biến hình có hồi sinh 1 lần (Aatrox R)
+            this.surviveWith(tgt,
+                tgt.transform.reviveHp)
+            this.endTransform(tgt,
+                "revive")
+        }
         if (tgt.hp <= 0 && tgt.status === "board") this.kill(tgt,
             src)
         return absorbed + hpLost
@@ -407,6 +552,7 @@ export class Game {
             "noheal")) return 0 // "noheal": không hồi máu, không nhận Khiên (Lời Nhắc Tử Vong)
         if (src) amount *= this.givenMult(src)
         amount *= itemHealMult(tgt) // đồ (Vuốt Rồng) nhân hồi máu trước Vết Thương Sâu
+        if (tgt.transform) amount *= tgt.transform.healMult // biến hình (Aatrox): hồi máu nhận vào
         if (this.has(tgt,
             "grievous")) amount *= 1 - RULES.grievous // Vết Thương Sâu: hồi máu giảm
         const real = Math.max(0,
@@ -416,6 +562,10 @@ export class Game {
         this.emit({
             t: "heal", src: src?.id, target: tgt.id, amount: real, hp: tgt.hp
         })
+        if (real > 0) this.hook("onHeal",
+            {
+                src, target: tgt, amount: real
+            })
         return real
     }
     shield(src: Unit | undefined, tgt: Unit, amount: number) {
@@ -423,6 +573,7 @@ export class Game {
             "noheal")) return
         if (src) amount *= this.givenMult(src)
         amount *= itemHealMult(tgt) // đồ (Vuốt Rồng) nhân Khiên nhận trước Vết Thương Sâu
+        if (tgt.transform) amount *= tgt.transform.healMult
         if (this.has(tgt,
             "grievous")) amount *= 1 - RULES.grievous // Vết Thương Sâu: Khiên nhận giảm
         tgt.shield += Math.round(amount)
@@ -435,6 +586,9 @@ export class Game {
         if (victim.token) { this.killToken(victim,
             killer); return }
         victim.hp = 0
+        if (victim.transform) this.endTransform(victim,
+            "death")
+        victim.marks = []
         this.emit({
             t: "kill", src: killer?.id, target: victim.id
         })
@@ -564,24 +718,45 @@ export class Game {
 
     // ---------------- Vị trí ----------------
     /** Đưa u sang đường `lane` (cùng phe); nếu có đồng đội ở đó thì đổi chỗ */
-    moveTo(u: Unit, lane: number) {
-        if (u.status !== "board" || u.token || u.lane === lane) return
+    moveTo(u: Unit, lane: number): boolean {
+        if (u.status !== "board" || u.token || u.lane === lane || lane < 0 || lane > 4) return false
         const lanes = this.s.lanes[u.side]
         const old = u.lane, occ = this.unit(lanes[lane] ?? undefined)
-        if (occ && occ.status !== "board") return // đường đang giữ cho tướng chết: không chen vào được
+        if (occ && occ.status !== "board") return false // đường đang giữ cho tướng chết: không chen vào được
         lanes[old] = occ?.id ?? null
         if (occ) occ.lane = old
         lanes[lane] = u.id; u.lane = lane
         this.emit({
             t: "move", unit: u.id, from: old, to: lane, with: occ?.id
         })
+        return true
+    }
+    /** Đổi đường với đồng minh */
+    swapWith(u: Unit, ally: Unit): boolean {
+        return ally.side === u.side && ally.status === "board" && !ally.token && this.moveTo(u,
+            ally.lane)
+    }
+    /** u dời sang đường của `enemy` để đứng đối diện nó (đổi chỗ với ai đang đứng đó) được không */
+    canFace(u: Unit, enemy: Unit): boolean {
+        if (u.status !== "board" || u.token || enemy.status !== "board" || enemy.token || u.lane === enemy.lane || enemy.side === u.side) return false
+        const holder = this.laneHolder(u.side,
+            enemy.lane)
+        return !holder || holder.status === "board"
+    }
+    /** u dời sang đường của `enemy` (đối diện nó). Trả false nếu không dời được. */
+    faceEnemy(u: Unit, enemy: Unit): boolean {
+        return this.canFace(u,
+            enemy) && this.moveTo(u,
+            enemy.lane)
     }
 
     /** Đeo món `item` lên tướng u (máu tối đa/hiện tại tăng theo máu của món), phát "equip" + hook onEquip. Trả false nếu hết ô. */
     equip(u: Unit, item: string): boolean {
         if (u.items.length >= RULES.itemSlots || u.token) return false
+        this.syncSince(u)
         const before = this.stats(u).hp
         u.items.push(item)
+        u.itemSince!.push(this.s.round)
         const dh = this.stats(u).hp - before
         u.maxHp += dh; if (u.status === "board") u.hp += dh
         this.emit({
@@ -592,6 +767,221 @@ export class Game {
                 side: u.side, unit: u, item
             })
         return true
+    }
+
+    /** Giữ u.itemSince cùng độ dài u.items (state dựng tay có thể thiếu) */
+    private syncSince(u: Unit) {
+        u.itemSince ??= []
+        while (u.itemSince.length < u.items.length) u.itemSince.push(this.s.round)
+        u.itemSince.length = u.items.length
+    }
+    /** Tháo 1 bản `item` khỏi u: lá đồ (mảnh -> "item", món ghép -> "legend") về tay, tay đầy thì đốt. Trả lá hoặc undefined. */
+    unequip(u: Unit, item: string): Card | undefined {
+        const i = u.items.indexOf(item)
+        if (i < 0 || u.token) return undefined
+        this.syncSince(u)
+        const before = this.stats(u).hp
+        u.items.splice(i,
+            1)
+        u.itemSince!.splice(i,
+            1)
+        const dh = this.stats(u).hp - before
+        u.maxHp += dh
+        if (u.status === "board") u.hp = Math.max(1,
+            Math.min(u.hp,
+                u.maxHp))
+        else u.hp = Math.min(u.hp,
+            u.maxHp)
+        if (!u.items.includes(item)) delete u.stacks[`item:${item}`]
+        const card = (COMPONENTS as readonly string[]).includes(item) ? this.supportCard("item",
+            item) : this.newCard({
+            kind: "support", id: "legend", item
+        })
+        this.emit({
+            t: "unequip", side: u.side, unit: u.id, item, card
+        })
+        this.giveCard(u.side,
+            card,
+            "hand")
+        this.hook("onUnequip",
+            {
+                side: u.side, unit: u, item
+            })
+        return card
+    }
+    /** Id một món đồ HOÀN CHỈNH ngẫu nhiên (không phải mảnh) */
+    randomFinishedItem(): string {
+        const ids = Object.keys(CARD_ITEMS).filter((id) => !(COMPONENTS as readonly string[]).includes(id))
+        return ids[this.randInt(ids.length)]
+    }
+    /** Cho u một món đồ hoàn chỉnh (Ornn R): đeo ngay nếu còn ô, không thì lá "legend" vào tay (tay đầy thì đốt) */
+    grantItem(u: Unit, item: string = this.randomFinishedItem()): "equipped" | "hand" | "burned" {
+        if (!u.token && u.status === "board" && this.equip(u,
+            item)) return "equipped"
+        const full = this.player(u.side).hand.length >= RULES.handMax
+        this.giveCard(u.side,
+            this.newCard({
+                kind: "support", id: "legend", item
+            }),
+            "hand")
+        return full ? "burned" : "hand"
+    }
+
+    // ---------------- Biến hình (Aatrox R) ----------------
+    isTransformed(u: Unit, id?: string): boolean { return !!u.transform && (!id || u.transform.id === id) }
+    /** Biến hình `turns` lượt của chủ (lượt hiện tại tính). Xem docs/ENGINE_V2_SPEC.md "Hero primitives (V3)". */
+    transform(u: Unit, id: string, turns: number, o: { bonus?: Partial<UnitStats>; maxHp?: number; healMult?: number; reviveHp?: number; heal?: boolean } = {
+    }): boolean {
+        if (u.status !== "board" || u.token) return false
+        if (u.transform) this.endTransform(u,
+            "manual")
+        const hpBonus = Math.round(o.maxHp ?? 0)
+        u.transform = {
+            id, until: this.turnsUntil(u.side,
+                turns), at: this.s.turnNo, src: this.cur.src, bonus: o.bonus ?? {
+            }, hpBonus, healMult: o.healMult ?? 1, ...(o.reviveHp ? {
+                reviveHp: Math.round(o.reviveHp)
+            } : {
+            })
+        }
+        if (hpBonus) { u.maxHp += hpBonus; if (o.heal !== false) u.hp += hpBonus }
+        this.emit({
+            t: "transform", unit: u.id, id, on: true
+        })
+        return true
+    }
+    extendTransform(u: Unit, turns: number) { if (u.transform) u.transform.until += 2 * turns }
+    endTransform(u: Unit, reason: "expire" | "revive" | "manual" | "death" = "manual") {
+        const tr = u.transform
+        if (!tr) return
+        delete u.transform
+        if (tr.hpBonus) {
+            u.maxHp -= tr.hpBonus
+            u.hp = reason === "death" ? Math.min(u.hp,
+                u.maxHp) : Math.max(1,
+                Math.min(u.hp,
+                    u.maxHp))
+        }
+        this.emit({
+            t: "transform", unit: u.id, id: tr.id, on: false, reason
+        })
+        this.callOwnerHook(u,
+            "onTransformEnd",
+            {
+                unit: u, id: tr.id, reason
+            })
+    }
+    /** Cuối lượt của `side`: hết hạn biến hình của tướng phe đó */
+    expireTransforms(side: Side) {
+        for (const u of Object.values(this.s.units)) if (u.side === side && u.transform && u.transform.until <= this.s.turnNo) this.endTransform(u,
+            "expire")
+    }
+    /** Gọi hook CHỈ của tướng chủ `u` (onDelayed, onTransformEnd) */
+    private callOwnerHook<K extends HookName>(u: Unit, name: K, data: HookData[K]) {
+        const h = u.token ? undefined : getHero(u.hero)?.hooks?.[name] as ((g: Game, me: Unit, d: HookData[K]) => void) | undefined
+        if (h) this.withSource(u,
+            `${u.hero}_p`,
+            () => h(this,
+                u,
+                data))
+    }
+
+    // ---------------- Dấu trúng đòn (Nami Q, Braum Q) ----------------
+    addMark(target: Unit, id: string, src: Unit, o: { hits: number; bonus?: number; kind?: DamageKind; turns?: number; of?: Side }) {
+        if (target.status !== "board") return
+        const marks = (target.marks ??= [])
+        const at = marks.findIndex((m) => m.id === id && m.src === src.id)
+        const m = {
+            id, src: src.id, hits: o.hits, bonus: Math.round(o.bonus ?? 0), kind: o.kind ?? this.hero(src).damage, until: this.turnsUntil(o.of ?? src.side,
+                o.turns ?? 1)
+        }
+        if (at >= 0) marks[at] = m
+        else marks.push(m)
+    }
+    marksOn(target: Unit, id?: string) { return (target.marks ?? []).filter((m) => !id || m.id === id) }
+    removeMark(target: Unit, id: string) { if (target.marks) target.marks = target.marks.filter((m) => m.id !== id) }
+    /** Cuối lượt: gỡ dấu hết hạn */
+    expireMarks() { for (const u of Object.values(this.s.units)) if (u.marks?.length) u.marks = u.marks.filter((m) => m.until > this.s.turnNo) }
+    private applyMarks(a: Unit, t: Unit, info: AttackInfo) {
+        if (!t.marks?.length || t.status !== "board") return
+        for (const m of [...t.marks]) {
+            const src = this.unit(m.src)
+            if (!src || src.side !== a.side || t.status !== "board") continue
+            m.hits--
+            if (m.hits <= 0) t.marks = t.marks.filter((x) => x !== m)
+            if (m.bonus > 0) this.damage(a,
+                t,
+                m.bonus,
+                m.kind,
+                {
+                    tag: "effect"
+                })
+            this.hook("onMarkHit",
+                {
+                    mark: m, attacker: a, target: t, info, left: Math.max(0,
+                        m.hits)
+                })
+        }
+    }
+
+    // ---------------- Hẹn giờ, đếm theo lượt, trạng thái ngẫu nhiên ----------------
+    delay(owner: Unit, key: string, at: "turnStart" | "turnEnd", side: Side, data?: Record<string, number | string>) {
+        (this.s.delayed ??= []).push({
+            owner: owner.id, key, at, side, ...(data ? {
+                data
+            } : {
+            })
+        })
+    }
+    /** Engine gọi đầu/cuối lượt của `side`: bắn các hiệu ứng hẹn giờ tới hạn (một lần) */
+    fireDelayed(at: "turnStart" | "turnEnd", side: Side) {
+        const list = this.s.delayed
+        if (!list?.length) return
+        const due = list.filter((d) => d.at === at && d.side === side)
+        if (!due.length) return
+        this.s.delayed = list.filter((d) => !due.includes(d))
+        for (const d of due) {
+            const o = this.unit(d.owner)
+            if (o && o.status === "board" && this.s.phase !== "over") this.callOwnerHook(o,
+                "onDelayed",
+                {
+                    key: d.key, owner: o, data: d.data
+                })
+        }
+    }
+    turnCount(u: Unit, key: string): number { return u.stacks[`tc:${key}:t`] === this.s.turnNo ? u.stacks[`tc:${key}`] ?? 0 : 0 }
+    bumpTurnCount(u: Unit, key: string): number {
+        const n = this.turnCount(u,
+            key) + 1
+        u.stacks[`tc:${key}`] = n
+        u.stacks[`tc:${key}:t`] = this.s.turnNo
+        return n
+    }
+    /** Đặt u.stacks[key] = ngẫu nhiên 1..n (công khai cho cả hai bên) */
+    rollState(u: Unit, key: string, n: number): number {
+        const value = 1 + this.randInt(Math.max(1,
+            n))
+        u.stacks[key] = value
+        this.emit({
+            t: "roll", unit: u.id, key, value
+        })
+        return value
+    }
+    /** fn(from, 0) rồi nảy tối đa `bounces` lần sang đồng minh sống ngẫu nhiên (Nami E) */
+    bounceAllies(from: Unit, bounces: number, fn: (target: Unit, hop: number) => void, o: { avoidSame?: boolean } = {
+    }) {
+        fn(from,
+            0)
+        let cur = from
+        for (let i = 1; i <= bounces && this.s.phase !== "over"; i++) {
+            const pool = this.heroes(from.side)
+            const list = o.avoidSame && pool.length > 1 ? pool.filter((x) => x.id !== cur.id) : pool
+            const nxt = this.pick(list)
+            if (!nxt) break
+            cur = nxt
+            fn(nxt,
+                i)
+        }
     }
 
     // ---------------- Dấu mốc trên đường (lane markers) ----------------
@@ -665,9 +1055,9 @@ export class Game {
         if (info.miss) { this.emit({
             t: "attack", attacker: a.id, target: t.id, crit: false, miss: true, free: info.free, cardless: info.cardless
         }); return info }
-        if (this.statusV(a,
+        if (!info.noCrit && (this.statusV(a,
             "alwaysCrit") > 0 || (st.crit > 0 && this.rand() < Math.min(1,
-            st.crit))) info.crit = true
+            st.crit)))) info.crit = true
         const critM = info.crit ? RULES.critBase + st.critDmg : 1
         this.emit({
             t: "attack", attacker: a.id, target: t.id, crit: info.crit, miss: false, free: info.free, cardless: info.cardless
@@ -690,6 +1080,9 @@ export class Game {
             {
                 attacker: a, target: t, info
             })
+        this.applyMarks(a,
+            t,
+            info)
         this.hook("onAttackHit",
             {
                 attacker: a, target: t, info, dealt
@@ -856,6 +1249,26 @@ export class Game {
             reason)
         return card
     }
+    /** n lá trên cùng bộ bài vào mộ (= g.burn): Yorick E */
+    mill(side: Side, n: number): Card[] {
+        return this.burn(side,
+            n)
+    }
+    /** Tạo mỗi lá trong `cards` (đang ở mộ) một lá tạm "pick_card" trên tay: đánh 1 lá = lấy lá đó từ mộ về tay, các lá chọn còn lại biến mất. `hero` phải đang trên sân. */
+    offerPick(side: Side, hero: string, cards: Card[]): Card[] {
+        const group = `p${this.s.nextUid++}`
+        const out: Card[] = []
+        for (const c of cards) {
+            if (!this.player(side).grave.some((x) => x.uid === c.uid)) continue
+            out.push(this.createCard(side,
+                {
+                    kind: "special", id: "pick_card", hero, side, temp: true, data: {
+                        group, uid: c.uid, label: c.id
+                    }
+                }))
+        }
+        return out
+    }
     /** Đốt n lá trên cùng bộ bài của side vào mộ */
     burn(side: Side, n: number): Card[] {
         const out: Card[] = []
@@ -948,7 +1361,7 @@ export class Game {
     /** Cướp 1 lá trên tay `from` về tay `to` (ngẫu nhiên, hoặc đích danh o.uid: Blitz Q khi tay địch đang lộ).
    *  Lá chiêu (hoặc Bóng) của đối thủ: mặc định (o.skill = "basic") thành 1 lá Đánh thường của người cướp; "burn" = lá bị đốt vào mộ chủ, người cướp không nhận gì.
    *  Lá chung thì về tay người cướp. Luôn bắn hook onSteal (card = lá gốc). Trả về lá gốc đã bị cướp hoặc undefined nếu không có. */
-    stealCard(to: Side, from: Side, o: { uid?: string; skill?: "basic" | "burn" } = {
+    stealCard(to: Side, from: Side, o: { uid?: string; skill?: "basic" | "burn" | "convert" } = {
     }): Card | undefined {
         const card = o.uid ? this.stealByUid(from,
             o.uid) : this.stealRandom(from)
@@ -966,13 +1379,24 @@ export class Game {
         return i < 0 ? undefined : p.hand.splice(i,
             1)[0]
     }
-    private takeStolen(to: Side, from: Side, card: Card, skill: "basic" | "burn") {
+    private takeStolen(to: Side, from: Side, card: Card, skill: "basic" | "burn" | "convert") {
         delete card.frozen
         this.emit({
             t: "steal", from, to, card
         })
         const isSkill = card.kind === "skill" || !!card.copyOf || card.kind === "wild"
-        if (isSkill && skill === "burn") {
+        if (isSkill && skill === "convert") { // Blitzcrank: lá chiêu địch bị đốt, người cướp nhận 1 lá Q/E ngẫu nhiên của tướng mình đang sống
+            if (!card.temp && card.kind !== "special") this.player(card.side ?? from).grave.push(card)
+            const h = this.pick(this.heroes(to))
+            if (h) this.giveSkillToHand(to,
+                h.hero,
+                this.pick<SkillKey>(["Q",
+                    "E"])!,
+                "steal")
+            else this.giveCard(to,
+                this.supportCard("basic"),
+                "hand")
+        } else if (isSkill && skill === "burn") {
             if (!card.temp && card.kind !== "special") this.player(card.side ?? from).grave.push(card)
         } else {
             const gained = isSkill ? {
@@ -991,7 +1415,7 @@ export class Game {
             })
     }
     /** Giật lá đang nằm trong Chuỗi (lá bị huỷ bằng g.chainFx().cancel + stealBy): xử lý như lá bị cướp từ tay `from`. Engine tự gọi; hero chỉ cần đặt fx.stealBy. */
-    stealFromChain(by: Side, from: Side, card: Card, skill: "basic" | "burn" = "burn") {
+    stealFromChain(by: Side, from: Side, card: Card, skill: "basic" | "burn" | "convert" = "burn") {
         this.takeStolen(by,
             from,
             card,
@@ -1389,6 +1813,23 @@ export class Game {
         u.nextAttack.push({
             id: buff.id ?? "free", source: buff.source ?? u.id, ...buff, free: true
         })
+    }
+
+    // ---------------- Quà tặng đều đặn (không lấy từ bộ bài) ----------------
+    /** Tặng 1 lá cho `side` + sự kiện freeCard + log + hook onFreeCard */
+    giveFreeCard(side: Side, kind: "basic" | "item") {
+        const card = kind === "basic" ? this.supportCard("basic") : this.supportCard("item")
+        this.giveCard(side,
+            card,
+            "hand")
+        this.emit({
+            t: "freeCard", side, card, kind
+        })
+        this.log(`${side} receives a free ${kind === "basic" ? "Basic Attack card" : "item component"}.`)
+        this.hook("onFreeCard",
+            {
+                side, card, kind
+            })
     }
 
     // ---------------- Hook ----------------

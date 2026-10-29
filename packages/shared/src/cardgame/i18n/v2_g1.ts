@@ -15,75 +15,78 @@ export const HERO_EN_V2_G1: Record<string, HeroTextEn> = {
         desc: "Noxian executioner: every attack stacks Bleed, grind one target down until the Guillotine cashes in every stack as true damage.",
         passive: {
             name: "Hemorrhage",
-            desc: "When Darius's attack hits a champion: it gains 1 Bleed (max 8, expires 2 of its turns after the last one added).",
+            desc: "When Darius's attack hits a champion: it gains 1 Bleed (max 6, expires 2 of its turns after the last one added). At the start of that champion's turn, each Bleed deals {3 + 5% AD} physical damage.",
         },
         skills: {
             Q: {
                 name: "Decimate",
-                desc: "Choose the enemy champion opposite Darius; deal {20 + 110% AD} physical damage and +2 Bleed.",
+                desc: "Choose the enemy champion opposite Darius; deal {40 + 120% AD + 20% AP} physical damage and +2 Bleed; Darius heals {6 + 8% AD + 2% AP} HP per Bleed on it.",
             },
             E: {
                 name: "Apprehend",
-                desc: "Choose the enemy champion opposite Darius; deal {15 + 80% AD} physical damage. If Darius has no champion opposite: choose 1 enemy champion, Pull it opposite Darius before dealing damage.",
+                desc: "Choose the enemy champion opposite Darius; deal {10 + 65% AD + 13% AP} physical damage. If Darius has no champion opposite: choose 1 enemy champion, Pull it opposite Darius, give it +1 Bleed, then deal damage.",
             },
             R: {
                 name: "Noxian Guillotine",
-                desc: "Choose the enemy champion opposite Darius that has Bleed; deal {20 + 30% AD} true damage per Bleed on it, then remove all its Bleed. If this card scores a takedown: it returns to your hand.",
+                desc: "Choose the enemy champion opposite Darius that has Bleed; deal {16 + 25% AD + 5% AP} true damage per Bleed on it, then remove all its Bleed. If this card scores a takedown: it returns to your hand.",
             },
         },
     },
+
     garen: {
-        desc: "Duel: whoever stands in front of Garen piles Guilt on themselves with every attack; Garen cuts into the Guilt and the Verdict cashes it all in.",
+        desc: "Duel: whoever stands in front of Garen piles Guilt on themselves with every attack; Garen cuts into the Guilt and the Verdict hits harder with every stack.",
         passive: {
             name: "Justice",
-            desc: "Each time the enemy champion opposite Garen attacks (anyone): it gains 1 Guilt (max 10, expires 3 of its turns after the last one added). Garen's attacks deal {10% AD} more physical damage per Guilt on the target.",
+            desc: "Each time the enemy champion opposite Garen attacks (anyone): it gains 1 Guilt (max 10, expires 3 of its turns after the last one added). Garen's attacks deal {6% AD + 2% AP} more physical damage per Guilt on the target.",
         },
         skills: {
             Q: {
                 name: "Decisive Strike",
-                desc: "Choose the enemy champion opposite Garen; deal {20 + 90% AD} physical damage, plus {20% AD} per Guilt on it.",
+                desc: "Choose the enemy champion opposite Garen; deal {30 + 100% AD + 15% AP} physical damage, plus {15% AD + 3% AP} per Guilt on it. Garen heals 30% of the damage dealt.",
             },
             E: {
                 name: "Judgment",
-                desc: "Choose the enemy champion opposite Garen; slash it 3 times, each dealing {10 + 45% AD} physical damage and +1 Guilt (these do not count toward the 3 attacks).",
+                desc: "Choose the enemy champion opposite Garen; deal {20 + 100% AD + 20% AP} physical damage and +3 Guilt (skill damage, does not count toward the 3 attacks).",
             },
             R: {
-                name: "Demacian Verdict",
-                desc: "Choose the enemy champion opposite Garen that has Guilt; deal {25 + 60% AD} true damage per Guilt on it, then remove all its Guilt.",
+                name: "Demacian Justice",
+                desc: "Choose the enemy champion opposite Garen; deal {100 + 80% AD + 20% AP} + 15 per Guilt on it as true damage. Guilt stays.",
             },
         },
     },
+
     aatrox: {
-        desc: "The World Ender: pay HP for damage, the emptier his health bar the harder he hits, heals back off every hit, and R cashes in all lost HP in one blow.",
+        desc: "The World Ender: pay HP for damage, the emptier his health bar the harder he hits, heals back off every hit, and R transforms him into a demon who survives one death.",
         passive: {
             name: "Blood Price",
-            desc: "Aatrox's attacks (including cardless attacks) deal extra physical damage equal to 25% of the HP Aatrox has lost.",
+            desc: "Aatrox's attacks (including cardless attacks) deal extra physical damage equal to 15% of the HP Aatrox has lost + {5% AD + 2% AP}.",
         },
         skills: {
             Q: {
                 name: "The Darkin Blade",
-                desc: "Choose the enemy champion opposite Aatrox; Aatrox Pays 25% of his max HP, then it takes physical damage equal to 2 times the HP paid.",
+                desc: "Choose the enemy champion opposite Aatrox; Aatrox Pays 25% of his max HP, then it takes physical damage equal to 120% of the HP paid + {60% AD + 10% AP}.",
             },
             E: {
-                name: "Infernal Chains",
+                name: "Blood Rite",
                 desc: "Quick. Until the end of the turn: Aatrox's attacks heal Aatrox for 100% of the damage dealt.",
             },
             R: {
                 name: "World Ender",
-                desc: "Choose the enemy champion opposite Aatrox; it takes physical damage equal to 2 times the HP Aatrox has lost, then Aatrox heals exactly the HP he has lost.",
+                desc: "Transform for 2 of your turns: +30% AD, +30% max HP and heal that amount immediately, all healing Aatrox receives +50%. A takedown while transformed extends it by 1 turn. If Aatrox is defeated while transformed: he revives on the spot with 30% max HP + {50% AD} HP and the transformation ends (once per R).",
             },
         },
     },
+
     gangplank: {
-        desc: "A sturdy lane fighter who eats oranges to sustain and plants powder kegs that blow up the whole enemy team. Real Kegs grow every turn; fake Kegs (any card face-down) make the enemy guess which one to break.",
+        desc: "A sturdy lane fighter who eats oranges to sustain and plants powder kegs that blow up an enemy champion. Real Kegs grow every turn; fake Kegs (any card face-down) make the enemy guess which one to break.",
         passive: {
             name: "Bilgewater Gunpowder",
-            desc: "At the start of your turn: your real Kegs gain 1 Powder. You may Face-down ANY card from your hand as a fake Keg (the card is spent; costs 1 play). The extra slot holds at most 1 Keg; the enemy cannot tell real from fake. Only Marksman attacks can target Kegs (breaking 1 random Keg: a fake Keg is flipped and its card goes to the graveyard, a real Keg just breaks without exploding). When the enemy breaks a fake Keg, Gangplank heals 30% of Q's heal (100% if it was an orange card). On your turn, Gangplank's attacks (including Quick attacks) may target your Kegs: Detonate 1 real Keg (every enemy champion takes {15 + 30% AD} physical damage per Powder). With no real Keg left, hitting a fake Keg eats it: the card goes to the graveyard, and an orange card heals 60% of Q's heal.",
+            desc: "At the start of your turn: your real Kegs gain 1 Powder. You may Face-down ANY card from your hand as a fake Keg (the card is spent; costs 1 play). The extra slot holds at most 1 Keg; the enemy cannot tell real from fake. Marksman and Fighter attacks can target Kegs (breaking 1 random Keg: a fake Keg is flipped and its card goes to the graveyard, a real Keg just breaks without exploding). When the enemy breaks a fake Keg, Gangplank heals 30% of Q's heal (160% if it was an orange card). On your turn, Gangplank's attacks (including Quick attacks) may target your Kegs: Detonate 1 real Keg (1 random enemy champion takes {40 + 60% AD + 10% AP} physical damage per Powder). With no real Keg left, hitting a fake Keg eats it: the card goes to the graveyard, and an orange card heals 40% of Q's heal.",
         },
         skills: {
             Q: {
                 name: "Eat Orange",
-                desc: "Gangplank heals {100 + 60% AD} HP (himself only).",
+                desc: "Gangplank heals {100 + 60% AD + 15% AP} HP (himself only). This card can also be placed face-down as a fake Keg (an orange card): if the enemy breaks it he heals 160% of this heal, if he hits it himself 40%.",
             },
             E: {
                 name: "Plant Keg",
@@ -96,47 +99,49 @@ export const HERO_EN_V2_G1: Record<string, HeroTextEn> = {
         },
     },
     yorick: {
-        desc: "Shepherd of Souls: every card you play feeds Yorick. The thicker the graveyard, the bigger he gets, and R turns it all into one explosive turn.",
+        desc: "Shepherd of Souls: attacks to fill the graveyard, not to kill; the thicker the graveyard, the scarier the Maiden of the Mist and the tankier Yorick.",
         passive: {
-            name: "Thick Graveyard",
-            desc: "Yorick gains +1.5 AD and +8 max HP for each card in your graveyard (up to 24 cards).",
+            name: "Gravedigger",
+            desc: "Yorick's attacks (including the 66% button) deal only 40% damage, but each one discards the top 1 card of your deck into the graveyard.",
         },
         skills: {
             Q: {
-                name: "Last Rites",
-                desc: "Discard 1 card from your hand into the graveyard; then draw 1 card.",
+                name: "Burial",
+                desc: "Discard 1 card from your hand into the graveyard, then draw 1 card; Yorick heals {25 + 20% AD + 5% AP} HP.",
             },
             E: {
-                name: "Summon Old Souls",
-                desc: "Choose 1 skill card (not an R) of another ally in your graveyard; take it back into your hand.",
+                name: "Exhume",
+                desc: "Discard the top 3 cards of your deck into the graveyard, then choose 1 of those 3 cards and take it into your hand.",
             },
             R: {
-                name: "Soul Storm",
-                desc: "Until the end of the turn: Yorick's attacks deal 3 extra physical damage for each card in your graveyard (up to 24 cards) and heal Yorick for 50% of the damage dealt.",
+                name: "Maiden of the Mist",
+                desc: "Summon the Maiden in the extra slot (150 + 8 HP per graveyard card). At the start of each of your turns, the Maiden strikes 1 random enemy: (1.5% of its max HP per 5 graveyard cards + {8% max HP + 50% Armor} of Yorick) physical damage, and Yorick heals 1% max HP per 5 graveyard cards.",
             },
         },
     },
+
     ornn: {
-        desc: "The Forge God: forges one ally harder and sharper every turn; R doubles the whole forge. Pour Forge into one carry for a Masterpiece.",
+        desc: "The Forge God: the longer your team wears items the stronger they get, Ornn shields allies by punishing attackers, and R forges complete items mid-fight.",
         passive: {
             name: "Living Forge",
-            desc: "At the start of your turn: choose 1 of your champions; it gains 1 Forge (permanent, max 10). Each Forge: that champion deals 5% more physical damage (attacks too) and gains +5 Armor, only while Ornn is on the board.",
+            desc: "While Ornn is on the board: all items your side wears gain +({10% + 2% per 100 AD + 2% per 100 AP} from Ornn's stats + 1% per round that item has been worn) stats. Each item is counted separately from when it was equipped; removing it resets the count.",
         },
         skills: {
             Q: {
-                name: "Bellows Blast",
-                desc: "Discard 1 card from your hand, choose 1 of your champions; it gains +3 Forge.",
+                name: "Volcanic Rupture",
+                desc: "Choose 1 enemy champion; it takes {40 + 6% max HP + 50% Armor + 20% AP} magic damage and has its Armor Reduced by 20 until the end of the next turn.",
             },
             E: {
-                name: "Flare Up",
-                desc: "Quick. Choose 1 of your champions; until the end of the turn, its Forge counts double.",
+                name: "Ram Charge",
+                desc: "Quick, Chain Only. When an enemy attacks exactly 1 ally: the attacker takes ({20 + 4% max HP + 30% Armor} + 10 per item that ally wears) magic damage and is Stunned for 1 turn.",
             },
             R: {
                 name: "Call of the Forge God",
-                desc: "Double the Forge of all your champions (permanent, max 10).",
+                desc: "Choose 1 other ally; Ornn and that ally each receive 1 random complete item (equipped at once if there is a slot, otherwise into hand).",
             },
         },
     },
+
 }
 
 type Txt = { name: string; desc: string }
@@ -146,10 +151,10 @@ type Bi = { vi: Txt; en: Txt }
 export const STATUS_V2_G1: Record<string, Bi> = {
     bleed: {
         vi: {
-            name: "Chảy Máu", desc: "Dấu của Darius (tối đa 8, hết sau 2 lượt của tướng mang kể từ lần cộng cuối). Máy Chém Noxus gây sát thương chuẩn theo số dấu."
+            name: "Chảy Máu", desc: "Dấu của Darius (tối đa 6, hết sau 2 lượt của tướng mang kể từ lần cộng cuối). Gây sát thương đầu lượt của tướng mang; Máy Chém Noxus gây sát thương chuẩn theo số dấu."
         },
         en: {
-            name: "Bleed", desc: "Darius's mark (max 8, expires 2 of its turns after the last one added). Noxian Guillotine deals true damage per mark."
+            name: "Bleed", desc: "Darius's mark (max 6, expires 2 of its turns after the last one added). Deals damage at the start of its turn; Noxian Guillotine deals true damage per mark."
         },
     },
     guilt: {
@@ -168,42 +173,18 @@ export const STATUS_V2_G1: Record<string, Bi> = {
             name: "Infernal Chains", desc: "Until the end of the turn: Aatrox's attacks heal him for 100% of the damage dealt."
         },
     },
-    yorick_r: {
+    ornn_shred: {
         vi: {
-            name: "Bão Hồn", desc: "Tới hết lượt: đòn đánh của Yorick gây thêm sát thương theo số lá trong mộ và hút máu."
+            name: "Giảm Giáp", desc: "Ornn đã Giảm Giáp của tướng này 20 tới hết lượt sau."
         },
         en: {
-            name: "Soul Storm", desc: "Until the end of the turn: Yorick's attacks deal extra damage per graveyard card and heal him."
-        },
-    },
-    gp_e: {
-        vi: {
-            name: "Lửa Cháy Lan", desc: "Tới hết lượt: Thùng nổ gây sát thương gấp 2 lần."
-        },
-        en: {
-            name: "Fire in the Hole", desc: "Until the end of the turn: Keg explosions deal 2 times the damage."
-        },
-    },
-    forge_e: {
-        vi: {
-            name: "Lửa Bùng", desc: "Tới hết lượt: Rèn của tướng này tính gấp đôi."
-        },
-        en: {
-            name: "Flare Up", desc: "Until the end of the turn: this champion's Forge counts double."
+            name: "Armor Reduction", desc: "Ornn has Reduced this champion's Armor by 20 until the end of the next turn."
         },
     },
 }
 
 /** Bộ đếm hiện trên tướng/token (khoá = stack key) */
 export const STACK_V2_G1: Record<string, Bi> = {
-    forge: {
-        vi: {
-            name: "Rèn", desc: "Bộ đếm vĩnh viễn của Ornn (tối đa 10): mỗi Rèn +5% sát thương vật lý và +5 Giáp khi Ornn còn trên sân."
-        },
-        en: {
-            name: "Forge", desc: "Ornn's permanent counter (max 10): each Forge gives +5% physical damage and +5 Armor while Ornn is on the board."
-        },
-    },
     kegs: {
         vi: {
             name: "Số Thùng", desc: "Số Thùng (thật lẫn giả) Gangplank đang có trong ô phụ."
@@ -214,16 +195,8 @@ export const STACK_V2_G1: Record<string, Bi> = {
     },
 }
 
-/** Lá đặc biệt do tướng nhóm G1 tạo đầu lượt (khoá = id lá) */
+/** Lá đặc biệt do tướng nhóm G1 tạo (hiện không còn lá nào) */
 export const SPECIAL_V2_G1: Record<string, Bi> = {
-    ornn_forge: {
-        vi: {
-            name: "Lò Rèn", desc: "Chọn 1 tướng mình; nó +1 Rèn."
-        },
-        en: {
-            name: "Forge", desc: "Choose 1 of your champions; it gains 1 Forge."
-        },
-    },
 }
 
 /** Từ khoá mới/đổi trong chữ Việt của nhóm G1 (khoá = id) */
@@ -231,8 +204,8 @@ export const KEYWORDS_V2_G1: Record<string, Keyword> = {
     bleed: {
         vi: "Chảy Máu",
         en: "Bleed",
-        descVi: "Dấu của Darius trên tướng (tối đa 8, hết sau 2 lượt của tướng mang kể từ lần cộng cuối). Máy Chém Noxus gây sát thương chuẩn theo số dấu.",
-        descEn: "Darius's mark (max 8, expires 2 of its turns after the last one added). Noxian Guillotine deals true damage per mark.",
+        descVi: "Dấu của Darius trên tướng (tối đa 6, hết sau 2 lượt của tướng mang kể từ lần cộng cuối). Gây sát thương đầu lượt của tướng mang; Máy Chém Noxus gây sát thương chuẩn theo số dấu.",
+        descEn: "Darius's mark (max 6, expires 2 of its turns after the last one added). Deals damage at the start of its turn; Noxian Guillotine deals true damage per mark.",
     },
     guilt: {
         vi: "Tội",
@@ -240,17 +213,11 @@ export const KEYWORDS_V2_G1: Record<string, Keyword> = {
         descVi: "Dấu của Garen trên tướng địch (tối đa 10, hết sau 3 lượt của tướng mang kể từ lần cộng cuối). Tướng địch đối diện Garen +1 Tội mỗi lần tấn công.",
         descEn: "Garen's mark on an enemy (max 10, expires 3 of its turns after the last one added). The enemy opposite Garen gains 1 Guilt each time it attacks.",
     },
-    forge: {
-        vi: "Rèn",
-        en: "Forge",
-        descVi: "Bộ đếm vĩnh viễn của Ornn trên tướng mình (tối đa 10): mỗi Rèn +5% sát thương vật lý và +5 Giáp khi Ornn còn trên sân.",
-        descEn: "Ornn's permanent counter on your champion (max 10): each Forge gives +5% physical damage and +5 Armor while Ornn is on the board.",
-    },
     keg: {
         vi: "Thùng",
         en: "Keg",
-        descVi: "Thùng của Gangplank, Úp trong ô phụ; thật hoặc giả. Đối thủ chỉ thấy số Thùng. Chỉ đòn đánh của Xạ Thủ nhắm được (vỡ 1 Thùng ngẫu nhiên).",
-        descEn: "Gangplank's Keg, Face-down in the extra slot; real or fake. The opponent only sees how many there are. Only Marksman attacks can target them (breaking 1 random Keg).",
+        descVi: "Thùng của Gangplank, Úp trong ô phụ; thật hoặc giả. Đối thủ chỉ thấy số Thùng. Đòn đánh của Xạ Thủ và Đấu Sĩ nhắm được (vỡ 1 Thùng ngẫu nhiên).",
+        descEn: "Gangplank's Keg, Face-down in the extra slot; real or fake. The opponent only sees how many there are. Marksman and Fighter attacks can target them (breaking 1 random Keg).",
     },
     powder: {
         vi: "Thuốc Súng",
@@ -261,7 +228,7 @@ export const KEYWORDS_V2_G1: Record<string, Keyword> = {
     keg_detonate: {
         vi: "Kích Nổ",
         en: "Detonate",
-        descVi: "Thùng thật nổ: mọi tướng địch nhận sát thương vật lý theo Thuốc Súng của nó. Thùng đó biến mất. Thùng giả không có gì để nổ.",
-        descEn: "A real Keg explodes: every enemy champion takes physical damage per its Powder; that Keg disappears. A fake Keg has nothing to explode.",
+        descVi: "Thùng thật nổ: 1 tướng địch ngẫu nhiên nhận sát thương vật lý theo Thuốc Súng của nó. Thùng đó biến mất. Thùng giả không có gì để nổ.",
+        descEn: "A real Keg explodes: 1 random enemy champion takes physical damage per its Powder; that Keg disappears. A fake Keg has nothing to explode.",
     },
 }

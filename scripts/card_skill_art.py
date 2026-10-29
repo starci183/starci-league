@@ -13,6 +13,9 @@ BASE = "https://ddragon.leagueoflegends.com"
 
 # chiêu Q/E/R của bản thẻ bài lấy icon từ ô chiêu nào của tướng gốc (theo ý nghĩa chiêu)
 HEROES = {
+    "tristana": ("Tristana", {"q": "Q", "e": "E", "r": "R"}),
+    "missfortune": ("MissFortune", {"q": "Q", "e": "E", "r": "R"}),
+    "velkoz": ("Velkoz", {"q": "Q", "e": "W", "r": "R"}),
     "darius": ("Darius", {"q": "Q", "e": "E", "r": "R"}),
     "braum": ("Braum", {"q": "W", "e": "E", "r": "R"}),
     "blitzcrank": ("Blitzcrank", {"q": "Q", "e": "E", "r": "R"}),
@@ -24,7 +27,7 @@ HEROES = {
     "teemo": ("Teemo", {"q": "R", "e": "R", "r": "E"}),
     "kogmaw": ("KogMaw", {"q": "Q", "e": "W", "r": "R"}),
     "brand": ("Brand", {"q": "Q", "e": "E", "r": "R"}),
-    "renata": ("Renata", {"q": "Q", "e": "W", "r": "R"}),
+    "renata": ("Renata", {"q": "E", "e": "W", "r": "R"}),
     "aatrox": ("Aatrox", {"q": "Q", "e": "W", "r": "R"}),
     "garen": ("Garen", {"q": "Q", "e": "E", "r": "R"}),
     "yorick": ("Yorick", {"q": "Q", "e": "E", "r": "R"}),
