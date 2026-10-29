@@ -1,0 +1,6 @@
+# Vòng chỉnh 5 (theo sim_r4: chỉ số riêng từng tướng)
+stat("jinx", "atk", 68); skill("jinx", "Q", mana=15)
+skill("soraka", "W", mana=25); skill("soraka", "Q", cd=2)
+stat("braum", "hp", 940); skill("braum", "E", cd=4)
+skill("malphite", "R", mana=50); skill("malphite", "Q", mana=20)
+stat("vayne", "atk", 80); skill("vayne", "W", mana=15)

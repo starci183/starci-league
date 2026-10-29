@@ -1,0 +1,155 @@
+1/200 trận2/200 trận3/200 trận4/200 trận5/200 trận6/200 trận7/200 trận8/200 trận9/200 trận10/200 trận11/200 trận12/200 trận13/200 trận14/200 trận15/200 trận16/200 trận17/200 trận18/200 trận19/200 trận20/200 trận21/200 trận22/200 trận23/200 trận24/200 trận25/200 trận26/200 trận27/200 trận28/200 trận29/200 trận30/200 trận31/200 trận32/200 trận33/200 trận34/200 trận35/200 trận36/200 trận37/200 trận38/200 trận39/200 trận40/200 trận41/200 trận42/200 trận43/200 trận44/200 trận45/200 trận46/200 trận47/200 trận48/200 trận49/200 trận50/200 trận51/200 trận52/200 trận53/200 trận54/200 trận55/200 trận56/200 trận57/200 trận58/200 trận59/200 trận60/200 trận61/200 trận62/200 trận63/200 trận64/200 trận65/200 trận66/200 trận67/200 trận68/200 trận69/200 trận70/200 trận71/200 trận72/200 trận73/200 trận74/200 trận75/200 trận76/200 trận77/200 trận78/200 trận79/200 trận80/200 trận81/200 trận82/200 trận83/200 trận84/200 trận85/200 trận86/200 trận87/200 trận88/200 trận89/200 trận90/200 trận91/200 trận92/200 trận93/200 trậnRoom, onError (undefined): undefined
+colyseus.js - onError => (undefined) undefined
+Room, onError (undefined): undefined
+colyseus.js - onError => (undefined) undefined
+Room, onError (undefined): undefined
+colyseus.js - onError => (undefined) undefined
+Room, onError (undefined): undefined
+colyseus.js - onError => (undefined) undefined
+Room, onError (undefined): undefined
+colyseus.js - onError => (undefined) undefined
+Room, onError (undefined): undefined
+colyseus.js - onError => (undefined) undefined
+Room, onError (undefined): undefined
+colyseus.js - onError => (undefined) undefined
+Room, onError (undefined): undefined
+colyseus.js - onError => (undefined) undefined
+94/200 trận95/200 trận96/200 trận97/200 trận98/200 trận99/200 trận100/200 trận101/200 trận102/200 trận103/200 trận104/200 trận105/200 trận106/200 trận107/200 trận108/200 trận109/200 trận110/200 trận111/200 trận112/200 trận113/200 trận114/200 trận115/200 trận116/200 trận117/200 trận118/200 trận119/200 trận120/200 trận121/200 trận122/200 trận123/200 trận124/200 trận125/200 trận126/200 trận127/200 trận128/200 trận129/200 trận130/200 trận131/200 trận132/200 trận133/200 trận134/200 trận135/200 trận136/200 trận137/200 trận138/200 trận139/200 trận140/200 trận141/200 trận142/200 trận143/200 trận144/200 trận145/200 trận146/200 trận147/200 trận148/200 trận149/200 trận150/200 trận151/200 trận152/200 trận153/200 trận154/200 trận155/200 trận156/200 trận157/200 trận158/200 trận159/200 trận160/200 trận161/200 trận162/200 trận163/200 trận164/200 trận165/200 trận166/200 trận167/200 trận168/200 trận169/200 trận170/200 trận171/200 trận172/200 trận173/200 trận174/200 trận175/200 trận176/200 trận177/200 trận178/200 trận179/200 trận180/200 trận181/200 trận182/200 trận183/200 trận184/200 trận185/200 trận186/200 trận187/200 trận188/200 trận189/200 trận190/200 trận191/200 trận192/200 trận193/200 trận194/200 trận195/200 trận196/200 trận197/200 trận198/200 trận199/200 trận200/200 trận
+Kết thúc: 192/200 (quá 80 vòng hoặc quá giờ: 8)
+Vòng kết thúc: trung vị 29 · 25% 25 · 75% 32 · min 18 · max 37
+Xanh (A) thắng: 87/192
+┌─────────┬──────────────┬────────────┬──────┬─────────────┬─────────┬─────────────┬───────────┬────────────────────┐
+│ (index) │ Tướng        │ Vai        │ Trận │ Tỉ lệ thắng │ ST/trận │ Hạ gục/trận │ Chết/trận │ ST công trình/trận │
+├─────────┼──────────────┼────────────┼──────┼─────────────┼─────────┼─────────────┼───────────┼────────────────────┤
+│ 0       │ 'jinx'       │ 'marksman' │ 85   │ '67%'       │ 3704    │ '3.38'      │ '2.00'    │ 220                │
+│ 1       │ 'soraka'     │ 'support'  │ 96   │ '67%'       │ 2550    │ '2.06'      │ '1.86'    │ 97                 │
+│ 2       │ 'annie'      │ 'mage'     │ 108  │ '65%'       │ 4532    │ '3.02'      │ '1.53'    │ 92                 │
+│ 3       │ 'lissandra'  │ 'mage'     │ 94   │ '61%'       │ 3838    │ '2.56'      │ '2.09'    │ 101                │
+│ 4       │ 'braum'      │ 'tank'     │ 99   │ '55%'       │ 1391    │ '0.84'      │ '1.69'    │ 266                │
+│ 5       │ 'janna'      │ 'support'  │ 94   │ '51%'       │ 1091    │ '1.05'      │ '1.96'    │ 126                │
+│ 6       │ 'lux'        │ 'mage'     │ 96   │ '51%'       │ 3240    │ '2.32'      │ '2.18'    │ 212                │
+│ 7       │ 'vayne'      │ 'marksman' │ 90   │ '48%'       │ 2530    │ '2.14'      │ '1.96'    │ 193                │
+│ 8       │ 'katarina'   │ 'assassin' │ 99   │ '47%'       │ 2379    │ '2.56'      │ '2.37'    │ 168                │
+│ 9       │ 'kogmaw'     │ 'marksman' │ 88   │ '47%'       │ 2827    │ '3.10'      │ '2.53'    │ 132                │
+│ 10      │ 'ashe'       │ 'marksman' │ 99   │ '46%'       │ 2193    │ '1.72'      │ '2.33'    │ 86                 │
+│ 11      │ 'malphite'   │ 'tank'     │ 93   │ '46%'       │ 1628    │ '1.02'      │ '1.75'    │ 250                │
+│ 12      │ 'ahri'       │ 'mage'     │ 89   │ '46%'       │ 2571    │ '2.03'      │ '2.26'    │ 99                 │
+│ 13      │ 'khazix'     │ 'assassin' │ 94   │ '46%'       │ 1673    │ '1.46'      │ '2.04'    │ 402                │
+│ 14      │ 'leona'      │ 'tank'     │ 91   │ '45%'       │ 2150    │ '1.44'      │ '1.68'    │ 285                │
+│ 15      │ 'blitzcrank' │ 'tank'     │ 103  │ '45%'       │ 1594    │ '0.97'      │ '2.33'    │ 186                │
+│ 16      │ 'thresh'     │ 'support'  │ 106  │ '44%'       │ 1276    │ '0.93'      │ '1.89'    │ 123                │
+│ 17      │ 'aatrox'     │ 'fighter'  │ 100  │ '44%'       │ 2235    │ '1.59'      │ '2.21'    │ 489                │
+│ 18      │ 'zed'        │ 'assassin' │ 97   │ '41%'       │ 1884    │ '1.78'      │ '2.06'    │ 309                │
+│ 19      │ 'darius'     │ 'fighter'  │ 99   │ '39%'       │ 1567    │ '1.08'      │ '2.59'    │ 538                │
+└─────────┴──────────────┴────────────┴──────┴─────────────┴─────────┴─────────────┴───────────┴────────────────────┘
+┌─────────┬────────────┬──────┬─────────────┬─────────┬─────────────┐
+│ (index) │ Vai        │ Lượt │ Tỉ lệ thắng │ ST/trận │ Hạ gục/trận │
+├─────────┼────────────┼──────┼─────────────┼─────────┼─────────────┤
+│ 0       │ 'tank'     │ 386  │ '48%'       │ 1681    │ '1.06'      │
+│ 1       │ 'mage'     │ 387  │ '56%'       │ 3592    │ '2.51'      │
+│ 2       │ 'support'  │ 296  │ '54%'       │ 1631    │ '1.34'      │
+│ 3       │ 'assassin' │ 290  │ '45%'       │ 1984    │ '1.94'      │
+│ 4       │ 'fighter'  │ 199  │ '42%'       │ 1902    │ '1.34'      │
+│ 5       │ 'marksman' │ 362  │ '52%'       │ 2786    │ '2.55'      │
+└─────────┴────────────┴──────┴─────────────┴─────────┴─────────────┘
+MVP: điểm trung bình, % trận là MVP phe thắng, % trận là MVP phe thua
+┌─────────┬──────────────┬────────────┬─────────┬───────────┬──────────┐
+│ (index) │ Tướng        │ Vai        │ Điểm TB │ MVP thắng │ MVP thua │
+├─────────┼──────────────┼────────────┼─────────┼───────────┼──────────┤
+│ 0       │ 'annie'      │ 'mage'     │ '17.6'  │ '40%'     │ '18%'    │
+│ 1       │ 'jinx'       │ 'marksman' │ '16.3'  │ '28%'     │ '14%'    │
+│ 2       │ 'soraka'     │ 'support'  │ '14.3'  │ '17%'     │ '6%'     │
+│ 3       │ 'lissandra'  │ 'mage'     │ '14.2'  │ '21%'     │ '11%'    │
+│ 4       │ 'lux'        │ 'mage'     │ '13.6'  │ '21%'     │ '23%'    │
+│ 5       │ 'leona'      │ 'tank'     │ '11.6'  │ '8%'      │ '31%'    │
+│ 6       │ 'ahri'       │ 'mage'     │ '11.4'  │ '7%'      │ '7%'     │
+│ 7       │ 'kogmaw'     │ 'marksman' │ '10.9'  │ '3%'      │ '10%'    │
+│ 8       │ 'ashe'       │ 'marksman' │ '9.8'   │ '6%'      │ '7%'     │
+│ 9       │ 'malphite'   │ 'tank'     │ '9.7'   │ '2%'      │ '17%'    │
+│ 10      │ 'aatrox'     │ 'fighter'  │ '9.2'   │ '11%'     │ '11%'    │
+│ 11      │ 'vayne'      │ 'marksman' │ '9.1'   │ '8%'      │ '7%'     │
+│ 12      │ 'katarina'   │ 'assassin' │ '8.9'   │ '10%'     │ '4%'     │
+│ 13      │ 'braum'      │ 'tank'     │ '8.5'   │ '4%'      │ '16%'    │
+│ 14      │ 'thresh'     │ 'support'  │ '8.2'   │ '0%'      │ '2%'     │
+│ 15      │ 'janna'      │ 'support'  │ '7.6'   │ '5%'      │ '5%'     │
+│ 16      │ 'zed'        │ 'assassin' │ '7.5'   │ '2%'      │ '1%'     │
+│ 17      │ 'khazix'     │ 'assassin' │ '7.3'   │ '2%'      │ '3%'     │
+│ 18      │ 'blitzcrank' │ 'tank'     │ '7.1'   │ '2%'      │ '4%'     │
+│ 19      │ 'darius'     │ 'fighter'  │ '5.8'   │ '2%'      │ '5%'     │
+└─────────┴──────────────┴────────────┴─────────┴───────────┴──────────┘
+Cặp hợp nhất
+┌─────────┬──────────────────────┬──────┬─────────────┐
+│ (index) │ Cặp                  │ Trận │ Tỉ lệ thắng │
+├─────────┼──────────────────────┼──────┼─────────────┤
+│ 0       │ 'annie + lissandra'  │ 23   │ '83%'       │
+│ 1       │ 'annie + jinx'       │ 24   │ '79%'       │
+│ 2       │ 'darius + jinx'      │ 19   │ '79%'       │
+│ 3       │ 'jinx + katarina'    │ 19   │ '79%'       │
+│ 4       │ 'annie + soraka'     │ 18   │ '78%'       │
+│ 5       │ 'aatrox + lissandra' │ 21   │ '76%'       │
+│ 6       │ 'ahri + annie'       │ 21   │ '76%'       │
+│ 7       │ 'annie + kogmaw'     │ 20   │ '75%'       │
+└─────────┴──────────────────────┴──────┴─────────────┘
+Cặp kỵ nhất
+┌─────────┬─────────────────────────┬──────┬─────────────┐
+│ (index) │ Cặp                     │ Trận │ Tỉ lệ thắng │
+├─────────┼─────────────────────────┼──────┼─────────────┤
+│ 0       │ 'aatrox + ashe'         │ 20   │ '25%'       │
+│ 1       │ 'ahri + blitzcrank'     │ 24   │ '25%'       │
+│ 2       │ 'leona + zed'           │ 21   │ '24%'       │
+│ 3       │ 'blitzcrank + malphite' │ 26   │ '23%'       │
+│ 4       │ 'aatrox + ahri'         │ 18   │ '22%'       │
+│ 5       │ 'ashe + darius'         │ 18   │ '22%'       │
+│ 6       │ 'darius + khazix'       │ 19   │ '21%'       │
+│ 7       │ 'darius + vayne'        │ 24   │ '17%'       │
+└─────────┴─────────────────────────┴──────┴─────────────┘
+┌─────────┬────────────────────────┬──────────┬─────────────┐
+│ (index) │ Đồ                     │ Lượt đeo │ Tỉ lệ thắng │
+├─────────┼────────────────────────┼──────────┼─────────────┤
+│ 0       │ 'khien_hu_vo'          │ 17       │ '82%'       │
+│ 1       │ 'khan_giai_thuat'      │ 28       │ '79%'       │
+│ 2       │ 'mat_na_liandry'       │ 78       │ '77%'       │
+│ 3       │ 'ac_y'                 │ 20       │ '75%'       │
+│ 4       │ 'tim_bang'             │ 42       │ '71%'       │
+│ 5       │ 'day_chuyen_chuoc_toi' │ 58       │ '69%'       │
+│ 6       │ 'giap_thien_than'      │ 39       │ '67%'       │
+│ 7       │ 'huyet_kiem'           │ 93       │ '66%'       │
+│ 8       │ 'nanh_nashor'          │ 29       │ '66%'       │
+│ 9       │ 'ke_thu_thap'          │ 26       │ '65%'       │
+│ 10      │ 'cung_runaan'          │ 136      │ '63%'       │
+│ 11      │ 'giap_gargoyle'        │ 154      │ '61%'       │
+│ 12      │ 'mu_thich_nghi'        │ 115      │ '61%'       │
+│ 13      │ 'pha_thuyen'           │ 53       │ '60%'       │
+│ 14      │ 'vo_cuc_kiem'          │ 148      │ '59%'       │
+│ 15      │ 'nguyet_thuc'          │ 96       │ '59%'       │
+│ 16      │ 'truong_truong_sinh'   │ 132      │ '59%'       │
+│ 17      │ 'truong_truong_ton'    │ 90       │ '59%'       │
+│ 18      │ 'giap_warmog'          │ 116      │ '59%'       │
+│ 19      │ 'mu_rabadon'           │ 306      │ '58%'       │
+│ 20      │ 'mua_dong_vinh_cuu'    │ 65       │ '58%'       │
+│ 21      │ 'diet_khong_lo'        │ 79       │ '58%'       │
+│ 22      │ 'y_chi_titan'          │ 57       │ '58%'       │
+│ 23      │ 'bua_lam'              │ 156      │ '57%'       │
+│ 24      │ 'tam_hop_kiem'         │ 9        │ '56%'       │
+│ 25      │ 'cuong_dao'            │ 147      │ '54%'       │
+│ 26      │ 'dai_bac'              │ 94       │ '54%'       │
+│ 27      │ 'ao_choang_gai'        │ 86       │ '53%'       │
+│ 28      │ 'khien_kaenic'         │ 62       │ '53%'       │
+│ 29      │ 'loi_the_ho_ve'        │ 102      │ '53%'       │
+│ 30      │ 'vuong_mien'           │ 188      │ '52%'       │
+│ 31      │ 'ban_dong_hanh_luden'  │ 144      │ '52%'       │
+│ 32      │ 'kiem_dai'             │ 451      │ '51%'       │
+│ 33      │ 'cung_go'              │ 483      │ '50%'       │
+│ 34      │ 'dai_khong_lo'         │ 473      │ '50%'       │
+│ 35      │ 'pha_le_lam'           │ 450      │ '50%'       │
+│ 36      │ 'nuoc_mat'             │ 473      │ '50%'       │
+│ 37      │ 'ao_choang'            │ 449      │ '50%'       │
+│ 38      │ 'gang_tay'             │ 467      │ '49%'       │
+│ 39      │ 'quy_thu'              │ 77       │ '48%'       │
+│ 40      │ 'cuoc_chim'            │ 424      │ '48%'       │
+│ 41      │ 'gay_qua_kho'          │ 473      │ '48%'       │
+│ 42      │ 'giap_luoi'            │ 405      │ '47%'       │
+│ 43      │ 'sterak'               │ 205      │ '45%'       │
+│ 44      │ 'ao_choang_bong_toi'   │ 184      │ '45%'       │
+│ 45      │ 'bau_troi_ran_vo'      │ 26       │ '42%'       │
+└─────────┴────────────────────────┴──────────┴─────────────┘

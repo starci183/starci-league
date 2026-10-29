@@ -1,0 +1,11 @@
+// Đăng ký toàn bộ tướng thẻ bài. Thêm tướng mới: import file ở đây.
+import "./darius"
+import "./nami"
+import "./braum"
+import "./blitzcrank"
+import "./zed"
+import "./viktor"
+import "./twistedfate"
+import "./soraka"
+import "./teemo"
+import "./kogmaw"

@@ -1,0 +1,10 @@
+node_modules
+dist
+.env
+.env.local
+.work/
+*.log
+coverage/
+.claude/
+*.local.md
+scripts/_variants/**/*.json

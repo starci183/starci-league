@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>StarCi League</title>
+  <style>
+    html, body { margin: 0; height: 100%; background: #0b130a; overflow: hidden; }
+    #app { width: 100vw; height: 100vh; }
+    /* canvas có số pixel thật (cửa sổ × devicePixelRatio), hiển thị vừa khít cửa sổ */
+    #app canvas { width: 100vw !important; height: 100vh !important; display: block; }
+  </style>
+</head>
+<body>
+  <div id="lobby"></div>
+  <div id="app"></div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

@@ -1,0 +1,7 @@
+/* Khung chung của chế độ thẻ bài. Màu theo phong cách Hextech của sảnh (lobby.css). */
+.cg-host { position: fixed; inset: 0; background: #0a0f14; color: #e8e2d0; font-family: Nunito, sans-serif; overflow: hidden; }
+.cg-root { display: grid; grid-template-columns: 1fr 340px; height: 100%; }
+.cg-main { display: grid; grid-template-rows: 1fr auto; min-width: 0; min-height: 0; }
+.cg-side { border-left: 1px solid #3a3020; min-height: 0; display: flex; flex-direction: column; }
+.cg-center { display: grid; place-items: center; height: 100%; font-size: 18px; }
+.cg-error { color: #ff8a7a; }

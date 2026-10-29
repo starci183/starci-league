@@ -1,0 +1,20 @@
+/* Tailwind v4 cho phần React (bảng bên phải, tooltip shadcn). Không nạp preflight để không phá CSS Sảnh/Xây bộ bài. */
+@layer theme, utilities;
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+
+/* màu Hextech dùng chung cho các component */
+@theme {
+  --color-hex-bg: #0b111a;
+  --color-hex-panel: #101826;
+  --color-hex-line: #3a4250;
+  --color-hex-gold: #c8a050;
+  --color-hex-gold-hi: #f5d27a;
+  --color-hex-text: #e8e4d8;
+  --color-hex-muted: #9aa3b2;
+  --font-nunito: Nunito, "Segoe UI", sans-serif;
+}
+
+#ui-root { font-family: var(--font-nunito); color: var(--color-hex-text); }
+/* thẻ tooltip: nền tối viền vàng như tooltip LoL */
+.hex-tip { background: linear-gradient(#141e2c, #0b111a); border: 1px solid #c8a050; box-shadow: 0 8px 24px rgba(0,0,0,.6), inset 0 0 0 1px rgba(245,210,122,.12); color: #e8e4d8; font-family: Nunito, "Segoe UI", sans-serif; }

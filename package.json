@@ -1,0 +1,36 @@
+{
+  "name": "starci-league",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "concurrently -k -n server,client -c magenta,cyan \"npm:dev:server\" \"npm:dev:client\"",
+    "dev:server": "npm run dev -w @starci/server",
+    "dev:client": "npm run dev -w @starci/client",
+    "smoke": "tsx scripts/smoke.ts",
+    "typecheck": "tsc -p packages/server --noEmit && tsc -p packages/client --noEmit",
+    "lint": "eslint . --fix",
+    "lint:check": "eslint . --max-warnings=0",
+    "test": "tsx scripts/card_tests.ts",
+    "selfplay": "tsx scripts/card_selfplay.ts",
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "@types/node": "^22.20.5",
+    "concurrently": "^9.2.0",
+    "eslint": "^9.39.5",
+    "globals": "^16.5.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.6.0",
+    "supabase": "^2.122.0",
+    "tsx": "^4.20.0",
+    "typescript": "~5.8.3",
+    "typescript-eslint": "^8.72.1"
+  },
+  "lint-staged": {
+    "*.{ts,tsx}": "eslint --fix"
+  }
+}
