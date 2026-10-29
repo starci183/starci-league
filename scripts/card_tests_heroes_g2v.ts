@@ -242,7 +242,7 @@ test("Q cướp lá chung: về tay Blitz, Blitz nhận Khiên, không gây sát
         const want = Math.round(fx(s,
             "A",
             "blitzcrank",
-            "20 + 10% AD + 15% AP"))
+            "33 + 10% AD + 15% AP"))
         s = settle(play(s,
             "A",
             give(s,
@@ -285,7 +285,7 @@ test("Q cướp lá chiêu: Đốt vào mộ chủ, thành Q/E của tướng m�
         const raw = fx(s,
             "A",
             "blitzcrank",
-            "60 + 60% AD + 60% AP")
+            "90 + 50% AD + 60% AP")
         s = settle(play(s,
             "A",
             give(s,
@@ -411,7 +411,7 @@ test("R: Xem Tay + tướng có chiêu trên tay địch nhận sát thương ph
         const raw = fx(s,
             "A",
             "blitzcrank",
-            "80 + 50% AD + 80% AP")
+            "120 + 50% AD + 80% AP")
         s = settle(play(s,
             "A",
             give(s,
@@ -512,7 +512,7 @@ test("Q: sát thương phép + Dấu Băng; đồng minh đánh trúng lần đ�
         const raw = fx(s,
             "A",
             "braum",
-            "40 + 40% AD + 40% AP")
+            "66 + 40% AD + 40% AP")
         s = settle(play(s,
             "A",
             give(s,
@@ -583,7 +583,7 @@ test("E (Quick): Đỡ Thay đòn lên đồng minh, +2 Song Giáp, nhận Khiê
         const shield = Math.round(fx(s,
             "A",
             "braum",
-            "40 + 30% AD + 30% AP"))
+            "60 + 30% AD + 30% AP"))
         let r = play(s,
             "B",
             give(s,
@@ -915,7 +915,7 @@ test("Q: sát thương phép theo Giáp, lấy 15 Giáp của địch (Malphite 
         const raw = fx(s,
             "A",
             "malphite",
-            "40 + 30% AD + 40% AP + 50% Giáp")
+            "67 + 30% AD + 40% AP + 50% Giáp")
         const a0 = gm(s).armor(u(s,
             "A",
             "malphite"))
@@ -1019,7 +1019,7 @@ test("E (Quick): bị đánh thì +(10 + 30% Giáp) Giáp tới hết lượt v�
                 fx(s,
                     "A",
                     "malphite",
-                    "20 + 60% Giáp + 20% AP")))
+                    "34 + 60% Giáp + 20% AP")))
     })
 test("R: mọi địch nhận sát thương phép theo Giáp; xác suất Choáng 15% + 1% mỗi 10 Giáp (đủ 100% thì Choáng hết)",
     () => {
@@ -1041,7 +1041,7 @@ test("R: mọi địch nhận sát thương phép theo Giáp; xác suất Choán
         const raw = fx(s,
             "A",
             "malphite",
-            "80 + 30% AD + 50% AP + 100% Giáp")
+            "114 + 30% AD + 50% AP + 100% Giáp")
         s = settle(play(s,
             "A",
             give(s,
@@ -1089,7 +1089,7 @@ test("Nội tại: đồng minh sắp bị hạ hồi sinh 25% máu + công th�
         const heal = fx(s,
             "A",
             "renata",
-            "20 + 15% AD + 25% AP")
+            "35 + 15% AD + 25% AP")
         s = settle(play(s,
             "B",
             give(s,
@@ -1120,7 +1120,7 @@ test("Nội tại: đồng minh sắp bị hạ hồi sinh 25% máu + công th�
         const bonus = fx(s,
             "A",
             "renata",
-            "15 + 15% AD + 25% AP")
+            "30 + 15% AD + 25% AP")
         const foe = u(s,
             "B",
             "g2v_nuker")
@@ -1176,11 +1176,11 @@ test("Q: cả đội +Giáp (không phải Khiên) tới hết lượt kế củ
         const ar = Math.round(fx(s,
             "A",
             "renata",
-            "10 + 10% AD + 15% AP"))
+            "19 + 10% AD + 15% AP"))
         const raw = fx(s,
             "A",
             "renata",
-            "20 + 20% AD + 30% AP")
+            "38 + 20% AD + 30% AP")
         const before = gm(s).armor(u(s,
             "A",
             "g2v_tank"))
@@ -1255,7 +1255,7 @@ test("E (Quick): phản 40% sát thương đòn + công thức cho kẻ đánh (
         const flat = Math.round(fx(s,
             "A",
             "renata",
-            "10 + 10% AD + 15% AP"))
+            "19 + 10% AD + 15% AP"))
         const e = give(s,
             "A",
             skill(s,
@@ -1337,7 +1337,7 @@ test("R: mỗi địch đánh 2 đòn vào 1 đồng đội ngẫu nhiên của 
 // ======================================================================
 G("Janna")
 // ======================================================================
-test("Nội tại: đầu lượt bạn, tướng mình máu thấp nhất nhận Khiên (30 + 20% AD + 40% AP)",
+test("Nội tại: đầu lượt bạn, tướng mình máu thấp nhất nhận Khiên (20 + 15% AD + 30% AP)",
     () => {
         let s = mk({
             A: {
@@ -1352,7 +1352,7 @@ test("Nội tại: đầu lượt bạn, tướng mình máu thấp nhất nhậ
         const want = Math.round(fx(s,
             "A",
             "janna",
-            "30 + 20% AD + 40% AP"))
+            "20 + 15% AD + 30% AP"))
         s = turn(turn(s,
             "B"),
         "A")
@@ -1380,7 +1380,7 @@ test("Q (Quick): sát thương phép + Choáng; nối chuỗi lên chiêu địc
         const raw = fx(s,
             "A",
             "janna",
-            "40 + 30% AD + 60% AP")
+            "60 + 30% AD + 60% AP")
         s = turn(s,
             "B")
         const q = give(s,
@@ -1433,7 +1433,7 @@ test("Q (Quick): sát thương phép + Choáng; nối chuỗi lên chiêu địc
             "stun"),
         "Choáng đủ 1 lượt sau")
     })
-test("E (Quick): Khiên (80 + 40% AD + 70% AP); còn Khiên thì miễn Khống Chế, hết Khiên thì hết miễn",
+test("E (Quick): Khiên (70 + 30% AD + 60% AP); còn Khiên thì miễn Khống Chế, hết Khiên thì hết miễn",
     () => {
         let s = mk({
             A: {
@@ -1445,7 +1445,7 @@ test("E (Quick): Khiên (80 + 40% AD + 70% AP); còn Khiên thì miễn Khống 
         const want = Math.round(fx(s,
             "A",
             "janna",
-            "80 + 40% AD + 70% AP"))
+            "70 + 30% AD + 60% AP"))
         s = settle(play(s,
             "A",
             give(s,
@@ -1488,7 +1488,7 @@ test("E (Quick): Khiên (80 + 40% AD + 70% AP); còn Khiên thì miễn Khống 
             "g2v_tank",
             "stun"))
     })
-test("R (Quick): tới hết lượt địch cả đội miễn sát thương từ đòn đánh (chiêu vẫn trúng); cuối lượt đó cả đội hồi (80 + 40% AD + 80% AP)",
+test("R (Quick): tới hết lượt địch cả đội miễn sát thương từ đòn đánh (chiêu vẫn trúng); cuối lượt đó cả đội hồi (80 + 30% AD + 60% AP)",
     () => {
         let s = mk({
             A: {
@@ -1500,7 +1500,7 @@ test("R (Quick): tới hết lượt địch cả đội miễn sát thương t�
         const heal = fx(s,
             "A",
             "janna",
-            "80 + 40% AD + 80% AP")
+            "80 + 30% AD + 60% AP")
         s = settle(play(s,
             "A",
             give(s,

@@ -39,23 +39,23 @@ export const HERO_EN_V2_G3V: Record<string, HeroTextEn> = {
         skills: {
             Q: {
                 name: "Bouncing Blade",
-                desc: "Choose 1 enemy champion; deal {45 + 30% AD + 60% AP} magic damage and put a Dagger on it.",
+                desc: "Choose 1 enemy champion; deal {94 + 30% AD + 60% AP} magic damage and put a Dagger on it.",
             },
             E: {
                 name: "Shunpo",
-                desc: "Quick, Chain Only. When the enemy attacks Katarina: Katarina dodges (the attack misses) and the attacker takes {25 + 20% AD + 40% AP} magic damage, doubled if it has a Dagger.",
+                desc: "Quick, Chain Only. When the enemy attacks Katarina: Katarina dodges (the attack misses) and the attacker takes {58 + 20% AD + 40% AP} magic damage, doubled if it has a Dagger.",
             },
             R: {
                 name: "Death Lotus",
-                desc: "Every enemy champion takes {40 + 25% AD + 55% AP} magic damage; champions with a Dagger take 60% more.",
+                desc: "Every enemy champion takes {85 + 25% AD + 55% AP} magic damage; champions with a Dagger take 60% more.",
             },
         },
     },
     khazix: {
-        desc: "The Voidreaver: hunt the one who stands alone. Swap lanes to pick your prey, vanish, and load another hunting strike.",
+        desc: "The Voidreaver: mark your prey as Isolated, then hunt it. Vanish, and load another hunting strike.",
         passive: {
             name: "Hunter's Instinct",
-            desc: "Isolated enemy champions (no ally in an adjacent lane, or marked Isolated): Kha'Zix's attacks deal {20 + 50% AD + 10% AP} extra physical damage to them; Q deals {40 + 90% AD + 15% AP} extra.",
+            desc: "Enemy champions that are Isolated (a status Kha'Zix applies): Kha'Zix's attacks deal {20 + 50% AD + 10% AP} extra physical damage to them; Q deals {40 + 90% AD + 15% AP} extra.",
         },
         skills: {
             Q: {
@@ -64,11 +64,11 @@ export const HERO_EN_V2_G3V: Record<string, HeroTextEn> = {
             },
             E: {
                 name: "Leap Into the Herd",
-                desc: "Choose 1 other allied champion; Kha'Zix swaps lanes with it. The enemy champion opposite Kha'Zix after the swap is Isolated until the end of this turn and takes {30 + 60% AD + 10% AP} physical damage.",
+                desc: "Choose 1 enemy champion; it is Isolated until the end of this turn and takes {30 + 60% AD + 10% AP} physical damage.",
             },
             R: {
                 name: "Void Stalk",
-                desc: "Quick. Kha'Zix is Stealthed now until the end of the opponent's next turn; the enemy champion opposite Kha'Zix is Isolated until the end of your next turn; add 1 Kha'Zix Q card to your hand.",
+                desc: "Quick. Kha'Zix is Stealthed now until the end of the opponent's next turn; the enemy champion opposite Kha'Zix (or a random enemy champion if there is none) is Isolated until the end of your next turn; add 1 Kha'Zix Q card to your hand.",
             },
         },
     },
@@ -81,7 +81,7 @@ export const HERO_EN_V2_G3V: Record<string, HeroTextEn> = {
         skills: {
             Q: {
                 name: "Elemental Strike",
-                desc: "By current element. Red: choose 1 enemy champion; deal {40 + 110% AD + 20% AP} physical damage; until the end of this turn, each time Qiyana damages it, her later hits on it deal +15% (stacking). Blue: choose 1 enemy champion; deal {30 + 80% AD + 15% AP} physical damage and Stun it for 1 turn. Green: choose 1 enemy champion; Qiyana swaps lanes to stand opposite it, then it takes {30 + 80% AD + 15% AP} physical damage.",
+                desc: "By current element. Red: choose 1 enemy champion; deal {50 + 120% AD + 20% AP} physical damage; until the end of this turn, each time Qiyana damages it, her later hits on it deal +15% (stacking). Blue: choose 1 enemy champion; deal {30 + 80% AD + 15% AP} physical damage and Stun it for 1 turn. Green: choose 1 enemy champion; Qiyana swaps lanes to stand opposite it, then it takes {30 + 80% AD + 15% AP} physical damage.",
             },
             E: {
                 name: "Elemental Counter",
@@ -102,7 +102,7 @@ export const HERO_EN_V2_G3V: Record<string, HeroTextEn> = {
         skills: {
             Q: {
                 name: "Starcall",
-                desc: "Choose 1 enemy champion; it takes {40 + 20% AD + 60% AP} magic damage and Soraka heals {60 + 20% AD + 40% AP}. Overheal becomes a Shield on the allied champion with the lowest HP.",
+                desc: "Choose 1 enemy champion; it takes {75 + 20% AD + 60% AP} magic damage and Soraka heals {83 + 20% AD + 40% AP}. Overheal becomes a Shield on the allied champion with the lowest HP.",
             },
             E: {
                 name: "Equinox",
@@ -110,7 +110,7 @@ export const HERO_EN_V2_G3V: Record<string, HeroTextEn> = {
             },
             R: {
                 name: "Wish",
-                desc: "Every allied champion, Soraka included, heals {150 + 40% AD + 80% AP}.",
+                desc: "Every allied champion, Soraka included, heals {196 + 40% AD + 80% AP}.",
             },
         },
     },
@@ -123,15 +123,15 @@ export const HERO_EN_V2_G3V: Record<string, HeroTextEn> = {
         skills: {
             Q: {
                 name: "Ebb and Flow",
-                desc: "Choose 1 enemy champion; it takes {40 + 25% AD + 55% AP} magic damage, is Stunned for 1 turn and is marked 3 times: the next 3 attacks of allies on it each spend 1 mark and deal {10 + 10% AD + 20% AP} extra magic damage (based on Nami's stats).",
+                desc: "Choose 1 enemy champion; it takes {76 + 25% AD + 55% AP} magic damage, is Stunned for 1 turn and is marked 3 times: the next 3 attacks of allies on it each spend 1 mark and deal {23 + 10% AD + 20% AP} extra magic damage (based on Nami's stats).",
             },
             E: {
                 name: "Surging Tide",
-                desc: "Nami heals {35 + 15% AD + 35% AP}, then the water bounces randomly between allies (it may bounce back to the same one), up to 5 bounces; each bounce heals {35 + 15% AD + 35% AP}. Every heal triggers the passive.",
+                desc: "Nami heals {58 + 15% AD + 35% AP}, then the water bounces randomly between allies (it may bounce back to the same one), up to 5 bounces; each bounce heals {58 + 15% AD + 35% AP}. Every heal triggers the passive.",
             },
             R: {
                 name: "Tidal Wave",
-                desc: "Every allied champion heals {100 + 30% AD + 70% AP}; every enemy champion is Stunned for 1 turn. Every heal triggers the passive.",
+                desc: "Every allied champion heals {146 + 30% AD + 70% AP}; every enemy champion is Stunned for 1 turn. Every heal triggers the passive.",
             },
         },
     },
@@ -180,10 +180,10 @@ export const STATUS_V2_G3V: Record<string, { vi: { name: string; desc: string };
     },
     isolated: {
         vi: {
-            name: "Cô Lập", desc: "Bị coi là Cô Lập: đòn đánh và Q của Kha'Zix gây thêm sát thương lên tướng này."
+            name: "Cô Lập", desc: "Trạng thái do Kha'Zix gắn: đòn đánh và Q của Kha'Zix gây thêm sát thương lên tướng này."
         },
         en: {
-            name: "Isolated", desc: "Counts as Isolated: Kha'Zix's attacks and Q deal extra damage to this champion."
+            name: "Isolated", desc: "A status Kha'Zix applies: Kha'Zix's attacks and Q deal extra damage to this champion."
         },
     },
 }
@@ -221,7 +221,7 @@ export const KEYWORDS_V2_G3V: Record<string, Keyword> = {
     isolated: {
         vi: "Cô Lập",
         en: "Isolated",
-        descVi: "Tướng địch không có đồng minh sống ở đường kề, hoặc bị gắn Cô Lập tới hết lượt: đòn đánh và Q của Kha'Zix gây thêm sát thương lên nó.",
-        descEn: "An enemy champion with no living ally in an adjacent lane, or marked Isolated until end of turn: Kha'Zix's attacks and Q deal extra damage to it."
+        descVi: "Trạng thái chỉ Kha'Zix gắn (E, R): tướng địch đang Cô Lập nhận thêm sát thương từ đòn đánh và Q của Kha'Zix.",
+        descEn: "A status only Kha'Zix applies (E, R): an Isolated enemy champion takes extra damage from Kha'Zix's attacks and Q."
     },
 }

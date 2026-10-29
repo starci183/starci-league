@@ -52,7 +52,7 @@ export const SPELL_VI: Record<SpellId, { name: string; desc: string }> = {
         name: "Hồi Máu", desc: `1 tướng mình hồi {${SPELL_NUM.heal.base}} + ${pct(SPELL_NUM.heal.pctMax)}% máu tối đa của nó.`
     },
     flash: {
-        name: "Tốc Biến", desc: "1 tướng mình dịch sang một đường đang mở còn trống."
+        name: "Tốc Biến", desc: "1 tướng mình đổi đường với 1 tướng mình khác đang trên sân (không dời vào đường trống hay đường chưa mở)."
     },
     ignite: {
         name: "Thiêu Đốt", desc: `1 tướng địch bị Thiêu Đốt ${SPELL_NUM.ignite.turns} lượt: đầu mỗi lượt của nó mất ${SPELL_NUM.ignite.perTurn} máu (sát thương chuẩn), kèm Vết Thương Sâu (hồi máu và Khiên nhận vào giảm 50%) cùng thời hạn.`
@@ -91,8 +91,9 @@ export function spellOptions(g: Game, side: Side, spell: SpellId): PlayArgs[] {
         id))).map((u) => ({
         target: u.id
     }))
-    case "flash": return allies.flatMap((u) => g.emptyLanes(side).map((lane) => ({
-        target: u.id, lane
+    // chủ 30/10: Tốc Biến = đổi đường với 1 đồng minh khác đang trên sân (lane = đường của đồng minh đó); không dời vào đường trống/chưa mở
+    case "flash": return allies.flatMap((u) => allies.filter((v) => v.id !== u.id).map((v) => ({
+        target: u.id, lane: v.lane
     })))
     case "ignite": return foes.filter((u) => !g.has(u,
         "stealth")).map((u) => ({
@@ -127,8 +128,13 @@ export function resolveSpell(g: Game, side: Side, spell: SpellId, args: PlayArgs
         SPELL_NUM.barrier.base + SPELL_NUM.barrier.pctMax * t.maxHp); break
     case "cleanse": for (const id of CLEANSE_IDS) g.removeStatus(t,
         id); break
-    case "flash": if (args.lane !== undefined && g.emptyLanes(side).includes(args.lane)) g.moveTo(t,
-        args.lane); break
+    case "flash": {
+        const mate = args.lane !== undefined ? g.at(side,
+            args.lane) : undefined
+        if (mate && mate.id !== t.id && !mate.token) g.swapWith(t,
+            mate)
+        break
+    }
     case "ignite": g.status(t,
         "ignite",
         SPELL_NUM.ignite.turns,

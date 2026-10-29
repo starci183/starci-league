@@ -55,7 +55,8 @@ export const RULES = {
     handMax: 10,
     /** Tay đầu: rút trước bước gọi tướng đầu tiên */
     startHand: 5,
-    drawPerTurn: 2,
+    /** Luật chủ 30/10: rút 1 lá mỗi lượt (đã có quà Đánh Thường mỗi lượt (freeBasicEvery 1, cân bằng V3) và mảnh đồ mỗi 3 lượt) */
+    drawPerTurn: 1,
     respawnRounds: 2,
     itemSlots: 3,
     /** Thứ tự mở đường */
@@ -69,14 +70,14 @@ export const RULES = {
         3,
         4].map((l) => SUMMON_ROUNDS[LANE_ORDER.indexOf(l)]) as number[],
     /** V3: cứ mỗi bấy nhiêu lượt CỦA MÌNH, người chơi được tặng 1 lá Đánh Thường / 1 mảnh đồ ngẫu nhiên (không lấy từ bộ bài) */
-    freeBasicEvery: 2,
+    freeBasicEvery: 1,
     freeItemEvery: 3,
     /** Số lá mỗi loại chiêu của MỖI tướng trong bộ bài (cố định, vào bộ từ đầu trận) */
     skillCopies: {
-        Q: 4, E: 4, R: 1
+        Q: 8, E: 8, R: 2
     } as Record<SkillKey, number>,
-    /** Số lá của bộ gốc người chơi xếp (deck.ts); mỗi tướng thêm 9 lá chiêu => 40 + 5 x 9 = 85 */
-    sharedDeckSize: 40,
+    /** Số lá của bộ gốc người chơi xếp (deck.ts); mỗi tướng thêm 18 lá chiêu => 80 + 5 x 18 = 170 (bộ gấp đôi, chủ chốt 30/10) */
+    sharedDeckSize: 80,
     /** Giới hạn CỨNG số đòn đánh mỗi người mỗi lượt: tính cả lá Đánh thường, đòn không cần lá của Đấu sĩ và đòn miễn phí (nextAttack free) */
     attackLimit: 3,
     /** Đòn không cần lá của Đấu sĩ: hệ số sát thương (Quick, 1 lần/lượt/đấu sĩ) */
@@ -100,6 +101,8 @@ export const RULES = {
     } as Record<Role, number>,
     /** Đã bỏ (+40% cũ); giữ 0 để không đổi API. Pháp sư dùng mana */
     mageSkillBonus: 0,
+    /** Luật chủ 30/10 "Pháp sư nhận chiêu tạm": đầu lượt mỗi Pháp sư trên sân nhận 1 lá Q hoặc E (ngẫu nhiên) dạng lá tạm; không tính tay, hết lượt biến mất */
+    mageTempSkill: true,
     /** Vết Thương Sâu (status "grievous"): hồi máu và Khiên nhận vào giảm bấy nhiêu */
     grievous: 0.5,
     chillBonus: 0.25,
@@ -423,6 +426,8 @@ export type Action =
   | { t: "chain"; side: Side; uid: string; args?: PlayArgs }
   /** V3: tháo 1 món đồ khỏi tướng `unit` (id món): lá đồ về tay (tay đầy thì đốt). Hành động trong lượt mình. */
   | { t: "unequip"; side: Side; unit: string; item: string }
+  /** Bỏ 1 lá trên tay xuống mộ (lượt mình, bước chính, miễn phí, không tính vào giới hạn hành động; không áp dụng cho lá tạm/đặc biệt; lá bị đóng băng vẫn bỏ được). Đi qua g.toGrave nên hook onDiscard chạy (reason "manual"). */
+  | { t: "discard"; side: Side; uid: string }
   | { t: "pass"; side: Side }
   /** (Cũ) kết thúc bước gọi tướng rồi rút bài: không còn dùng, giữ để tương thích kiểu */
   | { t: "draw"; side: Side }
@@ -644,7 +649,7 @@ export interface HeroDef {
   /** Loại sát thương của đòn đánh thường */
   damage: "physical" | "magic";
   hp: number; atk: number; armor: number; mr: number;
-  /** V3: AP gốc (mặc định 0; tướng phép thiếu trường này lấy V3_BASE_AP trong registry.ts). g.ap = AP gốc + AP từ đồ. */
+  /** Luật chủ 30/10: AP gốc luôn 0 (registry.ts ép về 0); AP chỉ đến từ đồ. Giữ trường để không vỡ API. */
   ap?: number;
   desc?: string;
   passive: { name: string; desc: string };

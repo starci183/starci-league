@@ -29,7 +29,7 @@ import "./vayne"
 import "./janna"
 import "./brand"
 import "./renata"
-// V3: 3 tướng mới (velkoz.ts còn đăng ký lá đặc biệt velkoz_decay)
+// V3: 3 tướng mới
 import "./tristana"
 import "./missfortune"
 import "./velkoz"

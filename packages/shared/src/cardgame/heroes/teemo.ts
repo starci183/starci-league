@@ -1,4 +1,4 @@
-// Teemo (Xạ thủ, phép): máu 310 · AD 112 · AP gốc 78 · giáp/kháng 25/26. Chất: NẤM TRONG BỘ BÀI ĐỊCH, địch rút trúng là nổ vào đứa yếu nhất.
+// Teemo (Xạ thủ, phép): máu 310 · AD 112 · AP gốc 0 · giáp/kháng 25/26. Chất: NẤM TRONG BỘ BÀI ĐỊCH, địch rút trúng là nổ vào đứa yếu nhất.
 // Nấm = lá đặc biệt "mushroom" (SpecialCardDef.onDraw). Lá Nấm nhớ phe Teemo (card.side). Nấm nổ rồi biến mất, địch vẫn rút 1 lá như thường.
 // AP gốc = AD cũ của tướng phép (đề xuất V3, đã vào engine: HeroDef.ap).
 import type {
@@ -11,12 +11,10 @@ import {
     otherSide, type Side, type Unit
 } from "../types"
 
-/** AP gốc = AD cũ (78) */
-const BASE_AP = 78
-const F_MUSH = "50 + 12% AD + 23% AP"
-const F_E = "25 + 15% AD + 30% AP"
+const F_MUSH = "80 + 16% AD + 23% AP"
+const F_E = "65 + 20% AD + 30% AP"
 /** Sát thương E thêm mỗi Nấm trong bộ bài địch */
-const F_E_PER = "8 + 5% AD + 10% AP"
+const F_E_PER = "16 + 5% AD + 10% AP"
 const Q_MUSH = 3
 
 /** Nấm nổ lên tướng máu thấp nhất của `side` (sát thương theo chỉ số Teemo `teemo`) */
@@ -70,7 +68,7 @@ export function plant(g: Game, side: Side, n: number) {
 }
 
 export default defineHero({
-    id: "teemo", name: "Teemo", role: "marksman", damage: "magic", hp: 310, atk: 112, ap: BASE_AP, armor: 25, mr: 26,
+    id: "teemo", name: "Teemo", role: "marksman", damage: "magic", hp: 310, atk: 112, armor: 25, mr: 26,
     desc: "Không cần giết ai: gài Nấm vào bộ bài địch, rút trúng là nổ vào đứa yếu nhất; ai đánh Teemo thì bị Mù.",
     passive: {
         name: "Nấm Độc",

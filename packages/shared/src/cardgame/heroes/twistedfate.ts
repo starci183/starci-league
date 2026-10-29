@@ -1,4 +1,4 @@
-// Twisted Fate (Pháp sư, phép) V3: "Tay bài là đạn": tay càng dày đánh càng đau, cuối trận lên đồ là R xoá sổ. Máu 320 · AD 96 · giáp/kháng 25/28 · AP gốc 72.
+// Twisted Fate (Pháp sư, phép) V3: "Tay bài là đạn": tay càng dày đánh càng đau, cuối trận lên đồ là R xoá sổ. Máu 320 · AD 96 · giáp/kháng 25/28 · AP gốc 0.
 // Nội tại: đòn đánh của TF gây thêm sát thương phép theo số lá trên tay (hook onAttack, AttackInfo.bonus).
 // Q (20 mana) Chọn Bài: sát thương + hiệu ứng theo màu (Xanh hồi mana, Đỏ Rã Giáp, Vàng Choáng) · E (15) Xáo Bài: xem 3 lá trên cùng, lấy 2 · R (50) bỏ cả tay vào mộ, mỗi lá (tối đa 7) gây sát thương lên mọi địch.
 // Cơ chế engine dùng: SkillDef.extra "color", g.peekDeck/takeFromDeck/putOnBottom, g.discard.
@@ -9,20 +9,18 @@ import {
     defineHero
 } from "../registry"
 
-/** AP gốc (V3: bằng AD gốc cũ) */
-export const BASE_AP = 72
 /** E xem bấy nhiêu lá trên cùng bộ bài, lấy (PEEK - 1) lá */
 export const PEEK = 3
 /** Q Xanh: TF hồi bấy nhiêu mana */
 export const Q_BLUE_MANA = 30
 /** R chỉ tính tối đa bấy nhiêu lá bỏ */
 export const R_MAX_CARDS = 7
-const F_PASSIVE = "3 + 1% AD + 2% AP"
-const F_Q = "50 + 30% AD + 80% AP"
-const F_R_CARD = "30 + 20% AD + 30% AP"
+const F_PASSIVE = "4 + 1% AD + 2% AP"
+const F_Q = "108 + 30% AD + 80% AP"
+const F_R_CARD = "52 + 20% AD + 30% AP"
 
 export default defineHero({
-    id: "twistedfate", name: "Twisted Fate", role: "mage", damage: "magic", hp: 320, atk: 96, armor: 25, mr: 28, ap: BASE_AP,
+    id: "twistedfate", name: "Twisted Fate", role: "mage", damage: "magic", hp: 320, atk: 96, armor: 25, mr: 28,
     desc: "Tay bài là đạn: giữ tay dày thì đòn đánh đau thêm, Q chọn màu bài (hồi mana, Rã Giáp hoặc Choáng), E xáo bài nạp đạn, R ném cả tay thành bão bài.",
     passive: {
         name: "Bàn Tay Vàng",

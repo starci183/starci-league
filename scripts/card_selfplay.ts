@@ -32,6 +32,21 @@ const BOT = asLevel(flag("bot"),
 const H2H = flag("h2h")?.split(":").map((x) => asLevel(x,
     "easy"))
 const DRAFT = args.includes("--draft")
+// --set=khoá=giá trị (lặp được, dấu chấm cho khoá lồng, mảng viết 1/4/8): ghi đè cg.RULES cho thử nghiệm cân bằng, vd --set=respawnRounds=1 --set=summonRounds=1/3/7/11/16
+for (const a of args.filter((x) => x.startsWith("--set="))) {
+    const [path,
+        raw] = a.slice(6).split("=")
+    const keys = path.split(".")
+    let o = cg.RULES as unknown as Record<string, unknown>
+    for (const k of keys.slice(0,
+        -1)) o = o[k] as Record<string, unknown>
+    o[keys[keys.length - 1]] = raw.includes("/") ? raw.split("/").map(Number) : Number(raw)
+    if (path === "summonRounds") cg.RULES.laneOpenRound = [0,
+        1,
+        2,
+        3,
+        4].map((l) => cg.RULES.summonRounds[cg.RULES.laneOrder.indexOf(l)])
+}
 /** Mức bot của mỗi bên ở trận i */
 const levelsOf = (i: number): Record<"A" | "B", Level> => (H2H ? (i % 2 === 0 ? {
     A: H2H[0], B: H2H[1]
@@ -237,7 +252,7 @@ function runChild(from: number, to: number): Promise<Result> {
         String(SEED0),
         `--range=${from}:${to}`,
         "--json",
-        ...args.filter((a) => a.startsWith("--heroes=") || a.startsWith("--bot=") || a.startsWith("--h2h=") || a === "--pairs" || a === "--draft")]
+        ...args.filter((a) => a.startsWith("--heroes=") || a.startsWith("--bot=") || a.startsWith("--set=") || a.startsWith("--h2h=") || a === "--pairs" || a === "--draft")]
     return new Promise((resolve, reject) => {
         const p = spawn(process.execPath,
             ["--import",

@@ -251,6 +251,9 @@ export function Hand() {
         setCraftOpen] = useState(false)
     const [burns,
         setBurns] = useState<BurnToast[]>([])
+    // lá vừa bấm trên tay: hiện nút phụ "Bỏ vào mộ" cho lá đó
+    const [picked,
+        setPicked] = useState<string | null>(null)
     const g = useMemo(() => (view ? gameOf(view) : null),
         [view])
     const me = view?.you ?? null
@@ -270,6 +273,7 @@ export function Hand() {
     useEffect(() => {
         setChooser(null)
         setCraftOpen(false)
+        setPicked(null)
     },
     [view,
         legal])
@@ -442,6 +446,7 @@ export function Hand() {
     }
 
     const onCard = (d: CardData) => {
+        setPicked(d.card.uid)
         if (!d.options.length) return
         if (targeting?.source === d.card.uid) {
             cardActions.cancelTargeting()
@@ -458,6 +463,9 @@ export function Hand() {
     const quickHits = legal.filter((a): a is Extract<Action, { t: "attack" }> => a.t === "attack" && !!a.cardless)
     const upgrades = dedupe(legal.filter((a) => a.t === "upgrade")) as Extract<Action, { t: "upgrade" }>[]
     const unequips = legal.filter((a): a is Extract<Action, { t: "unequip" }> => a.t === "unequip")
+    // bỏ bài xuống mộ (miễn phí): chỉ khi engine cho phép lá đang chọn (lá đóng băng vẫn bỏ được)
+    const discardAct = picked ? legal.find((a): a is Extract<Action, { t: "discard" }> => a.t === "discard" && a.uid === picked) : undefined
+    const pickedCard = discardAct ? hand.find((c) => c.uid === discardAct.uid) : undefined
     const foeHand = view.players[me === "A" ? "B" : "A"].hand
     const quickers = [...new Set(quickHits.map((a) => a.actor))]
     const cardlessPct = Math.round((view.rules.fighterCardlessMult ?? .66) * 100)
@@ -507,6 +515,18 @@ export function Hand() {
             {burns.length ? (
                 <div className="hd-burns" aria-live="polite">
                     {burns.map((b) => <div key={b.k} className="hd-burn">{b.text}</div>)}
+                </div>
+            ) : null}
+            {discardAct && pickedCard ? (
+                <div className="hd-discard">
+                    <span>{cg.cardInfoL(g,
+                        pickedCard).name}</span>
+                    <button className="hd-btn sec" title={L("Bỏ lá này xuống mộ, miễn phí, không giới hạn số lần",
+                        "Discard this card to the grave: free, no limit")}
+                    onClick={() => { cardActions.cancelTargeting(); cardActions.act(discardAct) }}>
+                        {L("Bỏ vào mộ",
+                            "Discard")}
+                    </button>
                 </div>
             ) : null}
             {targeting ? (
@@ -562,7 +582,9 @@ export function Hand() {
             <div className="hd-left">
                 <div className="hd-count">
                     <b>{L("Tay",
-                        "Hand")} {hand.length}/{handMax}</b>
+                        "Hand")} {hand.filter((c) => !c.temp).length}/{handMax}
+                    {hand.some((c) => c.temp) ? <i className="hd-tmpcount"> (+{hand.filter((c) => c.temp).length} {L("tạm",
+                        "temp")})</i> : null}</b>
                     <span>{L("Bộ bài",
                         "Deck")} {view.players[me].deckCount}</span>
                     <span className={`hd-atk${atkOut ? " out" : ""}`}
@@ -653,7 +675,7 @@ export function Hand() {
                             {unequips.map((a, i) => {
                                 const nm = cg.itemText(a.item,
                                     lang === "en" ? "en" : "vi")?.name ?? a.item
-                                const full = hand.length >= handMax
+                                const full = hand.filter((c) => !c.temp).length >= handMax
                                 return (
                                     <button key={i} className="hd-btn up" title={full ? L("Tay đầy: lá đồ sẽ bị đốt vào mộ",
                                         "Hand full: the item card will be burned") : L("Lá đồ về tay, lắp lại được cho tướng khác",
@@ -670,19 +692,18 @@ export function Hand() {
                 ) : null}
                 {quickers.length ? (
                     <div className="hd-group">
-                        <label>{L("Quick · đánh không cần lá",
-                            "Quick · cardless attack")}</label>
+                        <label>{L("Đánh không cần lá · lượt của bạn",
+                            "Cardless attack · your turn")}</label>
                         <div className="hd-row">
                             {quickers.map((u) => (
-                                <button key={u} className={`hd-quick${src === QUICK_PREFIX + u ? " sel" : ""}`} title={`${unitName(u)} · ${L("Đánh nhanh",
-                                    "Quick attack")} ${cardlessPct}%`}
+                                <button key={u} className={`hd-quick${src === QUICK_PREFIX + u ? " sel" : ""}`} title={`${unitName(u)} · ${L("Đánh không cần lá",
+                                    "Cardless attack")} ${cardlessPct}%`}
                                 onClick={() => { cardActions.cancelTargeting(); cardActions.beginTargeting(QUICK_PREFIX + u,
                                     cardlessOptions(legal,
                                         u)) }}>
                                     <img src={view.units[u] ? heroPortrait(view.units[u].hero) : ""} alt="" />
-                                    <span><b>{L("Đánh nhanh",
-                                        "Quick attack")} {cardlessPct}%</b><i>{unitName(u)}</i></span>
-                                    <u className="hd-q">Quick</u>
+                                    <span><b>{L("Đánh không cần lá",
+                                        "Cardless attack")} {cardlessPct}%</b><i>{unitName(u)}</i></span>
                                 </button>
                             ))}
                         </div>

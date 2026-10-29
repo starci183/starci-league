@@ -704,7 +704,7 @@ export class Game {
             t: "prize", side, card, left: pile.length
         })
         const p = this.player(side)
-        if (p.hand.length >= RULES.handMax) this.burnOverflow(side,
+        if (this.handCount(side) >= RULES.handMax) this.burnOverflow(side,
             card)
         else p.hand.push(card)
     }
@@ -818,7 +818,7 @@ export class Game {
     grantItem(u: Unit, item: string = this.randomFinishedItem()): "equipped" | "hand" | "burned" {
         if (!u.token && u.status === "board" && this.equip(u,
             item)) return "equipped"
-        const full = this.player(u.side).hand.length >= RULES.handMax
+        const full = this.handCount(u.side) >= RULES.handMax
         this.giveCard(u.side,
             this.newCard({
                 kind: "support", id: "legend", item
@@ -1120,7 +1120,7 @@ export class Game {
         const u = this.unit(`${c.side}:${c.hero}`)
         return !u || u.status !== "board"
     }
-    /** 9 lá chiêu của một tướng (RULES.skillCopies: 4 Q + 4 E + 1 R). Vào bộ từ đầu trận (engine.newGameEx), không xáo thêm khi gọi tướng. */
+    /** Lá chiêu của một tướng (RULES.skillCopies: 8 Q + 8 E + 2 R). Vào bộ từ đầu trận (engine.newGameEx), không xáo thêm khi gọi tướng. */
     heroCards(hero: string, side: Side): Card[] {
         const out: Card[] = []
         for (const k of ["Q",
@@ -1142,7 +1142,7 @@ export class Game {
         }); sp.onDraw(this,
             card,
             side); return undefined }
-        if (p.hand.length >= RULES.handMax) {
+        if (this.handCount(side) >= RULES.handMax) {
             this.burnOverflow(side,
                 card)
             return undefined
@@ -1206,7 +1206,7 @@ export class Game {
         if (i < 0) this.emit({
             t: "create", side, card, zone: "hand"
         })
-        if (p.hand.length >= RULES.handMax) {
+        if (this.handCount(side) >= RULES.handMax) {
             this.burnOverflow(side,
                 card)
             return card
@@ -1220,6 +1220,28 @@ export class Game {
                 side, card, reason, by: `${side}:${hero}`
             })
         return card
+    }
+    /** Số lá trên tay TÍNH vào giới hạn RULES.handMax: lá tạm không tính */
+    handCount(side: Side): number {
+        return this.player(side).hand.filter((c) => !c.temp).length
+    }
+    /** Luật "Pháp sư nhận chiêu tạm": phát cho mỗi Pháp sư đang sống trên sân 1 lá Q hoặc E (ngẫu nhiên) dạng lá tạm. Lá tạm không tính tay, không bao giờ đốt. */
+    giveMageTemps(side: Side) {
+        if (!RULES.mageTempSkill) return
+        for (const u of this.board(side)) {
+            if (!this.isMage(u)) continue
+            const key = this.pick<SkillKey>(["Q",
+                "E"])!
+            const card: Card = {
+                ...this.skillCard(u.hero,
+                    side,
+                    key), temp: true
+            }
+            this.giveCard(side,
+                card,
+                "hand")
+            this.log(`${this.hero(u).name} nhận lá tạm: ${key} ${this.hero(u).skills[key]?.name ?? ""}`)
+        }
     }
     /** Gỡ mọi lá tạm khỏi tay `side` (cuối lượt của người cầm): phát tempExpired + hook onTempExpired, không vào mộ */
     expireTemps(side: Side) {
@@ -1321,7 +1343,7 @@ export class Game {
     giveCard(side: Side, card: Card, zone: "hand" | "deck" | "grave" = "hand") {
         const p = this.player(side)
         if (zone === "hand") {
-            if (p.hand.length >= RULES.handMax) { this.burnOverflow(side,
+            if (!card.temp && this.handCount(side) >= RULES.handMax) { this.burnOverflow(side,
                 card); return }
             p.hand.push(card)
         } else if (zone === "grave") { if (card.kind !== "special") p.grave.push(card) }
@@ -1385,6 +1407,13 @@ export class Game {
             t: "steal", from, to, card
         })
         const isSkill = card.kind === "skill" || !!card.copyOf || card.kind === "wild"
+        if (card.temp && card.kind === "skill") { // lá chiêu tạm bị cướp: chỉ biến mất, không vào mộ, không đổi thành lá khác
+            this.hook("onSteal",
+                {
+                    side: to, from, card
+                })
+            return
+        }
         if (isSkill && skill === "convert") { // Blitzcrank: lá chiêu địch bị đốt, người cướp nhận 1 lá Q/E ngẫu nhiên của tướng mình đang sống
             if (!card.temp && card.kind !== "special") this.player(card.side ?? from).grave.push(card)
             const h = this.pick(this.heroes(to))
@@ -1548,10 +1577,10 @@ export class Game {
             u.lane + 1].filter((l) => l >= 0 && l <= 4).map((l) => this.at(u.side,
             l)).filter((x): x is Unit => !!x && !x.token)
     }
-    /** Cô Lập (Kha'Zix): tướng sống không có đồng minh sống nào ở đường kề, hoặc đang có trạng thái "isolated" (Kha'Zix E/R gắn) */
+    /** Cô Lập (Kha'Zix): CHỈ là trạng thái "isolated" do Kha'Zix gắn (chủ 30/10: bỏ luật vị trí "không có đồng minh ở đường kề") */
     isolated(u: Unit): boolean {
-        return u.status === "board" && !u.token && (this.has(u,
-            "isolated") || this.neighbors(u).length === 0)
+        return u.status === "board" && !u.token && this.has(u,
+            "isolated")
     }
     /** Trả máu (không phải sát thương): trừ `n` máu, còn tối thiểu `min` (mặc định 1 = không tự giết). Phát damage kind "true" tag "effect" không nguồn, KHÔNG bắn hook onDamage. Trả lượng đã trừ. */
     payHp(u: Unit, n: number, min = 1): number {

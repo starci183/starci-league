@@ -1,4 +1,4 @@
-// Annie (Pháp sư, phép) V3: "Choáng rồi đốt": đếm Lửa tới Choáng, chiêu vào kẻ đang Choáng thì đau hơn. Máu 330 · AD 96 · giáp/kháng 25/28 · AP gốc 74.
+// Annie (Pháp sư, phép) V3: "Choáng rồi đốt": đếm Lửa tới Choáng, chiêu vào kẻ đang Choáng thì đau hơn. Máu 330 · AD 96 · giáp/kháng 25/28 · AP gốc 0.
 // Lửa = stack "fire" trên Annie. Mỗi chiêu +1 Lửa; đủ FIRE_MAX Lửa thì chiêu kế tiếp Choáng đúng mục tiêu của nó rồi Lửa về 0.
 // Q, E, R gây thêm 50% sát thương lên địch đang Choáng. Q (10 mana) sát thương · E (15, Quick) Khiên, bẫy Quick khi đủ Lửa · R (50) Tibbers vồ mọi địch.
 // Tibbers không chiếm đường: chỉ là cú vồ của R. Cơ chế engine dùng: g.chainFx().cancel, status "stun".
@@ -20,12 +20,10 @@ export const FIRE = "fire"
 export const FIRE_MAX = 4
 /** Sát thương cộng thêm của Q/E/R lên địch đang Choáng */
 export const STUN_BONUS = 0.5
-/** AP gốc (V3: bằng AD gốc cũ) */
-export const BASE_AP = 74
-const F_Q = "60 + 20% AD + 80% AP"
-const F_E_SHIELD = "60 + 20% AD + 50% AP"
-const F_E_TRAP = "40 + 10% AD + 60% AP"
-const F_R = "120 + 30% AD + 100% AP"
+const F_Q = "119 + 20% AD + 80% AP"
+const F_E_SHIELD = "97 + 20% AD + 50% AP"
+const F_E_TRAP = "84 + 10% AD + 60% AP"
+const F_R = "194 + 30% AD + 100% AP"
 
 /** Đếm Lửa cho 1 chiêu có mục tiêu: đủ Lửa thì trả true (chiêu này Choáng mục tiêu) và Lửa về 0, chưa đủ thì +1 Lửa */
 function charge(g: Game, me: Unit): boolean {
@@ -48,7 +46,7 @@ const boosted = (g: Game, t: Unit, raw: number) => raw * (g.has(t,
 const foes = (g: Game, me: Unit) => g.enemies(me).filter((u) => !u.token)
 
 export default defineHero({
-    id: "annie", name: "Annie", role: "mage", damage: "magic", hp: 330, atk: 96, armor: 25, mr: 28, ap: BASE_AP,
+    id: "annie", name: "Annie", role: "mage", damage: "magic", hp: 330, atk: 96, armor: 25, mr: 28,
     bot: {
         stackValue: {
             fire: 14,

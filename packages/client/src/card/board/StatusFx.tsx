@@ -44,13 +44,19 @@ const passiveIconOf = (unitId: string): string | undefined => {
     return hero && !hero.startsWith("tok") ? `/card_skills/${hero}_p.png` : undefined
 }
 
-export function StatusRow(p: { u: cg.Unit; turnNo: number; unitOf?(id: string): string | undefined }) {
+/** Ô phụ cùng hàng icon: điểm tích (Điên, Đói, Song Giáp...) và dấu (Dấu Băng...) */
+export interface ExtraCell { key: string; icons: string[]; num: string; tip: string; letter: string }
+
+export function StatusRow(p: { u: cg.Unit; turnNo: number; unitOf?(id: string): string | undefined; extra?: ExtraCell[] }) {
     const { u } = p
     const t = tr()
     const groups = groupBySource(u.statuses)
-    if (!groups.length) return null
+    const extra = p.extra ?? []
+    // luôn giữ chỗ hàng icon (kể cả khi trống) để ảnh tướng không bị đẩy xuống khi có hiệu ứng
+    if (!groups.length && !extra.length) return <div className="bd-srow" />
     const shown = groups.slice(0,
-        MAX_CELLS)
+        Math.max(0,
+            MAX_CELLS - extra.length))
     const more = groups.slice(MAX_CELLS)
     const effName = (g: SourceGroup) => g.ids.map((id) => statusInfo(id).name).join(" + ")
     return (
@@ -78,6 +84,12 @@ export function StatusRow(p: { u: cg.Unit; turnNo: number; unitOf?(id: string): 
                     </span>
                 )
             })}
+            {extra.map((c) => (
+                <span key={c.key} className="bd-sc stack" title={c.tip}>
+                    <Img srcs={c.icons} fallback={c.letter} />
+                    <em>{c.num}</em>
+                </span>
+            ))}
             {more.length ? <span className="bd-sc more" title={more.map(effName).join(", ")}>{`+${more.length}`}</span> : null}
         </div>
     )

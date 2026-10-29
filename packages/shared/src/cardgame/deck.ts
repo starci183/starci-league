@@ -1,5 +1,5 @@
-// Bộ gốc người chơi tự xếp cho chế độ thẻ bài: 40 lá thuộc 4 loại: Đánh thường, Bổ trợ (Rút Bài + phép bổ trợ LMHT, dùng ngay), Vàng, Đồ.
-// Khi tạo ván engine thêm 9 lá chiêu (4 Q + 4 E + 1 R) của mỗi tướng trong đội 5 tướng: tổng 85 lá từ đầu trận.
+// Bộ gốc người chơi tự xếp cho chế độ thẻ bài: 80 lá thuộc 4 loại: Đánh thường, Bổ trợ (Rút Bài + phép bổ trợ LMHT, dùng ngay), Vàng, Đồ.
+// Khi tạo ván engine thêm 18 lá chiêu (8 Q + 8 E + 2 R) của mỗi tướng trong đội 5 tướng: tổng 170 lá từ đầu trận.
 import {
     COMPONENTS, RULES
 } from "./types"
@@ -31,36 +31,40 @@ export interface DeckCardDef {
 /** Kho lá được phép xếp vào bộ */
 export const DECK_POOL: DeckCardDef[] = [
     {
-        id: "basic", group: "basic", max: 14
+        id: "basic", group: "basic", max: 20
     },
     {
-        id: "draw", group: "spell", max: 3
+        id: "draw", group: "spell", max: 6
     },
     ...SPELLS.map((sp) => ({
-        id: `spell:${sp}` as DeckCardId, group: "spell" as const, max: 3
+        id: `spell:${sp}` as DeckCardId, group: "spell" as const, max: 6
     })),
     {
-        id: "gold", group: "gold", max: 8
+        id: "gold", group: "gold", max: 16
     },
     ...COMPONENTS.map((c) => ({
-        id: `item:${c}` as DeckCardId, group: "item" as const, max: 3
+        id: `item:${c}` as DeckCardId, group: "item" as const, max: 6
     })),
 ]
 
 /** Số lá đúng của bộ gốc */
 export const DECK_SIZE = RULES.sharedDeckSize
 
-/** Bộ mặc định (khách, máy, mô phỏng): 12 Đánh thường, 2 Rút Bài, 8 phép bổ trợ, 8 Vàng, 10 mảnh Đồ */
+/**
+ * Bộ mặc định (khách, máy, mô phỏng), 80 lá: 16 Đánh thường (ít hơn tỉ lệ cũ vì đã được tặng Đánh Thường mỗi lượt),
+ * 2 Rút Bài + 16 phép bổ trợ, 16 Vàng, 30 mảnh Đồ (6 mảnh x 4 + 2 mảnh x 3)
+ */
 export const DEFAULT_DECK: DeckCardId[] = [
-    ...Array<DeckCardId>(12).fill("basic"),
+    ...Array<DeckCardId>(16).fill("basic"),
     ...Array<DeckCardId>(2).fill("draw"),
     ...(["heal",
         "flash",
         "ignite",
-        "barrier"] as const).flatMap((sp) => Array<DeckCardId>(2).fill(`spell:${sp}`)),
-    ...Array<DeckCardId>(8).fill("gold"),
-    ...COMPONENTS.slice(0,
-        5).flatMap((c) => Array<DeckCardId>(2).fill(`item:${c}`)),
+        "barrier"] as const).flatMap((sp) => Array<DeckCardId>(3).fill(`spell:${sp}`)),
+    ...(["exhaust",
+        "cleanse"] as const).flatMap((sp) => Array<DeckCardId>(2).fill(`spell:${sp}`)),
+    ...Array<DeckCardId>(16).fill("gold"),
+    ...COMPONENTS.flatMap((c, i) => Array<DeckCardId>(i < 6 ? 4 : 3).fill(`item:${c}`)),
 ]
 
 const POOL_BY_ID = new Map<string, DeckCardDef>(DECK_POOL.map((d) => [d.id,

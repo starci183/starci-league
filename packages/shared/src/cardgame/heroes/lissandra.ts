@@ -1,4 +1,4 @@
-// Lissandra (Pháp sư, phép) V3: "Hoá Băng bài địch": đánh trúng là có thể đóng băng bài trên tay địch, băng càng dày càng nguy. Máu 340 · AD 94 · giáp/kháng 26/29 · AP gốc 72.
+// Lissandra (Pháp sư, phép) V3: "Hoá Băng bài địch": đánh trúng là có thể đóng băng bài trên tay địch, băng càng dày càng nguy. Máu 340 · AD 94 · giáp/kháng 26/29 · AP gốc 0.
 // Hoá Băng = Card.frozen (g.freezeRandom): lá vẫn chiếm chỗ nhưng không đánh/ghép/nối chuỗi được; engine tự tan băng khi Lissandra rời sân.
 // Nội tại: mỗi lần sát thương của Lissandra trúng địch có (10% + 5% mỗi 100 AD + 10% mỗi 100 AP) cơ hội Hoá Băng 1 lá ngẫu nhiên (hook onDamage).
 // Q (20 mana) sát thương · E (30) sát thương, Choáng nếu tay đối thủ có lá chiêu Hoá Băng của chính tướng đó · R (50, Quick) tự đóng băng thoát chết, rồi phản công theo số lá băng.
@@ -18,15 +18,13 @@ import {
     otherSide
 } from "../types"
 
-/** AP gốc (V3: bằng AD gốc cũ) */
-export const BASE_AP = 72
 /** Cơ hội nội tại: 10% + 5% mỗi 100 AD + 10% mỗi 100 AP */
-export const PROC_BASE = 0.1
+export const PROC_BASE = 0.18
 export const PROC_PER_100_AD = 0.05
 export const PROC_PER_100_AP = 0.1
-const F_Q = "50 + 30% AD + 80% AP"
-const F_E = "30 + 35% AD + 70% AP"
-const F_R_CARD = "30 + 10% AD + 20% AP"
+const F_Q = "125 + 30% AD + 80% AP"
+const F_E = "100 + 35% AD + 70% AP"
+const F_R_CARD = "45 + 10% AD + 20% AP"
 
 /** Cơ hội Hoá Băng mỗi lần sát thương trúng (g.chance: base + ad theo 100 AD + ap theo 100 AP) */
 export const freezeChance = (g: Game, me: Unit) => g.chance(me,
@@ -35,7 +33,7 @@ export const freezeChance = (g: Game, me: Unit) => g.chance(me,
     })
 
 export default defineHero({
-    id: "lissandra", name: "Lissandra", role: "mage", damage: "magic", hp: 340, atk: 94, armor: 26, mr: 29, ap: BASE_AP,
+    id: "lissandra", name: "Lissandra", role: "mage", damage: "magic", hp: 340, atk: 94, armor: 26, mr: 29,
     desc: "Hoá Băng bài địch: sát thương của Lissandra có thể đóng băng lá trên tay đối thủ, E Choáng đúng tướng có bài bị băng, R tự đóng băng để thoát chết rồi phản công theo số lá băng. Muốn tan băng thì phải hạ Lissandra.",
     passive: {
         name: "Tay Băng Giá",

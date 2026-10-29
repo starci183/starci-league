@@ -1,4 +1,4 @@
-// Viktor (Pháp sư, phép): máu 330 · AD 92 · AP gốc 68 · giáp/kháng 26/28. Chất: TIẾN HOÁ, đổi bài thừa lấy sức mạnh vĩnh viễn.
+// Viktor (Pháp sư, phép): máu 330 · AD 92 · AP gốc 0 · giáp/kháng 26/28. Chất: TIẾN HOÁ, đổi bài thừa lấy sức mạnh vĩnh viễn.
 // Tiến Hoá là bộ đếm (stack "evolve") giữ qua cả lần chết; mỗi nấc làm sát thương chiêu của Viktor tăng thêm (HeroDef.modifyDamage).
 // Mana (x10): Q 10, E 35, R 60. Q nạp (bỏ bài lấy Khiên + Tiến Hoá), E xả (sát thương mọi địch), R giao tranh (sát thương + Choáng + nuôi Tiến Hoá).
 // AP gốc = AD cũ của tướng phép (đề xuất V3, đã vào engine: HeroDef.ap).
@@ -14,17 +14,15 @@ const EVOLVE = "evolve"
 export const MAX_EVOLVE = 10
 /** Mỗi nấc Tiến Hoá cộng thêm bấy nhiêu % sát thương chiêu */
 export const PER_EVOLVE = 0.08
-/** AP gốc = AD cũ (68) */
-const BASE_AP = 68
 /** Khiên mỗi lá bỏ ở Q */
-const F_SHIELD = "20 + 10% AD + 20% AP"
-const F_E = "55 + 35% AD + 65% AP"
-const F_R = "80 + 30% AD + 60% AP"
+const F_SHIELD = "34 + 10% AD + 20% AP"
+const F_E = "115 + 35% AD + 65% AP"
+const F_R = "121 + 30% AD + 60% AP"
 /** R nuôi thêm bấy nhiêu Tiến Hoá */
 const R_GAIN = 2
 
 export default defineHero({
-    id: "viktor", name: "Viktor", role: "mage", damage: "magic", hp: 330, atk: 92, ap: BASE_AP, armor: 26, mr: 28,
+    id: "viktor", name: "Viktor", role: "mage", damage: "magic", hp: 330, atk: 92, armor: 26, mr: 28,
     bot: {
         stackValue: {
             evolve: 30,

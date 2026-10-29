@@ -1,4 +1,4 @@
-// Darius (Đấu sĩ, vật lý): máu 380 · AD 108 · giáp/kháng 31/29 (V3).
+// Darius (Đấu sĩ, vật lý): máu 430 · AD 108 · giáp/kháng 31/29 (V3).
 // CHẤT: "Xay một thằng". Đòn đánh nào của Darius cũng cắm Chảy Máu (cộng dồn, hiện số trên tướng); Q cắm thêm 2;
 // E giữ kẻ đối diện (trống thì Kéo một địch về); R Máy Chém xả toàn bộ Chảy Máu thành sát thương chuẩn, hạ được thì lá về tay.
 // Engine: status cộng dồn (g.status add), g.moveTo (Kéo), SkillDef.options, c.toHand.
@@ -19,10 +19,10 @@ const BLEED = "bleed"
 /** Tối đa 8 Chảy Máu; hết sau 2 lượt của tướng mang kể từ lần cộng cuối */
 const MAX_BLEED = 6
 const BLEED_TURNS = 2
-export const F_Q = "40 + 120% AD + 20% AP"
+export const F_Q = "30 + 100% AD + 20% AP"
 export const F_E = "10 + 65% AD + 13% AP"
 /** R: mỗi Chảy Máu = từng này sát thương chuẩn */
-export const F_R_STACK = "16 + 25% AD + 5% AP"
+export const F_R_STACK = "12 + 20% AD + 5% AP"
 /** Nội tại: đầu lượt của kẻ chảy máu, mỗi Chảy Máu gây từng này */
 export const F_TICK = "3 + 5% AD"
 /** Q: Darius hồi từng này mỗi Chảy Máu trên mục tiêu */
@@ -42,7 +42,7 @@ const addBleed = (g: Game, t: Unit, n: number) => {
 }
 
 export default defineHero({
-    id: "darius", name: "Darius", role: "fighter", damage: "physical", hp: 380, atk: 108, armor: 31, mr: 29,
+    id: "darius", name: "Darius", role: "fighter", damage: "physical", hp: 430, atk: 108, armor: 31, mr: 29,
     bot: {
         markValue: {
             bleed: 25,

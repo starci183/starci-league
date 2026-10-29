@@ -1,4 +1,4 @@
-// Janna (Trợ thủ, phép): máu 340 · AD 88 · AP gốc 66 · giáp/kháng 26/29.
+// Janna (Trợ thủ, phép): máu 340 · AD 88 · AP gốc 0 · giáp/kháng 26/29.
 // CHẤT: "Bão che chở": khống chế, bảo kê, lật kèo bằng gió.
 // Nội tại: đầu lượt bạn, đồng minh máu thấp nhất nhận Khiên. Q (Quick): Lốc Xoáy gây sát thương phép + Choáng 1 lượt.
 // E (Quick): Khiên + miễn khống chế khi còn Khiên. R (Quick): tới hết lượt địch cả đội miễn sát thương từ đòn đánh, hết lượt cả đội hồi máu.
@@ -20,10 +20,10 @@ const CC = ["stun",
     "silence",
     "disarm",
     "taunt"]
-export const F_PASSIVE = "30 + 20% AD + 40% AP"
-export const F_Q = "40 + 30% AD + 60% AP"
-export const F_E = "80 + 40% AD + 70% AP"
-export const F_R = "80 + 40% AD + 80% AP"
+export const F_PASSIVE = "20 + 15% AD + 30% AP"
+export const F_Q = "60 + 30% AD + 60% AP"
+export const F_E = "70 + 30% AD + 60% AP"
+export const F_R = "80 + 30% AD + 60% AP"
 
 /** Choáng đủ 1 lượt: nếu đang là lượt của nó thì tính cả lượt kế tiếp (Quick giữa lượt địch vẫn cắt cả lượt sau) */
 function stunFull(g: Game, u: Unit) {
@@ -37,11 +37,9 @@ function stunFull(g: Game, u: Unit) {
         })
 }
 
-/** AP gốc = AD cũ của Janna (V3: tướng phép có AP gốc bằng AD gốc cũ) */
-const BASE_AP = 66
 
 export default defineHero({
-    id: "janna", name: "Janna", role: "support", damage: "magic", hp: 340, atk: 88, ap: BASE_AP, armor: 26, mr: 29,
+    id: "janna", name: "Janna", role: "support", damage: "magic", hp: 340, atk: 88, armor: 26, mr: 29,
     bot: {
         buffValue: {
             janna_gale: 80, janna_ward: 30,

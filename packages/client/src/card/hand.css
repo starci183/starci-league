@@ -209,3 +209,6 @@
 .hd-foecard { width: 52px; }
 .hd-foecard .cv { width: 100%; }
 .hd-btn.up { font-size: 12px; padding: 6px 10px; }
+.hd-discard { display: flex; align-items: center; gap: 8px; margin: 0 20px 4px; font-size: 12px; color: #9ab; }
+.hd-discard .hd-btn.sec { padding: 2px 10px; font-size: 12px; background: transparent; color: #b8b4a8; border: 1px solid #5a5f6a; border-radius: 6px; }
+.hd-discard .hd-btn.sec:hover { border-color: #ff8a7a; color: #ffb0a4; }

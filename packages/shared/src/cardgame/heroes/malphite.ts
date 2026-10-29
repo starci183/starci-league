@@ -1,4 +1,4 @@
-// Malphite (Đỡ đòn, phép): máu 500 · AD 88 · AP gốc 68 · giáp/kháng 35/30.
+// Malphite (Đỡ đòn, phép): máu 540 · AD 78 · AP gốc 0 · giáp/kháng 35/30.
 // CHẤT: "Núi đá, giáp là vũ khí": càng cứng đánh càng đau.
 // Nội tại: đầu lượt bạn nhận Khiên theo máu tối đa + Giáp (không cộng dồn). Q: sát thương phép theo Giáp, lấy 15 Giáp của địch đến hết lượt sau.
 // E (Quick): bị đánh thì +Giáp đến hết lượt và phạt kẻ đánh theo Giáp. R: sát thương phép theo Giáp lên mọi địch, may thì Choáng.
@@ -23,16 +23,14 @@ const Q_STEAL = 15
 export const R_STUN_BASE = 0.15
 export const R_STUN_PER_10_ARMOR = 0.01
 export const F_SHIELD = "5% máu tối đa + 100% Giáp"
-export const F_Q = "40 + 30% AD + 40% AP + 50% Giáp"
+export const F_Q = "67 + 30% AD + 40% AP + 50% Giáp"
 export const F_E_ARMOR = "10 + 30% Giáp"
-export const F_E_DMG = "20 + 60% Giáp + 20% AP"
-export const F_R = "80 + 30% AD + 50% AP + 100% Giáp"
+export const F_E_DMG = "34 + 60% Giáp + 20% AP"
+export const F_R = "114 + 30% AD + 50% AP + 100% Giáp"
 
-/** AP gốc = AD cũ của Malphite (V3: tướng phép có AP gốc bằng AD gốc cũ) */
-const BASE_AP = 68
 
 export default defineHero({
-    id: "malphite", name: "Malphite", role: "tank", damage: "magic", hp: 500, atk: 88, ap: BASE_AP, armor: 35, mr: 30,
+    id: "malphite", name: "Malphite", role: "tank", damage: "magic", hp: 540, atk: 78, armor: 35, mr: 30,
     bot: {
         markValue: {
             malphite_stolen: 4,

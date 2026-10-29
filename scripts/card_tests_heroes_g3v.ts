@@ -374,8 +374,8 @@ test("Q gắn Dao; R gây thêm 60% lên tướng có Dao",
             "A",
             "katarina")
         assert.equal(gm(s).ap(kat),
-            82,
-            "AP gốc 82")
+            0,
+            "AP gốc 0")
         const rq = play(s,
             "A",
             give(s,
@@ -625,6 +625,20 @@ test("Nội tại: tướng Cô Lập nhận thêm (20 + 50% AD + 10% AP) từ �
         const kz = u(iso,
             "A",
             "khazix")
+        // Cô Lập chỉ là trạng thái (không còn luật "không có đồng minh ở đường kề")
+        assert.equal(gm(iso).isolated(u(iso,
+            "B",
+            "g3v_tank")),
+        false,
+        "đứng lẻ nhưng chưa bị gắn thì không Cô Lập")
+        gm(iso).status(u(iso,
+            "B",
+            "g3v_tank"),
+        "isolated",
+        1,
+        {
+            until: 1_000
+        })
         assert.equal(gm(iso).isolated(u(iso,
             "B",
             "g3v_tank")),
@@ -663,7 +677,7 @@ test("Nội tại: tướng Cô Lập nhận thêm (20 + 50% AD + 10% AP) từ �
                 KHAZIX.F_Q) + gm(iso).f(kz,
                 KHAZIX.F_Q_ISO)) * (100 / 130)))
     })
-test("E: đổi đường với đồng minh; địch đối diện sau khi đổi Cô Lập tới hết lượt và nhận sát thương",
+test("E: chọn 1 địch bất kỳ (không đổi đường): nó Cô Lập tới hết lượt và nhận sát thương",
     () => {
         const s = mk({
             A: {
@@ -676,7 +690,10 @@ test("E: đổi đường với đồng minh; địch đối diện sau khi đ�
             "B",
             "g3v_mage")),
         false,
-        "có đồng minh kề nên chưa Cô Lập")
+        "chưa bị gắn nên chưa Cô Lập")
+        const lane0 = u(s,
+            "A",
+            "khazix").lane
         const r = play(s,
             "A",
             give(s,
@@ -686,16 +703,13 @@ test("E: đổi đường với đồng minh; địch đối diện sau khi đ�
                     "A",
                     "E")),
             {
-                target: "A:g3v_tank"
+                target: "B:g3v_mage"
             })
         assert.equal(u(r.s,
             "A",
             "khazix").lane,
-        3)
-        assert.equal(u(r.s,
-            "A",
-            "g3v_tank").lane,
-        1)
+        lane0,
+        "không đổi đường")
         const mage = u(r.s,
             "B",
             "g3v_mage")
@@ -1272,8 +1286,8 @@ test("R hồi cả đội kể cả Soraka",
         so.hp = 100
         tank.hp = 100
         assert.equal(gm(s).ap(so),
-            58,
-            "AP gốc 58")
+            0,
+            "AP gốc 0")
         const r = play(s,
             "A",
             give(s,
@@ -1339,14 +1353,14 @@ test("nội tại: đồng minh ra đòn là có cơ hội rút bài (tỉ lệ 
         }),
         1,
         "AD 3000 => kẹp 100%")
-        // Đồng minh thường: 5% + 0.05% mỗi điểm AD/AP (AD 88 + AP 66 của Nami)
+        // Đồng minh thường: 5% + 0.05% mỗi điểm AD/AP (AD 88, AP gốc 0 của Nami)
         const nami = u(s,
             "A",
             "nami")
         assert.ok(Math.abs(gm(s).chance(nami,
             {
                 base: 0.05, ad: 0.05, ap: 0.05
-            }) - (0.05 + 0.0005 * (88 + 66))) < 1e-9)
+            }) - (0.05 + 0.0005 * 88)) < 1e-9)
         const hits: number[] = []
         for (let i = 0; i < 3; i++) {
             const r = strike(s,
@@ -1362,7 +1376,7 @@ test("nội tại: đồng minh ra đòn là có cơ hội rút bài (tỉ lệ 
                 2],
             "đòn 1 và 2 rút mỗi đòn 1 lá, đòn 3 chạm trần 2 lá/lượt")
     })
-test("Q: (40 + 25% AD + 55% AP) + Choáng 1 lượt + đánh dấu 3 đòn của đồng minh, mỗi đòn thêm (10 + 10% AD + 20% AP) phép",
+test("Q: (76 + 25% AD + 55% AP) + Choáng 1 lượt + đánh dấu 3 đòn của đồng minh, mỗi đòn thêm (23 + 10% AD + 20% AP) phép",
     () => {
         let s = mkNami()
         const q = give(s,
@@ -1376,9 +1390,9 @@ test("Q: (40 + 25% AD + 55% AP) + Choáng 1 lượt + đánh dấu 3 đòn của
             "nami")
         const g = gm(s)
         const qRaw = g.f(nami,
-            "40 + 25% AD + 55% AP")
+            "76 + 25% AD + 55% AP")
         const markRaw = g.f(nami,
-            "10 + 10% AD + 20% AP")
+            "23 + 10% AD + 20% AP")
         const r = play(s,
             "A",
             q,
@@ -1413,7 +1427,7 @@ test("Q: (40 + 25% AD + 55% AP) + Choáng 1 lượt + đánh dấu 3 đòn của
             assert.equal(dmgTo(hit.ev,
                 "B:g3v_fighter",
                 "effect"),
-            Math.round(markRaw * 100 / 130),
+            Math.round(Math.round(markRaw) * 100 / 130),
             `đòn ${i + 1} có phần đánh dấu`)
         }
         assert.equal(gm(s).marksOn(u(s,
@@ -1423,7 +1437,7 @@ test("Q: (40 + 25% AD + 55% AP) + Choáng 1 lượt + đánh dấu 3 đòn của
         0,
         "hết 3 nấc")
     })
-test("E: Nami hồi (35 + 15% AD + 35% AP), rồi nảy 5 lần giữa các đồng minh, mỗi lần hồi (35 + 15% AD + 35% AP)",
+test("E: Nami hồi (58 + 15% AD + 35% AP), rồi nảy 5 lần giữa các đồng minh, mỗi lần hồi (58 + 15% AD + 35% AP)",
     () => {
         const s = mkNami()
         for (const h of ["nami",
@@ -1444,7 +1458,7 @@ test("E: Nami hồi (35 + 15% AD + 35% AP), rồi nảy 5 lần giữa các đ�
         const per = Math.round(gm(s).f(u(s,
             "A",
             "nami"),
-        "35 + 15% AD + 35% AP"))
+        "58 + 15% AD + 35% AP"))
         const r = play(s,
             "A",
             e)
@@ -1457,7 +1471,7 @@ test("E: Nami hồi (35 + 15% AD + 35% AP), rồi nảy 5 lần giữa các đ�
             `mỗi lần hồi ${per}: ${heals.map((h) => h.amount).join()}`)
         assert.ok(heals.every((h) => h.target.startsWith("A:")))
     })
-test("R: mọi đồng minh hồi (100 + 30% AD + 70% AP), mọi địch Choáng 1 lượt",
+test("R: mọi đồng minh hồi (146 + 30% AD + 70% AP), mọi địch Choáng 1 lượt",
     () => {
         const s = mkNami()
         for (const h of ["nami",
@@ -1478,7 +1492,7 @@ test("R: mọi đồng minh hồi (100 + 30% AD + 70% AP), mọi địch Choáng
         const per = Math.round(gm(s).f(u(s,
             "A",
             "nami"),
-        "100 + 30% AD + 70% AP"))
+        "146 + 30% AD + 70% AP"))
         const r = play(s,
             "A",
             rr)

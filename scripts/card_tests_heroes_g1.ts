@@ -205,7 +205,7 @@ test("đòn đánh trúng cắm 1 Chảy Máu cộng dồn; đầu lượt kẻ 
             a0,
             "đầu lượt của Darius thì không chảy máu")
     })
-test("Q gây (40 + 120% AD + 20% AP) vật lý, +2 Chảy Máu và hồi (6 + 8% AD + 2% AP) mỗi Chảy Máu trên nó",
+test("Q gây (30 + 100% AD + 20% AP) vật lý, +2 Chảy Máu và hồi (6 + 8% AD + 2% AP) mỗi Chảy Máu trên nó",
     () => {
         let s = mk({
             A: {
@@ -301,7 +301,7 @@ test("E: đối diện trống thì kéo 1 địch về và +1 Chảy Máu; đ�
         1,
         "đối diện có người: chỉ đánh người đó")
     })
-test("R xả Chảy Máu thành (16 + 25% AD + 5% AP) sát thương chuẩn mỗi dấu; hạ gục thì lá R về tay",
+test("R xả Chảy Máu thành (12 + 20% AD + 5% AP) sát thương chuẩn mỗi dấu; hạ gục thì lá R về tay",
     () => {
         let s = mk({
             A: {
@@ -403,7 +403,7 @@ test("kẻ đối diện tấn công thì +1 Tội, kẻ không đối diện th
         afterArmor(gm(t).atk(me)) + afterArmor(2 * gm(t).f(me,
             GAREN.F_PASSIVE)))
     })
-test("Q gây (30 + 100% AD + 15% AP) + (15% AD + 3% AP) mỗi Tội, giữ nguyên Tội và Garen hồi 30% sát thương gây ra",
+test("Q gây (20 + 90% AD + 15% AP) + (15% AD + 3% AP) mỗi Tội, giữ nguyên Tội và Garen hồi 30% sát thương gây ra",
     () => {
         let s = mk({
             A: {
@@ -483,7 +483,7 @@ test("E gây (20 + 100% AD + 20% AP) vật lý và +3 Tội (một nhát, không
         assert.equal(gm(s).turnAttacks("A").used,
             0)
     })
-test("R gây (100 + 80% AD + 20% AP) + 15 mỗi Tội sát thương chuẩn và Tội giữ nguyên",
+test("R gây (80 + 70% AD + 20% AP) + 15 mỗi Tội sát thương chuẩn và Tội giữ nguyên",
     () => {
         let s = mk({
             A: {
@@ -992,7 +992,7 @@ test("nội tại: đòn đánh chỉ gây 40% sát thương và vứt 1 lá tr�
             "g1_fighter").hp,
         afterArmor(gm(s).atk(me) * YORICK.ATTACK_MULT))
     })
-test("Q bỏ 1 lá trên tay vào mộ, rút 1 lá và Yorick hồi (25 + 20% AD + 5% AP)",
+test("Q bỏ 1 lá trên tay vào mộ, rút 1 lá và Yorick hồi (35 + 30% AD + 5% AP)",
     () => {
         let s = mk({
             A: {
@@ -1032,7 +1032,7 @@ test("Q bỏ 1 lá trên tay vào mộ, rút 1 lá và Yorick hồi (25 + 20% AD
             grave0 + 2)
         assert.equal(me().hp - 100,
             Math.round(gm(s).f(me(),
-                "25 + 20% AD + 5% AP")))
+                "35 + 30% AD + 5% AP")))
     })
 test("E vứt 3 lá trên cùng bộ bài vào mộ rồi chọn 1 lá trong 3 lá đó về tay",
     () => {
@@ -1139,11 +1139,11 @@ test("nội tại: đồ phe mình +(10% + 2%/100 AD + 2%/100 AP + 1% mỗi vòn
             "g1_fighter")
         assert.ok(g.equip(ally,
             "kiem_dai"))
-        const aura = (rounds: number) => (10 + 2 * g.atk(ornn) / 100 + 2 * g.ap(ornn) / 100 + rounds) / 100
+        const aura = (rounds: number) => (12 + 2 * g.atk(ornn) / 100 + 2 * g.ap(ornn) / 100 + rounds) / 100
         const withOrnn0 = g.stats(ally).atk
         assert.equal(g.ap(ornn),
-            78,
-            "AP gốc của Ornn = AD cũ")
+            0,
+            "AP gốc = 0 (luật chủ)")
         s.round += 3
         const withOrnn3 = g.stats(ally).atk
         // gỡ ra mặc lại: đếm lại từ đầu
@@ -1158,7 +1158,7 @@ test("nội tại: đồ phe mình +(10% + 2%/100 AD + 2%/100 AP + 1% mỗi vòn
         assert.ok(Math.abs(withOrnn3 - base * (1 + aura(3))) < 0.01,
             "mặc 3 vòng thì mạnh hơn")
     })
-test("Q gây (40 + 6% máu tối đa + 50% Giáp + 20% AP) sát thương phép và Giảm Giáp 20 đến hết lượt sau",
+test("Q gây (56 + 6% máu tối đa + 50% Giáp + 20% AP) sát thương phép và Giảm Giáp 20 đến hết lượt sau",
     () => {
         let s = mk({
             A: {

@@ -184,7 +184,7 @@ export function candidateActions(s: GameState, side: Side): Action[] {
     const groups = new Map<string, { a: Action; cost: number; size: number }>()
     const out: Action[] = []
     for (const a of legal) {
-        if (a.t === "end" || a.t === "pass" || a.t === "draw" || a.t === "ready" || a.t === "unequip") continue
+        if (a.t === "end" || a.t === "pass" || a.t === "draw" || a.t === "ready" || a.t === "unequip" || a.t === "discard") continue
         if (a.t !== "play" || !a.args) { out.push(a); continue }
         const x = a.args
         if (!x.discard?.length && !x.targets) { out.push(a); continue }

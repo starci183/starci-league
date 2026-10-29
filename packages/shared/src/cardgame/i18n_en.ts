@@ -115,7 +115,7 @@ export const SUPPORT_EN: Record<SupportId, { name: string; desc: string }> = {
         name: "Heal", desc: "1 allied champion heals {100} + 10% of its max HP."
     },
     spell_flash: {
-        name: "Flash", desc: "Move 1 allied champion to an open, empty lane."
+        name: "Flash", desc: "1 allied champion swaps lanes with another allied champion on the board (it cannot move into an empty or unopened lane)."
     },
     spell_ignite: {
         name: "Ignite", desc: "1 enemy champion is Ignited for 2 turns: at the start of each of its turns it loses 40 HP (true damage), plus Grievous Wounds (healing and Shields received -50%) for the same duration."
@@ -257,9 +257,9 @@ export const KEYWORDS_EN: Record<string, string> = {
 }
 
 export const RULES_EN: string[] = [
-    "Deck: 85 cards from the start: your 40 shared cards plus, for each of your 5 champions, 4 Q + 4 E + 1 R skill cards. Nothing is shuffled in when you summon. Opening hand: 5 cards, drawn before the first summon, so your hand decides who to summon.",
+    "Deck: 170 cards from the start: your 80 shared cards plus, for each of your 5 champions, 8 Q + 8 E + 2 R skill cards. Nothing is shuffled in when you summon. Opening hand: 5 cards, drawn before the first summon, so your hand decides who to summon.",
     "Summon phase (start of every round): both players pick their summons face-down at the same time, then they are revealed together. One new lane opens each round (lane 3, then 2, 4, 1, 5); each side summons at most 1 champion per phase.",
-    "Each turn you draw 2 cards (your first turn draws none). Hand limit is 10: extra cards are burned into the graveyard. If you must draw and your deck is empty, you lose immediately.",
+    "Each turn you draw 1 card (your first turn draws none); every turn you also get a free Basic Attack card and every 3rd turn a free item component. Hand limit is 10: extra cards are burned into the graveyard. If you must draw and your deck is empty, you lose immediately.",
     "Two ways to win: take down 7 enemy champions (each side has 7 lives), or make the opponent run out of cards.",
     "Attack limit: at most 3 attacks per player per turn, counting Strike cards, Fighter cardless attacks and free attacks. Attacks made inside skills do not count.",
     "Fighters may attack without a card once per turn (a Quick action, usable in the opponent's turn to respond to a chain) for 66% damage.",

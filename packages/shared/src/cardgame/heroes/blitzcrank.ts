@@ -1,4 +1,4 @@
-// Blitzcrank (Đỡ đòn, phép): máu 480 · AD 92 · AP gốc 90 · giáp/kháng 34/33.
+// Blitzcrank (Đỡ đòn, phép): máu 520 · AD 80 · AP gốc 0 · giáp/kháng 34/33.
 // CHẤT: "Thò tay vào bài địch": cướp chiêu của tướng nào thì tướng đó lãnh đòn.
 // Nội tại: mỗi lá cướp được Blitz nhận Khiên; lá chung Blitz giữ dùng, lá chiêu địch biến thành 1 lá Q/E ngẫu nhiên của tướng phe bạn đang sống trên sân.
 // Q cướp 1 lá ngẫu nhiên (chọn lá nếu tay địch đang lộ), lá chiêu thì chủ lá nhận sát thương. E (Quick) huỷ + giật chiêu địch, kẻ tung bị Choáng. R lộ tay địch, tướng có chiêu trên tay nhận sát thương + Choáng.
@@ -13,9 +13,9 @@ import {
     otherSide, type Card, type PlayArgs, type ReactFx, type SkillKey, type Unit
 } from "../types"
 
-export const F_SHIELD = "20 + 10% AD + 15% AP"
-export const F_Q = "60 + 60% AD + 60% AP"
-export const F_R = "80 + 50% AD + 80% AP"
+export const F_SHIELD = "33 + 10% AD + 15% AP"
+export const F_Q = "90 + 50% AD + 60% AP"
+export const F_R = "120 + 50% AD + 80% AP"
 
 /** ReactFx kèm id tướng tung chiêu bị giật: Choáng nó SAU khi lá bị giật (Choáng trước thì mắt xích bên dưới "tan" và lá không bị giật) */
 type BlitzFx = ReactFx & { blitzStun?: string }
@@ -35,11 +35,9 @@ function stun(g: Game, u: Unit | undefined) {
         })
 }
 
-/** AP gốc = AD cũ của Blitzcrank (V3: tướng phép có AP gốc bằng AD gốc cũ) */
-const BASE_AP = 90
 
 export default defineHero({
-    id: "blitzcrank", name: "Blitzcrank", role: "tank", damage: "magic", hp: 480, atk: 92, ap: BASE_AP, armor: 34, mr: 33,
+    id: "blitzcrank", name: "Blitzcrank", role: "tank", damage: "magic", hp: 520, atk: 80, armor: 34, mr: 33,
     desc: "Người máy cướp bài: thò tay vào bài địch, cướp chiêu của tướng nào thì tướng đó lãnh đòn, rồi biến chiêu cướp được thành chiêu của đội mình.",
     passive: {
         name: "Bàn Tay Sắt",

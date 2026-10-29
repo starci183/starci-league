@@ -65,7 +65,7 @@ for (const [id,
     })
 }
 const seen = {
-    marks: [] as string[], delayed: [] as string[], tokenStart: 0, tokenEnd: 0, transformEnd: [] as string[], unequipped: [] as string[], free: [] as string[]
+    marks: [] as string[], delayed: [] as string[], tokenStart: 0, tokenEnd: 0, transformEnd: [] as string[], unequipped: [] as string[], free: [] as string[], discards: [] as string[]
 }
 const skillWith = (key: "Q" | "E" | "R", target: cg.TargetKind, resolve: (c: cg.Ctx) => void): cg.SkillDef => ({
     key, name: "t", desc: "-", target, resolve
@@ -145,6 +145,9 @@ cg.defineHero({
 cg.defineHero({
     id: "v3_necro", name: "v3_necro", role: "fighter", ...base,
     skills: filler,
+    hooks: {
+        onDiscard: (_g, me, d) => { if (d.side === me.side) seen.discards.push(d.reason) },
+    },
 })
 cg.defineTokenBehavior({
     id: "v3_maiden",
@@ -374,7 +377,7 @@ test("Đòn đánh thường: mọi vai 1× AD, Sát thủ 1.25× AD",
             "attack"),
         100)
     })
-test("Quà tặng: lượt thứ 2, 4.. của mình +1 Đánh Thường; lượt thứ 3, 6.. +1 mảnh đồ; không lấy từ bộ bài",
+test("Quà tặng: từ lượt thứ 2, mỗi RULES.freeBasicEvery lượt +1 Đánh Thường; lượt thứ 3, 6.. +1 mảnh đồ; không lấy từ bộ bài",
     () => {
         let s = skipBlind({
             s: cg.newGame(SEED,
@@ -423,7 +426,7 @@ test("Quà tặng: lượt thứ 2, 4.. của mình +1 Đánh Thường; lượt
                 "freeCard").filter((e) => e.side === nxt)
             const kinds = got.map((e) => e.kind).sort().join()
             assert.equal(kinds,
-                [n % 2 === 0 ? "basic" : "",
+                [n > 1 && n % cg.RULES.freeBasicEvery === 0 ? "basic" : "",
                     n % 3 === 0 ? "item" : ""].filter(Boolean).sort().join(),
                 `lượt thứ ${n} của ${nxt}`)
             counts[nxt] = (counts[nxt] ?? 0) + got.length
@@ -546,30 +549,16 @@ test("Ô phụ: chỉ Xạ thủ và Đấu sĩ đánh được token; Đỡ đ�
         assert.ok(plays.some((a) => a.t === "play" && a.args?.actor === "A:v3_fighter"))
         assert.ok(!plays.some((a) => a.t === "play" && a.args?.actor === "A:v3_tank"))
     })
-test("AP gốc: g.ap = HeroDef.ap + AP đồ; tướng phép thiếu `ap` lấy V3_BASE_AP; tướng vật lý 0",
+test("AP gốc = 0 cho MỌI tướng (luật chủ 30/10): kể cả HeroDef khai báo ap; AP chỉ đến từ đồ",
     () => {
-        for (const [id,
-            ap] of Object.entries(cg.V3_BASE_AP)) {
-            const h = cg.getHero(id)
-            if (!h) continue
-            assert.ok((h.ap ?? 0) > 0,
-                `${id} có AP gốc (${ap})`)
-        }
-        const s = mk({
-            A: {
-                v3_fighter: 2
-            }, B: {
-                v3_tank: 2
-            }
-        })
-        const f = u(s,
-            "A",
-            "v3_fighter")
-        assert.equal(gm(s).ap(f),
-            0)
+        for (const h of cg.allHeroes()) assert.equal(h.ap ?? 0,
+            0,
+            `${h.id} không còn AP gốc`)
         const withAp = cg.defineHero({
             id: "v3_apmage", name: "v3_apmage", role: "mage", ...base, ap: 60, skills: filler
         })
+        assert.equal(withAp.ap ?? 0,
+            0)
         const s2 = cg.newGame(SEED,
             ["v3_apmage",
                 "v3_tank",
@@ -580,23 +569,18 @@ test("AP gốc: g.ap = HeroDef.ap + AP đồ; tướng phép thiếu `ap` lấy 
         gm(s2).summon("A",
             "v3_apmage",
             2)
-        assert.equal(withAp.ap,
-            60)
         const m = u(s2,
             "A",
             "v3_apmage")
         assert.equal(gm(s2).ap(m),
-            60)
+            0)
         gm(s2).equip(m,
             "gay_qua_kho")
-        assert.ok(gm(s2).ap(m) > 60,
-            "AP đồ cộng thêm AP gốc")
+        assert.ok(gm(s2).ap(m) > 0,
+            "AP chỉ từ đồ")
         assert.equal(gm(s2).f(m,
             "100% AP"),
         gm(s2).ap(m))
-        const lux = cg.getHero("lux")
-        if (lux) assert.equal(lux.ap,
-            lux.ap ?? cg.V3_BASE_AP.lux)
     })
 test("Tàng Hình: không bị chọn (đánh thường, chiêu 1 mục tiêu, chiêu đối diện) nhưng vẫn nhận sát thương diện rộng; chiêu đã nhắm mà mục tiêu tàng hình giữa Chuỗi thì trượt",
     () => {
@@ -1560,6 +1544,255 @@ test("g.rollLog: ghi nhật ký tỉ lệ (vd Braum R: X bị/không bị Choán
             (h, p) => `thử ${h ? "trúng" : "trượt"} (tỉ lệ ${p})`)
         assert.ok(hit)
         assert.ok(g.events.some((e) => e.t === "log" && e.text === "thử trúng (tỉ lệ 100%)"))
+    })
+
+// ======================================================================
+// Bỏ bài xuống mộ (discard)
+// ======================================================================
+G("Bỏ bài xuống mộ")
+{
+    const withHand = (o: Setup = {
+    }): St => {
+        const s = mk(o)
+        s.actionsThisTurn = 0
+        give(s,
+            "A",
+            sup(s,
+                "gold"),
+            sup(s,
+                "basic"))
+        give(s,
+            "B",
+            sup(s,
+                "gold"))
+        return s
+    }
+    const discardOf = (s: St, uid: string): Act => ({
+        t: "discard", side: "A", uid
+    })
+    test("bỏ 1 lá: rời tay, vào mộ, phát event discard manual, không tốn lượt hành động",
+        () => {
+            const s = withHand()
+            const card = s.players.A.hand[0]
+            const hand0 = s.players.A.hand.length
+            const grave0 = s.players.A.grave.length
+            assert.ok(cg.legalActions(s,
+                "A").some((a) => a.t === "discard" && a.uid === card.uid))
+            const r = cg.applyAction(s,
+                discardOf(s,
+                    card.uid))
+            assert.equal(r.state.players.A.hand.length,
+                hand0 - 1)
+            assert.equal(r.state.players.A.grave.length,
+                grave0 + 1)
+            assert.ok(r.state.players.A.grave.some((c) => c.uid === card.uid))
+            assert.ok(r.events.some((e) => e.t === "discard" && e.reason === "manual" && e.card.uid === card.uid))
+            assert.equal(r.state.actionsThisTurn,
+                0)
+            assert.equal(r.state.active,
+                "A")
+        })
+    test("không bỏ được ở lượt đối thủ hoặc trong chuỗi",
+        () => {
+            const s = withHand()
+            const card = s.players.A.hand[0]
+            assert.deepEqual(cg.legalActions(s,
+                "B").filter((a) => a.t === "discard"),
+            [])
+            assert.throws(() => cg.applyAction(s,
+                {
+                    t: "discard", side: "B", uid: s.players.B.hand[0].uid
+                }))
+            const c = JSON.parse(JSON.stringify(s)) as St
+            c.phase = "chain"
+            c.chain = {
+                links: [], priority: "B", passes: 0
+            } as unknown as typeof c.chain
+            assert.deepEqual(cg.legalActions(c,
+                "A").filter((a) => a.t === "discard"),
+            [])
+            assert.throws(() => cg.applyAction(c,
+                discardOf(c,
+                    card.uid)))
+        })
+    test("hook onDiscard chạy và độ lớn mộ tăng (cho các tướng đếm mộ như Yorick)",
+        () => {
+            const s = withHand({
+                A: {
+                    v3_necro: 0
+                }
+            })
+            const before = seen.discards.length
+            const card = s.players.A.hand[0]
+            const r = cg.applyAction(s,
+                discardOf(s,
+                    card.uid))
+            assert.equal(seen.discards.length,
+                before + 1)
+            assert.equal(seen.discards[seen.discards.length - 1],
+                "manual")
+            assert.equal(r.state.players.A.grave.length,
+                s.players.A.grave.length + 1)
+        })
+    test("lá bị Hoá Băng vẫn bỏ được; lá tạm thì không",
+        () => {
+            const s = withHand()
+            const card = s.players.A.hand[0]
+            gm(s).freezeCard("A",
+                card,
+                "B:lissandra")
+            const r = cg.applyAction(s,
+                discardOf(s,
+                    card.uid))
+            const got = r.state.players.A.grave.find((c) => c.uid === card.uid)
+            assert.ok(got)
+            assert.equal(got.frozen,
+                undefined)
+            const t = withHand()
+            const tmp = t.players.A.hand[0]
+            tmp.temp = true
+            assert.ok(!cg.legalActions(t,
+                "A").some((a) => a.t === "discard" && a.uid === tmp.uid))
+            assert.throws(() => cg.applyAction(t,
+                discardOf(t,
+                    tmp.uid)))
+        })
+}
+
+G("Pháp sư nhận chiêu tạm (luật chủ 30/10)")
+cg.defineHero({
+    id: "v3_mage2", name: "v3_mage2", role: "mage", ...base,
+    skills: {
+        Q: {
+            ...noSkill("Q"), name: "Q-tam", mana: 30, canPlay: () => true
+        },
+        E: {
+            ...noSkill("E"), name: "E-tam", mana: 30, canPlay: () => true
+        },
+        R: noSkill("R")
+    },
+})
+// Quay về đầu lượt của A: A kết thúc lượt, B kết thúc lượt
+const toNextTurnOfA = (s: St): St => {
+    const r1 = end(s,
+        "A")
+    return end(r1.s,
+        "B").s
+}
+const tempsOf = (s: St, side: S) => s.players[side].hand.filter((c) => c.temp)
+
+test("Đầu lượt, mỗi Pháp sư trên sân nhận 1 lá tạm Q hoặc E của chính nó (ngẫu nhiên, cả hai khả năng đều xảy ra); tướng không phải Pháp sư thì không",
+    () => {
+        const got = new Set<string>()
+        for (let seed = 1; seed <= 40; seed++) {
+            const s = toNextTurnOfA(mk({
+                seed, A: {
+                    v3_mage2: 0, v3_fighter: 2
+                }
+            }))
+            const t = tempsOf(s,
+                "A")
+            assert.equal(t.length,
+                1,
+                "đúng 1 lá tạm")
+            assert.ok(t[0].kind === "skill" && t[0].hero === "v3_mage2")
+            assert.ok(t[0].id === "v3_mage2_q" || t[0].id === "v3_mage2_e")
+            got.add(t[0].id)
+        }
+        assert.equal(got.size,
+            2,
+            "cả Q lẫn E đều từng xuất hiện")
+        const s2 = toNextTurnOfA(mk({
+            A: {
+                v3_fighter: 0
+            }
+        }))
+        assert.equal(tempsOf(s2,
+            "A").length,
+        0)
+    })
+
+test("Lá tạm tốn mana như lá thật và đánh được; đánh xong biến mất, không vào mộ",
+    () => {
+        const s = toNextTurnOfA(mk({
+            A: {
+                v3_mage2: 0
+            }
+        }))
+        const card = tempsOf(s,
+            "A")[0]
+        const mage = u(s,
+            "A",
+            "v3_mage2")
+        const before = mage.mana!
+        const graveBefore = s.players.A.grave.length
+        const r = play(s,
+            "A",
+            card)
+        assert.equal(before - r.s.units["A:v3_mage2"].mana!,
+            30)
+        assert.equal(r.s.players.A.grave.length,
+            graveBefore,
+            "lá tạm không vào mộ")
+        assert.equal(tempsOf(r.s,
+            "A").length,
+        0)
+    })
+
+test("Lá tạm chưa dùng: biến mất cuối lượt (tempExpired), không vào mộ; lượt sau lại nhận lá mới",
+    () => {
+        const s = mk({
+            A: {
+                v3_mage2: 0
+            }
+        })
+        const s1 = toNextTurnOfA(s)
+        const graveBefore = s1.players.A.grave.length
+        const r = end(s1,
+            "A")
+        assert.equal(evs(r.ev,
+            "tempExpired").length,
+        1)
+        assert.equal(tempsOf(r.s,
+            "A").length,
+        0)
+        assert.equal(r.s.players.A.grave.length,
+            graveBefore)
+        const s2 = end(r.s,
+            "B").s
+        assert.equal(tempsOf(s2,
+            "A").length,
+        1)
+    })
+
+test("Lá tạm không tính vào giới hạn tay: tay 10 lá vẫn nhận lá tạm, không đốt lá nào; không cho Bỏ vào mộ",
+    () => {
+        const s3 = end(mk({
+            A: {
+                v3_mage2: 0
+            }
+        }),
+        "A").s
+        // đổ tay A cho đủ 10 lá thường, rồi B kết thúc lượt: A rút bài + nhận lá tạm
+        while (s3.players.A.hand.length < 10) s3.players.A.hand.push(gm(s3).supportCard("basic"))
+        const rB = end(s3,
+            "B")
+        const s4 = rB.s
+        assert.equal(s4.players.A.hand.filter((c) => !c.temp).length,
+            10,
+            "10 lá thường giữ nguyên")
+        assert.equal(tempsOf(s4,
+            "A").length,
+        1,
+        "vẫn nhận lá tạm")
+        assert.ok(!evs(rB.ev,
+            "cardBurned").some((e) => e.side === "A" && e.card.temp),
+        "lá tạm không bị đốt")
+        const tmp = tempsOf(s4,
+            "A")[0]
+        assert.ok(!legal(s4,
+            "A").some((a) => a.t === "discard" && a.uid === tmp.uid),
+        "không được Bỏ vào mộ lá tạm")
     })
 
 // ======================================================================

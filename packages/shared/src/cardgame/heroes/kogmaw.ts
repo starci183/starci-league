@@ -1,4 +1,4 @@
-// Kog'Maw (Xạ thủ, phép): máu 340 · AD 116 · AP gốc 84 · giáp/kháng 25/27. Chất: ĐÓI, trận càng dài, sống càng dai càng mạnh.
+// Kog'Maw (Xạ thủ, phép): máu 340 · AD 116 · AP gốc 0 · giáp/kháng 25/27. Chất: ĐÓI, trận càng dài, sống càng dai càng mạnh.
 // Đói = bộ đếm (stack "hunger", tối đa 20): +1 mỗi lượt Kog còn sống, +1 mỗi khi có tướng chết (bất kỳ phe); Kog chết thì mất nửa.
 // Đòn đánh của Kog gây thêm % máu tối đa của mục tiêu theo Đói + một phần AD/AP (sát thương phép).
 // AP gốc = AD cũ của tướng phép (đề xuất V3, đã vào engine: HeroDef.ap).
@@ -12,20 +12,18 @@ import {
 const HUNGER = "hunger"
 const GORGE = "kog_e"
 export const MAX_HUNGER = 20
-/** AP gốc = AD cũ (84) */
-const BASE_AP = 84
 /** % máu tối đa của mục tiêu mỗi Đói cho đòn đánh (E nhân đôi phần này) */
 const ATTACK_PCT = 0.008
 /** Phần cộng thêm cố định mỗi đòn đánh */
-const F_ATTACK = "10% AD + 15% AP"
-const F_Q = "40 + 80% AD + 40% AP"
+const F_ATTACK = "13 + 10% AD + 15% AP"
+const F_Q = "74 + 80% AD + 40% AP"
 const Q_HUNGER = 3
 /** % máu tối đa mỗi Đói cho R */
 const R_PCT = 0.015
-const F_R = "30% AD + 50% AP"
+const F_R = "42 + 30% AD + 50% AP"
 
 export default defineHero({
-    id: "kogmaw", name: "Kog'Maw", role: "marksman", damage: "magic", hp: 340, atk: 116, ap: BASE_AP, armor: 25, mr: 27,
+    id: "kogmaw", name: "Kog'Maw", role: "marksman", damage: "magic", hp: 340, atk: 116, armor: 25, mr: 27,
     bot: {
         stackValue: {
             hunger: 10,

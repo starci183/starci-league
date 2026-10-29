@@ -1,4 +1,4 @@
-// Nami (Trợ thủ, phép): máu 350 · AD 88 · AP gốc 66 · giáp/kháng 25/29.
+// Nami (Trợ thủ, phép): máu 350 · AD 88 · AP gốc 0 · giáp/kháng 25/29.
 // CHẤT: "Thuỷ triều nuôi bài". Mỗi lần một đồng minh gây sát thương hoặc hồi máu là một cơ hội rút bài; Nami tự tạo thật nhiều lần như vậy.
 // Nội tại: tỉ lệ rút theo chỉ số CỦA đồng minh ra đòn/hồi (g.chance), tối đa 2 lá/lượt. Q Choáng + đánh dấu 3 đòn (g.addMark), E hồi nảy 5 lần (g.bounceAllies), R hồi cả đội + Choáng mọi địch.
 // Đếm lần ra đòn/hồi: hook onDamage (mọi lần đồng minh gây sát thương lên địch) và onHeal (mọi lần đồng minh hồi máu, kể cả hút máu và đồ).
@@ -21,12 +21,12 @@ const MARK = "nami_q"
 const MARK_HITS = 3
 /** Dấu Q còn hiệu lực trong lượt này và lượt kế của chủ */
 const MARK_TURNS = 2
-const F_Q = "40 + 25% AD + 55% AP"
-const F_MARK = "10 + 10% AD + 20% AP"
-const F_HEAL = "35 + 15% AD + 35% AP"
+const F_Q = "76 + 25% AD + 55% AP"
+const F_MARK = "23 + 10% AD + 20% AP"
+const F_HEAL = "58 + 15% AD + 35% AP"
 /** Số lần nảy thêm của E (sau lần hồi đầu cho Nami) */
 const E_BOUNCES = 5
-const F_R = "100 + 30% AD + 70% AP"
+const F_R = "146 + 30% AD + 70% AP"
 /** Tỉ lệ rút: 5% + 0.05% mỗi điểm AD và mỗi điểm AP của đồng minh đó (g.chance nhận phân số mỗi 100 điểm) */
 const P_BASE = 0.05
 const P_PER_100 = 0.05
@@ -54,7 +54,7 @@ function tide(g: Game, me: Unit, ally: Unit | undefined) {
 }
 
 export default defineHero({
-    id: "nami", name: "Nami", role: "support", damage: "magic", hp: 350, atk: 88, ap: 66, armor: 25, mr: 29,
+    id: "nami", name: "Nami", role: "support", damage: "magic", hp: 350, atk: 88, armor: 25, mr: 29,
     desc: "Thuỷ triều nuôi bài: cả đội ra đòn, cả đội được hồi là Nami có cơ hội rút bài; Q và R khống chế, E và R hồi máu.",
     passive: {
         name: "Triều Bài",

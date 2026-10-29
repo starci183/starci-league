@@ -20,11 +20,11 @@ const EDGE = "ashe_e"
 export const MAX_FROST = 10
 /** Mỗi Buốt: sát thương tướng mang gây ra −2.5% (tối đa 25% ở 10 tầng) */
 export const FROST_CUT = 0.025
-const F_Q = "40 + 80% AD + 20% AP"
+const F_Q = "55 + 95% AD + 20% AP"
 const Q_FROST = 3
 const F_E_BONUS = "30 + 40% AD + 10% AP"
 const E_FROST = 2
-const F_R = "100 + 80% AD + 30% AP"
+const F_R = "120 + 90% AD + 30% AP"
 const R_FROST = 5
 
 /** Cộng n Buốt (tối đa 10, không tự hết) */

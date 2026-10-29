@@ -17,6 +17,8 @@ import {
     KEYWORDS
 } from "../packages/shared/src/cardgame/keywords"
 
+/** Bộ đầy đủ của một bên: bộ gốc + lá chiêu của 5 tướng (đọc từ RULES, không ghi cứng) */
+const FULL_DECK = cg.RULES.sharedDeckSize + 5 * (cg.RULES.skillCopies.Q + cg.RULES.skillCopies.E + cg.RULES.skillCopies.R)
 type St = ReturnType<typeof cg.newGame>;
 type Act = Parameters<typeof cg.applyAction>[1];
 type Ev = ReturnType<typeof cg.applyAction>["events"];
@@ -282,7 +284,7 @@ test("Vòng 1: chỉ gọi được tướng vào đường 3 (mọi lựa chọ
         assert.ok(sm.every((a) => a.lane === 2),
             "có summon ngoài đường 3")
     })
-test("V2: tay đầu RULES.startHand (5) có ngay ở đầu ván, trước khi gọi tướng; gọi xong không rút thêm; bộ 85 lá không xáo thêm khi gọi",
+test("V2: tay đầu RULES.startHand (5) có ngay ở đầu ván, trước khi gọi tướng; gọi xong không rút thêm; bộ 170 lá không xáo thêm khi gọi",
     () => {
         const s = cg.newGame(SEED,
             TEAM,
@@ -302,11 +304,11 @@ test("V2: tay đầu RULES.startHand (5) có ngay ở đầu ván, trước khi 
             total0,
             "gọi tướng không thêm lá")
         assert.equal(total0,
-            85)
+            FULL_DECK)
         assert.ok(s.prizeCards.A.every((c) => c.kind === "support"),
             "lá thưởng không có thẻ chiêu chung")
     })
-test("Tay đầu ngẫu nhiên theo seed và có thể chứa lá chiêu của mọi tướng trong đội (bộ 85 lá có đủ từ đầu)",
+test("Tay đầu ngẫu nhiên theo seed và có thể chứa lá chiêu của mọi tướng trong đội (bộ 170 lá có đủ từ đầu)",
     () => {
         const hands = new Set<string>()
         let withSkill = 0
@@ -381,10 +383,10 @@ test("Tay tối đa RULES.handMax (10): rút thừa thì lá thừa vào mộ b�
 // ======================================================================
 G("Rút bài đầu lượt")
 // ======================================================================
-test("Rút đúng RULES.drawPerTurn (2) lá mỗi lượt",
+test("Rút đúng RULES.drawPerTurn (1) lá mỗi lượt",
     () => {
         assert.equal(cg.RULES.drawPerTurn,
-            2)
+            1)
         let s = mk({
             A: {
                 darius: 2
@@ -450,7 +452,7 @@ test("V2: gọi Trợ thủ ra sân: chủ lấy 1 Q + 1 E của nó từ bộ l
 // ======================================================================
 G("Lá chiêu, thẻ hỗ trợ, bộ bài tướng")
 // ======================================================================
-test("V2: bộ bài 85 lá ngay từ đầu: mỗi tướng đúng 4Q 4E 1R, không thẻ hỗ trợ riêng của tướng",
+test("V2: bộ bài 170 lá ngay từ đầu: mỗi tướng đúng 8Q 8E 2R, không thẻ hỗ trợ riêng của tướng",
     () => {
         const s = cg.newGame(SEED,
             TEAM,
@@ -458,7 +460,7 @@ test("V2: bộ bài 85 lá ngay từ đầu: mỗi tướng đúng 4Q 4E 1R, kh�
         const pool = [...s.players.A.deck,
             ...s.players.A.hand]
         assert.equal(pool.length,
-            85)
+            FULL_DECK)
         for (const h of TEAM) {
             const n = (k: string) => pool.filter((c) => c.kind === "skill" && c.id === `${h}_${k}`).length
             assert.deepEqual(["q",
@@ -469,7 +471,7 @@ test("V2: bộ bài 85 lá ngay từ đầu: mỗi tướng đúng 4Q 4E 1R, kh�
                 cg.RULES.skillCopies.R])
         }
         assert.equal(pool.filter((c) => c.kind !== "skill").length,
-            40)
+            cg.RULES.sharedDeckSize)
     })
 test("Lá chiêu dùng xong vào mộ (Darius Q), không quay lại bộ hay tay",
     () => {
@@ -2626,18 +2628,18 @@ test("Mọi hành động trong legalActions đều áp được (không throw) 
 // Tướng của nhóm lead (remake): Nami, Viktor, Teemo, Twisted Fate, Renata, Brand
 // ======================================================================
 G("Tướng: Viktor (remake)")
-test("V2: Viktor có đúng 4Q 4E 1R trong bộ (số lá cố định mọi tướng), không còn thẻ hỗ trợ riêng",
+test("V2: Viktor có đúng 8Q 8E 2R trong bộ (số lá cố định mọi tướng), không còn thẻ hỗ trợ riêng",
     () => {
         needHero("viktor")
         const cards = gm(mk()).heroCards("viktor",
             "A")
         const n = (id: string) => cards.filter((c) => c.id === id).length
         assert.equal(n("viktor_q"),
-            4)
+            cg.RULES.skillCopies.Q)
         assert.equal(n("viktor_e"),
-            4)
+            cg.RULES.skillCopies.E)
         assert.equal(n("viktor_r"),
-            1)
+            cg.RULES.skillCopies.R)
         assert.equal(n("basic"),
             0)
     })
@@ -2927,7 +2929,7 @@ test("Token úp mặt: lật khi rời sân (tokenFlip lộ secret); token tự 
         assert.ok(evs(r.ev,
             "tokenEnd").some((e) => e.reason === "expired"))
     })
-test("V2: số lá chiêu mỗi tướng cố định 4Q 4E 1R; skillCopies khai báo trên tướng bị bỏ qua",
+test("V2: số lá chiêu mỗi tướng cố định 8Q 8E 2R; skillCopies khai báo trên tướng bị bỏ qua",
     () => {
         const g = gm(mk())
         for (const h of TEAM) {
@@ -2937,13 +2939,13 @@ test("V2: số lá chiêu mỗi tướng cố định 4Q 4E 1R; skillCopies khai
             assert.deepEqual(["q",
                 "e",
                 "r"].map(n),
-            [4,
-                4,
-                1],
+            [cg.RULES.skillCopies.Q,
+                cg.RULES.skillCopies.E,
+                cg.RULES.skillCopies.R],
             h)
         }
     })
-test("V2: bộ gốc tự xếp: newGameEx dùng đúng 40 lá chung (mảnh Đồ chỉ định) + 45 lá chiêu; bộ sai thì dùng DEFAULT_DECK",
+test("V2: bộ gốc tự xếp: newGameEx dùng đúng 80 lá chung (mảnh Đồ chỉ định) + 90 lá chiêu; bộ sai thì dùng DEFAULT_DECK",
     () => {
         const deck: cg.DeckCardId[] = [...Array<cg.DeckCardId>(14).fill("basic"),
             ...Array<cg.DeckCardId>(8).fill("gold"),
@@ -2964,9 +2966,20 @@ test("V2: bộ gốc tự xếp: newGameEx dùng đúng 40 lá chung (mảnh Đ�
             "spell:flash",
             "spell:ignite",
             "spell:ignite",
-            "spell:ignite"]
+            "spell:ignite",
+            // nửa sau (bộ 80 lá): đầy tối đa mỗi lá đã dùng
+            ...Array<cg.DeckCardId>(6).fill("basic"),
+            ...Array<cg.DeckCardId>(8).fill("gold"),
+            ...Array<cg.DeckCardId>(4).fill("item:kiem_dai"),
+            ...Array<cg.DeckCardId>(4).fill("item:cung_go"),
+            ...Array<cg.DeckCardId>(5).fill("item:gang_tay"),
+            ...Array<cg.DeckCardId>(3).fill("draw"),
+            ...Array<cg.DeckCardId>(3).fill("spell:heal"),
+            ...Array<cg.DeckCardId>(3).fill("spell:flash"),
+            ...Array<cg.DeckCardId>(3).fill("spell:ignite"),
+            "spell:smite"]
         assert.equal(deck.length,
-            40)
+            cg.DECK_SIZE)
         assert.equal(cg.validateDeck(deck),
             null,
             String(cg.validateDeck(deck)))
@@ -2979,18 +2992,18 @@ test("V2: bộ gốc tự xếp: newGameEx dùng đúng 40 lá chung (mảnh Đ�
         const shared = (side: "A" | "B") => [...s.players[side].deck,
             ...s.players[side].hand].filter((c) => c.kind === "support")
         assert.equal(shared("A").length,
-            40)
+            cg.DECK_SIZE)
         assert.deepEqual([...new Set(shared("A").filter((c) => c.id === "item").map((c) => c.item))].sort(),
             ["cung_go",
                 "gang_tay",
                 "kiem_dai"])
         assert.equal(shared("A").filter((c) => c.id === "basic").length,
-            14)
+            20)
         assert.equal(shared("B").length,
             cg.DEFAULT_DECK.length,
             "bộ sai -> DEFAULT_DECK")
         assert.equal(shared("A").filter((c) => c.id === "spell_smite").length,
-            1)
+            2)
     })
 G("Phép bổ trợ (thẻ hỗ trợ)")
 const spellCard = (s: St, id: string) => gm(s).supportCard(`spell_${id}`)
@@ -3122,7 +3135,7 @@ test("Thiêu Đốt: mất SPELL_NUM.ignite.perTurn máu đầu lượt của m�
         assert.ok(evs(r.ev,
             "damage").some((d) => d.target === "B:t_spark" && d.amount === cg.SPELL_NUM.ignite.perTurn && d.tag === "dot"))
     })
-test("Trừng Phạt chỉ nhắm vật triệu hồi ở ô phụ địch (SPELL_NUM.smite.token sát thương chuẩn); Tốc Biến dời sang đường trống; Dịch Chuyển đưa tướng đang chết về sân 50% máu",
+test("Trừng Phạt chỉ nhắm vật triệu hồi ở ô phụ địch (SPELL_NUM.smite.token sát thương chuẩn); Tốc Biến chỉ đổi đường với đồng minh (không vào đường trống); Dịch Chuyển đưa tướng đang chết về sân 50% máu",
     () => {
         const s = mk({
             A: {
@@ -3160,24 +3173,46 @@ test("Trừng Phạt chỉ nhắm vật triệu hồi ở ô phụ địch (SPEL
             })
         assert.ok(!r.s.units[tok.id],
             "token bị phá")
+        const guardLane = u(r.s,
+            "A",
+            "t_guard").lane
+        const sparkLane = u(r.s,
+            "A",
+            "t_spark").lane
+        const flashOpts = legalPlays(r.s,
+            "A",
+            "spell_flash")
+        assert.ok(flashOpts.length > 0 && flashOpts.every((a) => a.args?.lane === guardLane || a.args?.lane === sparkLane),
+            "Tốc Biến chỉ nhắm đường của đồng minh, không đường trống")
         r = play(r.s,
             "A",
             fl,
             {
-                target: "A:t_spark", lane: 3
+                target: "A:t_spark", lane: guardLane
             })
         assert.equal(u(r.s,
             "A",
             "t_spark").lane,
-        3)
+        guardLane)
+        assert.equal(u(r.s,
+            "A",
+            "t_guard").lane,
+        sparkLane,
+        "đổi chỗ với đồng minh")
         gm(r.s).kill(u(r.s,
             "A",
             "t_spark"))
+        const tpLane = legalPlays(r.s,
+            "A",
+            "spell_teleport")[0]?.args?.lane
+        assert.equal(tpLane,
+            guardLane,
+            "chết giữ đường mới sau Tốc Biến")
         r = play(r.s,
             "A",
             tp,
             {
-                target: "A:t_spark", lane: 3
+                target: "A:t_spark", lane: tpLane
             })
         const back = u(r.s,
             "A",
@@ -3185,7 +3220,7 @@ test("Trừng Phạt chỉ nhắm vật triệu hồi ở ô phụ địch (SPEL
         assert.equal(back.status,
             "board")
         assert.equal(back.lane,
-            3)
+            guardLane)
         assert.equal(back.hp,
             Math.round(back.maxHp / 2))
     })

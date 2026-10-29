@@ -16,9 +16,9 @@ import {
 /** Cờ nhịp hai của R đang chờ (stack, 1 = còn, 0 = đã huỷ/đã nổ) */
 export const RAIN = "mf_rain"
 export const F_PASSIVE = "20 + 50% AD + 10% AP"
-export const F_Q = "40 + 90% AD + 20% AP"
+export const F_Q = "30 + 80% AD + 20% AP"
 export const F_E = "20 + 30% AD + 20% AP"
-export const F_R = "40 + 60% AD + 20% AP"
+export const F_R = "35 + 50% AD + 20% AP"
 /** Q: nảy sang địch khác nhận ×1.5 (×2 nếu phát đầu hạ gục) */
 export const BOUNCE = 1.5
 export const BOUNCE_KILL = 2

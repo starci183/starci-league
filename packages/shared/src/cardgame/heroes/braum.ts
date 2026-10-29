@@ -1,4 +1,4 @@
-// Braum (Đỡ đòn, phép): máu 470 · AD 86 · AP gốc 66 · giáp/kháng 35/34.
+// Braum (Đỡ đòn, phép): máu 510 · AD 80 · AP gốc 0 · giáp/kháng 35/34.
 // CHẤT: "Đứng sau tôi": Braum mở giao tranh cho đồng đội và hứng đòn thay họ, càng hứng càng cứng (Song Giáp).
 // Nội tại: mỗi đòn đánh trúng Braum +1 Song Giáp (vĩnh viễn, không giới hạn); mỗi Song Giáp +1.5 Giáp và +1.5 Kháng Phép.
 // Q: Đấm Băng gây sát thương + Dấu Băng; đồng minh đánh trúng lần đầu thì Choáng + Braum +2 Song Giáp. E (Quick): Đỡ Thay + 2 Song Giáp + Khiên. R (Quick): Choáng 1 địch, may thì Choáng thêm.
@@ -19,8 +19,8 @@ const MARK = "braum_mark"
 export const DUAL_ARMOR = 1.5
 const Q_GAIN = 2
 const E_GAIN = 2
-export const F_Q = "40 + 40% AD + 40% AP"
-export const F_E_SHIELD = "40 + 30% AD + 30% AP"
+export const F_Q = "66 + 40% AD + 40% AP"
+export const F_E_SHIELD = "60 + 30% AD + 30% AP"
 /** R: xác suất Choáng thêm mỗi địch còn lại = 5% + 1% mỗi 100 máu tối đa + 1% mỗi 10 Giáp của Braum */
 export const R_BASE = 0.05
 export const R_PER_100_HP = 0.01
@@ -38,11 +38,9 @@ function stun(g: Game, u: Unit) {
         })
 }
 
-/** AP gốc = AD cũ của Braum (V3: tướng phép có AP gốc bằng AD gốc cũ) */
-const BASE_AP = 66
 
 export default defineHero({
-    id: "braum", name: "Braum", role: "tank", damage: "magic", hp: 470, atk: 86, ap: BASE_AP, armor: 35, mr: 34,
+    id: "braum", name: "Braum", role: "tank", damage: "magic", hp: 510, atk: 80, armor: 35, mr: 34,
     bot: {
         stackValue: {
             braum_dual: 25,

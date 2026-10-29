@@ -1,4 +1,4 @@
-// Ahri (Pháp sư, phép) V3: "Mê hồn": pháp sư cân bằng sát thương và hiệu ứng; Say Mê tích vĩnh viễn, địch càng mê càng yếu và càng ăn đau. Máu 340 · AD 98 · giáp/kháng 25/28 · AP gốc 76.
+// Ahri (Pháp sư, phép) V3: "Mê hồn": pháp sư cân bằng sát thương và hiệu ứng; Say Mê tích vĩnh viễn, địch càng mê càng yếu và càng ăn đau. Máu 340 · AD 98 · giáp/kháng 25/28 · AP gốc 0.
 // Say Mê = status "ahri_charm" (v = số tầng, vĩnh viễn FOREVER, trần CHARM_MAX). Mỗi tầng: địch đó gây ít hơn 7.5% sát thương và nhận thêm 5% sát thương từ Ahri (HeroDef.modifyDamage).
 // Nội tại: mỗi lần chiêu của Ahri trúng địch có (10% + 5% mỗi 100 AD + 10% mỗi 100 AP) cơ hội +1 Say Mê (hook onDamage).
 // Q (10 mana) 2 mục tiêu · E (25) sát thương + chắc chắn +1 Say Mê · R (50) đổi chỗ với đồng minh rồi đánh kẻ trước mặt.
@@ -26,16 +26,14 @@ export const CHARM_MAX = 3
 export const CHARM_WEAKEN = 0.075
 /** Mỗi tầng: địch đó nhận thêm bấy nhiêu sát thương từ Ahri */
 export const CHARM_AMP = 0.05
-/** AP gốc (V3: bằng AD gốc cũ) */
-export const BASE_AP = 76
 /** Cơ hội nội tại: 10% + 5% mỗi 100 AD + 10% mỗi 100 AP */
-export const PROC_BASE = 0.1
+export const PROC_BASE = 0.18
 export const PROC_PER_100_AD = 0.05
 export const PROC_PER_100_AP = 0.1
-const F_Q = "40 + 20% AD + 70% AP"
-const F_Q_TRUE = "20 + 10% AD + 30% AP"
-const F_E = "30 + 20% AD + 50% AP"
-const F_R = "80 + 30% AD + 90% AP"
+const F_Q = "115 + 20% AD + 70% AP"
+const F_Q_TRUE = "44 + 10% AD + 30% AP"
+const F_E = "70 + 20% AD + 50% AP"
+const F_R = "152 + 30% AD + 90% AP"
 
 /** Cơ hội +1 Say Mê mỗi lần chiêu trúng (g.chance: base + ad theo 100 AD + ap theo 100 AP) */
 export const charmChance = (g: Game, me: Unit) => g.chance(me,
@@ -54,7 +52,7 @@ export const charm = (g: Game, t: Unit, n: number) => {
 }
 
 export default defineHero({
-    id: "ahri", name: "Ahri", role: "mage", damage: "magic", hp: 340, atk: 98, armor: 25, mr: 28, ap: BASE_AP,
+    id: "ahri", name: "Ahri", role: "mage", damage: "magic", hp: 340, atk: 98, armor: 25, mr: 28,
     bot: {
         markValue: {
             ahri_charm: 25,

@@ -19,14 +19,8 @@ import {
     cardName, getLang, heroArt, isHidden, unitName, type Lang
 } from "./text"
 import {
-    AutoPassBar
-} from "./AutoPassBar"
-import {
     RichText
 } from "../RichText"
-import {
-    useCardlessAutoPass
-} from "./autoPass"
 import "./stage.css"
 
 type Action = cg.Action
@@ -62,7 +56,7 @@ function AttackFace({ l, v }: { l: LinkView; v: CardView }) {
     return (
         <div className="cs-atk">
             {art && !bad ? <img src={`/${art}`} alt="" draggable={false} onError={() => setBad(true)} /> : <b>⚔</b>}
-            <span className="cs-atk-name">{l.mode === "cardless" ? `${getLang() === "en" ? "Quick attack" : "Đánh nhanh"} ${Math.round((v.rules.fighterCardlessMult ?? .66) * 100)}%` : t.attack}</span>
+            <span className="cs-atk-name">{l.mode === "cardless" ? `${getLang() === "en" ? "Cardless attack" : "Đòn không cần lá"} ${Math.round((v.rules.fighterCardlessMult ?? .66) * 100)}%` : t.attack}</span>
             <small>{l.actor ? unitName(v,
                 l.actor) : ""}</small>
         </div>
@@ -134,8 +128,6 @@ export function ChainStage() {
     },
     [legalActs])
 
-    // cửa sổ chỉ có đòn Quick không cần lá: tự bỏ qua sau vài giây (hook phải gọi trước mọi return)
-    useCardlessAutoPass(!anim && view?.phase === "chain" && !!live && live.priority === view.you)
     if (!view || !g || !count) return null
     const mineTurn = !anim && view.phase === "chain" && !!live && live.priority === view.you
     const waiting = !anim && view.phase === "chain" && !!live && live.priority !== view.you && view.you !== null
@@ -209,7 +201,6 @@ export function ChainStage() {
                         })}
                     </div>
                     {pass ? <button className="cs-pass" onClick={() => cardActions.act(pass)}>{t.pass}</button> : null}
-                    <AutoPassBar />
                 </div>
             ) : null}
             {waiting ? <div className="cs-wait">{t.wait}</div> : null}

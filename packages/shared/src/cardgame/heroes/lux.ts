@@ -1,4 +1,4 @@
-// Lux (Pháp sư, phép) V3: "Bể ánh sáng": mana tiêu ra không mất mà dồn vào Bể Mana; Bể càng đầy E và R càng đau. Máu 320 · AD 94 · giáp/kháng 25/28 · AP gốc 72.
+// Lux (Pháp sư, phép) V3: "Bể ánh sáng": mana tiêu ra không mất mà dồn vào Bể Mana; Bể càng đầy E và R càng đau. Máu 320 · AD 94 · giáp/kháng 25/28 · AP gốc 0.
 // Nội tại: mọi mana Lux tiêu (hook onManaSpent) cộng vĩnh viễn vào Bể Mana (stack "lux_pool" trên Lux, không mất khi chết).
 // Q (0 mana) hồi mana + Khiên · E (30) sát thương + 10% Bể, Bể từ 150 thì Choáng · R (toàn bộ mana, tối thiểu 20) sát thương theo mana đã tiêu và 25% Bể.
 // Cơ chế engine dùng: onManaSpent, SkillDef.mana "all" + ctx.manaPaid, g.gainMana.
@@ -11,8 +11,6 @@ import {
 
 /** Stack Bể Mana trên Lux */
 export const POOL = "lux_pool"
-/** AP gốc (V3: bằng AD gốc cũ) */
-export const BASE_AP = 72
 /** E: sát thương cộng thêm theo phần trăm Bể Mana */
 export const E_POOL_PCT = 0.1
 /** E: Bể Mana từ mức này thì Choáng mục tiêu 1 lượt */
@@ -23,13 +21,13 @@ export const R_PER_MANA = 1.5
 export const R_POOL_PCT = 0.25
 /** R cần ít nhất bấy nhiêu mana mới đánh được (tránh xả 0 mana) */
 export const R_MIN_MANA = 20
-const F_Q_RESTORE = "20 + 5% AD + 10% AP"
-const F_Q_SHIELD = "20 + 10% AD + 40% AP"
-const F_E = "20 + 30% AD + 60% AP"
-const F_R = "15% AD + 30% AP"
+const F_Q_RESTORE = "28 + 5% AD + 10% AP"
+const F_Q_SHIELD = "70 + 10% AD + 40% AP"
+const F_E = "115 + 30% AD + 60% AP"
+const F_R = "24 + 15% AD + 30% AP"
 
 export default defineHero({
-    id: "lux", name: "Lux", role: "mage", damage: "magic", hp: 320, atk: 94, armor: 25, mr: 28, ap: BASE_AP,
+    id: "lux", name: "Lux", role: "mage", damage: "magic", hp: 320, atk: 94, armor: 25, mr: 28,
     bot: {
         stackValue: {
             lux_pool: 0.3,

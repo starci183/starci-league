@@ -8,7 +8,7 @@ export const KEYWORDS_C: Record<string, Keyword> = {
     isolated: {
         vi: "Cô Lập",
         en: "Isolated",
-        descVi: "Trạng thái Kha'Zix gắn lên tướng địch tới hết lượt: Kha'Zix gây ×2 sát thương lên tướng đó.",
-        descEn: "Status Kha'Zix puts on an enemy until the end of the turn: Kha'Zix deals x2 damage to that champion."
+        descVi: "Trạng thái chỉ Kha'Zix gắn (E, R): đòn đánh và Q của Kha'Zix gây thêm sát thương lên tướng đó.",
+        descEn: "A status only Kha'Zix applies (E, R): Kha'Zix's attacks and Q deal extra damage to that champion."
     },
 }

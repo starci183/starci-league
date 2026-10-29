@@ -1,30 +1,29 @@
-// Vel'Koz (Pháp sư, phép) V3: máu 330 · AD 70 · giáp/kháng 25/28 · AP gốc 80.
+// Vel'Koz (Pháp sư, phép) V3: máu 330 · AD 70 · giáp/kháng 25/28 · AP gốc 0.
 // CHẤT: "Phân rã". Nhiều tia nhỏ, mỗi lần chiêu trúng một địch thì địch đó +1 Phân Rã; đủ 3 Phân Rã là rã chuẩn.
 // Phân Rã = stack "velkoz_decay" trên địch (g.stack), nổ thành sát thương chuẩn rồi về 0.
 // Q (20 mana) đứa chính ăn gấp đôi + 2 đứa ngẫu nhiên · E (30) hai nhịp, nhịp hai bằng g.delay cuối lượt · R (60) 10 tia ngẫu nhiên, mỗi tia tính Phân Rã.
-// Nội tại chủ động: đầu lượt Vel'Koz nhận 1 lá tạm "velkoz_decay" (SpecialCardDef.skill): bỏ 1 lá chiêu của tướng khác để cộng 1 Phân Rã.
+// (Chủ 30/10: bỏ lá tạm "Phân Rã Hữu Cơ" mỗi lượt; nội tại chỉ còn Phân Rã khi chiêu trúng.)
 // Đối thủ trả lời: Zed, Kha'Zix (dồn sớm), Janna (miễn nhịp hai), Choáng/Câm Lặng cắt mana.
 import type {
     Game
 } from "../game"
 import {
-    defineHero, defineSpecialCard
+    defineHero
 } from "../registry"
 import type {
-    PlayArgs, Unit
+    Unit
 } from "../types"
 
 export const DECAY = "velkoz_decay"
 /** Đủ bấy nhiêu Phân Rã thì rã */
 export const DECAY_MAX = 3
-export const BASE_AP = 80
 /** Số tia của R */
 export const RAYS = 10
-export const F_DECAY = "30 + 10% AD + 40% AP + 5% máu tối đa mục tiêu"
-export const F_Q_MAIN = "40 + 20% AD + 160% AP + 4% máu đã mất mục tiêu"
-export const F_Q_SIDE = "20 + 10% AD + 80% AP + 2% máu đã mất mục tiêu"
-export const F_E = "30 + 10% AD + 50% AP + 4% máu đã mất mục tiêu"
-export const F_R = "15 + 3% AD + 12% AP + 3% máu đã mất mục tiêu"
+export const F_DECAY = "62 + 10% AD + 40% AP + 5% máu tối đa mục tiêu"
+export const F_Q_MAIN = "168 + 20% AD + 160% AP + 4% máu đã mất mục tiêu"
+export const F_Q_SIDE = "84 + 10% AD + 80% AP + 2% máu đã mất mục tiêu"
+export const F_E = "70 + 10% AD + 50% AP + 4% máu đã mất mục tiêu"
+export const F_R = "25 + 3% AD + 12% AP + 3% máu đã mất mục tiêu"
 
 /** +1 Phân Rã lên t; đủ DECAY_MAX thì rã: sát thương chuẩn rồi về 0 */
 function addDecay(g: Game, me: Unit, t: Unit) {
@@ -67,57 +66,14 @@ function hit(g: Game, me: Unit, t: Unit, expr: string) {
 
 const foes = (g: Game, me: Unit) => g.targetableEnemies(me).filter((u) => !u.token)
 
-// Lá tạm đầu lượt: bỏ 1 lá chiêu của tướng khác để cộng 1 Phân Rã lên 1 địch (chọn)
-defineSpecialCard({
-    id: "velkoz_decay",
-    name: "Phân Rã Hữu Cơ",
-    desc: "Lá tạm của Vel'Koz. Bỏ 1 lá chiêu của tướng khác trên tay: 1 địch (chọn) +1 Phân Rã. Biến mất cuối lượt nếu không dùng.",
-    skill: {
-        key: "Q", name: "Phân Rã Hữu Cơ", target: "enemy", mana: 0, extra: "discard", uncounterable: true,
-        desc: "Bỏ 1 lá chiêu của tướng khác trên tay: 1 địch (chọn) +1 Phân Rã.",
-        options(c) {
-            const seen = new Set<string>()
-            const cards = c.g.player(c.side).hand.filter((x) => x.kind === "skill" && x.hero !== c.self.hero && !seen.has(x.id) && !!seen.add(x.id))
-            const out: PlayArgs[] = []
-            for (const t of foes(c.g,
-                c.self)) {
-                for (const x of cards) {
-                    out.push({
-                        target: t.id, discard: [x.uid]
-                    })
-                }
-            }
-            return out
-        },
-        resolve(c) {
-            const uid = c.args.discard?.[0]
-            const card = uid ? c.g.player(c.side).hand.find((x) => x.uid === uid) : undefined
-            if (!card || card.kind !== "skill" || card.hero === c.self.hero || !c.target) return
-            if (!c.g.discard(c.side,
-                card.uid,
-                "effect")) return
-            addDecay(c.g,
-                c.self,
-                c.target)
-        },
-    },
-})
-
 export default defineHero({
-    id: "velkoz", name: "Vel'Koz", role: "mage", damage: "magic", hp: 330, atk: 70, armor: 25, mr: 28, ap: BASE_AP,
-    desc: "Phân rã: nhiều tia nhỏ, mỗi chiêu trúng là một Phân Rã, đủ 3 thì rã chuẩn. Bỏ bài thừa của đồng đội để rã nhanh hơn.",
+    id: "velkoz", name: "Vel'Koz", role: "mage", damage: "magic", hp: 330, atk: 70, armor: 25, mr: 28,
+    desc: "Phân rã: nhiều tia nhỏ, mỗi chiêu trúng là một Phân Rã, đủ 3 thì rã chuẩn.",
     passive: {
         name: "Phân Rã Hữu Cơ",
-        desc: `Mỗi lần chiêu của Vel'Koz trúng 1 địch: nó +1 Phân Rã. Đủ ${DECAY_MAX} Phân Rã thì nổ {${F_DECAY}} sát thương chuẩn và về 0. Đầu lượt bạn nhận 1 lá tạm: bỏ 1 lá chiêu của tướng khác trên tay, 1 địch (chọn) +1 Phân Rã.`,
+        desc: `Mỗi lần chiêu của Vel'Koz trúng 1 địch: nó +1 Phân Rã. Đủ ${DECAY_MAX} Phân Rã thì nổ {${F_DECAY}} sát thương chuẩn và về 0.`,
     },
     hooks: {
-        onTurnStart(g, me, d) {
-            if (d.side !== me.side) return
-            g.createCard(me.side,
-                {
-                    kind: "special", id: "velkoz_decay", hero: me.hero, side: me.side, temp: true
-                })
-        },
         onDeath(g, me, d) {
             // địch chết thì Phân Rã về 0
             if (d.victim.side !== me.side) g.setStack(d.victim,

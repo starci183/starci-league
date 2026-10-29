@@ -6,10 +6,8 @@ import type {
     HeroDef, Role, SkillDef, SpecialCardDef, Unit
 } from "./types"
 
-/** V3: AP gốc của tướng phép (= AD cũ trong code trước khi nâng AD). Chỉ dùng khi file tướng không đặt `ap`. */
+/** Luật chủ (30/10): AP gốc của MỌI tướng = 0, AP chỉ đến từ đồ. Bảng cũ giữ rỗng để không vỡ API. */
 export const V3_BASE_AP: Record<string, number> = {
-    katarina: 82, kogmaw: 84, teemo: 78, ahri: 76, brand: 78, annie: 74, twistedfate: 72, lissandra: 72, lux: 72, viktor: 68,
-    blitzcrank: 90, ornn: 78, malphite: 68, braum: 66, janna: 66, nami: 66, soraka: 58, renata: 60,
 }
 
 /** V3: hành vi của vật triệu hồi (token) theo id: engine gọi vào đầu/cuối lượt của phe chủ token. State chỉ là dữ liệu, nên hành vi tra theo id ở đây. */
@@ -32,8 +30,9 @@ const specials = new Map<string, SpecialCardDef>()
 export function defineHero(def: HeroDef): HeroDef {
     if (heroes.has(def.id)) throw new Error(`Trùng tướng: ${def.id}`)
     // V2: số lá chiêu cố định 4Q/4E/1R (RULES.skillCopies); HeroDef.skillCopies/supportCopies bị bỏ qua
-    if (def.ap === undefined && V3_BASE_AP[def.id] !== undefined) def = {
-        ...def, ap: V3_BASE_AP[def.id]
+    // Luật chủ (30/10): AP gốc = 0 cho mọi tướng (AP chỉ từ đồ)
+    if (def.ap) def = {
+        ...def, ap: 0
     }
     heroes.set(def.id,
         def)

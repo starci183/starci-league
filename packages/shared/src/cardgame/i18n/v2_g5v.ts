@@ -17,15 +17,15 @@ export const HERO_EN_V2_G5V: Record<string, HeroTextEn> = {
         skills: {
             Q: {
                 name: "Disassemble",
-                desc: "Discard up to 3 cards from your hand; for each card discarded: Viktor gains +1 Evolution and a {20 + 10% AD + 20% AP} Shield.",
+                desc: "Discard up to 3 cards from your hand; for each card discarded: Viktor gains +1 Evolution and a {34 + 10% AD + 20% AP} Shield.",
             },
             E: {
                 name: "Death Ray",
-                desc: "Every enemy champion takes {55 + 35% AD + 65% AP} magic damage (8% more per Evolution).",
+                desc: "Every enemy champion takes {115 + 35% AD + 65% AP} magic damage (8% more per Evolution).",
             },
             R: {
                 name: "Gravity Field",
-                desc: "Every enemy champion takes {80 + 30% AD + 60% AP} magic damage (8% more per Evolution); the enemy champion with the most HP is Stunned for 1 turn; Viktor gains +2 Evolution.",
+                desc: "Every enemy champion takes {121 + 30% AD + 60% AP} magic damage (8% more per Evolution); the enemy champion with the most HP is Stunned for 1 turn; Viktor gains +2 Evolution.",
             },
         },
     },
@@ -38,7 +38,7 @@ export const HERO_EN_V2_G5V: Record<string, HeroTextEn> = {
         skills: {
             Q: {
                 name: "Frost Arrow",
-                desc: "Choose 1 enemy champion; it takes {40 + 80% AD + 20% AP} physical damage and +3 Frostbite.",
+                desc: "Choose 1 enemy champion; it takes {55 + 95% AD + 20% AP} physical damage and +3 Frostbite.",
             },
             E: {
                 name: "Focus",
@@ -46,7 +46,7 @@ export const HERO_EN_V2_G5V: Record<string, HeroTextEn> = {
             },
             R: {
                 name: "Great Ice Arrow",
-                desc: "Choose 1 enemy champion; it takes {100 + 80% AD + 30% AP} physical damage, is Stunned for 1 turn and gains +5 Frostbite.",
+                desc: "Choose 1 enemy champion; it takes {120 + 90% AD + 30% AP} physical damage, is Stunned for 1 turn and gains +5 Frostbite.",
             },
         },
     },
@@ -59,7 +59,7 @@ export const HERO_EN_V2_G5V: Record<string, HeroTextEn> = {
         skills: {
             Q: {
                 name: "Switcheroo",
-                desc: "Jinx's next attack deals {20 + 100% AD + 20% AP} physical damage (plus 2 per Frenzy) to its target, and 25% of that to every other enemy (each one hit counts for Frenzy).",
+                desc: "Jinx's next attack deals {50 + 110% AD + 20% AP} physical damage (plus 2 per Frenzy) to its target, and 25% of that to every other enemy (each one hit counts for Frenzy).",
             },
             E: {
                 name: "Flame Chompers",
@@ -67,7 +67,7 @@ export const HERO_EN_V2_G5V: Record<string, HeroTextEn> = {
             },
             R: {
                 name: "Rocket",
-                desc: "Choose 1 enemy champion; it takes {100 + 80% AD + 20% AP} physical damage, plus 5 per Frenzy and 20% of its missing HP.",
+                desc: "Choose 1 enemy champion; it takes {120 + 90% AD + 20% AP} physical damage, plus 5 per Frenzy and 20% of its missing HP.",
             },
         },
     },
@@ -75,12 +75,12 @@ export const HERO_EN_V2_G5V: Record<string, HeroTextEn> = {
         desc: "The longer he lives, the hungrier he gets: shots scale with max HP, so the tankier the target the bigger the hole.",
         passive: {
             name: "Hunger",
-            desc: "At the start of your turn, while Kog'Maw is alive: +1 Hunger. Any champion dies (either team): +1 Hunger (max 20). When Kog'Maw dies: lose half his Hunger. Kog'Maw's attacks deal 0.8% of the target's max HP per Hunger + {10% AD + 15% AP} as extra magic damage.",
+            desc: "At the start of your turn, while Kog'Maw is alive: +1 Hunger. Any champion dies (either team): +1 Hunger (max 20). When Kog'Maw dies: lose half his Hunger. Kog'Maw's attacks deal 0.8% of the target's max HP per Hunger + {13 + 10% AD + 15% AP} as extra magic damage.",
         },
         skills: {
             Q: {
                 name: "Acid Splash",
-                desc: "Choose 1 enemy champion; it takes {40 + 80% AD + 40% AP} magic damage and Kog'Maw gains +3 Hunger.",
+                desc: "Choose 1 enemy champion; it takes {74 + 80% AD + 40% AP} magic damage and Kog'Maw gains +3 Hunger.",
             },
             E: {
                 name: "Unload",
@@ -88,7 +88,7 @@ export const HERO_EN_V2_G5V: Record<string, HeroTextEn> = {
             },
             R: {
                 name: "Living Artillery",
-                desc: "Every enemy champion takes magic damage equal to 1.5% of its max HP per Hunger + {30% AD + 50% AP}.",
+                desc: "Every enemy champion takes magic damage equal to 1.5% of its max HP per Hunger + {42 + 30% AD + 50% AP}.",
             },
         },
     },
@@ -96,7 +96,7 @@ export const HERO_EN_V2_G5V: Record<string, HeroTextEn> = {
         desc: "No kill needed: plant Mushrooms in the enemy deck, and whoever draws one blows up their weakest champion; whoever attacks Teemo goes blind.",
         passive: {
             name: "Toxic Mushrooms",
-            desc: "Each of Teemo's attacks shuffles 1 Mushroom into the opponent's deck. When the opponent draws a Mushroom: their lowest-HP champion takes {50 + 12% AD + 23% AP} magic damage, then they still draw 1 card as normal.",
+            desc: "Each of Teemo's attacks shuffles 1 Mushroom into the opponent's deck. When the opponent draws a Mushroom: their lowest-HP champion takes {80 + 16% AD + 23% AP} magic damage, then they still draw 1 card as normal.",
         },
         skills: {
             Q: {
@@ -105,11 +105,11 @@ export const HERO_EN_V2_G5V: Record<string, HeroTextEn> = {
             },
             E: {
                 name: "Blinding Dart",
-                desc: "Quick, Chain Only. When an enemy attacks Teemo: that champion is Blinded (the attack misses) and takes {25 + 15% AD + 30% AP} + {8 + 5% AD + 10% AP} per Mushroom in the opponent's deck as magic damage.",
+                desc: "Quick, Chain Only. When an enemy attacks Teemo: that champion is Blinded (the attack misses) and takes {65 + 20% AD + 30% AP} + {16 + 5% AD + 10% AP} per Mushroom in the opponent's deck as magic damage.",
             },
             R: {
                 name: "Detonate",
-                desc: "Every Mushroom in the opponent's deck explodes at once: each Mushroom explodes on the enemy champion with the lowest HP at that moment ({50 + 12% AD + 23% AP} magic damage), then disappears.",
+                desc: "Every Mushroom in the opponent's deck explodes at once: each Mushroom explodes on the enemy champion with the lowest HP at that moment ({80 + 16% AD + 23% AP} magic damage), then disappears.",
             },
         },
     },

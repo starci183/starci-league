@@ -271,10 +271,10 @@ Bộ: Q ×4 · E ×4 · R ×1. **Khắc chế bởi:** Renata (hồi sinh làm h
 
 | | Quick? | Tác dụng | Điều kiện/ý đồ |
 |---|---|---|---|
-| Nội tại | - | Địch **Cô Lập** (không có đồng minh nào ở đường kề, hoặc bị gắn Cô Lập): đòn đánh của Kha'Zix lên nó gây thêm (20 + 50% AD + 10% AP) sát thương vật lý; Q lên nó gây thêm (40 + 90% AD + 15% AP) | Đọc đội hình địch, săn con lẻ |
+| Nội tại | - | Địch đang **Cô Lập** (trạng thái CHỈ Kha'Zix gắn bằng E/R; chủ 30/10 bỏ luật vị trí "không có đồng minh ở đường kề"): đòn đánh của Kha'Zix lên nó gây thêm (20 + 50% AD + 10% AP) sát thương vật lý; Q lên nó gây thêm (40 + 90% AD + 15% AP) | Đánh dấu rồi săn |
 | Q | - | 1 địch nhận (50 + 110% AD + 20% AP) sát thương vật lý (+ phần thêm của nội tại nếu nó Cô Lập) | Đòn săn chính |
-| E | - | Kha'Zix đổi đường với 1 đồng minh khác; địch đang đối diện Kha'Zix sau khi đổi bị Cô Lập tới hết lượt và nhận (30 + 60% AD + 10% AP) sát thương vật lý | Nhảy vào chọn con mồi |
-| R | Có | Kha'Zix Tàng Hình ngay (tới hết lượt kế của đối thủ); địch đối diện Kha'Zix bị Cô Lập tới hết lượt kế của bạn; thêm 1 lá Q Kha'Zix lên tay | Lặn + đánh dấu con mồi + nạp thêm một nhát săn |
+| E | - | Chọn 1 tướng địch bất kỳ (không đổi đường): nó bị Cô Lập tới hết lượt và nhận (30 + 60% AD + 10% AP) sát thương vật lý | Chọn con mồi |
+| R | Có | Kha'Zix Tàng Hình ngay (tới hết lượt kế của đối thủ); địch đối diện Kha'Zix (không có thì 1 địch ngẫu nhiên) bị Cô Lập tới hết lượt kế của bạn; thêm 1 lá Q Kha'Zix lên tay | Lặn + đánh dấu con mồi + nạp thêm một nhát săn |
 
 Bộ: Q ×4 · E ×4 · R ×1. **Khắc chế bởi:** đội đứng kín năm đường, Janna (Q Choáng trước lượt săn), đòn diện rộng (vẫn trúng khi Tàng Hình) · **Combo với:** Darius, Jinx (hạ một con là hai con bên cạnh lẻ ra), Leona (con mồi bị Choáng không trả được).
 
@@ -490,7 +490,7 @@ Bộ: Q ×4 · E ×4 · R ×1. **Khắc chế bởi:** Janna, Braum, Annie (kh�
 
 | | Quick? | Mana | Tác dụng | Điều kiện/ý đồ |
 |---|---|---|---|---|
-| Nội tại | - | - | Phân Rã Hữu Cơ: mỗi lần chiêu Vel'Koz trúng 1 địch, nó +1 Phân Rã; đủ 3 thì nổ (30 + 10% AD + 40% AP + 5% máu tối đa của nó) sát thương chuẩn và về 0. Trong lượt của bạn, bỏ 1 lá chiêu của tướng khác trên tay: 1 địch (chọn) +1 Phân Rã | Nhiều tia = nhiều lần rã |
+| Nội tại | - | - | Phân Rã Hữu Cơ: mỗi lần chiêu Vel'Koz trúng 1 địch, nó +1 Phân Rã; đủ 3 thì nổ (30 + 10% AD + 40% AP + 5% máu tối đa của nó) sát thương chuẩn và về 0. | Nhiều tia = nhiều lần rã |
 | Q | - | 20 | Phân Hạch Plasma: 1 địch (chọn) nhận gấp đôi: (40 + 20% AD + 160% AP + 4% máu đã mất); 2 địch ngẫu nhiên khác mỗi đứa nhận (20 + 10% AD + 80% AP + 2% máu đã mất) sát thương phép | Đứa chính ăn đậm, tản ra 2 đứa |
 | E | - | 30 | Khe Nứt Hư Không (W gốc): 1 địch nhận (30 + 10% AD + 50% AP + 4% máu đã mất) ngay, và lần nữa cuối lượt (tính lại theo máu đã mất lúc đó) | Hai nhịp |
 | R | - | 60 | Tia Phân Rã Sự Sống: bắn 10 tia, mỗi tia vào 1 địch ngẫu nhiên: (15 + 3% AD + 12% AP + 3% máu đã mất của nó) sát thương phép; mỗi tia tính Phân Rã | Quét cả đội, kích rã liên tục |

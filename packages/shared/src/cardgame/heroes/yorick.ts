@@ -1,4 +1,4 @@
-// Yorick (Đấu sĩ, vật lý): máu 390 · AD 100 · giáp/kháng 31/30 (V3).
+// Yorick (Đấu sĩ, vật lý): máu 440 · AD 100 · giáp/kháng 31/30 (V3).
 // CHẤT: "Nuôi Thiếu Nữ". Yorick đánh để LẤP MỘ (đòn chỉ 40% sát thương, mỗi đòn vứt 1 lá trên cùng bộ bài vào mộ);
 // Q Chôn bài chết và rút bù (hồi máu), E Đào Mộ vứt 3 lá rồi chọn 1 lá về tay, R gọi Thiếu Nữ Sương Mù vào ô phụ,
 // mộ càng dày Thiếu Nữ càng đau và Yorick càng trâu.
@@ -21,7 +21,7 @@ import type {
 export const ATTACK_MULT = 0.4
 const ATTACK_MILL = 1
 /** Q: Yorick hồi */
-export const F_Q = "25 + 20% AD + 5% AP"
+export const F_Q = "35 + 30% AD + 5% AP"
 /** E: vứt 3 lá trên cùng, chọn 1 lá trong đó về tay */
 const E_MILL = 3
 /** R: Thiếu Nữ máu 150 + 8 mỗi lá trong mộ */
@@ -68,7 +68,7 @@ defineTokenBehavior({
 })
 
 export default defineHero({
-    id: "yorick", name: "Yorick", role: "fighter", damage: "physical", hp: 390, atk: 100, armor: 31, mr: 30,
+    id: "yorick", name: "Yorick", role: "fighter", damage: "physical", hp: 440, atk: 100, armor: 31, mr: 30,
     bot: {
         tokenValue: 40,
         graveCardValue: 3,

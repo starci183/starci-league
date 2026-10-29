@@ -12,20 +12,20 @@ export const HERO_EN_V2_G4V: Record<string, HeroTextEn> = {
         desc: "Burn forever: cheap Q to spam and Stun the well-burned, E spreads fire across the board, R doubles every Burn pile and ignites it at once. The longer the game, the more they burn.",
         passive: {
             name: "Blaze",
-            desc: "Burn never expires and stacks (max 12). At the start of the opponent's turn: each Burn deals 1% of the enemy's max HP + {1% AD + 2% AP} magic damage.",
+            desc: "Burn never expires and stacks (max 12). At the start of the opponent's turn: each Burn deals 1% of the enemy's max HP + {2 + 1% AD + 2% AP} magic damage.",
         },
         skills: {
             Q: {
                 name: "Sear",
-                desc: "Choose 1 enemy champion; deal {35 + 45% AD + 90% AP} magic damage and +1 Burn. If it already has 3 or more Burn: Stun it for 1 turn.",
+                desc: "Choose 1 enemy champion; deal {105 + 45% AD + 90% AP} magic damage and +1 Burn. If it already has 3 or more Burn: Stun it for 1 turn.",
             },
             E: {
                 name: "Spread the Flames",
-                desc: "Every enemy champion takes {20 + 10% AD + 30% AP} magic damage and +1 Burn.",
+                desc: "Every enemy champion takes {43 + 10% AD + 30% AP} magic damage and +1 Burn.",
             },
             R: {
                 name: "Pyroclasm",
-                desc: "Every enemy champion takes {60 + 20% AD + 50% AP} magic damage, then the Burn on it doubles and burns at once.",
+                desc: "Every enemy champion takes {99 + 20% AD + 50% AP} magic damage, then the Burn on it doubles and burns at once.",
             },
         },
     },
@@ -38,15 +38,15 @@ export const HERO_EN_V2_G4V: Record<string, HeroTextEn> = {
         skills: {
             Q: {
                 name: "Prismatic Barrier",
-                desc: "Restore {20 + 5% AD + 10% AP} mana and Lux gains a Shield of {20 + 10% AD + 40% AP}.",
+                desc: "Restore {28 + 5% AD + 10% AP} mana and Lux gains a Shield of {70 + 10% AD + 40% AP}.",
             },
             E: {
                 name: "Light Binding",
-                desc: "Choose 1 enemy champion; deal {20 + 30% AD + 60% AP} plus 10% of the Mana Pool as magic damage. If the Mana Pool is 150 or more: Stun it for 1 turn.",
+                desc: "Choose 1 enemy champion; deal {115 + 30% AD + 60% AP} plus 10% of the Mana Pool as magic damage. If the Mana Pool is 150 or more: Stun it for 1 turn.",
             },
             R: {
                 name: "Final Spark",
-                desc: "Needs at least 20 mana. Spend all your mana; choose 1 enemy champion and deal {15% AD + 30% AP} plus 1.5 for each mana spent and 25% of the Mana Pool as magic damage.",
+                desc: "Needs at least 20 mana. Spend all your mana; choose 1 enemy champion and deal {24 + 15% AD + 30% AP} plus 1.5 for each mana spent and 25% of the Mana Pool as magic damage.",
             },
         },
     },
@@ -54,20 +54,20 @@ export const HERO_EN_V2_G4V: Record<string, HeroTextEn> = {
         desc: "Charm: Ahri's skills that land can leave a permanent Charm; the more charmed an enemy, the weaker its hits and the harder Ahri hits it. Q and E pour magic, E always charms, R dashes in to finish.",
         passive: {
             name: "Charm",
-            desc: "Charm stacks permanently (max 3): each stack makes that enemy champion deal 7.5% less damage and take 5% more damage from Ahri. Each time an Ahri skill hits an enemy champion: {10% + 5% per 100 AD + 10% per 100 AP} chance of +1 Charm on it.",
+            desc: "Charm stacks permanently (max 3): each stack makes that enemy champion deal 7.5% less damage and take 5% more damage from Ahri. Each time an Ahri skill hits an enemy champion: {18% + 5% per 100 AD + 10% per 100 AP} chance of +1 Charm on it.",
         },
         skills: {
             Q: {
                 name: "Orb of Deception",
-                desc: "Choose 1 enemy champion; deal {40 + 20% AD + 70% AP} magic damage, and another random enemy champion takes {20 + 10% AD + 30% AP} true damage.",
+                desc: "Choose 1 enemy champion; deal {115 + 20% AD + 70% AP} magic damage, and another random enemy champion takes {44 + 10% AD + 30% AP} true damage.",
             },
             E: {
                 name: "Seduce",
-                desc: "Choose 1 enemy champion; deal {30 + 20% AD + 50% AP} magic damage and guaranteed +1 Charm.",
+                desc: "Choose 1 enemy champion; deal {70 + 20% AD + 50% AP} magic damage and guaranteed +1 Charm.",
             },
             R: {
                 name: "Spirit Rush",
-                desc: "Choose 1 other allied champion; Ahri swaps places with it, then the enemy champion opposite her new lane takes {80 + 30% AD + 90% AP} magic damage.",
+                desc: "Choose 1 other allied champion; Ahri swaps places with it, then the enemy champion opposite her new lane takes {152 + 30% AD + 90% AP} magic damage.",
             },
         },
     },
@@ -80,15 +80,15 @@ export const HERO_EN_V2_G4V: Record<string, HeroTextEn> = {
         skills: {
             Q: {
                 name: "Disintegrate",
-                desc: "Choose 1 enemy champion; deal {60 + 20% AD + 80% AP} magic damage.",
+                desc: "Choose 1 enemy champion; deal {119 + 20% AD + 80% AP} magic damage.",
             },
             E: {
                 name: "Molten Shield",
-                desc: "Quick. Annie gains a Shield of {60 + 20% AD + 50% AP}. If played in response to an enemy card or attack aimed at Annie while she has 4 Fire: Negate it, Stun whoever played it and deal {40 + 10% AD + 60% AP} magic damage to them; Fire resets to 0.",
+                desc: "Quick. Annie gains a Shield of {97 + 20% AD + 50% AP}. If played in response to an enemy card or attack aimed at Annie while she has 4 Fire: Negate it, Stun whoever played it and deal {84 + 10% AD + 60% AP} magic damage to them; Fire resets to 0.",
             },
             R: {
                 name: "Summon Tibbers",
-                desc: "Tibbers mauls every enemy champion for {120 + 30% AD + 100% AP} magic damage. A Stunned champion takes extra damage; a champion that is not Stunned gets Stunned for 1 turn.",
+                desc: "Tibbers mauls every enemy champion for {194 + 30% AD + 100% AP} magic damage. A Stunned champion takes extra damage; a champion that is not Stunned gets Stunned for 1 turn.",
             },
         },
     },
@@ -96,20 +96,20 @@ export const HERO_EN_V2_G4V: Record<string, HeroTextEn> = {
         desc: "Freeze the opponent's cards: Lissandra's damage can freeze cards in their hand, E Stuns the champion whose card is frozen, R freezes Lissandra herself to escape and counter-attacks for each frozen card. To thaw the ice, take Lissandra down.",
         passive: {
             name: "Frozen Hand",
-            desc: "Each time Lissandra's damage hits an enemy champion: {10% + 5% per 100 AD + 10% per 100 AP} chance to Freeze 1 random card in the opponent's hand. Frozen cards cannot be used but still take up space; the ice thaws when Lissandra leaves the board.",
+            desc: "Each time Lissandra's damage hits an enemy champion: {18% + 5% per 100 AD + 10% per 100 AP} chance to Freeze 1 random card in the opponent's hand. Frozen cards cannot be used but still take up space; the ice thaws when Lissandra leaves the board.",
         },
         skills: {
             Q: {
                 name: "Ice Shard",
-                desc: "Choose 1 enemy champion; deal {50 + 30% AD + 80% AP} magic damage.",
+                desc: "Choose 1 enemy champion; deal {125 + 30% AD + 80% AP} magic damage.",
             },
             E: {
                 name: "Ring of Frost",
-                desc: "Choose 1 enemy champion; deal {30 + 35% AD + 70% AP} magic damage. If the opponent's hand has a Frozen skill card of that very champion: Stun it for 1 turn.",
+                desc: "Choose 1 enemy champion; deal {100 + 35% AD + 70% AP} magic damage. If the opponent's hand has a Frozen skill card of that very champion: Stun it for 1 turn.",
             },
             R: {
                 name: "Frozen Tomb",
-                desc: "Quick. Every enemy champion takes {30 + 10% AD + 20% AP} magic damage for each Frozen card in the opponent's hand. Then Lissandra freezes herself until the end of the opponent's turn: immune to all damage, cannot be targeted and cannot act.",
+                desc: "Quick. Every enemy champion takes {45 + 10% AD + 20% AP} magic damage for each Frozen card in the opponent's hand. Then Lissandra freezes herself until the end of the opponent's turn: immune to all damage, cannot be targeted and cannot act.",
             },
         },
     },
@@ -117,12 +117,12 @@ export const HERO_EN_V2_G4V: Record<string, HeroTextEn> = {
         desc: "Your hand is your ammo: a thick hand makes attacks hurt, Q picks a card color (restore mana, Armor Shred or Stun), E reshuffles for fresh ammo, R throws the whole hand as a card storm.",
         passive: {
             name: "Golden Hand",
-            desc: "TF's attacks deal an extra {3 + 1% AD + 2% AP} magic damage for each card in your hand.",
+            desc: "TF's attacks deal an extra {4 + 1% AD + 2% AP} magic damage for each card in your hand.",
         },
         skills: {
             Q: {
                 name: "Pick a Card",
-                desc: "Choose 1 color and 1 enemy champion; throw a card at it, dealing {50 + 30% AD + 80% AP} magic damage. Blue: TF restores 30 mana. Red: it is Armor Shredded until the end of the turn. Gold: Stun it for 1 turn.",
+                desc: "Choose 1 color and 1 enemy champion; throw a card at it, dealing {108 + 30% AD + 80% AP} magic damage. Blue: TF restores 30 mana. Red: it is Armor Shredded until the end of the turn. Gold: Stun it for 1 turn.",
             },
             E: {
                 name: "Stacked Deck",
@@ -130,7 +130,7 @@ export const HERO_EN_V2_G4V: Record<string, HeroTextEn> = {
             },
             R: {
                 name: "Destiny",
-                desc: "Discard your whole hand; each card discarded (up to 7 counted) deals {30 + 20% AD + 30% AP} magic damage to every enemy champion.",
+                desc: "Discard your whole hand; each card discarded (up to 7 counted) deals {52 + 20% AD + 30% AP} magic damage to every enemy champion.",
             },
         },
     },

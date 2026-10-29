@@ -456,15 +456,6 @@ export function chainOptions(g: Game, side: Side, trigger: Trigger): { card: Car
 // Hành động hợp lệ
 // ======================================================================
 
-/**
- * Cửa sổ Chuỗi chỉ cho đòn Quick không cần lá của Đấu sĩ (không có lá Quick nào để nối): không nên chặn người chơi.
- * Client tự bỏ qua sau vài giây (có đếm ngược), bot quyết định ngay. `legal` = legalActions của bên đang có quyền nối.
- */
-export function isCardlessOnlyWindow(phase: GameState["phase"], legal: Action[]): boolean {
-    return phase === "chain"
-        && legal.some((a) => a.t === "attack" && !!a.cardless)
-        && legal.every((a) => a.t === "pass" || (a.t === "attack" && !!a.cardless))
-}
 export function legalActions(state: GameState, side: Side): Action[] {
     const g = new Game(state)
     const s = state
@@ -477,8 +468,6 @@ export function legalActions(state: GameState, side: Side): Action[] {
             side).map((r) => ({
             t: "chain" as const, side, uid: r.card.uid, args: r.args
         }))
-        out.push(...chainCardless(g,
-            side))
         out.push({
             t: "pass", side
         })
@@ -558,6 +547,10 @@ items[j].item!)) continue
             }
         }
     }
+    // bỏ bài xuống mộ: miễn phí, không giới hạn số lần, không tính vào giới hạn hành động; lá tạm/đặc biệt không bỏ được
+    for (const c of s.players[side].hand) if (canDiscardManually(c)) out.push({
+        t: "discard", side, uid: c.uid
+    })
     out.push({
         t: "end", side
     })
@@ -580,11 +573,8 @@ export function applyAction(state: GameState, action: Action): { state: GameStat
     }
     if (s.phase === "chain" && s.chain) {
         const ch = s.chain
-        const isCardless = action.t === "attack" && !!action.cardless
-        if (action.side !== ch.priority || (action.t !== "chain" && action.t !== "pass" && !isCardless)) throw new Error("Đang chờ nối chuỗi")
+        if (action.side !== ch.priority || (action.t !== "chain" && action.t !== "pass")) throw new Error("Đang chờ nối chuỗi")
         if (action.t === "chain") addQuickLink(g,
-            action)
-        else if (action.t === "attack") addCardlessLink(g,
             action)
         else { g.emit({
             t: "pass", side: action.side
@@ -666,6 +656,16 @@ export function applyAction(state: GameState, action: Action): { state: GameStat
             action.item)
         break
     }
+    case "discard": {
+        const card = s.players[action.side].hand.find((c) => c.uid === action.uid)
+        if (!card) throw new Error("Không có lá này trên tay")
+        if (!canDiscardManually(card)) throw new Error("Lá tạm/đặc biệt không bỏ xuống mộ được")
+        s.actionsThisTurn-- // bỏ bài miễn phí
+        g.discard(action.side,
+            action.uid,
+            "manual")
+        break
+    }
     case "craft": doCraft(g,
         action); break
     case "upgrade": doUpgrade(g,
@@ -676,6 +676,11 @@ export function applyAction(state: GameState, action: Action): { state: GameStat
     return {
         state: s, events: g.events
     }
+}
+
+/** Lá được phép bỏ tay xuống mộ: lá tạm / lá đặc biệt sẽ biến mất nên không cho bỏ. Lá đóng băng vẫn bỏ được (lối thoát khỏi băng). */
+export function canDiscardManually(card: Card): boolean {
+    return !card.temp && card.kind !== "special"
 }
 
 function removeFromHand(g: Game, side: Side, card: Card) {
@@ -851,49 +856,6 @@ function describeLink(g: Game, side: Side, card: Card | undefined, args: PlayArg
     }
 }
 
-/** Đòn không cần lá (Quick) bên `side` nối được lên chuỗi: chỉ phe KHÔNG có lượt (trong lượt mình thì đánh bằng hành động attack thường) */
-function chainCardless(g: Game, side: Side): Extract<Action, { t: "attack" }>[] {
-    const ch = g.s.chain
-    if (!ch || side === g.s.active || ch.links.length >= RULES.maxChain) return []
-    const top = ch.links[ch.links.length - 1]
-    if (top.card && skillOfCard(top.card,
-        g.unit(top.actor)?.hero)?.uncounterable) return []
-    const out: Extract<Action, { t: "attack" }>[] = []
-    for (const a of g.heroes(side)) if (g.canCardless(a)) for (const t of attackTargets(g,
-        a,
-        false)) out.push({
-        t: "attack", side, actor: a.id, target: t.id, cardless: true
-    })
-    return out
-}
-
-function addCardlessLink(g: Game, action: Extract<Action, { t: "attack" }>) {
-    const ch = g.s.chain!
-    const top = ch.links[ch.links.length - 1]
-    const ok = chainCardless(g,
-        action.side).some((o) => o.actor === action.actor && o.target === action.target)
-    if (!ok) throw new Error("Không nối đòn không cần lá được")
-    const a = g.unit(action.actor)!
-    g.turnAttacks(a.side).cardless.push(a.id)
-    g.countAttack(action.side)
-    const args: PlayArgs = {
-        actor: a.id, target: action.target
-    }
-    const { trigger, targets } = describeLink(g,
-        action.side,
-        undefined,
-        args)
-    const n = ch.links.length + 1
-    ch.links.push({
-        n, side: action.side, kind: "attack", actor: a.id, args, targets, trigger, quick: true, reactTo: top.trigger, mode: "cardless"
-    })
-    g.emit({
-        t: "chainAdd", side: action.side, n, kind: "attack", actor: a.id, targets
-    })
-    ch.passes = 0
-    ch.priority = otherSide(action.side)
-}
-
 /** Lá Quick bên `side` nối được lên mắt xích trên cùng (rỗng nếu chuỗi đã đủ dài) */
 function chainChoices(g: Game, side: Side) {
     const ch = g.s.chain
@@ -967,7 +929,6 @@ function advanceChain(g: Game) {
     const ch = g.s.chain!
     while (ch.passes < 2) {
         if (chainChoices(g,
-            ch.priority).length || chainCardless(g,
             ch.priority).length) {
             if (!ch.opened) {
                 const L = ch.links[0]
@@ -1288,6 +1249,7 @@ function beginTurn(g: Game) {
     for (const u of g.heroes(side)) if (g.isMage(u)) g.gainMana(u,
         g.manaRegen(u),
         "turn")
+    g.giveMageTemps(side) // Pháp sư nhận chiêu tạm (RULES.mageTempSkill)
     g.hook("onTurnStart",
         {
             side
@@ -1317,10 +1279,10 @@ function beginTurn(g: Game) {
         side)
 }
 
-/** Quà tặng đều đặn (không lấy từ bộ bài): lượt thứ 2, 4... của mình +1 Đánh Thường; lượt thứ 3, 6... +1 mảnh đồ ngẫu nhiên */
+/** Quà tặng đều đặn (không lấy từ bộ bài), từ lượt thứ 2 của mình: mỗi RULES.freeBasicEvery lượt +1 Đánh Thường; mỗi RULES.freeItemEvery lượt +1 mảnh đồ ngẫu nhiên. Lượt đầu không có quà (tay đầu giữ đúng RULES.startHand). */
 function giveFreeCards(g: Game, side: Side) {
     const n = g.s.ownTurns?.[side] ?? 0
-    if (n > 0 && n % RULES.freeBasicEvery === 0) g.giveFreeCard(side,
+    if (n > 1 && n % RULES.freeBasicEvery === 0) g.giveFreeCard(side,
         "basic")
     if (n > 0 && n % RULES.freeItemEvery === 0) g.giveFreeCard(side,
         "item")

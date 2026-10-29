@@ -1,4 +1,4 @@
-// Katarina (Sát thủ, phép): máu 320 · AD 115 · AP gốc 82 · giáp/kháng 26/28.
+// Katarina (Sát thủ, phép): máu 320 · AD 115 · AP gốc 0 · giáp/kháng 26/28.
 // CHẤT: "Hạ một là làm lại". Địch chết trong lượt mà Katarina đã chạm vào (ai hạ cũng được): mọi lá Katarina đã dùng lượt này về tay.
 // Q mở chuỗi và gắn Dao, E (Quick) né đòn và phạt kẻ ra tay (×2 lên tướng có Dao), R dọn bàn (tướng có Dao nhận thêm).
 // Engine: hook onDamage/onDeath/onCast, card.data.usedTurn (lá Katarina đã dùng), ctx.toHand (lá đang giải quyết), g.fromGrave, g.chainFx().cancel.
@@ -22,10 +22,9 @@ const DAGGER = "kat_dagger"
 const TOUCH = "once:kat_touch:"
 /** Cờ kỹ thuật: tổng số địch chết sau khi Katarina đã chạm (để lá đang giải quyết biết có hạ được không) */
 const KILLS = "once:kat_kills"
-export const F_Q = "45 + 30% AD + 60% AP"
-export const F_E = "25 + 20% AD + 40% AP"
-export const F_R = "40 + 25% AD + 55% AP"
-const BASE_AP = 82
+export const F_Q = "94 + 30% AD + 60% AP"
+export const F_E = "58 + 20% AD + 40% AP"
+export const F_R = "85 + 25% AD + 55% AP"
 /** E gấp đôi lên tướng có Dao */
 const E_DAGGER_MULT = 2
 /** R: tướng có Dao nhận thêm bấy nhiêu */
@@ -41,7 +40,7 @@ function recallIfKill(c: Ctx, run: () => void) {
 }
 
 export default defineHero({
-    id: "katarina", name: "Katarina", role: "assassin", damage: "magic", hp: 320, atk: 115, ap: BASE_AP, armor: 26, mr: 28,
+    id: "katarina", name: "Katarina", role: "assassin", damage: "magic", hp: 320, atk: 115, armor: 26, mr: 28,
     bot: {
         markValue: {
             kat_dagger: 25,

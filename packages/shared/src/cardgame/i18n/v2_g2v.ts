@@ -12,12 +12,12 @@ export const HERO_EN_V2_G2V: Record<string, HeroTextEn> = {
         desc: "The steam golem reaches into the enemy hand: whichever champion's skill he steals takes the hit, and the stolen skill becomes his team's.",
         passive: {
             name: "Iron Grip",
-            desc: "Each card Blitzcrank Card-Steals: Blitzcrank gains a Shield of {20 + 10% AD + 15% AP}. A shared card goes to your hand; an enemy champion's skill card becomes a random Q or E card of one of your champions on the board.",
+            desc: "Each card Blitzcrank Card-Steals: Blitzcrank gains a Shield of {33 + 10% AD + 15% AP}. A shared card goes to your hand; an enemy champion's skill card becomes a random Q or E card of one of your champions on the board.",
         },
         skills: {
             Q: {
                 name: "Rocket Grab",
-                desc: "The opponent has at least 1 card in hand; Card-Steal 1 random card from the opponent's hand (choose the card while you have Revealed Hand). If it is a skill card: its champion takes {60 + 60% AD + 60% AP} magic damage; if that champion is dead or not on the board, the damage hits a random living enemy champion instead.",
+                desc: "The opponent has at least 1 card in hand; Card-Steal 1 random card from the opponent's hand (choose the card while you have Revealed Hand). If it is a skill card: its champion takes {90 + 50% AD + 60% AP} magic damage; if that champion is dead or not on the board, the damage hits a random living enemy champion instead.",
             },
             E: {
                 name: "Grab Back",
@@ -25,7 +25,7 @@ export const HERO_EN_V2_G2V: Record<string, HeroTextEn> = {
             },
             R: {
                 name: "Static Field",
-                desc: "Reveal Hand until the end of the turn; every enemy champion with one of its own skill cards in the opponent's hand takes {80 + 50% AD + 80% AP} magic damage and is Stunned for 1 turn.",
+                desc: "Reveal Hand until the end of the turn; every enemy champion with one of its own skill cards in the opponent's hand takes {120 + 50% AD + 80% AP} magic damage and is Stunned for 1 turn.",
             },
         },
     },
@@ -38,11 +38,11 @@ export const HERO_EN_V2_G2V: Record<string, HeroTextEn> = {
         skills: {
             Q: {
                 name: "Winter's Bite",
-                desc: "Choose 1 enemy champion; deal {40 + 40% AD + 40% AP} magic damage and place a Frost Mark on it until the end of this turn. The first time an ally other than Braum hits it: it is Stunned for 1 turn and Braum gains +2 Twin Armor.",
+                desc: "Choose 1 enemy champion; deal {66 + 40% AD + 40% AP} magic damage and place a Frost Mark on it until the end of this turn. The first time an ally other than Braum hits it: it is Stunned for 1 turn and Braum gains +2 Twin Armor.",
             },
             E: {
                 name: "Stand Behind Me",
-                desc: "Quick, Chain Only. When an enemy attacks 1 ally other than Braum: Intercept that attack; Braum gains +2 Twin Armor and a Shield of {40 + 30% AD + 30% AP}.",
+                desc: "Quick, Chain Only. When an enemy attacks 1 ally other than Braum: Intercept that attack; Braum gains +2 Twin Armor and a Shield of {60 + 30% AD + 30% AP}.",
             },
             R: {
                 name: "Glacial Seal",
@@ -80,15 +80,15 @@ export const HERO_EN_V2_G2V: Record<string, HeroTextEn> = {
         skills: {
             Q: {
                 name: "Seismic Shard",
-                desc: "Choose 1 enemy champion; deal {40 + 30% AD + 40% AP + 50% Armor} magic damage. Malphite takes 15 Armor from it until the end of the next turn.",
+                desc: "Choose 1 enemy champion; deal {67 + 30% AD + 40% AP + 50% Armor} magic damage. Malphite takes 15 Armor from it until the end of the next turn.",
             },
             E: {
                 name: "Thunderclap",
-                desc: "Quick, Chain Only. When an enemy attacks Malphite: until the end of this turn Malphite gains +{10 + 30% Armor} Armor, and the attacker takes {20 + 60% Armor + 20% AP} magic damage.",
+                desc: "Quick, Chain Only. When an enemy attacks Malphite: until the end of this turn Malphite gains +{10 + 30% Armor} Armor, and the attacker takes {34 + 60% Armor + 20% AP} magic damage.",
             },
             R: {
                 name: "Unstoppable Force",
-                desc: "Every enemy champion takes {80 + 30% AD + 50% AP + 100% Armor} magic damage; each has a {15% + 1% per 10 Armor} chance (Malphite's Armor) to be Stunned for 1 turn.",
+                desc: "Every enemy champion takes {114 + 30% AD + 50% AP + 100% Armor} magic damage; each has a {15% + 1% per 10 Armor} chance (Malphite's Armor) to be Stunned for 1 turn.",
             },
         },
     },
@@ -96,16 +96,16 @@ export const HERO_EN_V2_G2V: Record<string, HeroTextEn> = {
         desc: "The Zaunite baroness, master of comebacks: a fallen ally stands up in a rampage, whoever hits her team gets hit back, and the enemy turns on itself.",
         passive: {
             name: "Bailout",
-            desc: "When an ally other than Renata is about to be taken down: it revives with 25% of its max HP + {20 + 15% AD + 25% AP} HP, gains Rampage and 1 Free Attack (once per ally per game). Rampage: until the end of its next turn, each of its attacks deals {15 + 15% AD + 25% AP} bonus damage.",
+            desc: "When an ally other than Renata is about to be taken down: it revives with 25% of its max HP + {35 + 15% AD + 25% AP} HP, gains Rampage and 1 Free Attack (once per ally per game). Rampage: until the end of its next turn, each of its attacks deals {30 + 15% AD + 25% AP} bonus damage.",
         },
         skills: {
             Q: {
                 name: "Handshake",
-                desc: "Your whole team gains +{10 + 10% AD + 15% AP} Armor until the end of the enemy's next turn; every enemy champion takes {20 + 20% AD + 30% AP} magic damage.",
+                desc: "Your whole team gains +{19 + 10% AD + 15% AP} Armor until the end of the enemy's next turn; every enemy champion takes {38 + 20% AD + 30% AP} magic damage.",
             },
             E: {
                 name: "Hostile Takeover Pack",
-                desc: "Quick, Chain Only. When an enemy attacks exactly 1 allied champion: that champion reflects 40% of the damage it takes from that attack + {10 + 10% AD + 15% AP} to the attacker (true damage).",
+                desc: "Quick, Chain Only. When an enemy attacks exactly 1 allied champion: that champion reflects 40% of the damage it takes from that attack + {19 + 10% AD + 15% AP} to the attacker (true damage).",
             },
             R: {
                 name: "Hostile Takeover",
@@ -117,20 +117,20 @@ export const HERO_EN_V2_G2V: Record<string, HeroTextEn> = {
         desc: "Embodiment of the Storm: Howling Gale knocks enemies out, Eye of the Storm shields and frees from crowd control, and Monsoon blocks every attack of an enemy turn, then heals the team.",
         passive: {
             name: "Windeye",
-            desc: "At the start of your turn: your lowest-HP champion gains a Shield of {30 + 20% AD + 40% AP}.",
+            desc: "At the start of your turn: your lowest-HP champion gains a Shield of {20 + 15% AD + 30% AP}.",
         },
         skills: {
             Q: {
                 name: "Howling Gale",
-                desc: "Quick. Choose 1 enemy champion; deal {40 + 30% AD + 60% AP} magic damage and Stun it for 1 turn.",
+                desc: "Quick. Choose 1 enemy champion; deal {60 + 30% AD + 60% AP} magic damage and Stun it for 1 turn.",
             },
             E: {
                 name: "Eye of the Storm",
-                desc: "Quick. Choose 1 allied champion; it gains a Shield of {80 + 40% AD + 70% AP}. While it keeps that Shield: it is immune to Crowd Control.",
+                desc: "Quick. Choose 1 allied champion; it gains a Shield of {70 + 30% AD + 60% AP}. While it keeps that Shield: it is immune to Crowd Control.",
             },
             R: {
                 name: "Monsoon",
-                desc: "Quick. Until the end of the opponent's turn: your whole team takes no damage from attacks. At the end of that turn, every ally heals {80 + 40% AD + 80% AP}.",
+                desc: "Quick. Until the end of the opponent's turn: your whole team takes no damage from attacks. At the end of that turn, every ally heals {80 + 30% AD + 60% AP}.",
             },
         },
     },

@@ -9,7 +9,6 @@ import * as TRI from "../packages/shared/src/cardgame/heroes/tristana"
 import * as MF from "../packages/shared/src/cardgame/heroes/missfortune"
 import * as VK from "../packages/shared/src/cardgame/heroes/velkoz"
 type St = ReturnType<typeof cg.newGame>
-type Act = Parameters<typeof cg.applyAction>[1]
 type Ev = ReturnType<typeof cg.applyAction>["events"]
 type S = "A" | "B"
 const { Game } = cg
@@ -149,11 +148,8 @@ const evs = <T extends cg.GameEvent["t"]>(ev: Ev, t: T) => ev.filter((e) => e.t 
 const dmgTo = (ev: Ev, target: string, tag?: string) => evs(ev,
     "damage").filter((d) => d.target === target && d.src && (!tag || d.tag === tag)).reduce((x, d) => x + d.amount,
     0)
-const inHand = (s: St, side: S, card: { uid: string }) => s.players[side].hand.some((c) => c.uid === card.uid)
 /** Sát thương sau giáp 30 của tướng giả */
 const afterArmor = (raw: number) => Math.round(raw * 100 / 130)
-const playable = (s: St, side: S, card: { uid: string }) => cg.legalActions(s,
-    side).filter((a) => a.t === "play" && a.uid === card.uid) as Extract<Act, { t: "play" }>[]
 
 // ======================================================================
 G("Tristana")
@@ -680,55 +676,23 @@ test("R: 10 tia ngẫu nhiên, mỗi tia là một lần trúng",
             VK.RAYS)
     })
 
-test("lá tạm đầu lượt: bỏ 1 lá chiêu tướng khác để cộng 1 Phân Rã",
+test("chủ 30/10: không còn lá tạm Phân Rã Hữu Cơ đầu lượt (nội tại chỉ cộng Phân Rã khi chiêu trúng)",
     () => {
-        let s = mk({
+        const s = mk({
             A: {
                 velkoz: 2
             }, B: {
                 g1_fighter: 2
             }
         })
+        const before = s.players.A.hand.length
         gm(s).hook("onTurnStart",
             {
                 side: "A"
             })
-        const sp = s.players.A.hand.find((c) => c.id === "velkoz_decay")
-        assert.ok(sp,
-            "phải có lá tạm")
-        const other = give(s,
-            "A",
-            skill(s,
-                "tristana",
-                "A",
-                "Q"))
-        const own = give(s,
-            "A",
-            skill(s,
-                "velkoz",
-                "A",
-                "Q"))
-        const opts = playable(s,
-            "A",
-sp!)
-        assert.ok(opts.length > 0)
-        assert.ok(opts.every((a) => a.args?.discard?.[0] === other.uid),
-            "chỉ được bỏ lá của tướng khác")
-        s = play(s,
-            "A",
-sp!,
-{
-    target: "B:g1_fighter", discard: [other.uid]
-}).s
-        assert.equal(decay(s,
-            "g1_fighter"),
-        1)
-        assert.ok(!inHand(s,
-            "A",
-            other))
-        assert.ok(inHand(s,
-            "A",
-            own))
+        assert.equal(s.players.A.hand.length,
+            before)
+        assert.ok(!s.players.A.hand.some((c) => c.id === "velkoz_decay"))
     })
 
 // ======================================================================

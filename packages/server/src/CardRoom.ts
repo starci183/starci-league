@@ -183,7 +183,7 @@ export class CardRoom extends Room<CardRoomState> {
     private chosen: Record<Side, string[]> = {
         A: [], B: []
     }
-    /** Bộ gốc 40 lá mỗi bên (người chơi tự xếp; thiếu/sai thì DEFAULT_DECK, máy và sim luôn DEFAULT_DECK); engine thêm 45 lá chiêu của 5 tướng => 85 */
+    /** Bộ gốc 80 lá mỗi bên (người chơi tự xếp; thiếu/sai thì DEFAULT_DECK, máy và sim luôn DEFAULT_DECK); engine thêm 90 lá chiêu của 5 tướng => 170 */
     private decks: Partial<Record<Side, cg.DeckCardId[]>> = {
     }
     /** Số hành động bot trong trận (chống vòng lặp vô hạn ở phòng sim) */
@@ -504,13 +504,8 @@ export class CardRoom extends Room<CardRoomState> {
             setImmediate(batch)
         } else {
             this.stepping = true
-            // cửa sổ Chuỗi chỉ có đòn Quick không cần lá: bot quyết định ngay, không bắt người chờ nhịp bot
-            const side = this.botMover()!
-            const instant = cg.isCardlessOnlyWindow(this.gs.phase,
-                cg.legalActions(this.gs,
-                    side))
             this.botTimer = this.clock.setTimeout(() => { this.stepping = false; if (!this.disposed) this.botStep(false) },
-                instant ? 0 : this.pace)
+                this.pace)
         }
     }
 

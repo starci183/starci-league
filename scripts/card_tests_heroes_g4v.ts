@@ -258,7 +258,7 @@ test("Q (10 mana): sát thương phép + 1 Bỏng không hết; từ 3 Bỏng tr
             "g4v_fighter"),
         afterMr(fA(s0,
             "brand",
-            "35 + 45% AD + 90% AP")),
+            "105 + 45% AD + 90% AP")),
         2,
         "sát thương Q")
         assert.ok(u(s,
@@ -321,7 +321,7 @@ test("E (20 mana) sát thương + 1 Bỏng mọi địch; R (50 mana) sát thư�
                 h),
             afterMr(fA(s0,
                 "brand",
-                "20 + 10% AD + 30% AP")),
+                "43 + 10% AD + 30% AP")),
             2,
             "sát thương E")
         }
@@ -369,14 +369,14 @@ test("E (20 mana) sát thương + 1 Bỏng mọi địch; R (50 mana) sát thư�
             "B",
             hero).maxHp * 0.01 + fA(r0,
             "brand",
-            "1% AD + 2% AP")
+            "2 + 1% AD + 2% AP")
         near(lost(r0,
             r,
             "B",
             "g4v_fighter"),
         afterMr(fA(r0,
             "brand",
-            "60 + 20% AD + 50% AP") + 6 * burnPerStack("g4v_fighter")),
+            "99 + 20% AD + 50% AP") + 6 * burnPerStack("g4v_fighter")),
         3,
         "R: sát thương + cháy ngay 6 Bỏng")
         near(lost(r0,
@@ -385,7 +385,7 @@ test("E (20 mana) sát thương + 1 Bỏng mọi địch; R (50 mana) sát thư�
             "g4v_tank"),
         afterMr(fA(r0,
             "brand",
-            "60 + 20% AD + 50% AP") + 12 * burnPerStack("g4v_tank")),
+            "99 + 20% AD + 50% AP") + 12 * burnPerStack("g4v_tank")),
         3,
         "R: cháy ngay 12 Bỏng")
     })
@@ -422,7 +422,7 @@ test("Nội tại: đầu lượt đối thủ mỗi Bỏng gây (1% máu tối 
                 "B",
                 "g4v_fighter").maxHp * 0.01 + fA(s0,
                 "brand",
-                "1% AD + 2% AP"))),
+                "2 + 1% AD + 2% AP"))),
             2,
             "3 Bỏng")
         assert.equal(evs(r.ev,
@@ -484,14 +484,14 @@ test("Nội tại: mana tiêu cộng vào Bể Mana, giữ nguyên khi Lux chế
             "lux"),
         40 + Math.round(fA(s1,
             "lux",
-            "20 + 5% AD + 10% AP")),
+            "28 + 5% AD + 10% AP")),
         "Q hồi mana")
         assert.equal(u(s2,
             "A",
             "lux").shield,
         Math.round(fA(s1,
             "lux",
-            "20 + 10% AD + 40% AP")),
+            "70 + 10% AD + 40% AP")),
         "Q nhận Khiên")
         assert.equal(u(s2,
             "A",
@@ -541,7 +541,7 @@ test("E (30 mana): sát thương cộng 10% Bể Mana; Bể từ 150 trở lên 
             "g4v_fighter"),
         afterMr(fA(lo.s0,
             "lux",
-            "20 + 30% AD + 60% AP") + 0.1 * 30),
+            "115 + 30% AD + 60% AP") + 0.1 * 30),
         2,
         "Bể 30")
         assert.ok(!stunned(lo.s,
@@ -557,7 +557,7 @@ test("E (30 mana): sát thương cộng 10% Bể Mana; Bể từ 150 trở lên 
             "g4v_fighter"),
         afterMr(fA(hi.s0,
             "lux",
-            "20 + 30% AD + 60% AP") + 0.1 * 180),
+            "115 + 30% AD + 60% AP") + 0.1 * 180),
         2,
         "Bể 180")
         assert.ok(stunned(hi.s,
@@ -565,7 +565,7 @@ test("E (30 mana): sát thương cộng 10% Bể Mana; Bể từ 150 trở lên 
             "g4v_fighter"),
         "Bể từ 150 thì Choáng")
     })
-test("R: tiêu toàn bộ mana, sát thương = (15% AD + 30% AP) + 1.5 mỗi mana tiêu + 25% Bể; dưới 20 mana không đánh được",
+test("R: tiêu toàn bộ mana, sát thương = (24 + 15% AD + 30% AP) + 1.5 mỗi mana tiêu + 25% Bể; dưới 20 mana không đánh được",
     () => {
         const s0 = mk({
             A: {
@@ -601,7 +601,7 @@ test("R: tiêu toàn bộ mana, sát thương = (15% AD + 30% AP) + 1.5 mỗi ma
             "g4v_fighter"),
         afterMr(fA(s0,
             "lux",
-            "15% AD + 30% AP") + 60 * 1.5 + 0.25 * 100),
+            "24 + 15% AD + 30% AP") + 60 * 1.5 + 0.25 * 100),
         2,
         "sát thương R")
         const t = mk({
@@ -660,7 +660,7 @@ test("E (25 mana): sát thương phép + chắc chắn +1 Say Mê, vĩnh viễn 
             "g4v_fighter"),
         afterMr(fA(s0,
             "ahri",
-            "30 + 20% AD + 50% AP")),
+            "70 + 20% AD + 50% AP")),
         2,
         "sát thương E")
         for (let i = 0; i < 3; i++) s = cast(s,
@@ -797,7 +797,7 @@ test("Q (10 mana): 1 mục tiêu nhận sát thương phép, 1 địch ngẫu nh
             "g4v_fighter"),
         afterMr(fA(s0,
             "ahri",
-            "40 + 20% AD + 70% AP")),
+            "115 + 20% AD + 70% AP")),
         2,
         "sát thương phép lên mục tiêu")
         const others = ["g4v_tank",
@@ -811,7 +811,7 @@ test("Q (10 mana): 1 mục tiêu nhận sát thương phép, 1 địch ngẫu nh
         near(Math.max(...others),
             fA(s0,
                 "ahri",
-                "20 + 10% AD + 30% AP"),
+                "44 + 10% AD + 30% AP"),
             1,
             "sát thương chuẩn (không giảm giáp)")
     })
@@ -848,7 +848,7 @@ test("R (50 mana): đổi chỗ với đồng minh rồi đánh kẻ đối di�
             "g4v_fighter"),
         afterMr(fA(s0,
             "ahri",
-            "80 + 30% AD + 90% AP")),
+            "152 + 30% AD + 90% AP")),
         2,
         "đánh kẻ đối diện chỗ mới")
         assert.equal(lost(s0,
@@ -993,7 +993,7 @@ test("Q (10 mana) và R (50 mana) gây thêm 50% lên địch đang Choáng; R C
             "g4v_fighter"),
         afterMr(fA(plain,
             "annie",
-            "60 + 20% AD + 80% AP")),
+            "119 + 20% AD + 80% AP")),
         2,
         "Q thường")
         assert.equal(mana(qPlain,
@@ -1018,7 +1018,7 @@ test("Q (10 mana) và R (50 mana) gây thêm 50% lên địch đang Choáng; R C
             "g4v_fighter"),
         afterMr(fA(r0,
             "annie",
-            "120 + 30% AD + 100% AP")) * 1.5,
+            "194 + 30% AD + 100% AP")) * 1.5,
         3,
         "R ×1.5 lên địch đã Choáng")
         near(lost(r0,
@@ -1027,7 +1027,7 @@ test("Q (10 mana) và R (50 mana) gây thêm 50% lên địch đang Choáng; R C
             "g4v_tank"),
         afterMr(fA(r0,
             "annie",
-            "120 + 30% AD + 100% AP")),
+            "194 + 30% AD + 100% AP")),
         3,
         "R thường lên địch chưa Choáng")
         assert.ok(stunned(r,
@@ -1112,9 +1112,9 @@ test("E (15 mana, Quick): Khiên; đáp lại đòn nhắm Annie khi đủ 4 L�
             "g4v_fighter"),
         afterMr(fA(trap.t,
             "annie",
-            "40 + 10% AD + 60% AP")) * 1.5,
+            "84 + 10% AD + 60% AP")) * 1.5,
         3,
-        "trả {40 + 10% AD + 60% AP} ×1.5 vì đã Choáng")
+        "trả {84 + 10% AD + 60% AP} ×1.5 vì đã Choáng")
         const calm = react(2)
         assert.ok(!stunned(calm.s,
             "B",
@@ -1196,7 +1196,7 @@ test("Nội tại: sát thương của Lissandra có cơ hội Hoá Băng 1 lá 
             "g4v_fighter"),
         afterMr(fA(s1,
             "lissandra",
-            "50 + 30% AD + 80% AP")),
+            "125 + 30% AD + 80% AP")),
         2,
         "sát thương Q")
         // băng tan khi Lissandra rời sân
@@ -1275,7 +1275,7 @@ test("E (30 mana): sát thương phép; Choáng chỉ khi tay đối thủ có l
             "brand"),
         fA(no.s,
             "lissandra",
-            "30 + 35% AD + 70% AP") * 100 / (100 + cg.getHero("brand")!.mr),
+            "100 + 35% AD + 70% AP") * 100 / (100 + cg.getHero("brand")!.mr),
         3,
         "sát thương E")
     })
@@ -1340,7 +1340,7 @@ test("R (50 mana, Quick): mọi địch nhận sát thương mỗi lá băng; Li
         50)
         const per = fA(t,
             "lissandra",
-            "30 + 10% AD + 20% AP")
+            "45 + 10% AD + 20% AP")
         near(1000 - hpOf(after,
             "B",
             "g4v_fighter"),
@@ -1386,7 +1386,7 @@ test("Nội tại: đòn đánh của TF gây thêm sát thương phép theo s�
         const a = hit(0), b = hit(4)
         const per = fA(a.s,
             "twistedfate",
-            "3 + 1% AD + 2% AP")
+            "4 + 1% AD + 2% AP")
         near(b.dmg - a.dmg,
             afterMr(4 * per),
             2,
@@ -1425,7 +1425,7 @@ test("Q (20 mana): sát thương phép; Xanh hồi 30 mana, Đỏ Rã Giáp tớ
             "g4v_fighter"),
         afterMr(fA(blue.s,
             "twistedfate",
-            "50 + 30% AD + 80% AP")),
+            "108 + 30% AD + 80% AP")),
         2,
         "sát thương Q")
         assert.ok(!stunned(blue.after,
@@ -1493,7 +1493,7 @@ test("E (15 mana): xem 3 lá trên cùng, lấy 2 lên tay, lá chọn xuống �
             c2.uid,
             "lá chọn nằm đáy bộ")
     })
-test("R (50 mana): bỏ cả tay vào mộ, mỗi lá (tối đa tính 7) gây (30 + 20% AD + 30% AP) lên mọi địch",
+test("R (50 mana): bỏ cả tay vào mộ, mỗi lá (tối đa tính 7) gây (52 + 20% AD + 30% AP) lên mọi địch",
     () => {
         const run = (cards: number) => {
             const s = mk({
@@ -1522,7 +1522,7 @@ test("R (50 mana): bỏ cả tay vào mộ, mỗi lá (tối đa tính 7) gây (
             "bỏ cả tay")
         const per = fA(few.s,
             "twistedfate",
-            "30 + 20% AD + 30% AP")
+            "52 + 20% AD + 30% AP")
         for (const h of ["g4v_fighter",
             "g4v_tank"]) near(lost(few.s,
             few.after,
@@ -1546,7 +1546,7 @@ test("R (50 mana): bỏ cả tay vào mộ, mỗi lá (tối đa tính 7) gây (
 // ======================================================================
 G("Tổng hợp")
 // ======================================================================
-test("Chi phí mana theo doc (Lux Q = 0, Lux R = toàn bộ) và AP gốc = AD gốc cũ",
+test("Chi phí mana theo doc (Lux Q = 0, Lux R = toàn bộ) và AP gốc = 0",
     () => {
         for (const id of ["brand",
             "lux",
@@ -1602,12 +1602,12 @@ test("Chi phí mana theo doc (Lux Q = 0, Lux R = toàn bộ) và AP gốc = AD g
             apOf("ahri"),
             apOf("annie"),
             apOf("lissandra")],
-        [78,
-            72,
-            76,
-            74,
-            72],
-        "AP gốc = AD gốc cũ")
+        ["brand",
+            "lux",
+            "ahri",
+            "annie",
+            "lissandra"].map(() => 0),
+        "AP gốc = 0 (luật chủ)")
         assert.deepEqual(["brand",
             "lux",
             "ahri",

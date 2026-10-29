@@ -11,6 +11,8 @@ type Act = Parameters<typeof cg.applyAction>[1];
 type Ev = ReturnType<typeof cg.applyAction>["events"];
 type S = "A" | "B";
 const { Game } = cg
+/** AD gốc của tướng (đọc từ định nghĩa để test không vỡ khi cân bằng chỉ số) */
+const AD = (h: string) => cg.getHero(h)!.atk
 
 // ======================================================================
 // Khung test
@@ -186,7 +188,7 @@ const turnStart = (s: St, side: S) => {
 // ======================================================================
 G("Viktor")
 // ======================================================================
-test("Q: bỏ 2 lá => +2 Tiến Hoá, mỗi lá 1 Khiên (20 + 10% AD + 20% AP), trừ 10 mana, 2 lá vào mộ; AP gốc 68",
+test("Q: bỏ 2 lá => +2 Tiến Hoá, mỗi lá 1 Khiên (34 + 10% AD + 20% AP), trừ 10 mana, 2 lá vào mộ; AP gốc 0",
     () => {
         let s = mk({
             A: {
@@ -196,8 +198,8 @@ test("Q: bỏ 2 lá => +2 Tiến Hoá, mỗi lá 1 Khiên (20 + 10% AD + 20% AP)
         assert.equal(gm(s).ap(u(s,
             "A",
             "viktor")),
-        68,
-        "AP gốc = AD cũ")
+        0,
+        "AP gốc = 0 (luật chủ)")
         const q = give(s,
             "A",
             skill(s,
@@ -218,7 +220,7 @@ test("Q: bỏ 2 lá => +2 Tiến Hoá, mỗi lá 1 Khiên (20 + 10% AD + 20% AP)
         const per = Math.round(gm(s).f(u(s,
             "A",
             "viktor"),
-        "20 + 10% AD + 20% AP"))
+        "34 + 10% AD + 20% AP"))
         s = play(s,
             "A",
             q,
@@ -272,7 +274,7 @@ test("E: sát thương phép mọi địch (35 mana), mỗi Tiến Hoá thêm 8%
         }
         const base = run(0)
         const evolved = run(5)
-        const raw = 55 + 0.35 * 92 + 0.65 * 68
+        const raw = 115 + 0.35 * 92
         for (const f of ["B:g5v_tank",
             "B:g5v_fighter",
             "B:g5v_mage",
@@ -311,7 +313,7 @@ test("R: sát thương mọi địch, tướng nhiều máu nhất bị Choáng,
                     "A",
                     "R")))
         s = r.s
-        const raw = (80 + 0.3 * 92 + 0.6 * 68) * (1 + 0.08 * 9)
+        const raw = (121 + 0.3 * 92) * (1 + 0.08 * 9)
         for (const f of ["g5v_tank",
             "g5v_fighter",
             "g5v_sup"]) assert.equal(dmgTo(r.ev,
@@ -461,7 +463,7 @@ test("Nội tại: đánh được địch có Buốt bỏ qua đỡ đòn; đò
         false,
         "đã Buốt thì không chí mạng")
     })
-test("Q: (40 + 80% AD + 20% AP) + 3 Buốt; E: đòn đánh gây thêm (30 + 40% AD + 10% AP) và gắn 2 Buốt",
+test("Q: (55 + 95% AD + 20% AP) + 3 Buốt; E: đòn đánh gây thêm (30 + 40% AD + 10% AP) và gắn 2 Buốt",
     () => {
         let s = mk({
             A: {
@@ -484,7 +486,7 @@ test("Q: (40 + 80% AD + 20% AP) + 3 Buốt; E: đòn đánh gây thêm (30 + 40%
         s = r.s
         assert.equal(dmgTo(r.ev,
             "B:g5v_tank"),
-        Math.round((40 + 0.8 * 120) * 100 / 130))
+        Math.round((55 + 0.95 * AD("ashe")) * 100 / 130))
         assert.equal(gm(s).statusV(u(s,
             "B",
             "g5v_tank"),
@@ -511,10 +513,10 @@ test("Q: (40 + 80% AD + 20% AP) + 3 Buốt; E: đòn đánh gây thêm (30 + 40%
         assert.equal(dmgTo(r.ev,
             "B:g5v_tank",
             "attack"),
-        Math.round(120 * 100 / 130) + Math.round((30 + 0.4 * 120) * 100 / 130),
+        Math.round(AD("ashe") * 100 / 130) + Math.round((30 + 0.4 * AD("ashe")) * 100 / 130),
         "đòn thường + phần thêm của E")
     })
-test("R: (100 + 80% AD + 30% AP) + Choáng + 5 Buốt lên 1 địch, không cần có Buốt, Buốt không bị xoá",
+test("R: (120 + 90% AD + 30% AP) + Choáng + 5 Buốt lên 1 địch, không cần có Buốt, Buốt không bị xoá",
     () => {
         let s = mk({
             A: {
@@ -537,7 +539,7 @@ test("R: (100 + 80% AD + 30% AP) + Choáng + 5 Buốt lên 1 địch, không c�
         s = r.s
         assert.equal(dmgTo(r.ev,
             "B:g5v_tank"),
-        Math.round((100 + 0.8 * 120) * 100 / 130))
+        Math.round((120 + 0.9 * AD("ashe")) * 100 / 130))
         assert.ok(u(s,
             "B",
             "g5v_tank").statuses.stun)
@@ -624,9 +626,9 @@ test("Nội tại: mỗi Điên đòn đánh thêm (1 + 1% AD + 0.5% AP); Điên
             "B:g5v_tank",
             "attack")
         }
-        const per = 1 + 0.01 * 124
+        const per = 1 + 0.01 * AD("jinx")
         assert.equal(hit(10),
-            Math.round(124 * 100 / 130) + Math.round(10 * per * 100 / 130))
+            Math.round(AD("jinx") * 100 / 130) + Math.round(10 * per * 100 / 130))
         assert.ok(hit(10) > hit(0))
         const s = mk({
             A: {
@@ -661,7 +663,7 @@ test("Nội tại: mỗi Điên đòn đánh thêm (1 + 1% AD + 0.5% AP); Điên
         15,
         "chết mất nửa")
     })
-test("Q: đòn đánh kế gây (20 + 100% AD + 20% AP) lên mục tiêu, 25% lên mọi địch còn lại, mỗi đứa trúng đều tính Điên",
+test("Q: đòn đánh kế gây (50 + 110% AD + 20% AP) lên mục tiêu, 25% lên mọi địch còn lại, mỗi đứa trúng đều tính Điên",
     () => {
         let s = mk({
             A: {
@@ -692,7 +694,7 @@ test("Q: đòn đánh kế gây (20 + 100% AD + 20% AP) lên mục tiêu, 25% l�
             "A",
             "jinx",
             "B:g5v_tank")
-        const base = 20 + 124
+        const base = 50 + 1.1 * AD("jinx")
         assert.equal(dmgTo(r.ev,
             "B:g5v_tank"),
         Math.round(base * 100 / 130),
@@ -780,7 +782,7 @@ test("E (Quick, Chỉ Nối Chuỗi): địch đánh Jinx => Jinx nhận ít hơ
         assert.ok(reacted.s.players.A.hand.some((c) => c.kind === "skill" && c.id === "jinx_q"),
             "có 1 lá Q của Jinx trên tay")
     })
-test("R: (100 + 80% AD + 20% AP) + 5 mỗi Điên + 20% máu đã mất của mục tiêu",
+test("R: (120 + 90% AD + 20% AP) + 5 mỗi Điên + 20% máu đã mất của mục tiêu",
     () => {
         const s = mk({
             A: {
@@ -804,7 +806,7 @@ test("R: (100 + 80% AD + 20% AP) + 5 mỗi Điên + 20% máu đã mất của m�
             {
                 target: "B:g5v_tank"
             })
-        const raw = 100 + 0.8 * 124 + 5 * 10 + 0.2 * 400
+        const raw = 120 + 0.9 * AD("jinx") + 5 * 10 + 0.2 * 400
         assert.equal(dmgTo(r.ev,
             "B:g5v_tank"),
         Math.round(raw * 100 / 130))
@@ -813,7 +815,7 @@ test("R: (100 + 80% AD + 20% AP) + 5 mỗi Điên + 20% máu đã mất của m�
 // ======================================================================
 G("Kog'Maw")
 // ======================================================================
-test("Nội tại: +1 Đói mỗi lượt Kog sống, +1 khi có tướng chết; Kog chết mất nửa; AP gốc 84",
+test("Nội tại: +1 Đói mỗi lượt Kog sống, +1 khi có tướng chết; Kog chết mất nửa; AP gốc 0",
     () => {
         const s = mk({
             A: {
@@ -825,7 +827,7 @@ test("Nội tại: +1 Đói mỗi lượt Kog sống, +1 khi có tướng chết
         assert.equal(gm(s).ap(u(s,
             "A",
             "kogmaw")),
-        84)
+        0)
         turnStart(s,
             "A")
         assert.equal(stack(s,
@@ -893,8 +895,8 @@ test("Đòn đánh thêm (0.8% máu tối đa mục tiêu mỗi Đói + 10% AD +
             "B:g5v_tank",
             "attack")
         }
-        const flat = 0.1 * 116 + 0.15 * 84
-        const exp = (n: number, k: number) => Math.round(116 * 100 / 130) + Math.round((1000 * 0.008 * n * k + flat) * 100 / 130)
+        const flat = 13 + 0.1 * AD("kogmaw")
+        const exp = (n: number, k: number) => Math.round(AD("kogmaw") * 100 / 130) + Math.round((1000 * 0.008 * n * k + flat) * 100 / 130)
         assert.equal(hit(0,
             false),
         exp(0,
@@ -910,7 +912,7 @@ test("Đòn đánh thêm (0.8% máu tối đa mục tiêu mỗi Đói + 10% AD +
             2),
         "E nhân đôi phần % máu")
     })
-test("Q: (40 + 80% AD + 40% AP) phép + 3 Đói; R: mọi địch nhận 1.5% máu tối đa mỗi Đói + (30% AD + 50% AP)",
+test("Q: (74 + 80% AD + 40% AP) phép + 3 Đói; R: mọi địch nhận 1.5% máu tối đa mỗi Đói + (42 + 30% AD + 50% AP)",
     () => {
         let s = mk({
             A: {
@@ -933,7 +935,7 @@ test("Q: (40 + 80% AD + 40% AP) phép + 3 Đói; R: mọi địch nhận 1.5% m�
         s = r.s
         assert.equal(dmgTo(r.ev,
             "B:g5v_tank"),
-        Math.round((40 + 0.8 * 116 + 0.4 * 84) * 100 / 130))
+        Math.round((74 + 0.8 * AD("kogmaw")) * 100 / 130))
         assert.equal(stack(s,
             "A",
             "kogmaw",
@@ -954,7 +956,7 @@ test("Q: (40 + 80% AD + 40% AP) phép + 3 Đói; R: mọi địch nhận 1.5% m�
             "g5v_mark",
             "g5v_sup"]) assert.equal(dmgTo(r.ev,
             `B:${h}`),
-        Math.round((1000 * 0.015 * 10 + 0.3 * 116 + 0.5 * 84) * 100 / 130),
+        Math.round((1000 * 0.015 * 10 + 42 + 0.3 * AD("kogmaw")) * 100 / 130),
         h)
     })
 
@@ -962,7 +964,7 @@ test("Q: (40 + 80% AD + 40% AP) phép + 3 Đói; R: mọi địch nhận 1.5% m�
 G("Teemo")
 // ======================================================================
 const mushrooms = (s: St, side: S) => s.players[side].deck.filter((c) => c.kind === "special" && c.id === "mushroom").length
-test("Nội tại: mỗi đòn đánh xáo 1 Nấm vào bộ bài địch; Q xáo 3; AP gốc 78",
+test("Nội tại: mỗi đòn đánh xáo 1 Nấm vào bộ bài địch; Q xáo 3; AP gốc 0",
     () => {
         let s = mk({
             A: {
@@ -974,7 +976,7 @@ test("Nội tại: mỗi đòn đánh xáo 1 Nấm vào bộ bài địch; Q xá
         assert.equal(gm(s).ap(u(s,
             "A",
             "teemo")),
-        78)
+        0)
         const m0 = mushrooms(s,
             "B")
         s = strike(s,
@@ -996,7 +998,7 @@ test("Nội tại: mỗi đòn đánh xáo 1 Nấm vào bộ bài địch; Q xá
             "B"),
         m0 + 4)
     })
-test("Địch rút trúng Nấm: nổ (50 + 12% AD + 23% AP) lên tướng máu thấp nhất, rồi vẫn rút 1 lá như thường",
+test("Địch rút trúng Nấm: nổ (80 + 16% AD + 23% AP) lên tướng máu thấp nhất, rồi vẫn rút 1 lá như thường",
     () => {
         const s = mk({
             A: {
@@ -1021,7 +1023,7 @@ test("Địch rút trúng Nấm: nổ (50 + 12% AD + 23% AP) lên tướng máu 
             "g5v_mage").hp
         gm(s).draw("B",
             1)
-        const raw = 50 + 0.12 * 112 + 0.23 * 78
+        const raw = 80 + 0.16 * 112
         assert.equal(hp0 - u(s,
             "B",
             "g5v_mage").hp,
@@ -1035,7 +1037,7 @@ test("Địch rút trúng Nấm: nổ (50 + 12% AD + 23% AP) lên tướng máu 
             1,
             "Nấm và lá bù đều rời bộ")
     })
-test("E (Quick): địch đánh Teemo => kẻ đó Mù (đòn trượt) và nhận (25 + 15% AD + 30% AP) + (8 + 5% AD + 10% AP) mỗi Nấm",
+test("E (Quick): địch đánh Teemo => kẻ đó Mù (đòn trượt) và nhận (65 + 20% AD + 30% AP) + (16 + 5% AD + 10% AP) mỗi Nấm",
     () => {
         const s = mk({
             A: {
@@ -1081,10 +1083,10 @@ test("E (Quick): địch đánh Teemo => kẻ đó Mù (đòn trượt) và nh�
         const raw = g.f(u(done.s,
             "A",
             "teemo"),
-        "25 + 15% AD + 30% AP") + g.f(u(done.s,
+        "65 + 20% AD + 30% AP") + g.f(u(done.s,
             "A",
             "teemo"),
-        "8 + 5% AD + 10% AP") * n
+        "16 + 5% AD + 10% AP") * n
         assert.equal(dmgTo(done.ev,
             "B:g5v_fighter"),
         Math.round(raw * 100 / 130),
@@ -1339,9 +1341,9 @@ test("Vayne là Sát thủ vật lý với chỉ số V3; đòn đánh tiêu Đ�
         assert.equal(h.role,
             "assassin")
         assert.equal(h.atk,
-            124)
+            AD("vayne"))
         assert.equal(h.hp,
-            340)
+            cg.getHero("vayne")!.hp)
         const s = mk({
             A: {
                 vayne: 2

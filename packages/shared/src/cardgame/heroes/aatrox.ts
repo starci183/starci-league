@@ -1,4 +1,4 @@
-// Aatrox (Đấu sĩ, vật lý): máu 370 · AD 108 · giáp/kháng 30/29 (V3).
+// Aatrox (Đấu sĩ, vật lý): máu 420 · AD 108 · giáp/kháng 30/29 (V3).
 // CHẤT: "Đổi máu lấy máu". Máu ĐÃ MẤT là tài nguyên (hiện ngay trên thanh máu): nội tại biến nó thành sát thương đòn đánh,
 // Q trả máu lấy sát thương (và nạp nội tại), E (Quick) biến sát thương đòn đánh thành hồi máu, R biến hình Kẻ Diệt Thế 2 lượt.
 // Engine: g.payHp (trả máu, không tự giết), AttackInfo.bonus (nội tại), status theo lượt (E), onDamage (hút máu),
@@ -15,11 +15,11 @@ import type {
 } from "../types"
 
 /** Nội tại: đòn đánh gây thêm 15% máu đã mất + (5% AD + 2% AP) */
-export const PASSIVE_PCT = 0.15
+export const PASSIVE_PCT = 0.1
 export const F_PASSIVE = "5% AD + 2% AP"
-/** Q: trả 25% máu tối đa, địch nhận 120% lượng đó + (60% AD + 10% AP) */
+/** Q: trả 25% máu tối đa, địch nhận 100% lượng đó + (60% AD + 10% AP) */
 export const Q_PAY_PCT = 0.25
-export const Q_MULT = 1.2
+export const Q_MULT = 1
 export const F_Q = "60% AD + 10% AP"
 const E_STATUS = "aatrox_e"
 export const FORM = "aatrox_r"
@@ -37,7 +37,7 @@ export const lostHp = (u: Unit) => Math.max(0,
     u.maxHp - u.hp)
 
 export default defineHero({
-    id: "aatrox", name: "Aatrox", role: "fighter", damage: "physical", hp: 370, atk: 108, armor: 30, mr: 29,
+    id: "aatrox", name: "Aatrox", role: "fighter", damage: "physical", hp: 420, atk: 108, armor: 30, mr: 29,
     desc: "Kẻ Diệt Thế: trả máu lấy sát thương, càng cạn máu đòn càng nặng, chém trúng thì hút lại, R biến hình quỷ và chết một lần không sao.",
     passive: {
         name: "Cái Giá Bằng Máu",

@@ -1075,12 +1075,13 @@ export function buildPlan(events: GameEvent[], fx: Fx): PlanItem[] {
             i = j
             continue
         }
-        if (e.t === "cardBurned") {
+        // bỏ bài chủ động ("manual") dùng chung hoạt ảnh lá bay vào mộ với lá bị đốt
+        if (e.t === "cardBurned" || (e.t === "discard" && e.reason === "manual")) {
             const list: { side: Side; card: Card }[] = []
             let j = i
             while (j < events.length) {
                 const x = events[j]
-                if (x.t === "cardBurned") list.push({
+                if (x.t === "cardBurned" || (x.t === "discard" && x.reason === "manual")) list.push({
                     side: x.side, card: x.card
                 })
                 else if (x.t !== "attackCount" && x.t !== "manaChange") break

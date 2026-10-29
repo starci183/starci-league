@@ -6,7 +6,7 @@ import {
     cg
 } from "@starci/shared"
 import {
-    ELEMENT_CLS, elementName, formName, itemEmoji, itemIcon, itemName, markInfo, passiveOf, portrait, roleName, stackInfoV2, stackValueText, tr, unitName
+    ELEMENT_CLS, elementName, formName, itemEmoji, itemIcon, itemName, markInfo, passiveOf, portrait, roleName, stackIcon, stackInfoV2, stackValueText, tr, unitName
 } from "./helpers"
 import {
     RichText
@@ -158,6 +158,34 @@ export function UnitCard(p: UnitCardProps) {
             <StatusRow
                 u={u}
                 turnNo={p.turnNo}
+                extra={[...stacks.map(([k,
+                    v]) => {
+                    const info = stackInfoV2(k)
+                    const name = info?.name ?? k
+                    return {
+                        key: `sk:${k}`,
+                        icons: [stackIcon(k,
+                            u.hero)],
+                        num: stackValueText(k,
+                            v),
+                        tip: `${name}: ${stackValueText(k,
+                            v)}${info ? `
+${info.desc}` : ""}`,
+                        letter: initials(name),
+                    }
+                }),
+                ...marks.map((m, i) => {
+                    const info = markInfo(m.id)
+                    return {
+                        key: `mk${i}`,
+                        icons: [`/card_skills/${m.id.split("_")[0]}_q.png`,
+                            `/card_skills/${m.id.split("_")[0]}_p.png`],
+                        num: `${m.hits}`,
+                        tip: `${info.name}: ${m.hits}
+${info.desc}`,
+                        letter: initials(info.name),
+                    }
+                })]}
                 unitOf={(id) => {
                     const x = g.unit(id)
                     return x ? unitName(x) : undefined
@@ -172,34 +200,6 @@ export function UnitCard(p: UnitCardProps) {
                     <span className={`bd-elem el-${ELEMENT_CLS[element - 1] ?? "red"}`} title={stackInfoV2("element")?.desc}>{elementName(element)}</span>
                 ) : null}
                 {p.soaked ? <span className="bd-soak" title={t.soakFor} /> : null}
-                {stacks.length || marks.length ? (
-                    <span className="bd-stacks">
-                        {stacks.map(([k,
-                            v]) => {
-                            const info = stackInfoV2(k)
-                            const name = info?.name ?? k
-                            return (
-                                <b key={k} title={`${name}: ${stackValueText(k,
-                                    v)}${info ? `
-${info.desc}` : ""}`}>
-                                    <i>{initials(name)}</i>
-                                    {stackValueText(k,
-                                        v)}
-                                </b>
-                            )
-                        })}
-                        {marks.map((m, i) => {
-                            const info = markInfo(m.id)
-                            return (
-                                <b key={`mk${i}`} className="mk" title={`${info.name}: ${m.hits}
-${info.desc}`}>
-                                    <i>{initials(info.name)}</i>
-                                    {m.hits}
-                                </b>
-                            )
-                        })}
-                    </span>
-                ) : null}
                 {u.nextAttack.length ? <span className="bd-next" title={t.next}>{u.nextAttack.length}</span> : null}
                 <StatusTags u={u} />
                 <div className="bd-name">{unitName(u)}</div>

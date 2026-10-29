@@ -1,4 +1,4 @@
-// Gangplank (Đấu sĩ, vật lý): máu 380 · AD 106 · giáp/kháng 30/29 (V3).
+// Gangplank (Đấu sĩ, vật lý): máu 420 · AD 106 · giáp/kháng 30/29 (V3).
 // CHẤT: "Ăn cam trụ đường, gài thùng nổ một tướng địch": đấu sĩ bền, bịp bằng Thùng giả. Thùng KHÔNG tự xuất hiện: E đặt Thùng thật,
 // hoặc úp BẤT KỲ lá trên tay làm Thùng giả (lá đó mất). Thùng thật +1 Thuốc Súng đầu mỗi lượt của Gangplank, không hết hạn.
 // Đòn đánh của Gangplank (kể cả nút Đánh nhanh 66%) vào Thùng của mình = nổ 1 Thùng thật: 1 tướng địch NGẪU NHIÊN nhận sát thương theo Thuốc Súng.
@@ -121,7 +121,7 @@ function blast(g: Game, me: Unit, keg: Keg) {
 }
 
 export default defineHero({
-    id: "gangplank", name: "Gangplank", role: "fighter", damage: "physical", hp: 380, atk: 106, armor: 30, mr: 29,
+    id: "gangplank", name: "Gangplank", role: "fighter", damage: "physical", hp: 420, atk: 106, armor: 30, mr: 29,
     bot: {
         tokenValue: 30,
         tokenStackValue: {

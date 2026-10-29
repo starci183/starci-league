@@ -20,7 +20,7 @@ export const HERO_EN_V2_G1: Record<string, HeroTextEn> = {
         skills: {
             Q: {
                 name: "Decimate",
-                desc: "Choose the enemy champion opposite Darius; deal {40 + 120% AD + 20% AP} physical damage and +2 Bleed; Darius heals {6 + 8% AD + 2% AP} HP per Bleed on it.",
+                desc: "Choose the enemy champion opposite Darius; deal {30 + 100% AD + 20% AP} physical damage and +2 Bleed; Darius heals {6 + 8% AD + 2% AP} HP per Bleed on it.",
             },
             E: {
                 name: "Apprehend",
@@ -28,7 +28,7 @@ export const HERO_EN_V2_G1: Record<string, HeroTextEn> = {
             },
             R: {
                 name: "Noxian Guillotine",
-                desc: "Choose the enemy champion opposite Darius that has Bleed; deal {16 + 25% AD + 5% AP} true damage per Bleed on it, then remove all its Bleed. If this card scores a takedown: it returns to your hand.",
+                desc: "Choose the enemy champion opposite Darius that has Bleed; deal {12 + 20% AD + 5% AP} true damage per Bleed on it, then remove all its Bleed. If this card scores a takedown: it returns to your hand.",
             },
         },
     },
@@ -42,7 +42,7 @@ export const HERO_EN_V2_G1: Record<string, HeroTextEn> = {
         skills: {
             Q: {
                 name: "Decisive Strike",
-                desc: "Choose the enemy champion opposite Garen; deal {30 + 100% AD + 15% AP} physical damage, plus {15% AD + 3% AP} per Guilt on it. Garen heals 30% of the damage dealt.",
+                desc: "Choose the enemy champion opposite Garen; deal {20 + 90% AD + 15% AP} physical damage, plus {15% AD + 3% AP} per Guilt on it. Garen heals 30% of the damage dealt.",
             },
             E: {
                 name: "Judgment",
@@ -50,7 +50,7 @@ export const HERO_EN_V2_G1: Record<string, HeroTextEn> = {
             },
             R: {
                 name: "Demacian Justice",
-                desc: "Choose the enemy champion opposite Garen; deal {100 + 80% AD + 20% AP} + 15 per Guilt on it as true damage. Guilt stays.",
+                desc: "Choose the enemy champion opposite Garen; deal {80 + 70% AD + 20% AP} + 15 per Guilt on it as true damage. Guilt stays.",
             },
         },
     },
@@ -59,12 +59,12 @@ export const HERO_EN_V2_G1: Record<string, HeroTextEn> = {
         desc: "The World Ender: pay HP for damage, the emptier his health bar the harder he hits, heals back off every hit, and R transforms him into a demon who survives one death.",
         passive: {
             name: "Blood Price",
-            desc: "Aatrox's attacks (including cardless attacks) deal extra physical damage equal to 15% of the HP Aatrox has lost + {5% AD + 2% AP}.",
+            desc: "Aatrox's attacks (including cardless attacks) deal extra physical damage equal to 10% of the HP Aatrox has lost + {5% AD + 2% AP}.",
         },
         skills: {
             Q: {
                 name: "The Darkin Blade",
-                desc: "Choose the enemy champion opposite Aatrox; Aatrox Pays 25% of his max HP, then it takes physical damage equal to 120% of the HP paid + {60% AD + 10% AP}.",
+                desc: "Choose the enemy champion opposite Aatrox; Aatrox Pays 25% of his max HP, then it takes physical damage equal to 100% of the HP paid + {60% AD + 10% AP}.",
             },
             E: {
                 name: "Blood Rite",
@@ -107,7 +107,7 @@ export const HERO_EN_V2_G1: Record<string, HeroTextEn> = {
         skills: {
             Q: {
                 name: "Burial",
-                desc: "Discard 1 card from your hand into the graveyard, then draw 1 card; Yorick heals {25 + 20% AD + 5% AP} HP.",
+                desc: "Discard 1 card from your hand into the graveyard, then draw 1 card; Yorick heals {35 + 30% AD + 5% AP} HP.",
             },
             E: {
                 name: "Exhume",
@@ -124,12 +124,12 @@ export const HERO_EN_V2_G1: Record<string, HeroTextEn> = {
         desc: "The Forge God: the longer your team wears items the stronger they get, Ornn shields allies by punishing attackers, and R forges complete items mid-fight.",
         passive: {
             name: "Living Forge",
-            desc: "While Ornn is on the board: all items your side wears gain +({10% + 2% per 100 AD + 2% per 100 AP} from Ornn's stats + 1% per round that item has been worn) stats. Each item is counted separately from when it was equipped; removing it resets the count.",
+            desc: "While Ornn is on the board: all items your side wears gain +({12% + 2% per 100 AD + 2% per 100 AP} from Ornn's stats + 1% per round that item has been worn) stats. Each item is counted separately from when it was equipped; removing it resets the count.",
         },
         skills: {
             Q: {
                 name: "Volcanic Rupture",
-                desc: "Choose 1 enemy champion; it takes {40 + 6% max HP + 50% Armor + 20% AP} magic damage and has its Armor Reduced by 20 until the end of the next turn.",
+                desc: "Choose 1 enemy champion; it takes {56 + 6% max HP + 50% Armor + 20% AP} magic damage and has its Armor Reduced by 20 until the end of the next turn.",
             },
             E: {
                 name: "Ram Charge",

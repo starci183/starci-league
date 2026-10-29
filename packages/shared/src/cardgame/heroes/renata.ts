@@ -1,4 +1,4 @@
-// Renata Glasc (Trợ thủ, phép): máu 340 · AD 85 · AP gốc 60 · giáp/kháng 25/28.
+// Renata Glasc (Trợ thủ, phép): máu 340 · AD 85 · AP gốc 0 · giáp/kháng 25/28.
 // CHẤT: "Địch có dám đánh không": trừng phạt kẻ tấn công, lật kèo khi đồng minh gục.
 // Nội tại: đồng minh khác bị hạ thì hồi sinh (25% máu tối đa + công thức), hoá Cuồng Bạo (đòn đánh +sát thương, 1 Đòn Miễn Phí); 1 lần/đồng minh/trận.
 // Q: cả đội +Giáp (status "armor_up" tới hết lượt kế của địch), mọi địch nhận sát thương phép. E (Quick): phản 40% sát thương đòn địch + sát thương chuẩn cố định. R: mỗi địch đánh 2 đòn vào 1 đồng đội ngẫu nhiên.
@@ -21,15 +21,15 @@ const FRENZY = "frenzy"
 export const REVIVE_PCT = 0.25
 export const REFLECT = 0.4
 /** Hồi sinh: cộng vào 25% máu tối đa */
-export const F_REVIVE = "20 + 15% AD + 25% AP"
+export const F_REVIVE = "35 + 15% AD + 25% AP"
 /** Cuồng Bạo: sát thương cộng thêm cho MỖI đòn đánh */
-export const F_FRENZY = "15 + 15% AD + 25% AP"
+export const F_FRENZY = "30 + 15% AD + 25% AP"
 /** Q: Giáp cộng thêm cho cả đội (tới hết lượt kế của địch) */
-export const F_Q_ARMOR = "10 + 10% AD + 15% AP"
+export const F_Q_ARMOR = "19 + 10% AD + 15% AP"
 export const Q_ARMOR = "armor_up"
-export const F_Q_DMG = "20 + 20% AD + 30% AP"
+export const F_Q_DMG = "38 + 20% AD + 30% AP"
 /** E: sát thương chuẩn cố định cộng vào phần phản */
-export const F_REFLECT = "10 + 10% AD + 15% AP"
+export const F_REFLECT = "19 + 10% AD + 15% AP"
 /** R: mỗi địch đánh bấy nhiêu đòn vào 1 đồng đội ngẫu nhiên */
 const R_HITS = 2
 
@@ -38,11 +38,9 @@ const isOver = (g: Game) => g.s.phase === "over"
 /** ReactFx kèm số sát thương cố định của Gói Cứu Trợ (đi cùng đối tượng fx tới lúc đòn bên dưới giải quyết) */
 type RenataFx = ReactFx & { renataFlat?: number }
 
-/** AP gốc = AD cũ của Renata (V3: tướng phép có AP gốc bằng AD gốc cũ) */
-const BASE_AP = 60
 
 export default defineHero({
-    id: "renata", name: "Renata Glasc", role: "support", damage: "magic", hp: 340, atk: 85, ap: BASE_AP, armor: 25, mr: 28,
+    id: "renata", name: "Renata Glasc", role: "support", damage: "magic", hp: 340, atk: 85, armor: 25, mr: 28,
     bot: {
         buffValue: {
             frenzy: 40,

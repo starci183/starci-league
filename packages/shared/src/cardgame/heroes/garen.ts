@@ -1,4 +1,4 @@
-// Garen (Đấu sĩ, vật lý): máu 400 · AD 104 · giáp/kháng 33/31 (V3).
+// Garen (Đấu sĩ, vật lý): máu 450 · AD 104 · giáp/kháng 33/31 (V3).
 // CHẤT: "Tay đôi với kẻ trước mặt". Kẻ đối diện Garen mỗi lần đánh (bất kỳ ai) tự +1 Tội; Garen đánh vào Tội thì nặng thêm.
 // Q dùng Tội (không tiêu), E nuôi Tội (3 nhát, mỗi nhát +1), R Phán Quyết xả Tội thành sát thương chuẩn.
 // Engine: status cộng dồn "guilt" (g.status add), AttackInfo.bonus, hook onAttack của tướng đối diện.
@@ -22,7 +22,7 @@ const MAX_GUILT = 10
 const GUILT_TURNS = 3
 /** Nội tại: đòn đánh của Garen thêm từng này sát thương mỗi Tội của mục tiêu */
 export const F_PASSIVE = "6% AD + 2% AP"
-export const F_Q = "30 + 100% AD + 15% AP"
+export const F_Q = "20 + 90% AD + 15% AP"
 /** Q: thêm từng này mỗi Tội */
 export const F_Q_GUILT = "15% AD + 3% AP"
 /** Q: Garen hồi 30% sát thương Q gây ra */
@@ -30,7 +30,7 @@ export const Q_HEAL = 0.3
 export const F_E = "20 + 100% AD + 20% AP"
 const E_GUILT = 3
 /** R: phần cố định + từng này mỗi Tội (sát thương chuẩn) */
-export const F_R = "100 + 80% AD + 20% AP"
+export const F_R = "80 + 70% AD + 20% AP"
 export const R_PER_GUILT = 15
 
 export const guiltOf = (g: Game, t: Unit) => g.statusV(t,
@@ -46,7 +46,7 @@ const addGuilt = (g: Game, t: Unit, n: number) => {
 }
 
 export default defineHero({
-    id: "garen", name: "Garen", role: "fighter", damage: "physical", hp: 400, atk: 104, armor: 33, mr: 31,
+    id: "garen", name: "Garen", role: "fighter", damage: "physical", hp: 450, atk: 104, armor: 33, mr: 31,
     desc: "Tay đôi: kẻ đứng trước Garen cứ đánh là tự chất Tội lên mình, Garen chém vào Tội và Phán Quyết xả hết.",
     passive: {
         name: "Công Lý",

@@ -36,7 +36,7 @@ export const EVAL = {
     reserve: 140,
     respawnPerRound: 70,
     shield: 0.7,
-    // bộ 85 lá, rút 2 lá/lượt: ngưỡng an toàn tính theo số lượt còn rút được
+    // bộ 170 lá, rút 1 lá/lượt: ngưỡng an toàn tính theo số lượt còn rút được
     deckSafe: 14,
     deckPenalty: 14,
     /** 1 điểm mana (thang x10) đáng bấy nhiêu điểm; phần mana vượt `max - hồi` bị lãng phí nên tính nửa */

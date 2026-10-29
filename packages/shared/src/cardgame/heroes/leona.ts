@@ -1,4 +1,4 @@
-// Leona (Đỡ đòn, vật lý): máu 480 · AD 94 · AP gốc 0 · giáp/kháng 35/33.
+// Leona (Đỡ đòn, vật lý): máu 520 · AD 82 · AP gốc 0 · giáp/kháng 35/33.
 // CHẤT: "Mặt trời mọc": Leona khoá bằng chiêu, đánh dấu Nắng cho đồng đội ăn theo, hứng đòn thay cả đội.
 // Nội tại: chiêu của Leona gắn Nắng lên địch; đồng minh khác đánh trúng địch có Nắng gây thêm sát thương rồi Nắng tan.
 // Q: sát thương + Choáng + Nắng lên kẻ trước mặt. E (Quick): Nhật Thực: +Giáp/Kháng Phép, hứng mọi sát thương địch gây ra cho cả đội, cuối lượt địch trả lại 1 phần.
@@ -42,7 +42,7 @@ function addSun(g: Game, leona: Unit, t: Unit) {
 }
 
 export default defineHero({
-    id: "leona", name: "Leona", role: "tank", damage: "physical", hp: 480, atk: 94, armor: 35, mr: 33,
+    id: "leona", name: "Leona", role: "tank", damage: "physical", hp: 520, atk: 82, armor: 35, mr: 33,
     bot: {
         markValue: {
             sun: 40,

@@ -240,7 +240,7 @@ export function viText(e: GameEvent, v: CardView, g: cg.Game | null): string | u
         }
         return isHidden(e.card) ? `${sd(e.side)} rút 1 lá.` : `${sd(e.side)} rút ${cn(e.card)}.`
     case "drawAuto": return `${sd(e.side)} rút ${cn(e.card)}, lá này kích hoạt ngay.`
-    case "discard": return `${sd(e.side)} bỏ ${cn(e.card)}.`
+    case "discard": return e.reason === "manual" ? `${sd(e.side)} bỏ ${cn(e.card)} vào mộ.` : `${sd(e.side)} bỏ ${cn(e.card)}.`
     case "cardBurned": return `${sd(e.side)} tay đầy, đốt ${cn(e.card)}.`
     case "tempExpired": return `${cn(e.card)} (tạm) tan biến.`
     case "manaChange": return `${un(e.unit)} ${e.delta >= 0 ? "+" : "−"}${Math.abs(e.delta)} mana (${e.mana}/${e.max}).`

@@ -1,4 +1,4 @@
-// Dữ liệu hiển thị + lưu trữ cục bộ của bộ gốc chế độ thẻ bài (40 lá: Đánh thường, Rút Bài, phép bổ trợ, Vàng, mảnh Đồ; engine thêm 45 lá chiêu của 5 tướng thành bộ 85 lá).
+// Dữ liệu hiển thị + lưu trữ cục bộ của bộ gốc chế độ thẻ bài (80 lá: Đánh thường, Rút Bài, phép bổ trợ, Vàng, mảnh Đồ; engine thêm 90 lá chiêu của 5 tướng thành bộ 170 lá).
 // Luật nằm ở shared (cardgame/deck.ts); file này chỉ lo tên, mô tả, tranh và bộ của khách (localStorage "cg.deck").
 import {
     describeStats, getItem
@@ -62,9 +62,9 @@ const SPELL: Record<string, { vi: [string, string]; en: [string, string]; art: s
     },
     flash: {
         vi: ["Tốc Biến",
-            "Chuyển 1 tướng mình sang một đường trống đang mở"],
+            "Đổi đường 1 tướng mình với 1 tướng mình khác trên sân"],
         en: ["Flash",
-            "Move one of your champions to an open empty lane"],
+            "Swap the lanes of two of your champions on the board"],
         art: "/cards/toc_bien.jpg"
     },
     ignite: {
@@ -167,8 +167,8 @@ export function groupCounts(ids: DeckCardId[]): Record<DeckCardGroup, number> {
 }
 
 /** Dòng giới thiệu bộ bài (hiện ở màn xếp bộ) */
-export const deckInfo = (): string => L("Mỗi tướng thêm 4 Q, 4 E, 1 R vào bộ (tổng 85 lá)",
-    "Each champion adds 4 Q, 4 E and 1 R to the deck (85 cards in total)")
+export const deckInfo = (): string => L("Mỗi tướng thêm 8 Q, 8 E, 2 R vào bộ (tổng 170 lá)",
+    "Each champion adds 8 Q, 8 E and 2 R to the deck (170 cards in total)")
 
 /** Lỗi của bộ theo ngôn ngữ đang chọn (null = hợp lệ). Bộ cũ 20 lá báo xếp lại. */
 export function deckError(ids: DeckCardId[]): string | null {

@@ -1,4 +1,4 @@
-// Soraka (Trợ thủ, phép): máu 380 · AD 86 · AP gốc 58 · giáp/kháng 26/30.
+// Soraka (Trợ thủ, phép): máu 380 · AD 86 · AP gốc 0 · giáp/kháng 26/30.
 // CHẤT: "Máu của Soraka là máu của cả đội". Đồng minh nhận đòn chí mạng thì Soraka chịu thay; Soraka còn máu thì không ai chết.
 // Q bắn sao để nạp lại kho máu (hồi thừa thành Khiên cho đồng minh), E (Quick) huỷ chiêu địch nhắm vào đồng minh và Câm Lặng kẻ tung, R hồi cả đội lật kèo.
 // Engine: hook onLethal + g.redirectLethal, quick + chainOnly + g.chainFx().cancel. Trợ thủ: ra sân thì Q và E vào tay.
@@ -7,13 +7,12 @@ import {
     defineHero
 } from "../registry"
 
-export const F_Q = "40 + 20% AD + 60% AP"
-export const F_HEAL = "60 + 20% AD + 40% AP"
-export const F_R = "150 + 40% AD + 80% AP"
-const BASE_AP = 58
+export const F_Q = "75 + 20% AD + 60% AP"
+export const F_HEAL = "83 + 20% AD + 40% AP"
+export const F_R = "196 + 40% AD + 80% AP"
 
 export default defineHero({
-    id: "soraka", name: "Soraka", role: "support", damage: "magic", hp: 380, atk: 86, ap: BASE_AP, armor: 26, mr: 30,
+    id: "soraka", name: "Soraka", role: "support", damage: "magic", hp: 380, atk: 86, armor: 26, mr: 30,
     desc: "Kho máu chung của cả đội: gánh đòn chí mạng thay đồng minh, tự hồi lại kho, huỷ chiêu địch nhắm vào đội rồi Câm Lặng kẻ tung chiêu, và hồi cả đội lúc giao tranh lớn.",
     passive: {
         name: "Máu Chung",

@@ -1,11 +1,15 @@
 // Kha'Zix (Sát thủ, vật lý): máu 320 · AD 122 · giáp/kháng 27/26.
-// CHẤT: "Săn kẻ đứng một mình". Địch Cô Lập (không có đồng minh ở đường kề, hoặc bị gắn Cô Lập) ăn thêm sát thương từ đòn đánh và Q của Kha'Zix.
-// Q là đòn săn chính, E đổi đường để chọn con mồi (đối diện sau khi đổi bị Cô Lập + nhận sát thương), R (Quick) lặn + đánh dấu con mồi + nạp thêm lá Q.
-// Engine: g.isolated (cả status "isolated"), hook onAttack (info.bonus), g.moveTo, g.giveSkillToHand, status "stealth".
-// Đối thủ trả lời: đứng kín các đường, Janna Q huỷ đòn, đòn diện rộng (vẫn trúng khi Tàng Hình), Khiêu Khích kéo đòn sang tướng không Cô Lập.
+// CHẤT: "Săn con mồi bị đánh dấu". Cô Lập là TRẠNG THÁI chỉ Kha'Zix gắn (chủ 30/10: bỏ luật vị trí "không có đồng minh ở đường kề");
+// địch đang Cô Lập ăn thêm sát thương từ đòn đánh và Q của Kha'Zix.
+// Q là đòn săn chính, E chọn 1 địch bất kỳ: gây sát thương + gắn Cô Lập (không đổi đường), R (Quick) lặn + gắn Cô Lập + nạp thêm lá Q.
+// Engine: g.isolated (status "isolated"), hook onAttack (info.bonus), g.giveSkillToHand, status "stealth".
+// Đối thủ trả lời: Thanh Tẩy gỡ Cô Lập, Janna Q huỷ đòn, đòn diện rộng (vẫn trúng khi Tàng Hình), Khiêu Khích kéo đòn sang tướng không Cô Lập.
 import {
     defineHero
 } from "../registry"
+import {
+    otherSide
+} from "../types"
 
 const ISO = "isolated"
 export const F_Q = "50 + 110% AD + 20% AP"
@@ -22,10 +26,10 @@ export default defineHero({
             isolated: 20,
         },
     },
-    desc: "Mối Họa Hư Không: săn kẻ đứng lẻ. Đổi đường để chọn con mồi, lặn đi rồi nạp thêm một nhát săn.",
+    desc: "Mối Họa Hư Không: đánh dấu con mồi Cô Lập rồi săn nó. Lặn đi rồi nạp thêm một nhát săn.",
     passive: {
         name: "Thú Săn Mồi",
-        desc: `Tướng địch Cô Lập (không có đồng minh ở đường kề, hoặc bị gắn Cô Lập): đòn đánh của Kha'Zix lên nó gây thêm {${F_ATK}} sát thương vật lý; Q lên nó gây thêm {${F_Q_ISO}}.`,
+        desc: `Tướng địch đang Cô Lập (trạng thái do Kha'Zix gắn): đòn đánh của Kha'Zix lên nó gây thêm {${F_ATK}} sát thương vật lý; Q lên nó gây thêm {${F_Q_ISO}}.`,
     },
     hooks: {
         onAttack(g, me, d) {
@@ -53,13 +57,10 @@ export default defineHero({
             },
         },
         E: {
-            key: "E", name: "Nhảy Vào Bầy", target: "ally_other",
-            desc: `Chọn 1 tướng mình khác; Kha'Zix đổi đường với nó. Tướng địch đối diện Kha'Zix sau khi đổi Cô Lập tới hết lượt này và nhận {${F_E}} sát thương vật lý.`,
+            key: "E", name: "Nhảy Vào Bầy", target: "enemy",
+            desc: `Chọn 1 tướng địch; nó Cô Lập tới hết lượt này và nhận {${F_E}} sát thương vật lý.`,
             resolve(c) {
-                c.g.swapWith(c.self,
-                    c.target!)
-                const foe = c.g.opposite(c.self)
-                if (!foe) return
+                const foe = c.target!
                 c.g.status(foe,
                     ISO,
                     1,
@@ -77,13 +78,13 @@ export default defineHero({
         },
         R: {
             key: "R", name: "Lặn Săn", target: "none", quick: true,
-            desc: "Quick. Kha'Zix Tàng Hình ngay tới hết lượt kế tiếp của đối thủ; tướng địch đối diện Kha'Zix Cô Lập tới hết lượt kế tiếp của bạn; thêm 1 lá Q Kha'Zix lên tay.",
+            desc: "Quick. Kha'Zix Tàng Hình ngay tới hết lượt kế tiếp của đối thủ; tướng địch đối diện Kha'Zix (không có thì 1 tướng địch ngẫu nhiên) Cô Lập tới hết lượt kế tiếp của bạn; thêm 1 lá Q Kha'Zix lên tay.",
             resolve(c) {
                 const g = c.g
                 // Tàng Hình tới hết lượt kế tiếp của đối thủ: ra bài trong lượt mình thì 1, nối Chuỗi trong lượt đối thủ thì 2
                 g.stealth(c.self,
                     g.s.active === c.side ? 1 : 2)
-                const foe = g.opposite(c.self)
+                const foe = g.opposite(c.self) ?? g.pick(g.heroes(otherSide(c.side)))
                 // "hết lượt kế tiếp của bạn": đang lượt mình thì là lượt sau (n = 2), đang lượt đối thủ thì là lượt tới (n = 1)
                 if (foe) g.status(foe,
                     ISO,

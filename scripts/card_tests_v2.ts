@@ -281,7 +281,7 @@ const fighterDuel = (hand = 0) => {
 // ======================================================================
 G("V2: bộ bài 85 lá")
 // ======================================================================
-test("Ván mới: mỗi bộ 85 lá = 40 chung + 9 lá/tướng (đúng 4Q 4E 1R), kể cả tướng còn skillCopies cũ",
+test("Ván mới: mỗi bộ 170 lá = 80 chung + 18 lá/tướng (đúng 8Q 8E 2R), kể cả tướng còn skillCopies cũ",
     () => {
         const team = ["v2_oldcopies",
             "v2_fighter",
@@ -296,11 +296,11 @@ test("Ván mới: mỗi bộ 85 lá = 40 chung + 9 lá/tướng (đúng 4Q 4E 1R
             const all = [...s.players[side].deck,
                 ...s.players[side].hand]
             assert.equal(R.sharedDeckSize,
-                40)
+                80)
             assert.equal(all.length,
-                85)
+                R.sharedDeckSize + team.length * (R.skillCopies.Q + R.skillCopies.E + R.skillCopies.R))
             assert.equal(all.filter((c) => c.kind !== "skill").length,
-                40)
+                R.sharedDeckSize)
             for (const h of team) {
                 assert.deepEqual(["q",
                     "e",
@@ -312,14 +312,14 @@ test("Ván mới: mỗi bộ 85 lá = 40 chung + 9 lá/tướng (đúng 4Q 4E 1R
                     R.skillCopies.R],
                 h)
                 assert.equal(all.filter((c) => c.kind === "skill" && c.hero === h).length,
-                    9)
+                    18)
             }
             assert.deepEqual([R.skillCopies.Q,
                 R.skillCopies.E,
                 R.skillCopies.R],
-            [4,
-                4,
-                1])
+            [8,
+                8,
+                2])
             assert.ok(all.every((c) => c.kind === "skill" || c.kind === "support"),
                 "không còn lá chiêu chung/hỗ trợ riêng của tướng")
         }
@@ -349,12 +349,12 @@ test("RULES.heroSupport / baseDeck cũ đã bỏ; mageSkillBonus = 0",
         assert.equal(rr.mageSkillBonus,
             0)
     })
-test("validateDeck cần đúng 40 lá; DEFAULT_DECK 40 lá hợp lệ; bộ 20 lá cũ rơi về DEFAULT_DECK",
+test("validateDeck cần đúng 80 lá; DEFAULT_DECK 80 lá hợp lệ; bộ 20 lá cũ rơi về DEFAULT_DECK",
     () => {
         assert.equal(cg.DECK_SIZE,
-            40)
+            R.sharedDeckSize)
         assert.equal(cg.DEFAULT_DECK.length,
-            40)
+            R.sharedDeckSize)
         assert.equal(cg.validateDeck(cg.DEFAULT_DECK),
             null)
         assert.notEqual(cg.validateDeck(cg.DEFAULT_DECK.slice(0,
@@ -414,10 +414,10 @@ legal(s,
 // ======================================================================
 G("V2: rút bài, tay đầy, hết bộ")
 // ======================================================================
-test("Các lượt sau rút đúng RULES.drawPerTurn (2) lá",
+test("Các lượt sau rút đúng RULES.drawPerTurn (1) lá",
     () => {
         assert.equal(R.drawPerTurn,
-            2)
+            1)
         let s = mk({
             A: {
                 v2_fighter: 2
@@ -430,14 +430,14 @@ test("Các lượt sau rút đúng RULES.drawPerTurn (2) lá",
         const r = end(s,
             "B")
         assert.equal(r.s.players.A.deck.length,
-            s.players.A.deck.length - 2)
+            s.players.A.deck.length - R.drawPerTurn)
         assert.equal(r.s.players.A.hand.length,
-            s.players.A.hand.length + 2)
+            s.players.A.hand.length + R.drawPerTurn)
         assert.equal(evs(r.ev,
             "draw").filter((e) => e.side === "A").length,
-        2)
+        R.drawPerTurn)
     })
-test("Tay 9 + rút 2: còn 10 trên tay, 1 lá bị đốt vào mộ (cardBurned handFull), không có discard overflow, onDiscard overflow vẫn bắn",
+test("Tay đầy - rút + 1: còn 10 trên tay, 1 lá bị đốt vào mộ (cardBurned handFull), không có discard overflow, onDiscard overflow vẫn bắn",
     () => {
         const seen: string[] = []
         cg.defineHero({
@@ -455,7 +455,7 @@ test("Tay 9 + rút 2: còn 10 trên tay, 1 lá bị đốt vào mộ (cardBurned
         s = end(s,
             "A").s
         s.players.A.hand = Array.from({
-            length: 9
+            length: R.handMax + 1 - R.drawPerTurn
         },
         () => sup(s,
             "gold"))
@@ -873,7 +873,7 @@ test("Đòn không cần lá mở chuỗi; đối phương Quick cản; choáng 
                 "không hoàn")
         }
     })
-test("Owner #5: đòn không cần lá là Quick - đấu sĩ phe bị đánh có thể đánh không cần lá ngay trong chuỗi của đối thủ",
+test("Owner #14: đòn không cần lá 66% chỉ đánh trong lượt mình, không phải Quick (không nối chuỗi, không mở chuỗi)",
     () => {
         const s = mk({
             A: {
@@ -892,27 +892,18 @@ test("Owner #5: đòn không cần lá là Quick - đấu sĩ phe bị đánh c�
         const r = act(s,
 o!)
         assert.equal(r.s.phase,
-            "chain",
-            "B có đòn Quick nên chuỗi mở")
-        const bActs = cg.legalActions(r.s,
-            "B") as (Act & { cardless?: boolean })[]
-        assert.ok(bActs.some((a) => a.t === "attack" && a.cardless === true && a.actor === "B:v2_fighter"),
-            "đấu sĩ B đánh không cần lá trong chuỗi")
-        // cửa sổ chỉ có đòn không cần lá: client tự bỏ qua, bot quyết ngay
-        const only = cg.legalActions(r.s,
-            "B")
-        assert.equal(cg.isCardlessOnlyWindow(r.s.phase,
-            only),
-        !only.some((a) => a.t === "chain"))
-        assert.equal(cg.isCardlessOnlyWindow("main",
-            only),
-        false)
-        assert.equal(cg.isCardlessOnlyWindow("chain",
-            [{
-                t: "pass", side: "B"
-            }]),
-        false,
-        "chỉ có bỏ qua thì không phải cửa sổ đánh nhanh")
+            "main",
+            "B không có lá Quick nào nên chuỗi không mở")
+        assert.deepEqual(cardlessActs(r.s,
+            "B"),
+        [],
+        "phe B không có đòn không cần lá ngoài lượt mình")
+        // trong chuỗi (do lá Quick khác mở) cũng không được nối bằng đòn không cần lá
+        const c = JSON.parse(JSON.stringify(s)) as St
+        c.phase = "chain"
+        assert.deepEqual(cg.legalActions(c,
+            "B").filter((a) => a.t === "attack"),
+        [])
     })
 // ======================================================================
 G("V2: Trợ thủ - gọi ra lấy Q và E lên tay")

@@ -26,12 +26,12 @@ export const MAX_FRENZY = 30
 const KILL_FRENZY = 10
 /** Sát thương cộng thêm mỗi Điên cho đòn đánh (vật lý) */
 const F_PER = "1 + 1% AD + 0.5% AP"
-const F_Q = "20 + 100% AD + 20% AP"
+const F_Q = "50 + 110% AD + 20% AP"
 /** Q: cộng thêm mỗi Điên */
 const Q_PER = 2
 /** Q: phần trăm lượng sát thương lan lên mọi địch còn lại */
 const Q_SPLASH = 0.25
-const F_R = "100 + 80% AD + 20% AP"
+const F_R = "120 + 90% AD + 20% AP"
 /** R: cộng thêm mỗi Điên */
 const R_PER = 5
 /** R: phần máu đã mất của mục tiêu cộng thêm vào sát thương */

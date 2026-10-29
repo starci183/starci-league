@@ -21,8 +21,8 @@ export const MAX_CHARGE = 4
 export const F_BOOM = "40 + 50% AD + 50% AP"
 export const F_CHARGE = "15 + 20% AD"
 export const F_Q = "20 + 40% AD"
-export const F_E = "30 + 40% AD + 30% AP"
-export const F_R = "80 + 100% AD + 50% AP"
+export const F_E = "45 + 50% AD + 30% AP"
+export const F_R = "100 + 110% AD + 50% AP"
 
 /** Bom nổ: sát thương theo số Nạp; hạ được địch thì lá E về tay */
 function detonate(g: Game, me: Unit, t: Unit) {

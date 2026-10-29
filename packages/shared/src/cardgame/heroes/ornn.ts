@@ -1,4 +1,4 @@
-// Ornn (Đỡ đòn, phép): máu 480 · AD 92 · AP gốc 78 (registry V3_BASE_AP) · giáp/kháng 34/34 (V3).
+// Ornn (Đỡ đòn, phép): máu 520 · AD 80 · AP gốc 0 · giáp/kháng 34/34 (V3).
 // CHẤT: "Thần Rèn". Ornn làm mọi món đồ của đội mạnh hơn (đồ mặc càng lâu càng khoẻ) và rèn đồ mới giữa trận.
 // Q Phun Trào mở đường (giảm Giáp), E (Quick) che đồng minh: phạt kẻ đánh bằng sát thương + Choáng, R phát đồ hoàn chỉnh.
 // Engine: HeroDef.itemAura (hào quang đồ theo số vòng đã mặc), HeroDef.modifyDamage (giảm Giáp), quickWhen + chainOnly (E), g.grantItem (R).
@@ -11,12 +11,12 @@ import type {
 } from "../types"
 
 /** Nội tại: đồ +(10% + 2% mỗi 100 AD + 2% mỗi 100 AP của Ornn + 1% mỗi vòng món đó đã mặc) chỉ số */
-export const FORGE_BASE = 10
+export const FORGE_BASE = 12
 export const FORGE_PER_100_AD = 2
 export const FORGE_PER_100_AP = 2
 export const FORGE_PER_ROUND = 1
 /** Q: Phun Trào */
-export const F_Q = "40 + 6% máu tối đa + 50% Giáp + 20% AP"
+export const F_Q = "56 + 6% máu tối đa + 50% Giáp + 20% AP"
 export const Q_SHRED = 20
 export const SHRED = "ornn_shred"
 /** E: Lao Húc */
@@ -24,7 +24,7 @@ export const F_E = "20 + 4% máu tối đa + 30% Giáp"
 export const E_PER_ITEM = 10
 
 export default defineHero({
-    id: "ornn", name: "Ornn", role: "tank", damage: "magic", hp: 480, atk: 92, armor: 34, mr: 34,
+    id: "ornn", name: "Ornn", role: "tank", damage: "magic", hp: 520, atk: 80, armor: 34, mr: 34,
     desc: "Thần Rèn: đồ của cả đội mặc càng lâu càng khoẻ, Ornn che đồng minh và phạt kẻ ra tay; R rèn đồ hoàn chỉnh giữa trận.",
     passive: {
         name: "Lò Rèn Sống",

@@ -4,15 +4,15 @@
 
 Các mục "CHỐT MỚI" và mục 1-6 bên dưới là lịch sử của bản V1. Khi mâu thuẫn, **luật V2 này thắng**. Mọi con số dưới đây đọc từ `RULES` trong `packages/shared/src/cardgame/types.ts` (đổi một chỗ là đổi cả game).
 
-### 1. Bộ bài 85 lá, có đủ từ đầu trận
-- Mỗi người tự xếp **bộ chung 40 lá** (`RULES.sharedDeckSize`): Đánh thường, Rút Bài, phép bổ trợ, Vàng, mảnh Đồ. Bộ cũ 20 lá không còn hợp lệ, game dùng bộ mặc định và client nhắc "Bộ bài cần 40 lá, hãy xếp lại".
-- Mỗi tướng trong đội 5 người mang **đúng 4 lá Q + 4 lá E + 1 lá R = 9 lá** (`RULES.skillCopies`), **giống nhau cho mọi tướng**. 40 + 5 × 9 = **85 lá**.
+### 1. Bộ bài 170 lá, có đủ từ đầu trận (gấp đôi, chủ chốt 30/10)
+- Mỗi người tự xếp **bộ chung 80 lá** (`RULES.sharedDeckSize`): Đánh thường, Rút Bài, phép bổ trợ, Vàng, mảnh Đồ. Bộ cũ 20 lá không còn hợp lệ, game dùng bộ mặc định và client nhắc "Bộ bài cần 40 lá, hãy xếp lại".
+- Mỗi tướng trong đội 5 người mang **đúng 8 lá Q + 8 lá E + 2 lá R = 18 lá** (`RULES.skillCopies`), **giống nhau cho mọi tướng**. 80 + 5 × 18 = **170 lá**. Bộ mặc định: 16 Đánh thường, 2 Rút Bài + 16 phép bổ trợ, 16 Vàng, 30 mảnh Đồ (tối đa mỗi lá: Đánh thường 20, Rút Bài/phép 6, Vàng 16, mỗi mảnh 6).
 - **Không còn xáo thêm lá khi gọi tướng**, không còn "20 thẻ hỗ trợ riêng của tướng". Lá chiêu của tướng chưa gọi hoặc đang chết là **lá chết** nằm trên tay: dùng chưa được, nhưng báo trước cho bạn nên gọi ai.
 - Lá chiêu **dùng xong vào mộ bài**.
 
 ### 2. Rút bài và tay
 - **Tay đầu 5 lá được rút ngay đầu ván, TRƯỚC khi gọi tướng**, nên bạn nhìn tay mà quyết định gọi ai.
-- Từ lượt sau, mỗi lượt rút **2 lá** (`RULES.drawPerTurn`). Lượt đầu của mỗi bên không rút thêm.
+- Từ lượt sau, mỗi lượt rút **1 lá** (`RULES.drawPerTurn`, chốt 30/10; trước là 2). Lượt đầu của mỗi bên không rút thêm.
 - Tay tối đa **10 lá**. Rút thừa thì lá thừa **bị đốt vào mộ** (hiện "Tay đầy: ... bị đốt vào mộ"), không còn gọi là "bỏ do tràn".
 - **Thua khi tới lượt phải rút mà bộ bài đã hết**, hoặc khi mất đủ **7 mạng**. Bộ còn 1 lá thì vẫn rút 1 lá, không thua.
 
@@ -39,17 +39,24 @@ Các mục "CHỐT MỚI" và mục 1-6 bên dưới là lịch sử của bản
 ### 7. Đấu sĩ
 - Đấu sĩ **không còn tự đánh cuối lượt**. Đấu sĩ **dùng được lá Đánh thường** (100% AD) như mọi người.
 - Mỗi Đấu sĩ có thêm nút **"Đánh không cần lá"**: **66% sát thương** (`RULES.fighterCardlessMult`), **1 lần mỗi lượt mỗi Đấu sĩ**, tính vào giới hạn 3 đòn. Không bao giờ tự chạy: bạn bấm mới đánh, bấm xong có thể dừng.
-- Đây là hành động **Quick**: dùng được ngay trong lượt đối thủ, khi nối chuỗi, như các lá Quick khác. Không dùng được khi Choáng, khi đang có đòn miễn phí chờ, hoặc khi đã đủ 3 đòn. Token vai Đấu sĩ không có nút này.
+- Đây là **đòn chủ động, KHÔNG phải Quick**: chỉ đánh được trong lượt mình, bước chính. Không bao giờ có trong lượt đối thủ hay khi nối chuỗi (quyết định 14). Không dùng được khi Choáng, khi đang có đòn miễn phí chờ, hoặc khi đã đủ 3 đòn. Token vai Đấu sĩ không có nút này.
+
+### 7b. Bỏ bài xuống mộ
+- Trong lượt mình (bước chính, không trong chuỗi hay bước gọi tướng úp), bạn có thể bỏ **bất kỳ lá nào trên tay** xuống mộ, **miễn phí, không giới hạn số lần**, không tính vào giới hạn hành động. Nút "Bỏ vào mộ" hiện khi bấm một lá trên tay.
+- Đi qua đường bỏ bài thường nên hook `onDiscard` chạy (mộ của Yorick tăng); log "Bạn bỏ <lá> vào mộ".
+- Lá tạm và lá đặc biệt không bỏ được. Lá bị Hoá Băng (Lissandra) **bỏ được**: đó là lối thoát khỏi băng.
+- Bot không tự bỏ bài chủ động.
 
 ### 8. Pháp sư và mana (nhân 10)
 - Chỉ Pháp sư có mana. Mặc định **tối đa 100, bắt đầu 100, mỗi lượt của bạn +10** (`RULES.mage`); từng Pháp sư có thể đặt số riêng.
 - **Mỗi chiêu Pháp sư tốn mana**, ghi trên chiêu, có thể là số lẻ như 15, 25. Thiếu mana thì lá mờ đi ("Thiếu mana (cần X, còn Y)") và không dùng được, kể cả khi định dùng như Quick trong lượt đối thủ.
 - Mana trừ ngay lúc tung chiêu, **không hoàn lại** nếu chiêu bị hụt (người tung bị choáng giữa chuỗi). Hồi sinh thì về mana khởi đầu.
 - Thẻ hỗ trợ "Hồi Mana" (nếu có trong bộ) hồi mana cho 1 Pháp sư chưa đầy.
+- **Pháp sư nhận chiêu tạm** (luật chủ 30/10, `RULES.mageTempSkill`): đầu mỗi lượt của bạn, mỗi Pháp sư còn sống trên sân nhận 1 lá chiêu **tạm** Q hoặc E của chính nó (ngẫu nhiên 50/50), nhật ký "Lux nhận lá tạm: Q Lăng Kính". Lá tạm tốn mana và hoạt động y hệt lá thật; không dùng thì **biến mất cuối lượt** (không vào mộ). Lá tạm **không tính** vào giới hạn tay 10 (không bao giờ gây đốt bài), không thể Bỏ vào mộ, không thể chế tạo; bị Blitzcrank cướp thì chỉ biến mất.
 
 ### Tóm tắt một lượt V2
 1. (Đầu vòng) Gọi tướng úp đồng thời, lật cùng lúc.
-2. Rút 2 lá (lượt đầu không rút). Pháp sư +10 mana.
+2. Rút 1 lá (lượt đầu không rút); từ lượt thứ 2 được tặng 1 lá Đánh Thường mỗi lượt và 1 mảnh đồ mỗi 3 lượt. Pháp sư +10 mana.
 3. Đánh bài tuỳ ý, nhưng tối đa 3 đòn đánh. Đấu sĩ có thể dùng nút "Đánh không cần lá".
 4. Kết thúc lượt: trạng thái hết hạn, lá tạm trên tay biến mất, đòn tự động của tướng (Kog'Maw) chạy.
 
@@ -62,6 +69,19 @@ Các mục "CHỐT MỚI" và mục 1-6 bên dưới là lịch sử của bản
 - **Tăng:** Ashe Buốt −15% đòn/−8% chiêu, E {100% AD}, R {60 + 55% AD}/Buốt · Vayne Đêm {24 + 36% AD}, R ×3 · Kog'Maw 2,6%/Đói, R 4,5% · Ornn mỗi Rèn +15% sát thương và +12 Giáp, Q +5 Rèn · Lux 1,1 AP/mana, E {20 + 60% AD + 30% AP} + 1,5/mana, R 3,5/mana · Ahri E {50 + 110% AD + 40% AP}, +70%/Say Mê, mana Q/E 10/20 · Annie Q {35 + 85% AD + 40% AP}, Tibbers {25 + 65% AD + 40% AP}, mana E 15 · Kha'Zix Q {80 + 180% AD} · Zed Q {80 + 160% AD}, R {36 + 60% AD}/Dồn · Jinx Q {70 + 170% AD} · Brand Q {35 + 95% AD + 40% AP}, Bỏng {10 + 4% AP} · Lissandra E {30 + 75% AD + 30% AP}, R {18 + 35% AD + 25% AP}/lá · Leona/Blitzcrank AD 90, Giáp/Kháng 39/38 và 38/38.
 - **Gangplank:** Ô phụ tối đa **1 Thùng** (chủ chốt), máu 370 (theo đợt ×0,9).
 - **Vấn đề còn lại (cần luật, không sửa bằng số được):** tướng rút bài (Nami: ~20 lá rút thêm mỗi ván có Nami, 30% ván có Nami thua do cạn bài; TF ~20%) làm cạn bài; nhịp ván chậm, sát thương nhỏ so với máu. Xem báo cáo cân bằng.
+
+
+### Cân bằng V3 (bot tự đấu, 30/10/2026)
+Đo bằng `npx tsx scripts/card_selfplay.ts 1000 5 <seed> --jobs=13` (bot hard, seed 1 và 2). Thử luật nhanh không sửa code: `--set=khoá=giá trị` (vd `--set=respawnRounds=1 --set=summonRounds=1/3/6/10/15`).
+- **Luật (chủ chốt):** bộ gấp đôi (80 lá chung + 8Q/8E/2R mỗi tướng = 170; bộ mặc định 16 Đánh thường, 2 Rút Bài + 16 phép, 16 Vàng, 30 mảnh Đồ) · rút **1** lá/lượt · AP gốc = 0 mọi tướng (bù bằng số cố định: + %AP × AP gốc cũ, vd Annie R 120 → 194) · máu theo vai: Đỡ đòn 500-550, Đấu sĩ 400-500, các vai khác 300-400 · Đỡ đòn AD thấp (78-82).
+- **Luật (cân bằng):** `RULES.freeBasicEvery` 2 → **1** (từ lượt thứ 2 của mình, mỗi lượt +1 lá Đánh Thường; lượt đầu không có quà). Lý do: rút 1 lá + máu cao làm ván kéo 25 vòng, 1% ván quá 150 vòng; tặng mỗi lượt đưa về TB ~19 vòng, 0% cạn bài. `respawnRounds` giữ 2, `summonRounds` giữ 1/4/8/13/19.
+- **Kha'Zix (chủ):** Cô Lập chỉ còn là trạng thái do Kha'Zix gắn (bỏ luật "không có đồng minh ở đường kề"); E chọn 1 địch bất kỳ, gắn Cô Lập + sát thương, không đổi đường; R gắn Cô Lập lên địch đối diện (không có thì 1 địch ngẫu nhiên).
+- **Tốc Biến (chủ):** đổi đường 1 tướng mình với 1 tướng mình khác đang trên sân; không còn dời vào đường trống hay đường chưa mở.
+- **Vel'Koz (chủ):** bỏ lá tạm "Phân Rã Hữu Cơ" mỗi lượt; nội tại chỉ còn Phân Rã khi chiêu trúng.
+- **Giảm:** Janna nội tại {20 + 15% AD + 30% AP}, Q {60 + 30% AD + 60% AP}, E {70 + ...}, R hồi {80 + ...} · Aatrox nội tại 15% → 10% máu đã mất, Q ×1,2 → ×1,0 máu đã Trả · Darius Q {30 + 100% AD}, R {12 + 20% AD}/Chảy Máu · Garen Q {20 + 90% AD}, R {80 + 70% AD} · Miss Fortune Q {30 + 80% AD}, R {35 + 50% AD} · Blitzcrank Q {90 + 50% AD + 60% AP}, R {120 + 50% AD + 80% AP}.
+- **Tăng:** Jinx Q {50 + 110% AD}, R {120 + 90% AD} · Ashe Q {55 + 95% AD}, R {120 + 90% AD} · Lux E {115 + 30% AD + 60% AP}, Khiên Q {70 + ...} · Teemo Nấm {80 + 16% AD + 23% AP}, E {65 + 20% AD + 30% AP} · Tristana E {45 + 50% AD}, R {100 + 110% AD} · Ahri Q {115 + ...}, tỉ lệ Say Mê 18% gốc · Lissandra Q {125 + ...}, E {100 + ...}, tỉ lệ Hoá Băng 18% gốc · Viktor E {115 + ...} · Qiyana Q Đỏ {50 + 120% AD} · Yorick Q {35 + 30% AD} · Ornn Rèn 12% gốc.
+- **Số cuối (2 × 1000 trận):** TB 18,8 vòng (trung vị 18-19), cạn bài 0%, quá giới hạn 0, bên A thắng 53-56%, tướng trên sân lúc kết thúc 3,3/bên.
+- **Còn lại:** Đấu sĩ Darius/Aatrox/Garen ~61% (máu 400+ theo dải mới làm họ trội), Miss Fortune 58%, Janna 57%, Blitzcrank 56% còn mạnh; Teemo/Lux/Tristana ~41-42%, Yorick/Brand/Ashe/Gangplank ~44-45% còn yếu; bên đi trước vẫn hơi lợi; tướng trên sân lúc kết thúc dưới 4.
 
 ---
 
@@ -155,7 +175,7 @@ Lá dùng xong vào **mộ bài**. Bộ bài hết thì xáo mộ bài lại là
 
 | Vai | Đánh thường | Đánh ai | Sát thương | Lá chiêu |
 |---|---|---|---|---|
-| **Đấu sĩ** | lá Đánh thường (100% AD) **hoặc** nút Đánh không cần lá (66%, Quick, 1 lần/lượt) | tướng đối diện | xem V2 mục 7 | ít, chiêu đơn giản |
+| **Đấu sĩ** | lá Đánh thường (100% AD) **hoặc** nút Đánh không cần lá (66%, chỉ lượt mình, 1 lần/lượt) | tướng đối diện | xem V2 mục 7 | ít, chiêu đơn giản |
 | **Đỡ đòn** | cần lá | tướng đối diện | 100% AD | nhiều, đa dụng. **Khiêu khích:** lá đánh thường của xạ thủ địch phải đánh vào đỡ đòn |
 | **Sát thủ** | cần lá | tướng **cùng đường** | **200% AD** | vừa |
 | **Xạ thủ** | cần lá | **tướng nào cũng được** | **150% AD** | vừa |
