@@ -142,6 +142,19 @@ function loginView(mode: "in" | "up" = "in", msg = "") {
 
 // ================= SẢNH =================
 
+/** Chữ của khu "Thẻ bài" (chế độ mới), tự theo ngôn ngữ đã chọn */
+const CG = getLang() === "en"
+    ? {
+        title: "Card game", badge: "NEW", hint: "Pure card mode: draft 5 champions, 7 lives, play cards and chain skills.",
+        quick: "Quick match", quickSub: "Matchmake with a random player", easy: "Vs bot: Easy", easySub: "Relaxed practice",
+        hard: "Vs bot: Hard", hardSub: "A real challenge", codePh: "Room code", join: "Join",
+    }
+    : {
+        title: "Thẻ bài", badge: "MỚI", hint: "Chế độ thẻ bài thuần: chọn 5 tướng, giữ 7 mạng, đánh bài và nối chuỗi chiêu.",
+        quick: "Đấu nhanh", quickSub: "Ghép ngẫu nhiên với người chơi khác", easy: "Đấu máy Dễ", easySub: "Luyện tập thoải mái",
+        hard: "Đấu máy Khó", hardSub: "Thử thách thực sự", codePh: "Mã phòng", join: "Vào phòng",
+    }
+
 async function homeView(me: Me, msg = "") {
     let active: Deck | null = null
     if (me.session) {
@@ -166,6 +179,16 @@ async function homeView(me: Me, msg = "") {
           <button class="lb-btn" id="lb-out">${me.session ? t("home.signout") : t("home.signin")}</button></div>
       </header>
       <main class="lb-menu">
+        <section class="lb-panel nine-panel lb-card-mode">
+          <h2>${CG.title}<span class="lb-new">${CG.badge}</span></h2>
+          <p class="lb-hint">${CG.hint}</p>
+          <button class="lb-tile gold" id="lb-cg-quick"><b>${CG.quick}</b><small>${CG.quickSub}</small></button>
+          <div class="lb-bots">
+            <button class="lb-tile" id="lb-cg-easy"><b>${CG.easy}</b><small>${CG.easySub}</small></button>
+            <button class="lb-tile" id="lb-cg-hard"><b>${CG.hard}</b><small>${CG.hardSub}</small></button>
+          </div>
+          <form class="lb-code" id="lb-cg-join"><input name="code" required placeholder="${CG.codePh}" autocomplete="off"><button class="lb-btn">${CG.join}</button></form>
+        </section>
         <section class="lb-panel nine-panel lb-play">
           <h2>${t("home.play")}</h2>
           <p class="lb-hint">${deckLine}</p>
@@ -218,6 +241,26 @@ async function homeView(me: Me, msg = "") {
             })
     }
     $("#lb-deck").onclick = () => deckBuilder(me)
+    $("#lb-cg-quick").onclick = () => play(me,
+        {
+            kind: "card"
+        })
+    $("#lb-cg-easy").onclick = () => play(me,
+        {
+            kind: "card", bot: "easy"
+        })
+    $("#lb-cg-hard").onclick = () => play(me,
+        {
+            kind: "card", bot: "hard"
+        })
+    $<HTMLFormElement>("#lb-cg-join").onsubmit = (ev) => {
+        ev.preventDefault()
+        const code = String(new FormData(ev.target as HTMLFormElement).get("code")).trim()
+        if (code) play(me,
+            {
+                kind: "card", roomId: code
+            })
+    }
 }
 
 // ================= XÂY BỘ BÀI (kiểu DuelingBook) =================

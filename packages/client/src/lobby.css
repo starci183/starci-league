@@ -149,3 +149,7 @@
 .dr-hero.banned::after { content: ""; position: absolute; inset: 0; background: linear-gradient(45deg, transparent 46%, #e04a3a 47%, #e04a3a 53%, transparent 54%); }
 .dr-team .dr-hero img { aspect-ratio: 16 / 7; } .dr-team .dr-hero.me { border-color: #4a8ef0; } .dr-team .dr-hero.opp { border-color: #e0563a; }
 .dr-hero.empty { height: 44px; border-style: dashed; background: transparent; }
+
+/* khu Thẻ bài */
+.lb-card-mode { border-color: #c8a050; background: linear-gradient(160deg, rgba(42,32,16,.9), rgba(10,16,24,.92) 60%); box-shadow: 0 0 22px rgba(200,160,80,.18); }
+.lb-new { display: inline-block; padding: 1px 7px; border-radius: 999px; background: #f5d27a; color: #120d05; font-size: 11px !important; font-weight: 800; letter-spacing: .5px; vertical-align: 2px; }
