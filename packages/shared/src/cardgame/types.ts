@@ -55,9 +55,12 @@ export const RULES = {
     handMax: 10,
     /** Tay đầu: rút trước bước gọi tướng đầu tiên */
     startHand: 5,
+    /** Bù cho bên đi sau: thêm lá vào tay đầu (chốt 30/10) */
+    secondPlayerBonus: 1,
     /** Luật chủ 30/10: rút 1 lá mỗi lượt (đã có quà Đánh Thường mỗi lượt (freeBasicEvery 1, cân bằng V3) và mảnh đồ mỗi 3 lượt) */
     drawPerTurn: 1,
-    respawnRounds: 2,
+    /** Chốt 30/10: hồi sinh nhanh hơn để cuối trận có ~4 tướng trên sân */
+    respawnRounds: 1,
     itemSlots: 3,
     /** Thứ tự mở đường */
     laneOrder: LANE_ORDER,

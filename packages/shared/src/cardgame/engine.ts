@@ -108,8 +108,9 @@ export function newGameEx(seed: number, teamA: string[], teamB: string[], decks:
     s.opened = {
         A: true, B: true
     }
+    // bên đi sau được bù thêm lá (RULES.secondPlayerBonus)
     for (const side of SIDES) g.draw(side,
-        RULES.startHand,
+        RULES.startHand + (side === s.active ? 0 : RULES.secondPlayerBonus),
         {
             reason: "opening"
         })

@@ -389,8 +389,8 @@ test("Tay đầu RULES.startHand có ngay ở đầu ván, trước khi gọi t�
         assert.equal(s.players.A.hand.length,
             R.startHand)
         assert.equal(s.players.B.hand.length,
-            R.startHand,
-            "B cũng có tay đầu trước khi gọi")
+            R.startHand + R.secondPlayerBonus,
+            "B (đi sau) có tay đầu + lá bù trước khi gọi")
         assert.equal(s.phase,
             "blind")
         assert.ok(legal(s,
