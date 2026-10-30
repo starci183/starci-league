@@ -109,3 +109,7 @@
 .us-sk-b .us-rich { display: block; margin: 1px 0 0; line-height: 1.3; color: #bfb69c; }
 .fxm-box .cd-sweep { inset: 0; border-radius: 4px; }
 .fxm-badge { z-index: 1; }
+
+.us-unequip { margin-top: 2px; padding: 1px 6px; font: inherit; font-size: 10px; font-weight: 700; cursor: pointer; color: #e8f0ff; background: linear-gradient(#2a62b8, #17386e); border: 1px solid #7ab0ff; border-radius: 5px; white-space: nowrap; }
+.us-unequip:hover { filter: brightness(1.2); }
+.us-unequip.warn { border-color: #ff8a3a; color: #ffd9b0; }

@@ -75,7 +75,7 @@ export const HERO_EN_V2_G5V: Record<string, HeroTextEn> = {
         desc: "The longer he lives, the hungrier he gets: shots scale with max HP, so the tankier the target the bigger the hole.",
         passive: {
             name: "Hunger",
-            desc: "At the start of your turn, while Kog'Maw is alive: +1 Hunger. Any champion dies (either team): +1 Hunger (max 20). When Kog'Maw dies: lose half his Hunger. Kog'Maw's attacks deal 0.8% of the target's max HP per Hunger + {13 + 10% AD + 15% AP} as extra magic damage.",
+            desc: "At the start of your turn, while Kog'Maw is alive: +1 Hunger. Any champion dies (either team): +1 Hunger (max 20). When Kog'Maw dies: +3 Hunger (he loses none). Kog'Maw's attacks deal 0.8% of the target's max HP per Hunger + {13 + 10% AD + 15% AP} as extra magic damage.",
         },
         skills: {
             Q: {
@@ -208,10 +208,10 @@ export const STACK_V2_G5V: Record<string, { vi: { name: string; desc: string }; 
     },
     hunger: {
         vi: {
-            name: "Đói", desc: "Mỗi Đói làm đòn đánh của Kog'Maw gây thêm 0.8% máu tối đa của mục tiêu (tối đa 20); Kog'Maw chết thì mất nửa."
+            name: "Đói", desc: "Mỗi Đói làm đòn đánh của Kog'Maw gây thêm 0.8% máu tối đa của mục tiêu (tối đa 20); Kog'Maw chết thì +3 Đói (không mất Đói)."
         },
         en: {
-            name: "Hunger", desc: "Each Hunger makes Kog'Maw's attacks deal 0.8% of the target's max HP extra (max 20); lose half when Kog'Maw dies."
+            name: "Hunger", desc: "Each Hunger makes Kog'Maw's attacks deal 0.8% of the target's max HP extra (max 20); +3 when Kog'Maw dies (he loses none)."
         },
     },
     night: {
@@ -259,8 +259,8 @@ export const KEYWORDS_V2_G5V: Record<string, Keyword> = {
     hunger: {
         vi: "Đói",
         en: "Hunger",
-        descVi: "Bộ đếm của Kog'Maw (tối đa 20); mỗi Đói làm đòn đánh của Kog'Maw gây thêm 0.8% máu tối đa của mục tiêu. Kog'Maw chết thì mất nửa.",
-        descEn: "Kog'Maw's counter (max 20); each Hunger makes his attacks deal 0.8% of the target's max HP extra. Lose half when Kog'Maw dies.",
+        descVi: "Bộ đếm của Kog'Maw (tối đa 20); mỗi Đói làm đòn đánh của Kog'Maw gây thêm 0.8% máu tối đa của mục tiêu. Kog'Maw chết thì +3 Đói (không mất Đói).",
+        descEn: "Kog'Maw's counter (max 20); each Hunger makes his attacks deal 0.8% of the target's max HP extra. +3 when Kog'Maw dies (he loses none).",
     },
     mushroom: {
         vi: "Nấm",

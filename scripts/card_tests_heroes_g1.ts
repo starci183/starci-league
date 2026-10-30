@@ -964,7 +964,7 @@ test("Đấu sĩ địch cũng đánh vỡ được Thùng (đánh thường l�
 // ======================================================================
 G("Yorick")
 // ======================================================================
-test("nội tại: đòn đánh chỉ gây 40% sát thương và vứt 1 lá trên cùng bộ bài vào mộ",
+test("nội tại: đòn đánh gây (50% + 2%/lá mộ, tối đa 130%), vứt 1 lá trên cùng bộ bài vào mộ và rút 1 lá (tối đa 2 lá/lượt)",
     () => {
         let s = mk({
             A: {
@@ -978,19 +978,44 @@ test("nội tại: đòn đánh chỉ gây 40% sát thương và vứt 1 lá tr�
             "yorick")
         const deck0 = s.players.A.deck.length
         const grave0 = s.players.A.grave.length
+        const hand0 = s.players.A.hand.length
         s = strike(s,
             "A",
             "A:yorick",
             "B:g1_fighter").s
         assert.equal(s.players.A.deck.length,
-            deck0 - 1)
+            deck0 - 2,
+            "1 lá vứt + 1 lá rút")
         assert.equal(s.players.A.grave.length,
             grave0 + 1,
             "1 lá vứt từ bộ vào mộ")
+        assert.equal(s.players.A.hand.length,
+            hand0 + 1,
+            "rút bù 1 lá (lá Đánh thường được tạo rồi dùng ngay)")
         assert.equal(1000 - u(s,
             "B",
             "g1_fighter").hp,
-        afterArmor(gm(s).atk(me) * YORICK.ATTACK_MULT))
+        afterArmor(gm(s).atk(me) * YORICK.attackMult(grave0)))
+        // đòn 2 và 3 cùng lượt: chỉ đòn 2 còn rút
+        const deck1 = s.players.A.deck.length
+        s = strike(s,
+            "A",
+            "A:yorick",
+            "B:g1_fighter").s
+        assert.equal(s.players.A.deck.length,
+            deck1 - 2)
+        const deck2 = s.players.A.deck.length
+        s = strike(s,
+            "A",
+            "A:yorick",
+            "B:g1_fighter").s
+        assert.equal(s.players.A.deck.length,
+            deck2 - 1,
+            "đòn thứ 3 chỉ vứt, không rút (tối đa 2 lá/lượt)")
+        assert.equal(YORICK.attackMult(0),
+            YORICK.ATTACK_BASE)
+        assert.equal(YORICK.attackMult(1000),
+            YORICK.ATTACK_MAX)
     })
 test("Q bỏ 1 lá trên tay vào mộ, rút 1 lá và Yorick hồi (35 + 30% AD + 5% AP)",
     () => {
@@ -1072,7 +1097,71 @@ test("E vứt 3 lá trên cùng bộ bài vào mộ rồi chọn 1 lá trong 3 l
             0,
             "các lá chọn còn lại biến mất")
     })
-test("R gọi Thiếu Nữ (máu 150 + 8 mỗi lá mộ); đầu lượt Thiếu Nữ đánh 1 địch và Yorick hồi theo mộ",
+test("mộ đạt 20 (rồi 40...) lá: lá R Thiếu Nữ tự lên tay (từ bộ, không có thì từ mộ); bỏ qua nếu tay đã có R",
+    () => {
+        const setup = () => {
+            const s = mk({
+                A: {
+                    yorick: 2
+                }, B: {
+                    g1_fighter: 2
+                }
+            })
+            s.players.A.hand = s.players.A.hand.filter((c) => c.id !== "yorick_r")
+            s.players.A.grave = Array.from({
+                length: YORICK.R_GRAVE_STEP - 1
+            },
+            () => sup(s,
+                "basic"))
+            return s
+        }
+        const rIn = (cards: cg.Card[]) => cards.filter((c) => c.id === "yorick_r").length
+        // từ bộ bài
+        let s = setup()
+        const deckR = rIn(s.players.A.deck)
+        assert.ok(deckR > 0)
+        s = strike(s,
+            "A",
+            "A:yorick",
+            "B:g1_fighter").s
+        assert.equal(rIn(s.players.A.hand),
+            1,
+            "mộ đủ 20: lá R lên tay")
+        assert.equal(rIn(s.players.A.deck),
+            deckR - 1)
+        // không còn trong bộ: lấy từ mộ
+        s = setup()
+        const rCard = s.players.A.deck.find((c) => c.id === "yorick_r")!
+        s.players.A.deck = s.players.A.deck.filter((c) => c.id !== "yorick_r")
+        s.players.A.grave.push(rCard)
+        s.players.A.grave.shift()
+        s = strike(s,
+            "A",
+            "A:yorick",
+            "B:g1_fighter").s
+        assert.equal(rIn(s.players.A.hand),
+            1,
+            "lấy lá R từ mộ")
+        // tay đã có R: bỏ qua
+        s = setup()
+        give(s,
+            "A",
+            skill(s,
+                "yorick",
+                "A",
+                "R"))
+        const deck0 = rIn(s.players.A.deck)
+        s = strike(s,
+            "A",
+            "A:yorick",
+            "B:g1_fighter").s
+        assert.equal(rIn(s.players.A.hand),
+            1)
+        assert.equal(rIn(s.players.A.deck),
+            deck0,
+            "tay đã có R: không lấy thêm")
+    })
+test("R: Thiếu Nữ đánh ngay + Yorick nhận Ma Sương vĩnh viễn (cộng dồn); đầu lượt Thiếu Nữ đánh, Yorick hồi, đào 1 lá; Yorick nhận ít sát thương hơn",
     () => {
         let s = mk({
             A: {
@@ -1089,6 +1178,39 @@ test("R gọi Thiếu Nữ (máu 150 + 8 mỗi lá mộ); đầu lượt Thiếu
         const me = () => u(s,
             "A",
             "yorick")
+        const foe = () => u(s,
+            "B",
+            "g1_fighter")
+        const hp0 = foe().hp
+        me().hp = me().maxHp - 200
+        const r = play(s,
+            "A",
+            give(s,
+                "A",
+                skill(s,
+                    "yorick",
+                    "A",
+                    "R")))
+        s = r.s
+        assert.equal(gm(s).tokenOf("A"),
+            undefined,
+            "không còn token")
+        assert.equal(gm(s).statusV(me(),
+            YORICK.MIST),
+        1)
+        const n0 = Math.floor(10 / YORICK.GRAVE_STEP)
+        assert.equal(hp0 - foe().hp,
+            afterArmor(foe().maxHp * YORICK.MAIDEN_PCT_PER_STEP * n0 + gm(s).f(me(),
+                YORICK.F_MAIDEN)),
+            "Thiếu Nữ đánh ngay khi dùng R")
+        assert.ok(me().hp > me().maxHp - 200,
+            "Yorick hồi")
+        // giảm sát thương
+        const cut = YORICK.mistCut(gm(s),
+            me())
+        assert.ok(Math.abs(cut - Math.min(YORICK.MIST_CUT_MAX,
+            YORICK.MIST_CUT_BASE + YORICK.MIST_CUT_PER_ARMOR * gm(s).armor(me()))) < 1e-9)
+        // cộng dồn
         s = play(s,
             "A",
             give(s,
@@ -1097,25 +1219,25 @@ test("R gọi Thiếu Nữ (máu 150 + 8 mỗi lá mộ); đầu lượt Thiếu
                     "yorick",
                     "A",
                     "R"))).s
-        const maiden = gm(s).tokenOf("A")!
-        assert.equal(maiden.token?.id,
-            "maiden")
-        assert.ok(maiden.maxHp >= 150 + 8 * 10 && maiden.maxHp <= 150 + 8 * 11,
-            "máu = 150 + 8 mỗi lá trong mộ lúc gọi")
-        const foe = u(s,
-            "B",
-            "g1_fighter")
-        const hp0 = foe.hp
-        me().hp = me().maxHp - 100
-        const n = Math.floor(s.players.A.grave.length / 5)
-        cg.getTokenBehavior("maiden")!.onOwnerTurnStart!(gm(s),
-            maiden,
-            me())
-        assert.equal(hp0 - foe.hp,
-            afterArmor(foe.maxHp * YORICK.MAIDEN_PCT_PER_STEP * n + gm(s).f(me(),
-                YORICK.F_MAIDEN)))
-        assert.equal(me().hp - (me().maxHp - 100),
-            Math.round(me().maxHp * YORICK.MAIDEN_HEAL_PER_STEP * n))
+        assert.equal(gm(s).statusV(me(),
+            YORICK.MIST),
+        2)
+        assert.ok(YORICK.mistCut(gm(s),
+            me()) > cut && YORICK.mistCut(gm(s),
+            me()) <= YORICK.MIST_CUT_TOTAL_MAX)
+        // đầu lượt: mỗi tầng Thiếu Nữ đánh 1 lần và đào 1 lá
+        const g = gm(s)
+        const deck0 = s.players.A.deck.length
+        const f0 = foe().hp
+        g.hook("onTurnStart",
+            {
+                side: "A"
+            })
+        assert.equal(s.players.A.deck.length,
+            deck0 - 2,
+            "2 tầng: đào 2 lá")
+        assert.ok(foe().hp < f0 || foe().status !== "board",
+            "Thiếu Nữ đánh")
     })
 
 // ======================================================================

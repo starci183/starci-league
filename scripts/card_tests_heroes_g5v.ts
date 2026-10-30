@@ -815,7 +815,7 @@ test("R: (120 + 90% AD + 20% AP) + 5 mỗi Điên + 20% máu đã mất của m�
 // ======================================================================
 G("Kog'Maw")
 // ======================================================================
-test("Nội tại: +1 Đói mỗi lượt Kog sống, +1 khi có tướng chết; Kog chết mất nửa; AP gốc 0",
+test("Nội tại: +1 Đói mỗi lượt Kog sống, +1 khi có tướng chết; Kog chết +3 Đói; AP gốc 0",
     () => {
         const s = mk({
             A: {
@@ -866,8 +866,8 @@ test("Nội tại: +1 Đói mỗi lượt Kog sống, +1 khi có tướng chết
             "A",
             "kogmaw",
             "hunger"),
-        4,
-        "chết mất nửa")
+        9 + 3,
+        "Kog chết +3 Đói, không mất Đói")
     })
 test("Đòn đánh thêm (0.8% máu tối đa mục tiêu mỗi Đói + 10% AD + 15% AP) phép; E nhân đôi phần % máu",
     () => {

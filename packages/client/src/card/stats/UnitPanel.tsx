@@ -6,7 +6,7 @@ import {
     cg, getItem
 } from "@starci/shared"
 import {
-    gameOf, useCard, type CardView
+    cardActions, gameOf, useCard, type CardView
 } from "../store"
 import {
     isEn, roleName, turnsLeft, unitName
@@ -116,6 +116,15 @@ const T = () => (isEn() ? EN : VI)
 function Pic(p: { srcs: string[]; cls: string; letter: string; pos?: string }) {
     const [i,
         setI] = useState(0)
+    const key = p.srcs.join("|")
+    const [seen,
+        setSeen] = useState(key)
+    // đổi tướng/nguồn ảnh: thử lại từ đầu (tránh kẹt ở chữ cái sau khi ảnh trước hỏng)
+    if (seen !== key) {
+        setSeen(key)
+        setI(0)
+        return null
+    }
     if (i >= p.srcs.length) return <span className={`${p.cls} us-letter`}>{p.letter}</span>
     return (
         <img
@@ -203,8 +212,12 @@ function Effects(p: { u: Unit; view: CardView }) {
     )
 }
 
-function ItemSlots(p: { u: Unit }) {
+function ItemSlots(p: { u: Unit; view: CardView; legal: cg.Action[] }) {
     const t = T()
+    const en = isEn()
+    const mine = p.view.you === p.u.side
+    const used = new Set<number>()
+    const handFull = mine && (p.view.players[p.u.side].hand ?? []).filter((c) => !c.temp).length >= p.view.rules.handMax
     return (
         <section className="us-sec">
             <h4>{t.items}</h4>
@@ -222,6 +235,8 @@ function ItemSlots(p: { u: Unit }) {
                         )
                     }
                     const props = (it?.props ?? []).slice(1)
+                    const un = mine ? p.legal.find((a, k) => a.t === "unequip" && a.unit === p.u.id && a.item === id && !used.has(k)) : undefined
+                    if (un) used.add(p.legal.indexOf(un))
                     const tx = cg.itemText(id,
                         isEn() ? "en" : "vi")
                     return (
@@ -233,6 +248,16 @@ function ItemSlots(p: { u: Unit }) {
                                 letter={it?.emoji ?? "?"}
                             />
                             <span className="us-item-n">{tx?.name ?? it?.name ?? id}</span>
+                            {un ? (
+                                <button
+                                    className={`us-unequip${handFull ? " warn" : ""}`}
+                                    title={handFull ? (en ? "Hand full: the item card will be burned" : "Tay đầy: lá đồ sẽ bị đốt vào mộ") : (en ? "The item card returns to your hand" : "Lá đồ về tay, lắp lại được cho tướng khác")}
+                                    onClick={(e) => { e.stopPropagation(); cardActions.act(un) }}
+                                >
+                                    {en ? "Unequip" : "Tháo đồ"}
+                                    {handFull ? " ⚠" : ""}
+                                </button>
+                            ) : null}
                             <div className="us-item-tip">
                                 <b>{tx?.name ?? it?.name ?? id}</b>
                                 <p>{tx ? tx.stats : it ? cg.itemStatText(it) : ""}</p>
@@ -390,7 +415,8 @@ export function UnitPanel() {
     const dmgKind = tok ? tok.damage : g.hero(u).damage
     const faceDown = !!tok?.hidden && !mine
     const art = tok ? [`/card_tokens/${tok.id}.png`,
-        `/ui/fx/${tok.id}.png`] : [`/heroes/${u.hero}.jpg`]
+        `/ui/fx/${tok.id}.png`,
+        `/heroes/${u.hero}.jpg`] : [`/heroes/${u.hero}.jpg`]
     const row = (label: string, value: string | number, cls = "") => (
         <div key={label} className={`us-st ${cls}`}>
             <span>{label}</span>
@@ -485,7 +511,7 @@ export function UnitPanel() {
                         </>
                     ) : (
                         <>
-                            <ItemSlots u={u} />
+                            <ItemSlots u={u} view={view} legal={snap.legal} />
                             <Effects u={u} view={view} />
                             <Skills u={u} g={g} view={view} />
                         </>

@@ -510,7 +510,7 @@ export function eventText(e: GameEvent, g?: Game): string | undefined {
     case "attackCount": return `${side(e.side)} has made ${e.used}/${e.limit} attacks this turn.`
     case "unequip": return `${uname(e.unit)} unequips ${itemText(e.item,
         "en")?.name ?? e.item} (the card returns to ${side(e.side)}'s hand).`
-    case "freeCard": return `${side(e.side)} receives a free ${e.kind === "basic" ? "Basic Attack card" : "item component"}.`
+    case "freeCard": return `${side(e.side)} receives a free ${e.kind === "basic" ? "Basic Attack card" : e.kind === "gold" ? "Gold card" : e.kind === "skill" ? "skill card" : "item component"}.`
     case "transform": return e.on ? `${uname(e.unit)} transforms (${e.id}).` : `${uname(e.unit)} returns to normal form${e.reason === "revive" ? " and revives" : ""}.`
     case "roll": return `${uname(e.unit)}: ${e.key} is now ${e.value}.`
     case "blindStart": return `Summon phase (round ${e.round}): choose face-down, up to ${e.cap} champion(s) each.`

@@ -1815,7 +1815,11 @@ export class Game {
         })
     }
     /** Giới hạn CỨNG: RULES.attackLimit đòn mỗi người mỗi lượt (không có cách tăng) */
-    attackLimit(_side?: Side): number { return RULES.attackLimit }
+    attackLimit(side: Side = this.s.active): number {
+        // RULES.firstTurnNoAttack: bên đi trước không được đánh trong lượt đầu tiên của mình
+        if (RULES.firstTurnNoAttack && side === this.s.active && this.s.turnNo === 1) return 0
+        return RULES.attackLimit
+    }
     attacksLeft(side: Side): number { return Math.max(0,
         this.attackLimit(side) - this.turnAttacks(side).used) }
     /** Tính 1 đòn vào giới hạn (lá Đánh thường, đòn không cần lá, đòn miễn phí do buff). g.attack gọi trong chiêu/hook KHÔNG tính. */
@@ -1846,15 +1850,25 @@ export class Game {
 
     // ---------------- Quà tặng đều đặn (không lấy từ bộ bài) ----------------
     /** Tặng 1 lá cho `side` + sự kiện freeCard + log + hook onFreeCard */
-    giveFreeCard(side: Side, kind: "basic" | "item") {
-        const card = kind === "basic" ? this.supportCard("basic") : this.supportCard("item")
+    giveFreeCard(side: Side, kind: "basic" | "item" | "gold" | "skill") {
+        let card: Card
+        if (kind === "skill") {
+            // lá chiêu tạo mới của 1 tướng mình đang sống trên sân (ngẫu nhiên), loại theo RULES.freeSkillOdds
+            const hero = this.pick(this.heroes(side))
+            if (!hero) return
+            const o = RULES.freeSkillOdds, r = this.rand() * (o.q + o.e + o.r)
+            const key: SkillKey = r < o.q ? "Q" : r < o.q + o.e ? "E" : "R"
+            card = this.skillCard(hero.hero,
+                side,
+                key)
+        } else card = this.supportCard(kind)
         this.giveCard(side,
             card,
             "hand")
         this.emit({
             t: "freeCard", side, card, kind
         })
-        this.log(`${side} receives a free ${kind === "basic" ? "Basic Attack card" : "item component"}.`)
+        this.log(`${side} receives a free ${kind === "basic" ? "Basic Attack card" : kind === "gold" ? "Gold card" : kind === "skill" ? `skill card (${card.id})` : "item component"}.`)
         this.hook("onFreeCard",
             {
                 side, card, kind

@@ -1280,13 +1280,19 @@ function beginTurn(g: Game) {
         side)
 }
 
-/** Quà tặng đều đặn (không lấy từ bộ bài), từ lượt thứ 2 của mình: mỗi RULES.freeBasicEvery lượt +1 Đánh Thường; mỗi RULES.freeItemEvery lượt +1 mảnh đồ ngẫu nhiên. Lượt đầu không có quà (tay đầu giữ đúng RULES.startHand). */
+/** Quà tặng đều đặn (không lấy từ bộ bài), từ lượt thứ 2 của mình: mỗi RULES.freeBasicEvery lượt +1 Đánh Thường; mỗi RULES.freeItemEvery lượt +1 mảnh đồ ngẫu nhiên; mỗi RULES.freeGoldEvery lượt +1 lá Vàng; lượt freeSkillOffset, +freeSkillEvery... +1 lá chiêu tạo mới của 1 tướng mình trên sân. Lượt đầu không có quà (tay đầu giữ đúng RULES.startHand). */
 function giveFreeCards(g: Game, side: Side) {
     const n = g.s.ownTurns?.[side] ?? 0
-    if (n > 1 && n % RULES.freeBasicEvery === 0) g.giveFreeCard(side,
+    // RULES.secondFirstBasic: bên đi sau nhận quà Đánh Thường ngay lượt đầu
+    const early = n === 1 && RULES.secondFirstBasic > 0 && side !== "A"
+    if ((n > 1 && n % RULES.freeBasicEvery === 0) || early) g.giveFreeCard(side,
         "basic")
     if (n > 0 && n % RULES.freeItemEvery === 0) g.giveFreeCard(side,
         "item")
+    if (n > 0 && RULES.freeGoldEvery > 0 && n % RULES.freeGoldEvery === 0) g.giveFreeCard(side,
+        "gold")
+    if (RULES.freeSkillEvery > 0 && n >= RULES.freeSkillOffset && (n - RULES.freeSkillOffset) % RULES.freeSkillEvery === 0) g.giveFreeCard(side,
+        "skill")
 }
 
 /** Rút bài đầu lượt: lượt đầu của mỗi phe không rút (tay đầu đã rút trước bước gọi tướng); các lượt sau rút RULES.drawPerTurn. Bộ trống ngay lúc bắt đầu rút: thua; hết giữa chừng thì dừng. */

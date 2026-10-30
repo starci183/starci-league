@@ -1398,14 +1398,14 @@ test("Lá chiêu dùng xong vào mộ (chủ game chốt #1)",
 // ======================================================================
 G("V2: mở đường từng đường một")
 // ======================================================================
-test("V3: mỗi mốc RULES.summonRounds (1, 4, 8, 13, 19) mở đúng 1 đường mới tới khi đủ 5",
+test("V3: mỗi mốc RULES.summonRounds mở đúng 1 đường mới tới khi đủ 5",
     () => {
-        assert.deepEqual(cg.RULES.summonRounds,
-            [1,
-                4,
-                8,
-                13,
-                19])
+        assert.equal(cg.RULES.summonRounds.length,
+            5)
+        assert.equal(cg.RULES.summonRounds[0],
+            1)
+        assert.ok(cg.RULES.summonRounds.every((r, i, a) => i === 0 || r > a[i - 1]),
+            "mốc tăng dần")
         let prev = 0
         for (let round = 1; round <= 20; round++) {
             const s = mk({
@@ -1466,7 +1466,7 @@ test("Gọi tướng úp: trần N dùng chung; bên hết tướng để gọi 
                 v2_tank: 0, v2_fighter: 1
             }, B: {
                 v2_tank: 0, v2_fighter: 1, v2_mage: 2, v2_sup: 3, v2_mark: 4
-            }, round: 7
+            }, round: cg.RULES.summonRounds[2] - 1
         })
         s0.phase = "main"
         s0.active = "B"

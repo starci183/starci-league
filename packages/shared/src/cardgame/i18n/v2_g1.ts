@@ -99,10 +99,10 @@ export const HERO_EN_V2_G1: Record<string, HeroTextEn> = {
         },
     },
     yorick: {
-        desc: "Shepherd of Souls: attacks to fill the graveyard, not to kill; the thicker the graveyard, the scarier the Maiden of the Mist and the tankier Yorick.",
+        desc: "Shepherd of Souls: attacks to fill the graveyard, not to kill; the thicker the graveyard, the scarier the Maiden of the Mist (walking beside Yorick) and the tankier Yorick.",
         passive: {
             name: "Gravedigger",
-            desc: "Yorick's attacks (including the 66% button) deal only 40% damage, but each one discards the top 1 card of your deck into the graveyard.",
+            desc: "Yorick's attacks deal (50% + 2% per card in your graveyard, max 130%) damage; each one (including the 66% button) discards the top 1 card of your deck into the graveyard and you draw 1 card (at most 2 cards drawn per turn). When your graveyard reaches 20, 40, 60... cards: Yorick's R card Maiden of the Mist is added to your hand (from your deck, otherwise from your graveyard; skipped if an R card is already in hand).",
         },
         skills: {
             Q: {
@@ -115,7 +115,7 @@ export const HERO_EN_V2_G1: Record<string, HeroTextEn> = {
             },
             R: {
                 name: "Maiden of the Mist",
-                desc: "Summon the Maiden in the extra slot (150 + 8 HP per graveyard card). At the start of each of your turns, the Maiden strikes 1 random enemy: (1.5% of its max HP per 5 graveyard cards + {8% max HP + 50% Armor} of Yorick) physical damage, and Yorick heals 1% max HP per 5 graveyard cards.",
+                desc: "The Maiden strikes once right away, then Yorick PERMANENTLY gains 1 stack of Mist Walker (stacks; lost when Yorick dies). Each stack: Yorick takes (15% + 0.1% per 1 Armor, max 25%) less damage (total max 50%). At the start of each of your turns, per stack: the Maiden strikes 1 random enemy for (1.5% of its max HP per 5 graveyard cards + {8% max HP + 50% Armor} of Yorick) physical damage and Yorick heals (1% max HP per 5 graveyard cards + {20% Armor}); the Maiden digs the top 1 card of your deck into the graveyard.",
             },
         },
     },
@@ -173,6 +173,14 @@ export const STATUS_V2_G1: Record<string, Bi> = {
             name: "Infernal Chains", desc: "Until the end of the turn: Aatrox's attacks heal him for 100% of the damage dealt."
         },
     },
+    yorick_mist: {
+        vi: {
+            name: "Ma Sương", desc: "Thiếu Nữ Sương Mù đi cạnh Yorick (vĩnh viễn, cộng dồn, mất khi Yorick chết). Mỗi tầng: Yorick nhận ít sát thương hơn; đầu lượt Thiếu Nữ đánh 1 địch ngẫu nhiên, Yorick hồi máu, Thiếu Nữ đào 1 lá vào mộ."
+        },
+        en: {
+            name: "Mist Walker", desc: "The Maiden of the Mist walks beside Yorick (permanent, stacks, lost when Yorick dies). Per stack: Yorick takes less damage; at the start of your turn the Maiden strikes 1 random enemy, Yorick heals, and the Maiden digs 1 card into the graveyard."
+        },
+    },
     ornn_shred: {
         vi: {
             name: "Giảm Giáp", desc: "Ornn đã Giảm Giáp của tướng này 20 tới hết lượt sau."
@@ -206,6 +214,12 @@ export const KEYWORDS_V2_G1: Record<string, Keyword> = {
         en: "Bleed",
         descVi: "Dấu của Darius trên tướng (tối đa 6, hết sau 2 lượt của tướng mang kể từ lần cộng cuối). Gây sát thương đầu lượt của tướng mang; Máy Chém Noxus gây sát thương chuẩn theo số dấu.",
         descEn: "Darius's mark (max 6, expires 2 of its turns after the last one added). Deals damage at the start of its turn; Noxian Guillotine deals true damage per mark.",
+    },
+    yorick_mist: {
+        vi: "Ma Sương",
+        en: "Mist Walker",
+        descVi: "Trạng thái vĩnh viễn do Yorick R (cộng dồn, mất khi Yorick chết): Yorick nhận ít sát thương hơn; đầu lượt bạn Thiếu Nữ Sương Mù đánh 1 địch ngẫu nhiên, Yorick hồi máu, Thiếu Nữ đào 1 lá vào mộ (xem Yorick).",
+        descEn: "Permanent status from Yorick R (stacks, lost when Yorick dies): Yorick takes less damage; at the start of your turn the Maiden of the Mist strikes 1 random enemy, Yorick heals, and the Maiden digs 1 card into the graveyard (see Yorick).",
     },
     guilt: {
         vi: "Tội",

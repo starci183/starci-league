@@ -4,7 +4,8 @@
     --ch: calc(var(--cw) * 1.62);
     --gold: #f5d27a; --gold-d: #c8a050; --blue: #4a9aff;
     position: relative; z-index: 30;
-    display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 14px;
+    display: grid; grid-template-columns: minmax(0, 1fr) 320px; grid-template-rows: auto; grid-auto-rows: 0; align-items: end; gap: 14px;
+    flex: none; box-sizing: border-box; height: calc(var(--ch) + 40px); overflow: visible;
     padding: 8px 14px 10px; min-height: calc(var(--ch) + 40px);
     background: linear-gradient(#0d141d, #070b10);
     border-top: 1px solid var(--gold-d);
@@ -15,6 +16,9 @@
 .cg-hand button:disabled { cursor: not-allowed; }
 
 /* ---------- tay bài ---------- */
+.cg-hand > .hd-left { grid-column: 1; grid-row: 1; }
+.cg-hand > .hd-actions { grid-column: 2; grid-row: 1; }
+.cg-hand > :not(.hd-left):not(.hd-actions) { grid-column: 1; grid-row: 1; }
 .hd-left { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
 .hd-count { display: flex; align-items: baseline; gap: 12px; font-size: 12px; color: #9a9aa3; height: 18px; }
 .hd-count b { color: var(--gold); font-size: 13px; }
@@ -86,9 +90,10 @@
 .hd-cancel { padding: 4px 12px; background: #1a1f28; color: #e8e4d8; border: 1px solid #6a6f7a; border-radius: 6px; }
 .hd-cancel:hover { border-color: #ff8a7a; color: #ffb0a4; }
 .hd-pop {
-    position: absolute; left: 20px; bottom: calc(100% + 8px); z-index: 80; display: flex; flex-direction: column; gap: 8px; max-width: 80%;
+    position: fixed; z-index: 80; display: flex; flex-direction: column; gap: 8px; width: 360px; max-width: calc(100vw - 16px); box-sizing: border-box;
     padding: 10px 12px; background: #0b121b; border: 2px solid var(--gold-d); border-radius: 10px; box-shadow: 0 8px 26px rgba(0, 0, 0, .8);
 }
+.hd-pop-foot { display: flex; gap: 8px; align-items: center; justify-content: space-between; }
 .hd-pop-title { color: var(--gold); font-weight: 800; font-size: 13px; }
 .hd-pop-list { display: flex; gap: 8px; flex-wrap: wrap; }
 .hd-choice { display: flex; align-items: center; gap: 8px; padding: 6px 12px; background: #131d2b; color: #f0ead6; border: 1px solid var(--gold-d); border-radius: 8px; font-weight: 700; }
@@ -97,7 +102,8 @@
 .hd-choice i { width: 14px; height: 14px; border-radius: 50%; display: inline-block; box-shadow: 0 0 6px currentColor; }
 
 /* ---------- thanh hành động ---------- */
-.hd-actions { width: clamp(250px, 21vw, 340px); display: flex; flex-direction: column; justify-content: flex-end; gap: 6px; height: var(--ch); align-self: end; }
+.hd-actions { width: 320px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: flex-end; gap: 6px; height: calc(var(--ch) + 20px); align-self: end; overflow-y: auto; overflow-x: hidden; scrollbar-width: thin; }
+.hd-actions > .hd-group { flex: none; }
 .hd-group label { display: block; font-size: 11px; color: #9a9aa3; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 3px; }
 .hd-row { display: flex; gap: 6px; flex-wrap: wrap; }
 .hd-hero {
@@ -108,7 +114,7 @@
 .hd-hero:hover, .hd-hero.sel { border-color: var(--gold); box-shadow: 0 0 10px rgba(245, 210, 122, .6); }
 .hd-hero.atk { border-color: #b84a3a; }
 .hd-hero.atk:hover, .hd-hero.atk.sel { border-color: #ff8a6a; box-shadow: 0 0 10px rgba(255, 106, 74, .6); }
-.hd-bottom { display: flex; gap: 8px; align-items: stretch; margin-top: auto; }
+.hd-bottom { display: flex; gap: 8px; align-items: stretch; margin-top: auto; flex: none; position: sticky; bottom: 0; background: linear-gradient(transparent, #070b10 30%); padding-top: 4px; }
 .hd-btn { padding: 8px 14px; font-weight: 800; border-radius: 8px; color: #e8f0ff; background: linear-gradient(#2a62b8, #17386e); border: 1px solid #7ab0ff; }
 .hd-btn:hover { filter: brightness(1.2); }
 .hd-end {
@@ -209,6 +215,5 @@
 .hd-foecard { width: 52px; }
 .hd-foecard .cv { width: 100%; }
 .hd-btn.up { font-size: 12px; padding: 6px 10px; }
-.hd-discard { display: flex; align-items: center; gap: 8px; margin: 0 20px 4px; font-size: 12px; color: #9ab; }
-.hd-discard .hd-btn.sec { padding: 2px 10px; font-size: 12px; background: transparent; color: #b8b4a8; border: 1px solid #5a5f6a; border-radius: 6px; }
-.hd-discard .hd-btn.sec:hover { border-color: #ff8a7a; color: #ffb0a4; }
+.hd-pop-foot .hd-btn.sec { padding: 2px 10px; font-size: 12px; background: transparent; color: #b8b4a8; border: 1px solid #5a5f6a; border-radius: 6px; }
+.hd-pop-foot .hd-btn.sec:hover { border-color: #ff8a7a; color: #ffb0a4; }

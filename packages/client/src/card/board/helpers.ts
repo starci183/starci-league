@@ -230,6 +230,7 @@ const STATUS_ICON: Record<string, string> = {
     guilt: "true",
     aatrox_e: "lifesteal",
     ornn_shred: "shred",
+    yorick_mist: "guard",
     sun: "reveal",
     braum_mark: "chill",
     frenzy: "empower",
@@ -324,12 +325,9 @@ export const formName = (id: string) => FORM_TEXT[id]?.[isEn() ? 1 : 0] ?? id.re
 const TOKEN_TEXT: Record<string, [string, string]> = {
     keg: ["Thùng Thuốc Súng",
         "Powder Keg"],
-    maiden: ["Thiếu Nữ Sương Mù",
-        "Maiden of the Mist"],
 }
 /** Ảnh vật triệu hồi không có file riêng: dùng ảnh chiêu tạo ra nó */
 const TOKEN_ART: Record<string, string> = {
-    maiden: "/card_skills/yorick_r.png",
 }
 
 export function heroName(id: string): string {
@@ -405,6 +403,7 @@ const BUFFS = new Set(["empower",
     "armor_up",
     "see_hand",
     "aatrox_e",
+    "yorick_mist",
     "frenzy",
     "janna_ward",
     "janna_gale",

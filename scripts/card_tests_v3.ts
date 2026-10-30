@@ -272,14 +272,14 @@ const FINISHED = Object.keys(cg.CARD_ITEMS).find((id) => !(cg.COMPONENTS as read
 // ======================================================================
 G("V3: luật chung")
 // ======================================================================
-test("Chỉ gọi tướng ở mốc RULES.summonRounds (1, 4, 8, 13, 19); mốc mở 1 đường, trần gọi 1",
+test("Chỉ gọi tướng ở mốc RULES.summonRounds; mốc mở 1 đường, trần gọi 1",
     () => {
-        assert.deepEqual(cg.RULES.summonRounds,
-            [1,
-                4,
-                8,
-                13,
-                19])
+        assert.equal(cg.RULES.summonRounds.length,
+            5)
+        assert.equal(cg.RULES.summonRounds[0],
+            1)
+        assert.ok(cg.RULES.summonRounds.every((r, i, a) => i === 0 || r > a[i - 1]),
+            "mốc tăng dần")
         let s = cg.newGame(SEED,
             TEAM,
             TEAM)
@@ -310,16 +310,9 @@ test("Chỉ gọi tướng ở mốc RULES.summonRounds (1, 4, 8, 13, 19); mốc
                 }).s
             }
         }
-        assert.equal(phases[2],
-            "main")
-        assert.equal(phases[3],
-            "main")
-        assert.equal(phases[4],
-            "blind")
-        assert.equal(phases[5],
-            "main")
-        assert.equal(phases[8],
-            "blind")
+        for (let round = 2; round < 9; round++) assert.equal(phases[round],
+            cg.RULES.summonRounds.includes(round) ? "blind" : "main",
+            `vòng ${round}`)
         // đường mở theo mốc
         for (const round of [1,
             3,
@@ -377,7 +370,7 @@ test("Đòn đánh thường: mọi vai 1× AD, Sát thủ 1.25× AD",
             "attack"),
         100)
     })
-test("Quà tặng: từ lượt thứ 2, mỗi RULES.freeBasicEvery lượt +1 Đánh Thường; lượt thứ 3, 6.. +1 mảnh đồ; không lấy từ bộ bài",
+test("Quà tặng: từ lượt thứ 2, mỗi RULES.freeBasicEvery lượt +1 Đánh Thường; mỗi RULES.freeItemEvery lượt +1 mảnh đồ; mỗi RULES.freeGoldEvery lượt +1 Vàng; lượt freeSkillOffset + k·freeSkillEvery +1 lá chiêu; không lấy từ bộ bài",
     () => {
         let s = skipBlind({
             s: cg.newGame(SEED,
@@ -403,6 +396,10 @@ test("Quà tặng: từ lượt thứ 2, mỗi RULES.freeBasicEvery lượt +1 �
             free.join(","))
         assert.ok(free.includes("A:item") && free.includes("B:item"),
             free.join(","))
+        assert.ok(free.includes("A:gold") && free.includes("B:gold"),
+            free.join(","))
+        assert.ok(free.includes("A:skill") && free.includes("B:skill"),
+            free.join(","))
         assert.ok(log.some((t) => /free/i.test(t)),
             "có dòng nhật ký")
         assert.ok(lastDeck > 0)
@@ -426,8 +423,10 @@ test("Quà tặng: từ lượt thứ 2, mỗi RULES.freeBasicEvery lượt +1 �
                 "freeCard").filter((e) => e.side === nxt)
             const kinds = got.map((e) => e.kind).sort().join()
             assert.equal(kinds,
-                [n > 1 && n % cg.RULES.freeBasicEvery === 0 ? "basic" : "",
-                    n % 3 === 0 ? "item" : ""].filter(Boolean).sort().join(),
+                [(n > 1 && n % cg.RULES.freeBasicEvery === 0) || (n === 1 && cg.RULES.secondFirstBasic > 0 && nxt !== "A") ? "basic" : "",
+                    n % cg.RULES.freeItemEvery === 0 ? "item" : "",
+                    cg.RULES.freeGoldEvery > 0 && n % cg.RULES.freeGoldEvery === 0 ? "gold" : "",
+                    cg.RULES.freeSkillEvery > 0 && n >= cg.RULES.freeSkillOffset && (n - cg.RULES.freeSkillOffset) % cg.RULES.freeSkillEvery === 0 && gm(t).heroes(nxt).length > 0 ? "skill" : ""].filter(Boolean).sort().join(),
                 `lượt thứ ${n} của ${nxt}`)
             counts[nxt] = (counts[nxt] ?? 0) + got.length
             void deckBefore

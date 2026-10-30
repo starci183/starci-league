@@ -49,6 +49,8 @@ Một chiêu vừa gây sát thương vừa khống chế là **được**, mi�
 
 - **Ô phụ (chốt 2026-10-30):** Xạ thủ và Đấu sĩ đánh được mọi thứ ở ô phụ (Thùng, Thiếu Nữ, token khác); các vai khác không đánh được.
 
+- **Quà Vàng (chốt 2026-10-30):** cứ N lượt (bắt đầu N = 4, cân bằng chỉnh) mỗi người được tặng 1 lá Vàng, không lấy từ bộ bài.
+
 ## Nguyên tắc
 1. Mỗi tướng có **một câu Chất** = một điều kiện/lối chơi. Cả 4 kỹ năng phục vụ đúng lối chơi đó, không có chiêu độn. **Nhưng tướng không được một chiều**: bộ chiêu phải có chức năng giao tranh đúng vai (bảng trên).
 2. Kỹ năng ngắn: một câu tác dụng, thêm tối đa một điều kiện tạo ra lựa chọn.
@@ -183,12 +185,12 @@ Bộ: Q ×4 · E ×4 · R ×1. **Khắc chế bởi:** bỏ trống đường đ
 
 | | Quick? | Tác dụng | Điều kiện/ý đồ |
 |---|---|---|---|
-| Nội tại | - | Người Đào Mộ: đòn đánh của Yorick chỉ gây 40% sát thương (giảm 60%), nhưng mỗi đòn (cả nút 66%) vứt 1 lá trên cùng bộ bài của bạn vào mộ | Yorick đánh để nuôi mộ, không để giết |
+| Nội tại | - | Người Đào Mộ: đòn đánh của Yorick gây (50% + 2% mỗi lá trong mộ, tối đa 130%) sát thương; mỗi đòn (cả nút 66%) vứt 1 lá trên cùng bộ bài vào mộ và bạn rút 1 lá (tối đa 2 lá rút/lượt). Mộ đạt 20, 40, 60... lá: lá R Thiếu Nữ Sương Mù tự lên tay (lấy từ bộ, không có thì từ mộ; bỏ qua nếu tay đã có lá R) | Mộ càng dày đánh càng đau, vứt bài là có bài, mộ dày gọi Thiếu Nữ |
 | Q | - | Chôn Cất: chôn 1 lá trên tay vào mộ, rút 1 lá; Yorick hồi (25 + 20% AD + 5% AP) | Bài chết thành mộ, trụ đường |
 | E | - | Đào Mộ: vứt 3 lá trên cùng bộ bài của bạn vào mộ, rồi chọn 1 lá trong 3 lá đó lấy về tay | Lấp mộ nhanh, chọn bài |
-| R | - | Thiếu Nữ Sương Mù: gọi Thiếu Nữ vào ô phụ (máu 150 + 8 mỗi lá trong mộ). Đầu mỗi lượt bạn, Thiếu Nữ đánh 1 địch ngẫu nhiên: (1.5% máu tối đa của nó mỗi 5 lá trong mộ + 8% máu tối đa của Yorick + 50% Giáp của Yorick) sát thương vật lý, và Yorick hồi (1% máu tối đa của Yorick mỗi 5 lá trong mộ) | Mộ càng dày Thiếu Nữ càng đau, Yorick càng trâu |
+| R | - | Thiếu Nữ Sương Mù (không còn token, chủ đổi 30/10): Thiếu Nữ đánh ngay 1 lần, rồi Yorick nhận VĨNH VIỄN 1 tầng **Ma Sương** (cộng dồn, mất khi Yorick chết; mỗi tầng thêm trọn bộ hiệu ứng): (a) Yorick nhận ít hơn (15% + 0.1% mỗi 1 Giáp, tối đa 25%) sát thương, nhiều tầng nhân dồn, tổng tối đa 50%; (b) đầu mỗi lượt bạn Thiếu Nữ đánh 1 địch ngẫu nhiên: (1.5% máu tối đa của nó mỗi 5 lá trong mộ + 8% máu tối đa + 50% Giáp của Yorick) sát thương vật lý, Yorick hồi (1% máu tối đa mỗi 5 lá trong mộ + 20% Giáp); (c) Thiếu Nữ đào 1 lá trên cùng bộ bài vào mộ | Thiếu Nữ đi cạnh Yorick: mộ, máu, Giáp càng dày càng đau |
 
-Thiếu Nữ ở ô phụ nên chỉ Xạ thủ và Đấu sĩ địch đánh được. Cái giá: vứt bài từ bộ làm bạn dễ cạn bài (thua khi phải rút mà bộ rỗng). Bộ: Q ×4 · E ×4 · R ×1. **Khắc chế bởi:** Xạ thủ, Đấu sĩ (đánh Thiếu Nữ), Blitzcrank (cướp bài), đánh nhanh trước khi cạn bài kết thúc trận · **Combo với:** Viktor (bỏ bài vào mộ), Twisted Fate (R ném cả tay vào mộ).
+Thiếu Nữ không phải vật triệu hồi: muốn tắt Ma Sương thì phải hạ Yorick. Cái giá: vứt bài từ bộ làm bạn dễ cạn bài (thua khi phải rút mà bộ rỗng). Bộ: Q ×4 · E ×4 · R ×1. **Khắc chế bởi:** sát thương dồn hạ Yorick (mất Ma Sương), Blitzcrank (cướp bài), đánh nhanh trước khi cạn bài kết thúc trận · **Combo với:** Viktor (bỏ bài vào mộ), Twisted Fate (R ném cả tay vào mộ).
 
 ## C. Đỡ đòn
 
@@ -400,7 +402,7 @@ Bộ: Q ×4 · E ×4 · R ×1. **Khắc chế bởi:** Soraka, Janna (giữ máu
 
 | | Quick? | Tác dụng | Điều kiện/ý đồ |
 |---|---|---|---|
-| Nội tại | - | Mỗi lượt Kog còn sống +1 Đói; có tướng chết (bất kỳ phe) +1 Đói (tối đa 20); Kog chết thì mất nửa Đói. Đòn đánh của Kog gây thêm (0.8% máu tối đa mục tiêu mỗi Đói + 10% AD + 15% AP) sát thương phép | Sống dai là mạnh |
+| Nội tại | - | Mỗi lượt Kog còn sống +1 Đói; có tướng chết (bất kỳ phe) +1 Đói (tối đa 20); Kog chết thì +3 Đói và không mất Đói. Đòn đánh của Kog gây thêm (0.8% máu tối đa mục tiêu mỗi Đói + 10% AD + 15% AP) sát thương phép | Sống dai là mạnh |
 | Q | - | Tạt Axit: 1 địch nhận (40 + 80% AD + 40% AP) sát thương phép, Kog +3 Đói | Vừa đánh vừa nuôi |
 | E | - | Xả Đạn: lượt này phần % máu tối đa từ Đói trên mỗi đòn đánh ×2 | Lượt xả |
 | R | - | Đại Bác Sinh Học: mọi địch nhận (1.5% máu tối đa mỗi Đói + 30% AD + 50% AP) sát thương phép | Đói càng nhiều càng đau |

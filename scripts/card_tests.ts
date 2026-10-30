@@ -241,7 +241,7 @@ const TEAM = ["t_guard",
 // ======================================================================
 G("Mở đường & ván đầu")
 // ======================================================================
-test("V3: mỗi mốc RULES.summonRounds (1, 4, 8, 13, 19) mở đúng 1 đường theo RULES.laneOrder, tới đủ 5",
+test("V3: mỗi mốc RULES.summonRounds mở đúng 1 đường theo RULES.laneOrder, tới đủ 5",
     () => {
         let s = cg.newGame(SEED,
             ["darius",

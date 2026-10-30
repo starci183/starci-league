@@ -1,6 +1,6 @@
 // Thanh dưới của chế độ thẻ bài: tay bài (xòe quạt), chọn tuỳ chọn, thanh hành động (gọi tướng, đánh, ghép đồ, kết thúc lượt).
 import {
-    useEffect, useMemo, useState, useSyncExternalStore
+    useEffect, useMemo, useState, useSyncExternalStore, type CSSProperties
 } from "react"
 import {
     cg
@@ -284,7 +284,9 @@ export function Hand() {
         for (const e of s.lastEvents) {
             if (e.t === "freeCard") { // V3: quà tặng đều đặn (không lấy từ bộ bài)
                 const what = e.kind === "basic" ? L("lá Đánh Thường",
-                    "Basic Attack card") : L("mảnh đồ",
+                    "Basic Attack card") : e.kind === "gold" ? L("lá Vàng",
+                    "Gold card") : e.kind === "skill" ? L("lá chiêu",
+                    "skill card") : L("mảnh đồ",
                     "item component")
                 fresh.push({
                     k: ++burnSeq,
@@ -462,7 +464,6 @@ export function Hand() {
     const attacks = legal.filter((a): a is Extract<Action, { t: "attack" }> => a.t === "attack" && !a.cardless)
     const quickHits = legal.filter((a): a is Extract<Action, { t: "attack" }> => a.t === "attack" && !!a.cardless)
     const upgrades = dedupe(legal.filter((a) => a.t === "upgrade")) as Extract<Action, { t: "upgrade" }>[]
-    const unequips = legal.filter((a): a is Extract<Action, { t: "unequip" }> => a.t === "unequip")
     // bỏ bài xuống mộ (miễn phí): chỉ khi engine cho phép lá đang chọn (lá đóng băng vẫn bỏ được)
     const discardAct = picked ? legal.find((a): a is Extract<Action, { t: "discard" }> => a.t === "discard" && a.uid === picked) : undefined
     const pickedCard = discardAct ? hand.find((c) => c.uid === discardAct.uid) : undefined
@@ -504,6 +505,24 @@ export function Hand() {
         "") : ""
     const srcName = src ? (cardName(srcId) ?? (view.units[srcId] ? unitName(srcId) : (cg.getHero(srcId)?.name ?? ""))) : ""
 
+    /** Hộp tuỳ chọn nổi (fixed) neo phía trên lá đang chọn; không nằm trong luồng của thanh nên không đẩy tay bài */
+    const popStyle = (uid: string | null | undefined): CSSProperties => {
+        const el = uid ? document.querySelector(`[data-hand-uid="${CSS.escape(uid)}"]`) : null
+        const r = (el ?? document.querySelector(".cg-hand .hd-fan"))?.getBoundingClientRect()
+        if (!r) return {
+            left: 16, bottom: 220
+        }
+        const W = 360
+        const cx = r.left + r.width / 2
+        const left = Math.max(8,
+            Math.min(cx - W / 2,
+                window.innerWidth - W - 8))
+        return {
+            left, bottom: Math.max(8,
+                window.innerHeight - r.top + (el ? 22 : 8))
+        }
+    }
+
     return (
         <section className={`cg-hand${myMove ? " mine" : ""}${chain ? " chain" : ""}`}>
             {error ? (
@@ -515,18 +534,6 @@ export function Hand() {
             {burns.length ? (
                 <div className="hd-burns" aria-live="polite">
                     {burns.map((b) => <div key={b.k} className="hd-burn">{b.text}</div>)}
-                </div>
-            ) : null}
-            {discardAct && pickedCard ? (
-                <div className="hd-discard">
-                    <span>{cg.cardInfoL(g,
-                        pickedCard).name}</span>
-                    <button className="hd-btn sec" title={L("Bỏ lá này xuống mộ, miễn phí, không giới hạn số lần",
-                        "Discard this card to the grave: free, no limit")}
-                    onClick={() => { cardActions.cancelTargeting(); cardActions.act(discardAct) }}>
-                        {L("Bỏ vào mộ",
-                            "Discard")}
-                    </button>
                 </div>
             ) : null}
             {targeting ? (
@@ -544,23 +551,37 @@ export function Hand() {
                         "Cancel")}</button>
                 </div>
             ) : null}
-            {chooser ? (
-                <div className="hd-pop">
-                    <div className="hd-pop-title">{chooser.title}</div>
-                    <div className="hd-pop-list">
-                        {chooser.choices.map((c) => (
-                            <button key={c.key} className="hd-choice" title={c.sub} onClick={() => advance(chooser.source,
-                                c.options)}>
-                                {c.img ? <img src={c.img} alt="" /> : null}
-                                {c.dot ? <i style={{
-                                    background: c.dot
-                                }} /> : null}
-                                <span>{c.label}</span>
+            {chooser || (discardAct && pickedCard) ? (
+                <div className="hd-pop" style={popStyle(chooser?.source ?? picked)}>
+                    {chooser ? (
+                        <>
+                            <div className="hd-pop-title">{chooser.title}</div>
+                            <div className="hd-pop-list">
+                                {chooser.choices.map((c) => (
+                                    <button key={c.key} className="hd-choice" title={c.sub} onClick={() => advance(chooser.source,
+                                        c.options)}>
+                                        {c.img ? <img src={c.img} alt="" /> : null}
+                                        {c.dot ? <i style={{
+                                            background: c.dot
+                                        }} /> : null}
+                                        <span>{c.label}</span>
+                                    </button>
+                                ))}
+                            </div>
+                        </>
+                    ) : null}
+                    <div className="hd-pop-foot">
+                        {discardAct && pickedCard ? (
+                            <button className="hd-btn sec" title={L("Bỏ lá này xuống mộ, miễn phí, không giới hạn số lần",
+                                "Discard this card to the grave: free, no limit")}
+                            onClick={() => { cardActions.cancelTargeting(); cardActions.act(discardAct) }}>
+                                {L("Bỏ vào mộ",
+                                    "Discard")}
                             </button>
-                        ))}
+                        ) : null}
+                        {chooser ? <button className="hd-cancel" onClick={() => { setChooser(null); cardActions.cancelTargeting() }}>{L("Huỷ",
+                            "Cancel")}</button> : null}
                     </div>
-                    <button className="hd-cancel" onClick={() => { setChooser(null); cardActions.cancelTargeting() }}>{L("Huỷ",
-                        "Cancel")}</button>
                 </div>
             ) : null}
 
@@ -661,29 +682,6 @@ export function Hand() {
                                         onClick={() => cardActions.act(a)}>
                                         {L("Nâng cấp",
                                             "Upgrade")} {unitName(a.unit)} · {nm}
-                                    </button>
-                                )
-                            })}
-                        </div>
-                    </div>
-                ) : null}
-                {unequips.length ? (
-                    <div className="hd-group">
-                        <label>{L("Tháo đồ",
-                            "Unequip")}</label>
-                        <div className="hd-row">
-                            {unequips.map((a, i) => {
-                                const nm = cg.itemText(a.item,
-                                    lang === "en" ? "en" : "vi")?.name ?? a.item
-                                const full = hand.filter((c) => !c.temp).length >= handMax
-                                return (
-                                    <button key={i} className="hd-btn up" title={full ? L("Tay đầy: lá đồ sẽ bị đốt vào mộ",
-                                        "Hand full: the item card will be burned") : L("Lá đồ về tay, lắp lại được cho tướng khác",
-                                        "The item card returns to your hand")}
-                                    onClick={() => cardActions.act(a)}>
-                                        {L("Tháo",
-                                            "Unequip")} {nm} · {unitName(a.unit)}{full ? ` ⚠ ${L("tay đầy",
-                                            "hand full")}` : ""}
                                     </button>
                                 )
                             })}

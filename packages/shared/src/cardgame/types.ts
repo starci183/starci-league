@@ -40,12 +40,12 @@ export const LANE_ORDER = [2,
     3,
     0,
     4]
-/** V3: các vòng được GỌI TƯỚNG (úp đồng thời, mỗi bên 1 tướng); đường LANE_ORDER[i] mở ở vòng SUMMON_ROUNDS[i] */
+/** V3: các vòng được GỌI TƯỚNG (úp đồng thời, mỗi bên 1 tướng); đường LANE_ORDER[i] mở ở vòng SUMMON_ROUNDS[i]. Cân bằng V3 đợt 2: 1/4/8/13/19 -> 1/3/6/9/12 (trận kết thúc vài vòng sau tướng thứ 4) */
 export const SUMMON_ROUNDS = [1,
-    4,
-    8,
-    13,
-    19]
+    3,
+    6,
+    9,
+    12]
 
 export const RULES = {
     lives: LIVES,
@@ -57,6 +57,10 @@ export const RULES = {
     startHand: 5,
     /** Bù cho bên đi sau: thêm lá vào tay đầu (chốt 30/10) */
     secondPlayerBonus: 1,
+    /** Bù bên đi sau (cân bằng V3 đợt 2): 1 = bên đi trước KHÔNG được đánh (lá Đánh thường, đòn không cần lá, đòn miễn phí) trong lượt đầu tiên của mình; 0 = tắt */
+    firstTurnNoAttack: 0,
+    /** Bù bên đi sau (cân bằng V3 đợt 2): 1 = bên đi sau nhận quà Đánh Thường ngay lượt đầu của mình; 0 = tắt */
+    secondFirstBasic: 0,
     /** Luật chủ 30/10: rút 1 lá mỗi lượt (đã có quà Đánh Thường mỗi lượt (freeBasicEvery 1, cân bằng V3) và mảnh đồ mỗi 3 lượt) */
     drawPerTurn: 1,
     /** Chốt 30/10: hồi sinh nhanh hơn để cuối trận có ~4 tướng trên sân */
@@ -75,6 +79,16 @@ export const RULES = {
     /** V3: cứ mỗi bấy nhiêu lượt CỦA MÌNH, người chơi được tặng 1 lá Đánh Thường / 1 mảnh đồ ngẫu nhiên (không lấy từ bộ bài) */
     freeBasicEvery: 1,
     freeItemEvery: 3,
+    /** Chủ chốt 30/10: cứ mỗi bấy nhiêu lượt CỦA MÌNH, người chơi được tặng 1 lá Vàng (không lấy từ bộ bài) */
+    freeGoldEvery: 4,
+    /** Chủ chốt 30/10: cứ mỗi bấy nhiêu lượt CỦA MÌNH (bắt đầu từ lượt freeSkillOffset: 2, 6, 10...) người chơi được tặng 1 lá chiêu tạo mới của 1 tướng mình đang sống trên sân (ngẫu nhiên; không có thì bỏ qua) */
+    freeSkillEvery: 4,
+    /** Lượt CỦA MÌNH đầu tiên nhận quà lá chiêu (2 = xen kẽ với quà Vàng ở lượt 4, 8, 12...) */
+    freeSkillOffset: 2,
+    /** Tỉ lệ loại lá chiêu của quà: Q / E / R */
+    freeSkillOdds: {
+        q: 0.4, e: 0.4, r: 0.2
+    },
     /** Số lá mỗi loại chiêu của MỖI tướng trong bộ bài (cố định, vào bộ từ đầu trận) */
     skillCopies: {
         Q: 8, E: 8, R: 2
@@ -381,7 +395,7 @@ export interface GameState {
   offTurnAttacks?: TurnAttacks;
   /** Tay của phe này đang LỘ cho đối thủ tới hết lượt turnNo đó (g.revealHand). Server gửi tay thật cho đối thủ khi còn hiệu lực. */
   handReveal?: Partial<Record<Side, number>>;
-  /** V3: số lượt đã chơi của mỗi bên (tính cả lượt đang chạy); dùng cho quà tặng đều đặn (RULES.freeBasicEvery / freeItemEvery) */
+  /** V3: số lượt đã chơi của mỗi bên (tính cả lượt đang chạy); dùng cho quà tặng đều đặn (RULES.freeBasicEvery / freeItemEvery / freeGoldEvery / freeSkillEvery) */
   ownTurns?: Partial<Record<Side, number>>;
   /** V3: hiệu ứng hẹn giờ chưa bắn (g.delay) */
   delayed?: DelayedEffect[];
@@ -488,7 +502,7 @@ export type GameEvent =
   /** V3: tháo món `item` khỏi `unit`; `card` = lá đồ về tay (có thể bị đốt nếu tay đầy: sau đó có thêm cardBurned) */
   | { t: "unequip"; side: Side; unit: string; item: string; card: Card }
   /** V3: tặng lá đều đặn (không lấy từ bộ bài) */
-  | { t: "freeCard"; side: Side; card: Card; kind: "basic" | "item" }
+  | { t: "freeCard"; side: Side; card: Card; kind: "basic" | "item" | "gold" | "skill" }
   /** V3: biến hình bật/tắt */
   | { t: "transform"; unit: string; id: string; on: boolean; reason?: string }
   /** V3: trạng thái ngẫu nhiên công khai của tướng (g.rollState) */
@@ -642,7 +656,7 @@ export interface HookData {
   /** V3: biến hình kết thúc — CHỈ bắn cho tướng chủ */
   onTransformEnd: { unit: Unit; id: string; reason: "expire" | "revive" | "manual" | "death" };
   /** V3: `side` vừa nhận lá tặng đều đặn */
-  onFreeCard: { side: Side; card: Card; kind: "basic" | "item" };
+  onFreeCard: { side: Side; card: Card; kind: "basic" | "item" | "gold" | "skill" };
 }
 export type HookName = keyof HookData;
 export type HeroHooks = { [K in HookName]?: (g: Game, me: Unit, d: HookData[K]) => void };

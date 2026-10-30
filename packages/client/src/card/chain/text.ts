@@ -251,7 +251,7 @@ export function viText(e: GameEvent, v: CardView, g: cg.Game | null): string | u
     case "revealEnd": return `Tay bài của ${sd(e.side)} không còn bị lộ.`
     case "upgrade": return `${un(e.unit)} nâng cấp ${itemNameVi(e.from)} thành ${itemNameVi(e.item)}.`
     case "unequip": return `${un(e.unit)} tháo ${itemNameVi(e.item)} (lá đồ về tay ${sd(e.side)}).`
-    case "freeCard": return `${sd(e.side)} được tặng 1 ${e.kind === "basic" ? "lá Đánh Thường" : "mảnh đồ"} (không lấy từ bộ bài).`
+    case "freeCard": return `${sd(e.side)} được tặng 1 ${e.kind === "basic" ? "lá Đánh Thường" : e.kind === "gold" ? "lá Vàng" : e.kind === "skill" ? "lá chiêu" : "mảnh đồ"} (không lấy từ bộ bài).`
     case "transform": return e.on ? `${un(e.unit)} biến hình (${e.id}).` : `${un(e.unit)} hết biến hình${e.reason === "revive" ? " và hồi sinh tại chỗ" : ""}.`
     case "roll": return `${un(e.unit)}: ${e.key} = ${e.value}.`
     case "blindStart": return `Vòng ${e.round}: gọi tướng úp, mỗi bên tối đa ${e.cap} tướng.`

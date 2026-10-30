@@ -1,5 +1,5 @@
 // Kog'Maw (Xạ thủ, phép): máu 340 · AD 116 · AP gốc 0 · giáp/kháng 25/27. Chất: ĐÓI, trận càng dài, sống càng dai càng mạnh.
-// Đói = bộ đếm (stack "hunger", tối đa 20): +1 mỗi lượt Kog còn sống, +1 mỗi khi có tướng chết (bất kỳ phe); Kog chết thì mất nửa.
+// Đói = bộ đếm (stack "hunger", tối đa 20): +1 mỗi lượt Kog còn sống, +1 mỗi khi có tướng chết (bất kỳ phe); Kog chết thì +3 Đói, không mất Đói (chủ đổi 30/10).
 // Đòn đánh của Kog gây thêm % máu tối đa của mục tiêu theo Đói + một phần AD/AP (sát thương phép).
 // AP gốc = AD cũ của tướng phép (đề xuất V3, đã vào engine: HeroDef.ap).
 import {
@@ -12,6 +12,8 @@ import {
 const HUNGER = "hunger"
 const GORGE = "kog_e"
 export const MAX_HUNGER = 20
+/** Kog'Maw chết: +bấy nhiêu Đói (không mất Đói) */
+export const DEATH_HUNGER = 3
 /** % máu tối đa của mục tiêu mỗi Đói cho đòn đánh (E nhân đôi phần này) */
 const ATTACK_PCT = 0.008
 /** Phần cộng thêm cố định mỗi đòn đánh */
@@ -32,7 +34,7 @@ export default defineHero({
     desc: "Sống càng lâu càng đói: bắn theo % máu tối đa, tank càng trâu càng lủng.",
     passive: {
         name: "Đói Khát",
-        desc: `Đầu lượt của bạn, Kog'Maw còn sống: +1 Đói. Có tướng chết (bất kỳ phe): +1 Đói (tối đa ${MAX_HUNGER}). Kog'Maw chết: mất nửa Đói. Đòn đánh của Kog'Maw gây thêm ${pct(ATTACK_PCT)}% máu tối đa của mục tiêu mỗi Đói + {${F_ATTACK}} sát thương phép.`,
+        desc: `Đầu lượt của bạn, Kog'Maw còn sống: +1 Đói. Có tướng chết (bất kỳ phe): +1 Đói (tối đa ${MAX_HUNGER}). Kog'Maw chết: +${DEATH_HUNGER} Đói (không mất Đói). Đòn đánh của Kog'Maw gây thêm ${pct(ATTACK_PCT)}% máu tối đa của mục tiêu mỗi Đói + {${F_ATTACK}} sát thương phép.`,
     },
     hooks: {
         onTurnStart(g, me, d) {
@@ -43,13 +45,9 @@ export default defineHero({
         },
         onDeath(g, me, d) {
             if (d.victim.token) return
-            if (d.victim.id === me.id) g.setStack(me,
+            g.stack(me,
                 HUNGER,
-                Math.floor(g.stackOf(me,
-                    HUNGER) / 2))
-            else g.stack(me,
-                HUNGER,
-                1,
+                d.victim.id === me.id ? DEATH_HUNGER : 1,
                 MAX_HUNGER)
         },
         onAttack(g, me, d) {
