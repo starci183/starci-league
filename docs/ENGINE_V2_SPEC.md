@@ -1,6 +1,6 @@
 # ENGINE V2: global rules spec (85-card deck, draw 2, attack limit, fighter cardless attack, support Q/E, mage mana)
 
-> **Ghi chú đối chiếu (E, 30/10):** các điểm "Owner decisions" ở cuối file ghi đè các dòng sau của phần trên: R2 (đòn free từ buff NAY ĐƯỢC tính; `g.attack()` trong chiêu/hook và `autoAttack` vẫn không tính), R3/1.1 (cardless 66% chứ không 67%, và KHÔNG phải Quick: chỉ lượt mình, quyết định 14), R5/1.1 (mana ×10: max/start 100, +10 mỗi lượt, chi phí theo từng chiêu), 1.1/1.4/2.1 (xoá `attackLimitCap`, `addAttackLimit`, và `attackLimitMod` vì trần cứng 3 cho mọi tướng), 2.5 (bước `summon` + `draw` thay bằng phase `blind` úp đồng thời; lượt đầu bắt buộc gọi vẫn giữ), mục 8.2 (thua khi phải rút mà bộ rỗng; bộ còn 1 lá thì rút 1 và không thua), R4/R7 giữ nguyên. Điểm 8-9 (mở đường từng đường một; tướng chết giữ đường) thay lịch 1-2-2 và `respawnDue` cũ. Test: `scripts/card_tests_v2.ts`.
+> **Ghi chú đối chiếu (E, 30/10):** các điểm "Owner decisions" ở cuối file ghi đè các dòng sau của phần trên: R2 (không còn buff cấp đòn đánh độc lập; `g.attack()` trong chiêu/hook và `autoAttack` vẫn không tính), R3/1.1 (cardless 66% chứ không 67%, và KHÔNG phải Quick: chỉ lượt mình, quyết định 14), R5/1.1 (mana ×10: max/start 100, +10 mỗi lượt, chi phí theo từng chiêu), 1.1/1.4/2.1 (xoá `attackLimitCap`, `addAttackLimit`, và `attackLimitMod` vì trần cứng 3 cho mọi tướng), 2.5 (bước `summon` + `draw` thay bằng phase `blind` úp đồng thời; lượt đầu bắt buộc gọi vẫn giữ), mục 8.2 (thua khi phải rút mà bộ rỗng; bộ còn 1 lá thì rút 1 và không thua), R4/R7 giữ nguyên. Điểm 8-9 (mở đường từng đường một; tướng chết giữ đường) thay lịch 1-2-2 và `respawnDue` cũ. Test: `scripts/card_tests_v2.ts`.
 
 Status: final implementation spec (deck model decided by the owner). No code written yet. Hero skill rewrites live in `docs/heroes/REDESIGN_V2.md` (separate job); this file only defines the engine API those heroes will use.
 
@@ -14,7 +14,7 @@ Paths are relative to the repo root. `cardgame/` = `packages/shared/src/cardgame
 |---|---|---|---|
 | R0 | Deck | 20-card base deck; each hero adds 34 cards (skills + 20 support) when summoned | **85 cards from game start**: 40 shared cards (basic, spells, gold, items, player-built) + for each of the 5 heroes exactly **4 Q, 4 E, 1 R** (9 × 5 = 45). Same counts for every hero (per-hero `skillCopies`/`supportCopies` removed). Nothing is shuffled in on summon. |
 | R1 | Draw per turn | `RULES.drawPerTurn = 1` | **2**. Hand max stays 10. Overflow cards are **burned** to the grave and emit `cardBurned`. |
-| R2 | Basic attack limit | none | **3 per player per turn**. Counts: basic attack cards + fighter cardless attacks. Does NOT count: free attacks from `nextAttack` buffs, `g.attack()` calls inside skills/hooks, `autoAttack` (Kog). |
+| R2 | Basic attack limit | none | **3 per player per turn**. Counts: basic attack cards + fighter cardless attacks. Does NOT count: `g.attack()` calls inside skills/hooks, `autoAttack` (Kog). |
 | R3 | Fighter cardless attack | fighters cannot play basic cards; auto-attack the opposite unit at end of turn | Each fighter (hero, not token) may attack **without a card once per turn at 67%** (counts toward the limit). Fighters may now play basic cards at 100%. End-of-turn fighter auto-attack is **removed** (`HeroDef.autoAttack` still runs). |
 | R4 | Support on summon | owner draws 1 random card | Owner takes the support's **Q and E from the deck** into hand (created if none left in the deck). First summon only (respawn does not trigger). |
 | R5 | Mage mana | mages are like everyone else | Mage skill cards are in the deck like everyone else's, but **playing one costs that mage's mana**. Per-mage mana: max 10, start 10, +1 at the start of the owner's turn. No random temporary skill mechanic. |
@@ -88,7 +88,7 @@ manaCostMod?(g: Game, me: Unit, def: SkillDef, card: Card): number;  // delta, r
 // SupportId
 | "mana"   // restore-mana support card; engine support only, added to DECK_POOL when the owner sets numbers
 ```
-`Card.temp` is unchanged (still used by hero effects such as Katarina daggers). `NextAttackBuff.free` is unchanged and remains the way skills grant uncounted attacks.
+`Card.temp` is unchanged (still used by hero effects such as Katarina daggers). `NextAttackBuff` only modifies the next actual attack; it never grants an independent attack action.
 
 ### 1.5 AttackInfo, Action, ChainLink
 ```ts
@@ -96,12 +96,12 @@ manaCostMod?(g: Game, me: Unit, def: SkillDef, card: Card): number;  // delta, r
 cardless?: boolean;   // `free` stays false for cardless attacks (Kog ARTY reads info.free)
 
 // Action: extend the existing attack action
-| { t: "attack"; side: Side; actor: string; target: string; cardless?: true }
-//   no cardless => free attack from a nextAttack buff (unchanged)
+| { t: "attack"; side: Side; actor: string; target: string; cardless: true }
+//   cardless:true is required; actions missing it are rejected.
 //   cardless    => fighter cardless attack (counted, 67%)
 
 // ChainLink
-mode?: "free" | "cardless";   // kind = "attack" only
+mode?: "cardless";   // kind = "attack" only
 manaPaid?: number;            // kind = "card", mage skills
 ```
 
@@ -144,9 +144,8 @@ New primitives (all emit events):
 | `attacksLeft(side)` | `attackLimit(side) - turnAttacks().used` (meaningful for `s.active`) |
 | `countAttack(side)` | `used++`, emit `attackCount` |
 | `addAttackLimit(side, n)` | `bonus += n`, emit `attackCount` (skill API, e.g. Jinx Q) |
-| `canCardless(u)` | hero fighter, `canAct`, not in `cardless`, no `free` buff in `u.nextAttack`, `attacksLeft > 0` |
+| `canCardless(u)` | hero fighter, `canAct`, not in `cardless`, `attacksLeft > 0` |
 | `allowCardless(u)` | remove `u.id` from `cardless` (skill API: "may attack without a card again") |
-| `grantFreeAttack(u, buff?)` | push `{ id: buff?.id ?? "free", source, free: true, ...buff }` to `u.nextAttack` (uncounted) |
 | `burnOverflow(side, card)` | emit `cardBurned{reason:"handFull"}`; push to grave unless `special`/`temp`; fire `onDiscard{reason:"overflow"}` |
 | `giveSkillToHand(side, hero, key, reason)` | take the first matching skill card (`kind:"skill"`, `hero`, `side`, key) out of the deck (no reshuffle needed, deck order is hidden anyway), emit `draw{reason}`, fire `onDraw`; if none in deck, `createCard(side, skillCard)`; hand full -> `burnOverflow` |
 | `expireTemps(side)` | remove all `temp` cards from `side`'s hand; per card emit `tempExpired`, fire `onTempExpired` |
@@ -175,7 +174,7 @@ Changes to existing functions:
 - `playOptions`, skill branch: if `g.isMage(u)` and `g.manaOf(u) < g.manaCost(u, def, card)` return `[]`.
 - `playOptions`, support `"mana"`: targets = own mages on board with `mana < maxMana`.
 - `chainOptions.add`: same mana check for mage Quick skills (can now happen in the opponent's turn too).
-- `legalActions` main phase, after the free-attack block:
+- `legalActions` main phase:
   ```ts
   for (const a of g.heroes(side)) if (g.canCardless(a))
     for (const t of attackTargets(g, a, false)) out.push({ t: "attack", side, actor: a.id, target: t.id, cardless: true })
@@ -189,12 +188,12 @@ Changes to existing functions:
 - `chain` (`addQuickLink`): same mana spend for mage Quick skills.
 - `attack`:
   - `cardless`: validate `canCardless(a)` and target in `attackTargets(g, a, false)`; push to `cardless`; `countAttack`; `startChain(..., "attack", undefined, {actor, target}, "cardless")`.
-  - otherwise: existing free-buff validation, mode `"free"`.
+  - otherwise: reject the action; only Fighter cardless actions remain.
 - `startChain` gets an optional `mode` param stored on link 1.
 - `resolveLink` attack branch:
   ```ts
   const cardless = L.mode === "cardless"
-  g.attack(a, t, cardless ? { cardless: true, mult: RULES.fighterCardlessMult } : { free: true })
+  g.attack(a, t, { cardless: true, mult: RULES.fighterCardlessMult })
   ```
 - `resolveCardInner` skill branch: `ctx.manaPaid = link.manaPaid ?? 0` (pass through `resolveCard`).
 - Mana and attack count are paid at activation; a fizzled (stunned caster) or redirected link does not refund them.
@@ -232,9 +231,7 @@ Changes to existing functions:
 | Read unused mana at end of turn (Lux) | `onTurnEnd` + `g.manaOf(me)` |
 | Mana paid this cast | `ctx.manaPaid`; hook `onManaSpent` |
 | Mage overrides | `HeroDef.mana = { max, start, regen }` |
-| Next attack needs no card (Nami Q) | `g.grantFreeAttack(u, { mult, bonusRaw })` (uncounted) |
 | Attacks inside a skill (Garen E 3×40%) | `g.attack(self, t, { mult: 0.4 })` in `resolve` (never counted) |
-| "+N attacks this turn beyond the limit" (Jinx) | `g.addAttackLimit(side, n)` (allowance; still needs cards/cardless) or N × `grantFreeAttack` (truly free) |
 | Passive limit change (Nami: 4) | `HeroDef.attackLimitMod = () => 1` |
 | Second cardless swing | `g.allowCardless(u)` |
 | Temp cards (Katarina daggers) | `createCard(side, { ..., temp: true })` (now emits `tempExpired`) |
@@ -249,7 +246,7 @@ Changes to existing functions:
 | `botView.ts` | `fingerprint`: add `u.mana`, `turnAttacks.used/bonus/cardless`. `determinize` unchanged (opponent hand+deck re-deal still valid; all skill cards are in the pool from turn 1). |
 | `botEval.ts` | `cardValue`: remove the fighter exclusion for `basic`; mage skill value minus `cost * EVAL.manaPoint` and ~0.5× if currently unaffordable. New `EVAL.manaPoint` (~8; ×0.5 for mana above `max - regen`, since regen at cap is wasted). `sideValue`: `+ manaPoint * mana` for mages. `threatOn`: opposite fighter hit = `hit * (fighterCardlessMult + 0.6)` instead of `* 1.6` (no auto-attack). `burst`: cap counted attacks at `attackLimit`. Recheck `card.skillReserve/skillDead` weights: reserve heroes' skill cards are now in hand early. `deckSafe/deckPenalty`: retune for an 85-card deck with 2 draws/turn. |
 | `botGreedy.ts` | `scoreEvents`: `cardBurned` own −10 / foe +6; `manaChange` `spend` `sc += delta * 3`, `restore` own `+delta * 4`; `tempExpired` own −2. Discard-value table: `temp` = 0, dead skill card (`isDeadCard`) = 1. |
-| `botSearch.ts` | `cardCost`: temp = 0, dead skill = 1. `candidateActions`: keep `attack` actions with and without `cardless` as distinct. `quickResponseProb`: mage Quick cards only count if that mage has mana for them. `closestLegal` already compares all keys incl. `cardless`. `finish()` no longer gets fighter auto-attacks for free, so the plan must include cardless attacks explicitly (automatic, they are legal actions). |
+| `botSearch.ts` | `cardCost`: temp = 0, dead skill = 1. `candidateActions`: only emit `attack` actions with `cardless:true`. `quickResponseProb`: mage Quick cards only count if that mage has mana for them. `closestLegal` already compares all keys incl. `cardless`. `finish()` no longer gets fighter auto-attacks for free, so the plan must include cardless attacks explicitly (automatic, they are legal actions). |
 | `bot.ts`, `botDraft.ts` | No required change. |
 
 ### 3.1 Summon choice must read the hand (design intent R7)
@@ -395,7 +392,7 @@ Done: all `card_tests*` green; selfplay 200 games without exception; deck-out ra
 1. Used skill cards go to the grave.
 2. Loss conditions: a player loses when they must draw from an empty deck, or when all 7 lives are gone.
 3. Mana is scaled ×10 and set per mage: +10 mana per turn (max/start per mage, default 100), skill costs are per skill and can be odd values (15, 25, ...). Costs live on each mage skill def.
-4. Hard cap of 3 attacks per player per turn for ALL heroes, counting every attack (basic cards, fighter cardless attacks AND free attacks granted by skills). Remove the cap-6 / addAttackLimit idea. Fighters: the cardless attack is optional (never automatic), deals 66%, the player may stop after it.
+4. Hard cap of 3 attacks per player per turn for ALL heroes, counting every attack (basic cards, fighter cardless attacks). Remove the cap-6 / addAttackLimit idea. Fighters: the cardless attack is optional (never automatic), deals 66%, the player may stop after it.
 5. Fighter cardless attack is a special button: a **Quick** action (usable in the opponent's turn / in a chain like other Quick cards), 66% damage, once per turn per fighter, counts toward the 3-attack cap. Otherwise fighters attack normally with basic attack cards (100%).
 6. **Simultaneous blind summon:** in the summon phase both players pick their summons face-down at the same time, then both are revealed and placed together. Both sides summon the same number of heroes in a summon phase (no seeing the opponent summon 1 and answering with 2). Bot and server must support the hidden-then-reveal step.
 7. Blind summon cap: each summon phase has one cap N for both sides (e.g. the number of lanes opened that phase). Each side may summon up to N, chosen face-down at the same time, revealed together. If one side has fewer heroes available (all on board or waiting to respawn), the other side may still summon up to N — the rule is a shared cap, not forced equality.
@@ -416,7 +413,7 @@ All in `packages/shared/src/cardgame/` (`types.ts` types, `game.ts` = `Game` met
 ### Statuses and stats
 - `FOREVER` (types.ts, 1_000_000): pass as `g.status(u, id, 1, { until: FOREVER })` for a status that never ends (Brand Bỏng). Never use `Infinity` (JSON).
 - `g.status(u, id, turns, { v, add, max, of, until, decay })`: new `decay` = at the end of the OWNER's turn `v -= decay`, removed at <= 0 (Ahri Say Mê). `StatusInst.decay`.
-- Engine-known generic status ids: `"disarm"` (cannot attack: basic card, cardless, free attack, autoAttack; `g.canAttack(u)`), `"alwaysCrit"` (every attack of the holder crits, v > 0), `"noheal"` (no heal and no shield received), `"invulnerable"` (takes no damage), `"isolated"` (counts as Cô Lập), `"stealth"` (existing: not choosable by single targets / attacks), plus existing `stun silence chill shred taunt empower blind exhaust grievous ignite`.
+- Engine-known generic status ids: `"disarm"` (cannot attack: basic card, cardless, autoAttack; `g.canAttack(u)`), `"alwaysCrit"` (every attack of the holder crits, v > 0), `"noheal"` (no heal and no shield received), `"invulnerable"` (takes no damage), `"isolated"` (counts as Cô Lập), `"stealth"` (existing: not choosable by single targets / attacks), plus existing `stun silence chill shred taunt empower blind exhaust grievous ignite`.
 - `g.canAttack(u): boolean` = `canAct && !disarm`.
 - `g.payHp(u, n, min = 1): number` pay HP (not damage: no `onDamage`, cannot kill; emits `damage` true) (Aatrox Q).
 - `g.oncePerTurn(u, key): boolean` true once per `turnNo` for (u, key) (Qiyana: key `first:<target id>`; Sterak).
@@ -483,10 +480,10 @@ Added by the engine owner for the V3 hero rewrite (2026-10-30). All in `packages
 - Free resources: on a player's own turn #2, #4, ... (after the draw step) they get 1 Basic Attack card; on own turn #3, #6, ... 1 random item component. Not from the deck. Event `{ t: "freeCard", side, card, kind: "basic" | "item" }` plus a log line, hook `onFreeCard`. `RULES.freeBasicEvery = 2`, `RULES.freeItemEvery = 3`. Hand full -> `cardBurned`.
 - Unequip (own main phase, one action): `{ t: "unequip", side, unit, item }` (`item` = item id worn by `unit`; removes one copy). The same kind of card returns to the hand (component -> `item` card, crafted -> `legend` card); hand full -> `cardBurned`. Max HP of the unit drops by the item's HP (HP clamped to >= 1). Event `unequip`; hook `onUnequip { side, unit, item }`. Upgrading in place is unchanged.
 - Stealth (`stealth` status): not choosable as a single target / attack target / `enemies_upto` / `opposite` skill target (`g.targetable(u)` false), but it STILL takes damage and statuses from effects that did not choose it (all-enemy, `g.damage` from hooks, DoT, explosions). Engine audit done: `targetValues`, `attackTargets`, basic/attack/skill resolution (a target that became stealthy inside the chain fizzles). Hero code that picks a random/lowest enemy by itself should use `g.targetableEnemies(u)` when the effect "chooses a target" and `g.enemies(u)` when it is an area/DoT effect.
-- Extra zone: tokens (Keg, Maiden, any token) are attackable by `marksman` AND `fighter` heroes only (basic card, cardless, free attacks). Other roles cannot. Skills still need `SkillDef.targetsTokens`. The old "keg is attackable by every role" exception is gone.
+- Extra zone: tokens (Keg, Maiden, any token) are attackable by `marksman` AND `fighter` heroes only (basic card, cardless, skill-triggered attacks). Other roles cannot. Skills still need `SkillDef.targetsTokens`. The old "keg is attackable by every role" exception is gone.
 - Base AP: `HeroDef.ap?: number` (default 0). `g.ap(u)` = base AP + item AP (+ transform / `bonusStats`). Formulas `{.. AP}` use `g.ap`. If a hero file does not set `ap`, `registry.ts` applies `V3_BASE_AP[hero.id]` (= old code AD of the magic heroes, table below). A hero file that sets `ap` wins.
   `V3_BASE_AP`: katarina 82, kogmaw 84, teemo 78, ahri 76, brand 78, annie 74, twistedfate 72, lissandra 72, lux 72, viktor 68, blitzcrank 90, ornn 78, malphite 68, braum 66, janna 66, nami 66, soraka 58, renata 60. Everyone else 0.
-- Basic card / cardless / free attacks and skill resolution check `g.targetable(target)` at resolve time.
+- Basic card / cardless / skill-triggered attacks and skill resolution check `g.targetable(target)` at resolve time.
 - Vayne's role is `assassin` (hero file).
 
 ### Formulas (`formula.ts`, `ctx.f(expr)`, `g.f(u, expr, target?)`)

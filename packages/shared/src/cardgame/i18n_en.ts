@@ -88,7 +88,7 @@ const enOf = (m: Record<string, BiText>) => Object.fromEntries(Object.entries(m)
 // ======================================================================
 export const SUPPORT_EN: Record<SupportId, { name: string; desc: string }> = {
     mana: {
-        name: "Mana Potion", desc: "1 allied mage restores {30} mana."
+        name: "Mana Potion", desc: "Your team restores {30} shared mana (maximum 200)."
     },
     basic: {
         name: "Strike", desc: "1 allied champion makes a basic attack, following its role's rules."
@@ -130,7 +130,7 @@ export const SUPPORT_EN: Record<SupportId, { name: string; desc: string }> = {
         name: "Cleanse", desc: "Remove every crowd control and harmful effect (Stun, Silence, Chill, Armor Shred, Blind, Ignite, Grievous Wounds, Exhaust, Bleed, Burn...) from 1 allied champion."
     },
     spell_smite: {
-        name: "Smite", desc: "Deal 150 true damage to the summoned unit in the opponent's extra zone (how non-marksmen answer tokens)."
+        name: "Smite", desc: "Deal 150 true damage to the summoned unit in the opponent's extra zone."
     },
     spell_teleport: {
         name: "Teleport", desc: "1 allied champion waiting to respawn returns right now to an open, empty lane with 50% HP."
@@ -161,22 +161,22 @@ export const SPECIAL_EN: Record<string, { name: string; desc: string }> = {
 
 export const ROLE_EN: Record<Role, { name: string; rule: string }> = {
     fighter: {
-        name: "Fighter", rule: "Strike card hits the opposing champion (or anything in the extra zone) for 100% AD. Once per turn, a Quick cardless attack for 66%. Sustain plus damage."
+        name: "Fighter", rule: "Strike card hits the opposing champion (or anything in the extra zone) for 100% AD. Once per turn, a Quick cardless attack for 50%. Sustain plus damage."
     },
     tank: {
-        name: "Tank", rule: "Strike card hits the opposing champion for 100% AD. Taunt: enemy marksmen's Strike cards must target a tank. Crowd control plus damage reduction or Shields."
+        name: "Tank", rule: "Strike card hits the opposing champion or an enemy extra-zone unit for 100% AD. Taunt: enemy marksmen's Strike cards must target a tank. Crowd control plus damage reduction or Shields."
     },
     assassin: {
-        name: "Assassin", rule: "Strike card hits the champion in the same lane for 125% AD. Burst plus an escape (Stealth) or a reset."
+        name: "Assassin", rule: "Strike card hits the champion in the same lane or an enemy extra-zone unit for 125% AD. Burst plus an escape (Stealth) or a reset."
     },
     marksman: {
-        name: "Marksman", rule: "Strike card hits any enemy champion or extra-zone token for 100% AD (but must hit a tank if the enemy has one on the board)."
+        name: "Marksman", rule: "Strike card hits any enemy champion or extra-zone token for 100% AD (champion targets must be tanks when present; the extra-zone unit remains attackable)."
     },
     mage: {
-        name: "Mage", rule: "Strike card hits the opposing champion for 100% AD as magic damage."
+        name: "Mage", rule: "Strike card hits the opposing champion or an enemy extra-zone unit for 100% AD as magic damage."
     },
     support: {
-        name: "Support", rule: "Strike card hits the opposing champion for 100% AD. When first summoned, its owner takes its Q and E from the deck to hand (respawning does not count)."
+        name: "Support", rule: "Strike card hits the opposing champion or an enemy extra-zone unit for 100% AD. When first summoned, its owner takes its Q and E from the deck to hand (respawning does not count)."
     },
 }
 
@@ -257,12 +257,13 @@ export const KEYWORDS_EN: Record<string, string> = {
 }
 
 export const RULES_EN: string[] = [
+    "Chain: at most four links. A Quick response must meet its conditions against the immediately preceding enemy link. Passing or having no valid response resolves last to first; cancelled links have no effect.",
     "Deck: 170 cards from the start: your 80 shared cards plus, for each of your 5 champions, 8 Q + 8 E + 2 R skill cards. Nothing is shuffled in when you summon. Opening hand: 5 cards, drawn before the first summon, so your hand decides who to summon.",
     "Summon phase (start of every round): both players pick their summons face-down at the same time, then they are revealed together. One new lane opens each round (lane 3, then 2, 4, 1, 5); each side summons at most 1 champion per phase.",
     "Each turn you draw 1 card (your first turn draws none); every turn you also get a free Basic Attack card and every 3rd turn a free item component. Hand limit is 10: extra cards are burned into the graveyard. If you must draw and your deck is empty, you lose immediately.",
     "Two ways to win: take down 7 enemy champions (each side has 7 lives), or make the opponent run out of cards.",
-    "Attack limit: at most 3 attacks per player per turn, counting Strike cards, Fighter cardless attacks and free attacks. Attacks made inside skills do not count.",
-    "Fighters may attack without a card once per turn (a Quick action, usable in the opponent's turn to respond to a chain) for 66% damage.",
+    "Attack limit: at most 3 attacks per player per turn, counting Strike cards and Fighter cardless attacks. Attacks made inside skills do not count.",
+    "Fighters may attack without a card once per turn (a Quick action, usable in the opponent's turn to respond to a chain) for 50% damage.",
     "Support champions fetch their Q and E from the deck into your hand when first summoned. Mages pay mana (x10 scale, +10 per turn) to play skill cards.",
     "Skill cards go to the graveyard after use. Support cards are gone after use.",
     "A fallen champion stays in its lane (reserved) and respawns there after 3 rounds, with its items. Its cards are dead cards in the meantime.",
@@ -491,7 +492,7 @@ export function eventText(e: GameEvent, g?: Game): string | undefined {
     case "respawn": return `${uname(e.unit)} respawns in lane ${e.lane + 1}.`
     case "play": return `${side(e.side)} plays ${cname(e.card)}${e.reaction ? " (Quick)" : ""}.`
     case "cast": return `${uname(e.unit)} casts ${e.skill}${e.target ? ` on ${uname(e.target)}` : ""}.`
-    case "attack": return e.miss ? `${uname(e.attacker)} attacks ${uname(e.target)} and misses.` : `${uname(e.attacker)} attacks ${uname(e.target)}${e.crit ? " (critical hit)" : ""}${e.cardless ? " without a card (66%)" : e.free ? " for free" : ""}.`
+    case "attack": return e.miss ? `${uname(e.attacker)} attacks ${uname(e.target)} and misses.` : `${uname(e.attacker)} attacks ${uname(e.target)}${e.crit ? " (critical hit)" : ""}${e.cardless ? " without a card (66%)" : ""}.`
     case "damage": return `${uname(e.target)} takes ${e.amount} ${e.kind} damage${e.src ? ` from ${uname(e.src)}` : ""}${e.absorbed ? ` (${e.absorbed} absorbed)` : ""}.`
     case "heal": return `${uname(e.target)} heals ${e.amount} HP.`
     case "shield": return `${uname(e.target)} gains a ${e.amount} Shield.`
@@ -507,6 +508,7 @@ export function eventText(e: GameEvent, g?: Game): string | undefined {
     case "cardBurned": return `${side(e.side)}'s hand is full: ${cname(e.card)} is burned.`
     case "tempExpired": return `${cname(e.card)} (temporary) fades away from ${side(e.side)}'s hand.`
     case "manaChange": return `${uname(e.unit)} ${e.delta >= 0 ? "gains" : "spends"} ${Math.abs(e.delta)} mana (${e.mana}/${e.max}).`
+    case "teamManaChange": return `${side(e.side)} ${e.delta >= 0 ? "gains" : "spends"} ${Math.abs(e.delta)} shared mana (${e.mana}/${e.max}).`
     case "attackCount": return `${side(e.side)} has made ${e.used}/${e.limit} attacks this turn.`
     case "unequip": return `${uname(e.unit)} unequips ${itemText(e.item,
         "en")?.name ?? e.item} (the card returns to ${side(e.side)}'s hand).`

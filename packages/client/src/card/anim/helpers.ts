@@ -8,7 +8,25 @@ export type Side = cg.Side
 /** Bề rộng nền của lá bay (px); lá khác co giãn bằng scale */
 export const CARD_W = 110
 
+const NO_FX_KEY = "starci.noFx"
+/** Chế độ "no effect": tắt hoạt ảnh/VFX/chờ trình diễn để thao tác và kiểm thử UI nhanh. Bật bằng ?fx=0 (?fx=1 tắt) hoặc nút trong trận; nhớ trong localStorage. */
+export function noFx(): boolean {
+    try {
+        const q = new URLSearchParams(window.location.search).get("fx")
+        if (q === "0" || q === "1") localStorage.setItem(NO_FX_KEY,
+            q === "0" ? "1" : "0")
+        return localStorage.getItem(NO_FX_KEY) === "1"
+    } catch {
+        return false
+    }
+}
+export function setNoFx(on: boolean) {
+    try { localStorage.setItem(NO_FX_KEY,
+        on ? "1" : "0") } catch { /* trình duyệt chặn lưu: chỉ có hiệu lực trong phiên */ }
+}
+
 export function reducedMotion(): boolean {
+    if (noFx()) return true
     try {
         return window.matchMedia("(prefers-reduced-motion: reduce)").matches
     } catch {
@@ -35,7 +53,7 @@ export const ptOf = (r: DOMRect): Pt => ({
 
 /** Tâm sân (rơi về đây khi không thấy phần tử) */
 export function boardCenter(): Pt {
-    const r = rectOf(".cg-board")
+    const r = rectOf(".bd-playfield") ?? rectOf(".cg-board")
     return r ? ptOf(r) : {
         x: window.innerWidth / 2, y: window.innerHeight / 2
     }
@@ -69,7 +87,12 @@ export function unitPt(unit: string, lane?: number, me?: Side): Pt {
 /** Vùng tay bài của phe `side` (tay mình: thanh dưới; tay địch: dải phía trên) */
 export function handRect(side: Side, me: Side): DOMRect | null {
     if (side === me) return rectOf(".hd-fan") ?? rectOf(".cg-hand")
-    return rectOf(`[data-cg-hand="${side}"]`)
+    return rectOf(`[data-opponent-hand="${side}"] .opponent-hand-fan`) ?? rectOf(`[data-cg-hand="${side}"]`)
+}
+
+export function opponentCardRect(side: Side, arriving = false): DOMRect | null {
+    const slots = document.querySelectorAll<HTMLElement>(`[data-opponent-card="${side}"]${arriving ? "[data-arriving]" : ":not([data-arriving])"}`)
+    return slots.length ? slots[slots.length - 1].getBoundingClientRect() : null
 }
 
 export function handPt(side: Side, me: Side): Pt {
@@ -93,7 +116,7 @@ export function deckPt(side: Side, me: Side): Pt {
 
 /** Nút Mộ bài của phe `side` trên dải người chơi (đích bay của lá bị đốt) */
 export function gravePt(side: Side, me: Side): Pt {
-    const r = rectOf(`.bd-strip.${side === me ? "me" : "foe"} .bd-cnt.grave`)
+    const r = rectOf(`[data-cg-grave="${side}"]`) ?? rectOf(`.bd-strip.${side === me ? "me" : "foe"} .bd-cnt.grave`)
     return r ? ptOf(r) : deckPt(side,
         me)
 }

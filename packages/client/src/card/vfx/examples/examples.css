@@ -1,0 +1,38 @@
+/* The example route gives the shared game the full viewport. Tools never consume game height. */
+body.vfx-example-page { background: #08160f; color: #e4e5ce; font-family: Nunito, sans-serif; overflow: hidden; }
+.example-root { position: fixed; inset: 0; width: 100%; height: 100dvh; min-height: 0; background: transparent; }
+.example-root * { box-sizing: border-box; }
+.example-host.cg-host { position: absolute; inset: 0; width: 100%; height: 100%; min-height: 0; background: transparent; }
+.example-tools { --example-game-w: min(100vw, calc(100dvh * 16 / 9)); --example-game-h: min(100dvh, calc(100vw * 9 / 16)); position: fixed; z-index: 90; left: calc((100vw - var(--example-game-w)) / 2 + var(--example-game-w) * .02); bottom: calc((100dvh - var(--example-game-h)) / 2 + var(--example-game-h) * .03); max-width: calc(var(--example-game-w) * .96); color: #e4e5ce; font: 13px Nunito, sans-serif; }
+.example-tools > summary { width: max-content; margin-left: 0; padding: 8px 14px; border: 1px solid #8a8c59; border-radius: 6px; background: #142c20; color: #eee2b5; cursor: pointer; box-shadow: 0 2px 10px #0005; user-select: none; }
+.example-tools > summary:focus-visible { outline: 2px solid #c9e6ac; outline-offset: 3px; }
+.example-tools[open] > summary { background: #31482c; border-color: #c8b271; }
+.example-tools-panel { position: absolute; bottom: calc(100% + 8px); left: 0; width: min(560px, calc(var(--example-game-w) * .96)); max-height: calc(var(--example-game-h) * .90 - 44px); overflow-y: auto; background: #10261b; border: 1px solid #7c8054; border-radius: 8px; box-shadow: 0 12px 34px #0008; }
+.example-toolbar { display: flex; flex-direction: column; align-items: stretch; gap: 13px; padding: 16px; background: #0d2218; border-bottom: 1px solid #51603e; }
+.example-brand { display: flex; flex-direction: column; gap: 4px; }
+.example-brand a { text-decoration: none; color: #e0c981; font-size: 19px; font-weight: 800; letter-spacing: 3px; }
+.example-brand small { color: #a8c4a1; font-size: 12px; font-weight: 400; }
+.example-brand > span { font-size: 11px; letter-spacing: .5px; color: #a6bc9e; }
+.example-picker { display: flex; align-items: center; gap: 8px; color: #c6cfaf; font-size: 13px; }
+.example-root select { background: #10291c; color: #e0e4c7; border: 1px solid #637451; border-radius: 4px; font: inherit; padding: 8px; min-width: 0; }
+.example-picker select { flex: 1; max-width: 100%; }
+.example-buttons { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.example-root button { font-family: inherit; }
+.example-toolbar button, .example-footer button { background: linear-gradient(#2f4931, #1c3223); color: #e3ddb4; border: 1px solid #7b774a; border-radius: 4px; padding: 8px 11px; font-size: 12px; cursor: pointer; }
+.example-toolbar button:hover, .example-footer button:hover { background: #3b5335; }
+.example-toolbar button:disabled, .example-footer button:disabled { opacity: .45; cursor: default; }
+.example-toolbar button[aria-pressed=true] { background: #766137; border-color: #c2aa65; }
+.example-dual { display: flex; align-items: center; gap: 5px; white-space: nowrap; font-size: 12px; color: #c6cfaf; }
+.example-dual input { accent-color: #bca767; }
+.example-caption { padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; background: #11271b; border-bottom: 1px solid #51603e; }
+.example-caption h1 { margin: 0 0 5px; color: #e6d9ad; font-size: 16px; }
+.example-caption p { margin: 0; font-size: 13px; color: #bdd0b4; line-height: 1.5; }
+.example-caption > span { font-size: 12px; color: #d8d2a3; }
+.example-footer { display: flex; flex-direction: column; align-items: stretch; gap: 12px; padding: 14px 16px; background: #0d2218; }
+.example-current { color: #e0d8af; font-size: 13px; line-height: 1.5; overflow-wrap: anywhere; }
+.example-current small { color: #a8bca0; font-size: 12px; }
+.example-chapters { display: flex; align-items: center; gap: 8px; font-size: 12px; flex-wrap: wrap; }
+.example-chapters label { display: flex; align-items: center; gap: 7px; min-width: 0; flex: 1; color: #bfd0b2; }
+.example-chapters select { min-width: 0; flex: 1; max-width: 100%; padding: 7px; }
+.example-error { position: fixed; z-index: 95; bottom: 12px; left: 50%; transform: translateX(-50%); max-width: calc(100vw - 24px); padding: 10px 14px; border-radius: 5px; background: #632d2d; color: #ffe2d2; }
+@media (max-width: 520px) { .example-chapters label { flex-basis: 100%; } }

@@ -590,12 +590,18 @@ export class CardRoom extends Room<CardRoomState> {
             players[side] = {
                 side, heroes: p.heroes, lives: p.lives, grave: p.grave, handCount: p.hand.length, deckCount: p.deck.length,
                 hand: showHand ? p.hand : undefined,
+                deckSummary: cg.deckSummaryFor(p.deck,
+                    side,
+                    viewer),
                 // bộ bài của khách xem trong phòng sim không cần; người chơi không được biết thứ tự
                 deck: viewer === null ? p.deck : undefined,
             }
         }
         return {
             you: viewer, round: s.round, turnNo: s.turnNo, active: s.active, phase: s.phase,
+            teamMana: {
+                A: g.teamManaOf("A"), B: g.teamManaOf("B")
+            },
             // phase "blind": ai chưa chốt thì tới lượt người đó (cả hai có thể cùng "tới lượt")
             toMove: s.phase === "blind" && viewer && !s.blind?.ready[viewer] ? viewer : cg.whoseMove(s),
             blind: s.phase === "blind" ? this.blindFor(s,
@@ -611,6 +617,7 @@ export class CardRoom extends Room<CardRoomState> {
             names: this.names, bots: this.bots, rules: {
                 lives: cg.RULES.lives, handMax: cg.RULES.handMax, laneOpenRound: cg.RULES.laneOpenRound, summonRounds: cg.RULES.summonRounds,
                 attackLimit: cg.RULES.attackLimit, drawPerTurn: cg.RULES.drawPerTurn, fighterCardlessMult: cg.RULES.fighterCardlessMult,
+                teamManaMax: cg.RULES.teamManaMax, teamManaStart: cg.RULES.teamManaStart,
                 mage: {
                     manaMax: cg.RULES.mage.manaMax
                 },
@@ -706,6 +713,9 @@ export class CardRoom extends Room<CardRoomState> {
                     ...e, card: hidden(e.card)
                 }
             case "tempExpired":
+            case "cardFrozen":
+            case "cardThawed":
+                // lá trên tay bị đóng băng/tan băng (Lissandra): chỉ chủ tay thấy mặt lá
                 return e.side === viewer ? e : {
                     ...e, card: hidden(e.card)
                 }

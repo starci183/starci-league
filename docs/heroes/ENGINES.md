@@ -22,7 +22,7 @@ Luật thiết kế (chủ dự án): **một tướng = một mục đích**; n
 - **Đơn giản:** sức mạnh thẳng, một mục đích rõ, cách khắc dễ hiểu (thả diều / chặn / giết trước khi nó lớn). Không cần mind game.
 - **Vừa:** có một điều kiện/setup cần đọc bàn.
 - **Phức tạp:** thông tin ẩn, đánh cược hai phía, setup nhiều lượt (kiểu Gangplank thùng úp).
-Bắt buộc với mọi tướng: một mục đích, chỉ trạng thái nhìn thấy, đối thủ có cách đáp trả thật nhưng tốn kém, không phát Quick tràn lan (Quick chỉ cho tướng phản ứng). Luật token: chỉ đòn đánh của **xạ thủ** nhắm được vật triệu hồi ở ô phụ.
+Bắt buộc với mọi tướng: một mục đích, chỉ trạng thái nhìn thấy, đối thủ có cách đáp trả thật nhưng tốn kém, không phát Quick tràn lan (Quick chỉ cho tướng phản ứng). Luật token: đòn đánh thường của **mọi vai tướng** nhắm được vật triệu hồi ở ô phụ địch, bất kể lane.
 
 ## 30 tướng: mục đích (1 dòng) · engine · combo · bị khắc bởi
 | Tướng | Vai | Độ khó | Mục đích | Engine | Combo cùng đội | Bị khắc bởi | Lá Q/E/R |

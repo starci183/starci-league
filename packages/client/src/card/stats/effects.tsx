@@ -302,8 +302,7 @@ export function buildEffects(u: cg.Unit, turnNo: number, unitOf: (id: string) =>
         const isSkill = /^[a-z0-9]+_[qer]$/.test(n.id)
         const name = (isSkill ? cardLabel(n.id) : undefined) ?? n.id.replace(/_/g,
             " ")
-        const bits = [n.free ? (isEn() ? "free" : "miễn phí") : "",
-            n.mult ? `x${n.mult}` : "",
+        const bits = [n.mult ? `x${n.mult}` : "",
             n.bonusRaw ? `+${n.bonusRaw}` : ""].filter(Boolean)
         const value = bits.join(" ")
         cells.push({

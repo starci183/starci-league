@@ -45,7 +45,7 @@ const passiveIconOf = (unitId: string): string | undefined => {
 }
 
 /** Ô phụ cùng hàng icon: điểm tích (Điên, Đói, Song Giáp...) và dấu (Dấu Băng...) */
-export interface ExtraCell { key: string; icons: string[]; num: string; tip: string; letter: string }
+export interface ExtraCell { key: string; icons: string[]; num: string; tip: string; letter: string; cls?: string }
 
 export function StatusRow(p: { u: cg.Unit; turnNo: number; unitOf?(id: string): string | undefined; extra?: ExtraCell[] }) {
     const { u } = p
@@ -85,7 +85,7 @@ export function StatusRow(p: { u: cg.Unit; turnNo: number; unitOf?(id: string): 
                 )
             })}
             {extra.map((c) => (
-                <span key={c.key} className="bd-sc stack" title={c.tip}>
+                <span key={c.key} className={`bd-sc stack ${c.cls ?? ""}`} title={c.tip}>
                     <Img srcs={c.icons} fallback={c.letter} />
                     <em>{c.num}</em>
                 </span>

@@ -15,6 +15,10 @@
     "lint": "eslint . --fix",
     "lint:check": "eslint . --max-warnings=0",
     "test": "tsx scripts/card_tests.ts",
+    "test:presentation": "tsx scripts/card_tests_presentation.ts",
+    "test:collections": "tsx scripts/card_tests_collections.ts",
+    "test:vfx": "tsx scripts/vfx_tests.ts",
+    "test:examples": "tsx scripts/vfx_examples_tests.ts && tsx scripts/vfx_adapter_tests.ts",
     "selfplay": "tsx scripts/card_selfplay.ts",
     "prepare": "husky"
   },

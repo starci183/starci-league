@@ -2,6 +2,9 @@
 // AnimLayer thêm uid ngay khi nhận lô sự kiện; drawsStep gỡ từng uid khi lá bay tới ô của nó.
 
 let pending: ReadonlySet<string> = new Set()
+let hiddenArrivals = {
+    A: 0, B: 0
+}
 const subs = new Set<() => void>()
 
 function emit(next: Set<string>) {
@@ -26,6 +29,12 @@ export function releaseCard(uid: string) {
 
 /** Gỡ hết (lô bị bỏ qua, tắt hoạt ảnh, rời trận) */
 export function releaseAll() {
+    if (hiddenArrivals.A || hiddenArrivals.B) {
+        hiddenArrivals = {
+            A: 0, B: 0
+        }
+        subs.forEach((f) => f())
+    }
     if (pending.size) emit(new Set())
 }
 
@@ -37,3 +46,11 @@ export function subscribePending(f: () => void): () => void {
 }
 
 export const pendingSnapshot = (): ReadonlySet<string> => pending
+export const hiddenArrivalSnapshot = () => hiddenArrivals
+export function reserveHiddenArrival(side: "A" | "B", delta: number) {
+    hiddenArrivals = {
+        ...hiddenArrivals, [side]: Math.max(0,
+            hiddenArrivals[side] + delta)
+    }
+    subs.forEach((f) => f())
+}

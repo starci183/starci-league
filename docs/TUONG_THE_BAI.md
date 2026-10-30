@@ -49,7 +49,7 @@ Số liệu chính xác (công thức, máu, AD, số lá) luôn lấy theo code
 ## Vòng khắc chế chính
 - **Rút nhiều** (Nami, Viktor, Twisted Fate) ← **Teemo** (Nấm trong bộ, rút càng nhiều càng nổ) ← **Twisted Fate / Ashe / Soraka** (lục bộ huỷ Nấm, soi đẩy bài, xáo mộ nạp lại bộ) ← **Blitzcrank** (cướp lá vừa tìm) ← **Nami / Soraka** (rút bù, lá bị ép bỏ thành máu).
 - **Dồn chết bằng chiêu** (Zed, Darius, Katarina) ← **phản ứng** (Braum, Lissandra, Janna) ← **không thể nối chuỗi / soi tay** (Malphite, Twisted Fate) ← **rã giáp, % máu** (Kog'Maw, Vayne).
-- **Vật triệu hồi ở ô phụ** (Annie, Yorick, Gangplank) ← **xạ thủ + Trừng Phạt** (chỉ đòn đánh của xạ thủ và phép Trừng Phạt nhắm được token) ← **đỡ đòn khiêu khích**.
+- **Vật triệu hồi ở ô phụ** (Annie, Yorick, Gangplank) ← **đòn đánh thường của mọi vai + Trừng Phạt** (mọi vai đánh được ô phụ địch, bất kể lane) ← **đỡ đòn khiêu khích**.
 - Annie, Yorick, Gangplank cùng dùng Ô triệu hồi phụ (mỗi phe 1 ô): chọn chung thì tranh ô; bot/selfplay tránh ghép (`cg.clashesExtraZone`).
 
 ## Chỉ số đội hình (selfplay 1000 trận, seed 1, đội 5, `--pairs`)
@@ -256,7 +256,7 @@ Test: `npx tsx scripts/card_tests_g3.ts`.
 - **Q Gió Lốc:** sát thương + Mù 1 đòn (số đòn hiện trên tướng, tối đa 3); xạ thủ/sát thủ bị Mù 2 đòn.
 - **E Mắt Bão:** Khiên + 1 đòn đánh miễn phí cho đồng minh; địch đối diện đang Mù thì Khiên +50%.
 - **R Gió Mùa:** cả đội hồi máu, mọi địch Mù 1 đòn (đội còn ≤3 mạng thì 2 đòn).
-- **Engine:** marks (Mù là dấu trên tướng địch). Không còn lá Quick theo luật mới (ENGINES.md cũ ghi chain). **Combo:** jinx, vayne, kogmaw (đòn miễn phí), leona (đòn miễn phí kích nổ Ánh Dương). **Bị khắc:** malphite, blitzcrank. **Khắc:** ashe, vayne, jinx khi ở phe địch (xạ thủ phụ thuộc đòn đánh), leona.
+- **Engine:** marks (Mù là dấu trên tướng địch). Không còn lá Quick theo luật mới (ENGINES.md cũ ghi chain). **Combo:** jinx, vayne, kogmaw (đòn đánh do chiêu kích hoạt), leona (đòn đánh do chiêu kích hoạt kích nổ Ánh Dương). **Bị khắc:** malphite, blitzcrank. **Khắc:** ashe, vayne, jinx khi ở phe địch (xạ thủ phụ thuộc đòn đánh), leona.
 - **Đối thủ trả lời:** dùng chiêu thay cho đòn đánh (Mù chỉ chặn đòn đánh), hoặc bỏ một lá Đánh thường rẻ để xả Mù (lá đó phí và Janna được Khiên); Mù hết sau lượt kế.
 
 ## Soraka · Vừa · Q6 E6 R3
@@ -274,7 +274,7 @@ Test: `npx tsx scripts/card_tests_g3.ts`.
 - **Q Nghi Thức Cuối:** sát thương đối diện, đào 2 lá trên cùng bộ của mình vào mộ; mỗi lá Yorick bị đào lên thì hồi máu.
 - **E Sương Sầu:** sát thương + Rã giáp 1 địch; có Thây Ma thì nó đánh ngay mục tiêu đó.
 - **R Khúc Ai Ca Quần Đảo:** Thây Ma Sương Mù: máu 150 + 20/lá mộ, sức đánh 30 + 10/Linh Hồn, tồn tại 3 lượt; từ 4 Linh Hồn thì làm máu ảo cho Yorick.
-- **Engine:** grave, tokens. **Combo:** zed, viktor (đào bộ làm dày mộ cho họ), leona (Thây Ma kích nổ Ánh Dương), soraka. **Bị khắc:** lux, gangplank; xạ thủ địch (theo luật chung chỉ đòn Đánh thường của xạ thủ phá được token ở ô phụ). **Khắc:** ahri (vật triệu hồi đứng ngoài đường).
+- **Engine:** grave, tokens. **Combo:** zed, viktor (đào bộ làm dày mộ cho họ), leona (Thây Ma kích nổ Ánh Dương), soraka. **Bị khắc:** lux, gangplank; mọi vai tướng địch (đòn đánh thường chọn được đơn vị ở ô phụ, bất kể lane). **Khắc:** ahri (vật triệu hồi đứng ngoài đường).
 - **Đối thủ trả lời:** xạ thủ dùng lá Đánh thường bắn Thây Ma, hạ Yorick (Thây Ma tan theo), hoặc câu giờ 3 lượt; Yorick trả giá bằng việc tự đào bộ bài, tiến gần tới thua do cạn bài.
 
 ## Art (icon chiêu LoL cho scripts/card_skill_art.py)
@@ -298,7 +298,7 @@ Engine theo `docs/heroes/ENGINES.md`. Mọi trạng thái người chơi cần n
 | Lissandra | Phức tạp | 8 / 6 / 2 | chain, prizes |
 | Gangplank | Phức tạp | 6 / 5 / 2 | items, tokens |
 
-Luật chung có lợi cho nhóm: chỉ **đòn Đánh thường của xạ thủ** nhắm được token ở ô phụ, nên ba xạ thủ G4 (Kog'Maw, Jinx, Ashe) là câu trả lời tự nhiên cho Thùng Thuốc Súng của Gangplank và Tibbers của Annie. Annie và Gangplank **không nên chung đội**: cả hai cần Ô triệu hồi phụ duy nhất của phe.
+Luật chung có lợi cho nhóm: **đòn Đánh thường của mọi vai tướng** nhắm được token ở ô phụ bất kể lane; ba xạ thủ G4 (Kog'Maw, Jinx, Ashe) vẫn là những câu trả lời cho Thùng Thuốc Súng của Gangplank và Tibbers của Annie. Annie và Gangplank **không nên chung đội**: cả hai cần Ô triệu hồi phụ duy nhất của phe.
 
 ## Kog'Maw (Đơn giản)
 - **Mục đích:** lớn lên từ cái chết. Mỗi tướng mình gục là thêm Kog Stack; đội càng thua mạng thì Kog càng nguy hiểm.

@@ -10,6 +10,10 @@ import {
     cg
 } from "@starci/shared"
 
+import {
+    PresentationInbox
+} from "./anim/eventQueue"
+
 type Side = cg.Side
 type Action = cg.Action
 type Card = cg.Card
@@ -46,6 +50,8 @@ export interface PlayerView {
     grave: Card[];
     handCount: number;
     deckCount: number;
+    /** Owner-only remaining composition; sorted, never deck order or original uids. */
+    deckSummary?: cg.DeckSummaryEntry[];
     /** Chỉ có cho bản thân (hoặc khi bị lộ tay) */
     hand?: Card[];
 }
@@ -59,7 +65,7 @@ export interface CardView {
     phase: "blind" | "summon" | "main" | "chain" | "over";
     toMove: Side;
     actionsThisTurn: number;
-    /** Số đòn đã đánh của phe CÓ LƯỢT (V2: tối đa 3, tính mọi đòn kể cả đòn Quick không cần lá và đòn miễn phí) */
+    /** Số đòn đã đánh của phe CÓ LƯỢT (V2: tối đa 3, tính lá Đánh thường và đòn không cần lá của Đấu sĩ) */
     turnAttacks: { used: number; cardless: string[] };
     /** Như turnAttacks nhưng cho phe KHÔNG có lượt (đòn Quick đánh trong lượt đối thủ) */
     offTurnAttacks: { used: number; cardless: string[] };
@@ -71,6 +77,8 @@ export interface CardView {
     /** Lá trên cùng bộ của bạn mà lựa chọn hiện tại cần xem (Twisted Fate Q: chọn lá xuống đáy). Chỉ chủ bộ nhận. */
     peek?: Card[];
     players: Record<Side, PlayerView>;
+    /** Public shared resource; every skill spender on a side uses this one pool. */
+    teamMana: Record<Side, number>;
     units: Record<string, Unit>;
     lanes: Record<Side, (string | null)[]>;
     chain: cg.Chain | null;
@@ -84,6 +92,7 @@ export interface CardView {
         lives: number; handMax: number; laneOpenRound: number[]; summonRounds?: number[];
         attackLimit: number; drawPerTurn: number; fighterCardlessMult: number;
         mage: { manaMax: number }; skillCopies: Record<cg.SkillKey, number>;
+        teamManaMax?: number; teamManaStart?: number; teamManaRegen?: number;
     };
 }
 
@@ -92,7 +101,7 @@ export interface LogEntry { n: number; e: GameEvent }
 
 /** Lá bài đang được chọn để đánh: các hành động hợp lệ còn lại chờ người chơi chọn mục tiêu */
 export interface Targeting {
-    /** uid lá trên tay (hoặc id tướng khi là đòn miễn phí / gọi tướng) */
+    /** uid lá trên tay (hoặc id tướng khi là đòn không cần lá / gọi tướng) */
     source: string;
     /** Các hành động hợp lệ ứng với nguồn này (lọc từ legal) */
     options: Action[];
@@ -100,6 +109,7 @@ export interface Targeting {
 
 export interface CardSnapshot {
     /** connecting -> waiting -> draft -> playing -> ended; error khi không vào được phòng */
+    presenting: boolean;
     stage: "idle" | "connecting" | "waiting" | "draft" | "playing" | "ended" | "error";
     draft: DraftInfo | null;
     /** Bên nào đã chọn xong (cg:picked) */
@@ -121,19 +131,57 @@ export interface CardSnapshot {
 }
 
 const EMPTY: CardSnapshot = {
-    stage: "idle", draft: null, picked: {
+    presenting: false, stage: "idle", draft: null, picked: {
     }, view: null, legal: [], lastEvents: [], log: [], targeting: null, inspect: null, error: null, end: null, tick: 0,
 }
 
 let snap: CardSnapshot = EMPTY
 const listeners = new Set<() => void>()
 let room: Room | null = null
+let localAction: ((action: Action) => void) | null = null
 let logN = 0
+let realLegal: Action[] = []
+let awaitingReply = false
+let pendingEvents: GameEvent[] = []
+let playbackView: CardView | null = null
+let outstanding = 0
+let presentationEpoch = 0
+export interface PresentationBatch { events: GameEvent[]; view: CardView; epoch: number }
+const presentationInbox = new PresentationInbox<PresentationBatch>()
+export const subscribePresentations = (f: (batch: PresentationBatch) => void) => presentationInbox.subscribe(f)
+export function startPresentation(batch: PresentationBatch) {
+    if (batch.epoch !== presentationEpoch) return
+    playbackView = batch.view
+    set({
+        lastEvents: batch.events, tick: snap.tick + 1
+    })
+}
+export function finishPresentation(batch: PresentationBatch) {
+    if (batch.epoch !== presentationEpoch) return
+    applyToDisplay(batch.events)
+    outstanding = Math.max(0,
+        outstanding - 1)
+    if (lag) {
+        lag = {
+            base: clone(batch.view), units: clone(batch.view.units), lanes: clone(batch.view.lanes), extra: clone(batch.view.extra), frozen: new Map()
+        }
+        republish()
+    }
+    playbackView = null
+    if (!outstanding && !pendingEvents.length) {
+        snapDisplay()
+        set({
+            presenting: false, legal: realLegal, stage: realView?.phase === "over" ? "ended" : snap.stage
+        })
+    }
+}
+
 
 // ---------------------------------------------------------------- khung hình hiển thị (display view)
 // Store giữ view THẬT (trạng thái mới nhất của server) nhưng snap.view là bản HIỂN THỊ: units/lanes/extra (và cờ frozen của lá trên tay)
 // đi sau, chỉ được cập nhật khi hoạt ảnh tới từng sự kiện (applyToDisplay). Hết hàng đợi hoạt ảnh (hoặc tắt hoạt ảnh) thì snapDisplay() = view thật.
 interface Lag {
+    base: CardView;
     units: Record<string, Unit>;
     lanes: Record<Side, (string | null)[]>;
     extra: Record<Side, string | null>;
@@ -145,9 +193,9 @@ let realView: CardView | null = null
 let lag: Lag | null = null
 let lagVer = 0
 let lagEnabled = false
-let lagTimer: number | undefined
 let shownCache: { r: CardView; v: number; out: CardView } | null = null
 const applied = new WeakSet<GameEvent>()
+const eventEpoch = new WeakMap<GameEvent, number>()
 
 const clone = <T,>(x: T): T => JSON.parse(JSON.stringify(x)) as T
 
@@ -157,12 +205,12 @@ function shown(): CardView | null {
     if (!r || !lag) return r
     if (shownCache && shownCache.r === r && shownCache.v === lagVer) return shownCache.out
     const players = {
-        ...r.players
+        ...lag.base.players
     }
     if (lag.frozen.size) {
         for (const s of ["A",
             "B"] as Side[]) {
-            const p = r.players[s]
+            const p = lag.base.players[s]
             if (!p.hand) continue
             players[s] = {
                 ...p, hand: p.hand.map((c) => (lag!.frozen.has(c.uid) ? {
@@ -172,7 +220,7 @@ function shown(): CardView | null {
         }
     }
     const out: CardView = {
-        ...r, units: lag.units, lanes: lag.lanes, extra: lag.extra, players
+        ...lag.base, units: lag.units, lanes: lag.lanes, extra: lag.extra, players
     }
     shownCache = {
         r, v: lagVer, out
@@ -191,12 +239,21 @@ function republish() {
 /** AnimLayer bật khi đang chạy hoạt ảnh; tắt (hoặc reduced-motion) thì mọi thứ hiện ngay */
 export function setDisplayLag(on: boolean) {
     lagEnabled = on
-    if (!on) snapDisplay()
+    if (!on) {
+        presentationEpoch++
+        outstanding = 0
+        pendingEvents = []
+        playbackView = null
+        presentationInbox.clear()
+        snapDisplay()
+        set({
+            presenting: false, legal: realLegal
+        })
+    }
 }
 
 /** Hiển thị = view thật (hết lô, bỏ qua lô, tắt hoạt ảnh, rời trận) */
 export function snapDisplay() {
-    window.clearTimeout(lagTimer)
     if (!lag) return
     lag = null
     republish()
@@ -208,7 +265,7 @@ function beginLag(events: GameEvent[]) {
     const r = realView
     if (!lag) {
         lag = {
-            units: clone(r.units), lanes: clone(r.lanes), extra: clone(r.extra), frozen: new Map()
+            base: clone(r), units: clone(r.units), lanes: clone(r.lanes), extra: clone(r.extra), frozen: new Map()
         }
     }
     for (const e of events) {
@@ -219,24 +276,61 @@ function beginLag(events: GameEvent[]) {
         lag.frozen.set(e.card.uid,
             old?.frozen)
     }
-    // chốt chặn: hoạt ảnh kẹt thì sau 25 giây hiện thẳng trạng thái thật
-    window.clearTimeout(lagTimer)
-    lagTimer = window.setTimeout(snapDisplay,
-        25_000)
+
     republish()
 }
 
 const sideOfId = (id: string): Side => (id.startsWith("B:") ? "B" : "A")
 
+/** Reserve only the next landing slot. Counters and logs still wait for touchdown. */
+export function prepareCardArrival(side: Side, card: Card) {
+    if (!lag || !lag.base.players[side].hand || !card.kind) return
+    const p = lag.base.players[side]
+    if ((!card.temp && p.hand!.filter((c) => !c.temp).length >= lag.base.rules.handMax) || p.hand!.some((c) => c.uid === card.uid)) return
+    lag.base = {
+        ...lag.base, players: {
+            ...lag.base.players, [side]: {
+                ...p, hand: [...p.hand!,
+                    card]
+            }
+        }
+    }
+    republish()
+}
+
 /** Áp hiệu ứng nhìn thấy của các sự kiện lên bản hiển thị (mỗi sự kiện chỉ một lần). Sự kiện lạ thì chờ tới khi snap. */
 export function applyToDisplay(events: GameEvent[]) {
-    const real = realView
+    const real = playbackView ?? realView
     const cur = lag
     if (!real || !cur || !events.length) return
     let units = cur.units
     let lanes = cur.lanes
     let extra = cur.extra
+    let teamMana = cur.base.teamMana
+    let players = cur.base.players
+    let prizes = cur.base.prizes
     let changed = false
+    const player = (side: Side, fn: (p: PlayerView) => PlayerView) => {
+        players = {
+            ...players, [side]: fn(players[side])
+        }
+        changed = true
+    }
+    const arrive = (side: Side, card: Card, deck = false, grave = false) => player(side,
+        (p) => ({
+            ...p,
+            handCount: p.handCount + 1,
+            hand: p.hand && card.kind ? p.hand.some((c) => c.uid === card.uid) ? p.hand : [...p.hand,
+                card] : p.hand,
+            deckCount: deck ? Math.max(real.players[side].deckCount,
+                p.deckCount - 1) : p.deckCount,
+            grave: grave ? p.grave.filter((c) => c.uid !== card.uid) : p.grave
+        }))
+    const removeHand = (side: Side, card: Card) => player(side,
+        (p) => ({
+            ...p, hand: p.hand?.filter((c) => c.uid !== card.uid), handCount: Math.max(0,
+                p.handCount - 1)
+        }))
     const upd = (id: string, fn: (u: Unit) => Unit) => {
         const u = units[id]
         if (!u) return
@@ -270,15 +364,97 @@ export function applyToDisplay(events: GameEvent[]) {
         changed = true
     }
     for (const e of events) {
-        if (applied.has(e)) continue
+        if (eventEpoch.get(e) !== presentationEpoch || applied.has(e)) continue
+        snap.log = [...snap.log,
+            {
+                n: ++logN, e
+            }].slice(-400)
+        changed = true
         applied.add(e)
         switch (e.t) {
+        case "draw":
+            arrive(e.side,
+                e.card,
+                true)
+            break
+        case "create":
+            if (e.zone === "hand") arrive(e.side,
+                e.card)
+            else if (e.zone === "deck") player(e.side,
+                p => ({
+                    ...p, deckCount: p.deckCount + 1
+                }))
+            break
+        case "drawAuto":
+            player(e.side,
+                p => ({
+                    ...p, deckCount: Math.max(0,
+                        p.deckCount - 1)
+                }))
+            break
+        case "mushroom":
+            if (e.phase === "burst" && !e.drawn) player(e.side,
+                p => ({
+                    ...p, deckCount: Math.max(0,
+                        p.deckCount - e.count)
+                }))
+            break
+        case "returnToHand":
+            arrive(e.side,
+                e.card,
+                false,
+                true)
+            break
+        case "steal":
+            // A steal can consume a chain link instead of a hand card. The separate
+            // create/draw event describes what actually arrives (possibly a converted skill).
+            if (!cur.base.chain?.links.some((link) => link.card?.uid === e.card.uid)) removeHand(e.from,
+                e.card)
+            for (const side of ["A",
+                "B"] as Side[]) {
+                if (real.players[side].grave.some((card) => card.uid === e.card.uid)) player(side,
+                    (p) => ({
+                        ...p, grave: p.grave.some((card) => card.uid === e.card.uid) ? p.grave : [...p.grave,
+                            e.card]
+                    }))
+            }
+            break
+        case "prize":
+            prizes = {
+                ...prizes, [e.side]: e.left
+            }
+            if (players[e.side].hand?.some((c) => c.uid === e.card.uid) || players[e.side].handCount < cur.base.rules.handMax) arrive(e.side,
+                e.card)
+            break
+        case "play":
+        case "tempExpired":
+            removeHand(e.side,
+                e.card)
+            break
+        case "discard":
+            if (players[e.side].hand?.some((c) => c.uid === e.card.uid)) removeHand(e.side,
+                e.card)
+            if (e.card.kind !== "special" && !e.card.temp) player(e.side,
+                (p) => ({
+                    ...p, grave: p.grave.some((c) => c.uid === e.card.uid) ? p.grave : [...p.grave,
+                        e.card]
+                }))
+            break
         case "damage":
             upd(e.target,
-                (u) => ({
-                    ...u, hp: e.hp, shield: Math.max(0,
-                        u.shield - e.absorbed)
-                }))
+                (u) => {
+                    // cùng thứ tự engine: Khiên cùng loại (vàng: vật lý, xanh dương: phép) ăn trước, rồi Khiên trắng
+                    let left = e.absorbed
+                    const next = {
+                        ...u, hp: e.hp
+                    }
+                    const key = e.kind === "physical" ? "shieldPhys" : e.kind === "magic" ? "shieldMagic" : undefined
+                    if (key) { const take = Math.min(next[key] ?? 0,
+                        left); next[key] = (next[key] ?? 0) - take; left -= take }
+                    next.shield = Math.max(0,
+                        next.shield - left)
+                    return next
+                })
             break
         case "heal":
             upd(e.target,
@@ -288,7 +464,11 @@ export function applyToDisplay(events: GameEvent[]) {
             break
         case "shield":
             upd(e.target,
-                (u) => ({
+                (u) => (e.kind === "physical" ? {
+                    ...u, shieldPhys: e.shield
+                } : e.kind === "magic" ? {
+                    ...u, shieldMagic: e.shield
+                } : {
                     ...u, shield: e.shield
                 }))
             break
@@ -296,8 +476,19 @@ export function applyToDisplay(events: GameEvent[]) {
             upd(e.target,
                 (u) => ({
                     ...u, statuses: {
-                        ...u.statuses, [e.id]: real.units[e.target]?.statuses[e.id] ?? {
-                            until: real.turnNo + e.turns, v: e.v, at: real.turnNo, src: e.src, card: e.card
+                        ...u.statuses, [e.id]: {
+                            ...(real.units[e.target]?.statuses[e.id] ?? {
+                                until: real.turnNo + e.turns, at: real.turnNo
+                            }),
+                            v: e.v, src: e.src, card: e.card,
+                            ...(e.visuals !== undefined ? {
+                                visuals: [...e.visuals]
+                            } : {
+                            }),
+                            ...(e.tickVisuals !== undefined ? {
+                                tickVisuals: [...e.tickVisuals]
+                            } : {
+                            })
                         }
                     }
                 }))
@@ -327,6 +518,14 @@ export function applyToDisplay(events: GameEvent[]) {
                 (u) => ({
                     ...u, mana: e.mana
                 }))
+            break
+        case "teamManaChange":
+            teamMana = {
+                ...teamMana, [e.side]: Math.max(0,
+                    Math.min(e.max,
+                        e.mana))
+            }
+            changed = true
             break
         case "kill":
             fromReal(e.target)
@@ -390,7 +589,9 @@ export function applyToDisplay(events: GameEvent[]) {
     }
     if (!changed) return
     lag = {
-        ...cur, units, lanes, extra
+        ...cur, units, lanes, extra, base: {
+            ...cur.base, players, prizes, teamMana
+        }
     }
     republish()
 }
@@ -400,7 +601,6 @@ function set(patch: Partial<CardSnapshot>) {
         realView = patch.view ?? null
         if (!realView) {
             lag = null
-            window.clearTimeout(lagTimer)
         }
     }
     snap = {
@@ -416,15 +616,95 @@ export function useCard(): CardSnapshot {
         () => snap)
 }
 export const getCard = () => snap
+export const subscribeCard = (listener: () => void) => {
+    listeners.add(listener)
+    return () => { listeners.delete(listener) }
+}
+
+/** Cùng giao thức trình diễn cho sandbox engine local; không tạo socket hoặc room giả. */
+export function bindLocalCardGame(onAction: (action: Action) => void): () => void {
+    cardActions.leave()
+    presentationEpoch++
+    presentationInbox.clear()
+    pendingEvents = []
+    outstanding = 0
+    playbackView = null
+    awaitingReply = false
+    realLegal = []
+    localAction = onAction
+    return () => {
+        if (localAction === onAction) {
+            localAction = null
+            setDisplayLag(false)
+            set(EMPTY)
+        }
+    }
+}
 
 /** Tuỳ chọn khi vào phòng (xem mục 1 của docs/CARDGAME_PROTOCOL.md) */
 export interface CardJoin { name: string; token?: string; bot?: "easy" | "hard"; roomId?: string; quick?: boolean; deck?: string[] }
+
+
+/** Socket protocol entrypoints; also used by deterministic presentation regression checks. */
+export function receiveCardEvents(events: GameEvent[]) {
+    if (!events.length) return // hành động không phát sự kiện (chọn tướng úp chưa chốt): không mở trình diễn rỗng, tránh kẹt "presenting"
+    events.forEach((e) => eventEpoch.set(e,
+        presentationEpoch))
+    beginLag(events)
+    pendingEvents.push(...events)
+    set({
+        presenting: true, legal: [], targeting: null
+    })
+}
+export function receiveCardState(v: CardView) {
+    awaitingReply = false
+    realLegal = []
+    const events = pendingEvents
+    pendingEvents = []
+    set({
+        view: v, stage: "playing", legal: [], targeting: null
+    })
+    if (events.length) {
+        if (lagEnabled) {
+            outstanding++
+            presentationInbox.push({
+                events, view: clone(v), epoch: presentationEpoch
+            })
+        } else {
+            set({
+                lastEvents: events, tick: snap.tick + 1, log: [...snap.log,
+                    ...events.map((e) => ({
+                        n: ++logN, e
+                    }))].slice(-400), presenting: false
+            })
+        }
+    }
+}
+export function receiveCardLegal(legal: Action[]) {
+    realLegal = legal
+    set({
+        legal: snap.presenting || awaitingReply ? [] : legal
+    })
+}
+export function receiveCardEnd(end: { winner: Side | null; reason: string }) {
+    set({
+        stage: snap.presenting ? "playing" : "ended", end
+    })
+}
 
 const actionKey = (a: Action) => JSON.stringify(a)
 
 export const cardActions = {
     /** Vào phòng card: bot -> create, roomId -> joinById, còn lại joinOrCreate */
     async connect(o: CardJoin) {
+        localAction = null
+        presentationEpoch++
+        presentationInbox.clear()
+        pendingEvents = []
+        outstanding = 0
+        playbackView = null
+        realLegal = []
+        awaitingReply = false
         set({
             ...EMPTY, stage: "connecting"
         })
@@ -463,35 +743,21 @@ export const cardActions = {
                 }
             }))
         room.onMessage("cg:events",
-            (events: GameEvent[]) => {
-                beginLag(events)
-                const add = events.map((e) => ({
-                    n: ++logN, e
-                }))
+            receiveCardEvents)
+        room.onMessage("cg:state",
+            receiveCardState)
+        room.onMessage("cg:legal",
+            receiveCardLegal)
+        room.onMessage("cg:error",
+            (err: { code: string; msg: string }) => {
+                awaitingReply = false
                 set({
-                    lastEvents: events, log: [...snap.log,
-                        ...add].slice(-400), tick: snap.tick + 1
+                    error: err.msg, legal: snap.presenting ? [] : realLegal
                 })
             })
-        room.onMessage("cg:state",
-            (v: CardView) => set({
-                view: v,
-                stage: snap.stage === "ended" ? "ended" : "playing",
-                // server gửi cg:legal ngay sau cg:state nếu tới lượt bạn
-                legal: [],
-                targeting: null,
-            }))
-        room.onMessage("cg:legal",
-            (legal: Action[]) => set({
-                legal
-            }))
-        room.onMessage("cg:error",
-            (err: { code: string; msg: string }) => set({
-                error: err.msg
-            }))
         room.onMessage("cg:end",
             (end: { winner: Side | null; reason: string }) => set({
-                stage: "ended", end
+                stage: snap.presenting ? "playing" : "ended", end
             }))
         room.onMessage("cg:simStats",
             () => {})
@@ -511,9 +777,15 @@ export const cardActions = {
         }) },
     /** Gửi một hành động (nên lấy từ legal) */
     act(action: Action) {
+        if ((!room && !localAction) || snap.presenting || awaitingReply || !snap.legal.some((a) => actionKey(a) === actionKey(action))) return
+        awaitingReply = true
         set({
             legal: [], targeting: null, error: null
         })
+        if (localAction) {
+            localAction(action)
+            return
+        }
         room?.send("cg:action",
             {
                 action
@@ -522,7 +794,7 @@ export const cardActions = {
     resign() { room?.send("cg:resign",
         {
         }) },
-    leave() { void room?.leave(); room = null; set(EMPTY) },
+    leave() { void room?.leave(); room = null; localAction = null; set(EMPTY) },
     /** Chọn tướng để xem ở bảng chỉ số (null = bỏ chọn) */
     inspect(unitId: string | null) { set({
         inspect: unitId
@@ -534,6 +806,7 @@ export const cardActions = {
     // ---- chọn mục tiêu (Hand/ActionBar bắt đầu, Board kết thúc) ----
     /** Bắt đầu chọn mục tiêu cho các hành động `options`; chỉ 1 lựa chọn thì gửi luôn */
     beginTargeting(source: string, options: Action[]) {
+        if (snap.presenting || awaitingReply) return
         if (options.length === 1) return cardActions.act(options[0])
         set({
             targeting: options.length ? {
@@ -568,6 +841,9 @@ export function targetsOf(a: Action): { units: string[]; lanes: number[] } {
     }
     if (a.t === "attack") return {
         units: [a.target], lanes: []
+    }
+    if (a.t === "vow") return {
+        units: [a.ally], lanes: []
     }
     if (a.t === "craft") return {
         units: a.unit ? [a.unit] : [], lanes: []
@@ -621,18 +897,13 @@ export function cardlessOptions(legal: Action[], unitId: string): Action[] {
     return legal.filter((a) => a.t === "attack" && !!a.cardless && a.actor === unitId)
 }
 
-/** Các đòn miễn phí (từ buff đòn kế tiếp, không tính giới hạn) của tướng `unitId`, lọc từ legal */
-export function freeAttackOptions(legal: Action[], unitId: string): Action[] {
-    return legal.filter((a) => a.t === "attack" && !a.cardless && a.actor === unitId)
-}
-
-/** Mana lá chiêu `card` tốn (chỉ lá chiêu của Pháp sư đang trên sân; còn lại undefined) */
+/** Shared team-mana cost for any champion skill, including copies and special skills. */
 export function manaCostOf(g: cg.Game, card: Card): number | undefined {
-    if (card.kind !== "skill" || !card.hero || !card.side) return undefined
-    const u = g.unit(`${card.side}:${card.hero}`)
-    if (!u || !g.isMage(u)) return undefined
-    const key = card.id.slice(card.hero.length + 1).toUpperCase() as cg.SkillKey
-    const def = cg.getHero(card.hero)?.skills[key]
+    if (!card.hero) return undefined
+    const side = card.side ?? getCard().view?.you ?? "A"
+    const u = g.unit(`${side}:${card.hero}`)
+    if (!u || u.token) return undefined
+    const def = cg.skillOfCard(card)
     return def ? g.manaCost(u,
         def,
         card) : undefined

@@ -7,7 +7,7 @@ Monorepo TypeScript chung một source:
 |---|---|---|
 | `packages/shared` | TypeScript thuần | Luật game, thẻ bài, **adapter tướng**. Server và client cùng dùng |
 | `packages/server` | Colyseus 0.16 | Server quyết định mọi luật, giữ bài trên tay và bài úp bí mật |
-| `packages/client` | Phaser 3 + Vite + TS | Bàn đấu, lá bài, hiệu ứng |
+| `packages/client` | React + Vite + PixiJS | Bàn thẻ bài React, lá bài, VFX (chế độ bàn cũ tải riêng) |
 
 ## Chạy
 
@@ -32,6 +32,15 @@ Luật: [docs/LUAT_THE_BAI.md](docs/LUAT_THE_BAI.md). API engine: [docs/CARDGAME
 npm test                  # test luật thẻ bài
 npm run selfplay -- 1000  # bot tự đánh 1000 trận, in tỉ lệ thắng theo tướng
 ```
+
+## Thư viện VFX
+
+Chạy `npm run dev:client`, mở **http://localhost:5180/vfx**. Trang độc lập, không cần đăng nhập hoặc server trận đấu; giữ nền bàn `map/board5.jpg`.
+
+- Xem toàn bộ hiệu ứng theo nhóm vũ khí, nguyên tố, phép, khống chế, hỗ trợ và bài/trận đấu.
+- Tab Tướng có đòn thường và P/Q/E/R của đủ 33 tướng; tab Bổ trợ có các phép chung.
+- Đổi hướng, 1/3 mục tiêu, cường độ, chí mạng; phát lại, phát lần lượt hoặc dừng ngay.
+- Trang dùng cùng registry và chuỗi niệm → bay → trúng với game. Kiểm tra mapping: `npx tsx scripts/vfx_tests.ts`.
 
 ## Chuẩn code
 

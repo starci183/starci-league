@@ -8,8 +8,8 @@ export const KEYWORDS_B: Record<string, Keyword> = {
     mushroom: {
         vi: "Nấm Độc",
         en: "Toxic Mushroom",
-        descVi: "Lá đặc biệt của Teemo nằm trong bộ bài đối thủ. Khi bị rút: Nấm nổ (xem Teemo) rồi biến mất, chiếm chỗ lá rút đó.",
-        descEn: "Teemo's special card hidden in the opponent's deck. When drawn it explodes (see Teemo), then vanishes, taking the place of that draw."
+        descVi: "Lá đặc biệt của Teemo nằm trong bộ bài đối thủ. Khi bị rút: Nấm nổ (xem Teemo) rồi biến mất; người rút được rút bù 1 lá khác, không mất lượt rút.",
+        descEn: "Teemo's special card hidden in the opponent's deck. When drawn it explodes (see Teemo), then vanishes; the drawer draws a replacement card, so no draw is lost."
     },
     pay_hp: {
         vi: "Trả Máu",

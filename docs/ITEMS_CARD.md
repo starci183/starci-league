@@ -173,7 +173,7 @@ Mỗi mục: tên nội tại VI / EN · chữ VI · chữ EN · số liệu và
 - VI: `Khi đòn đánh của tướng đeo trúng: +1 Cuồng Nộ (tối đa 5). Đòn đánh của tướng đeo +6% sát thương mỗi Cuồng Nộ.`
 - EN: `When an attack of the equipped champion hits: +1 Rage (max 5). The equipped champion's attacks deal +6% damage per Rage.`
 - Code: `onAttackHit` (attacker = me, `!info.miss`) → stack +1 max 5; `bonus = { extraAtk: 0.06 * n }`. Giữ qua chết.
-- Cân bằng: tướng đánh nhiều đòn miễn phí (Kog'Maw E, Teemo, đấu sĩ) lớn dần tới +30%; vô nghĩa với tướng chỉ dùng chiêu.
+- Cân bằng: tướng đánh nhiều lần bằng chiêu hoặc đòn không cần lá của Đấu sĩ lớn dần tới +30%; vô nghĩa với tướng chỉ dùng chiêu.
 
 **11. Găng Bảo Thạch (gang_bao_thach)** · nội tại **Bảo Thạch / Jeweled Strike**
 - VI: `Chiêu của tướng đeo có thể chí mạng: mỗi lần chiêu của nó gây sát thương, có tỉ lệ chí mạng của tướng đeo để gây ×(1,5 + sát thương chí mạng cộng thêm).`
@@ -206,8 +206,8 @@ Mỗi mục: tên nội tại VI / EN · chữ VI · chữ EN · số liệu và
 - Cân bằng: tướng rút nhiều (Nami, TF, Viktor Q bậc 3, Ornn) biến lá thành AP, tối đa +30 AP.
 
 **16. Đại Bác Liên Thanh (dai_bac)** · nội tại **Tầm Xa / Long Range**
-- VI: `Đòn đánh của tướng đeo (lá Đánh thường hoặc Đòn Miễn Phí) chọn được bất kỳ tướng địch nào, kể cả vật triệu hồi ở ô phụ (Khiêu Khích và Tàng Hình vẫn áp dụng).`
-- EN: `Attacks of the equipped champion (Strike cards or Free Attacks) can target any enemy champion, including the summon in the extra slot (Taunt and Stealth still apply).`
+- VI: `Đòn đánh của tướng đeo (lá Đánh thường hoặc đòn do chiêu kích hoạt) chọn được bất kỳ tướng địch nào, kể cả vật triệu hồi ở ô phụ (Khiêu Khích và Tàng Hình vẫn áp dụng).`
+- EN: `Attacks of the equipped champion (Strike cards or skill-triggered attacks) can target any enemy champion, including the summon in the extra slot (Taunt and Stealth still apply).`
 - Code: cờ `anyTarget: true` trong `attackTargets` (mục 1.5). Tự đánh cuối lượt của đấu sĩ vẫn đánh tướng đối diện (không đổi).
 - Cân bằng: đội không có xạ thủ có câu trả lời cho Tibbers, Thây Ma Sương Mù, Thùng Thuốc Súng; sát thủ đeo vào thành "xạ thủ 350%" nên chỉ số đi kèm thấp (chỉ +30% sát thương đòn đánh).
 

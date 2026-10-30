@@ -38,7 +38,7 @@ export const TXT = {
         chain: "Chuỗi",
         links: "mắt xích",
         resolving: "Đang giải quyết (cuối về đầu)",
-        askChain: "Bạn có muốn nối chuỗi?",
+        askChain: "Phản ứng đúng điều kiện · tối đa 4 mắt xích",
         askHint: "Chọn lá Quick để nối, hoặc bỏ qua.",
         pass: "Bỏ qua",
         oppThinking: "Đối thủ đang cân nhắc nối chuỗi…",
@@ -66,7 +66,7 @@ export const TXT = {
         chain: "Chain",
         links: "links",
         resolving: "Resolving (last to first)",
-        askChain: "Add to the chain?",
+        askChain: "Valid response · at most 4 links",
         askHint: "Pick a Quick card to chain, or pass.",
         pass: "Pass",
         oppThinking: "Opponent is considering a chain response…",
@@ -133,6 +133,8 @@ export function eventSide(e: GameEvent): Side | null {
     case "lives":
     case "draw":
     case "drawAuto":
+    case "mushroom":
+    case "teamManaChange":
     case "discard":
     case "burn":
     case "create":
@@ -196,6 +198,9 @@ const MINOR = new Set<string>(["stack",
     "attackCount"])
 export const isMinor = (e: GameEvent): boolean => MINOR.has(e.t)
 
+// giveFreeCard emits a semantic freeCard and this raw mirror; show the semantic row once.
+const rewardMirror = (text: string) => /^([AB]) receives a free (Basic Attack card|Gold card|item component|skill card(?: \([^)]+\))?)\.$/.test(text)
+
 /** Câu tiếng Việt cho một sự kiện */
 export function viText(e: GameEvent, v: CardView, g: cg.Game | null): string | undefined {
     const un = (id?: string) => unitName(v,
@@ -221,7 +226,7 @@ export function viText(e: GameEvent, v: CardView, g: cg.Game | null): string | u
         ? `${un(e.attacker)} đánh không cần lá ${un(e.target)} (${pct})${e.miss ? " nhưng trượt" : e.crit ? ", chí mạng" : ""}.`
         : e.miss
             ? `${un(e.attacker)} đánh ${un(e.target)} nhưng trượt.`
-            : `${un(e.attacker)} đánh ${un(e.target)}${e.crit ? " (chí mạng)" : ""}${e.free ? " (miễn phí)" : ""}.`
+            : `${un(e.attacker)} đánh ${un(e.target)}${e.crit ? " (chí mạng)" : ""}.`
     case "damage": return `${un(e.target)} nhận ${e.amount} sát thương ${DMG_VI[e.kind] ?? e.kind}${e.src ? ` từ ${un(e.src)}` : ""}${e.absorbed ? ` (khiên đỡ ${e.absorbed})` : ""}${e.crit ? ", chí mạng" : ""}.`
     case "heal": return `${un(e.target)} hồi ${e.amount} máu.`
     case "shield": return `${un(e.target)} có thêm ${e.amount} khiên.`
@@ -240,10 +245,12 @@ export function viText(e: GameEvent, v: CardView, g: cg.Game | null): string | u
         }
         return isHidden(e.card) ? `${sd(e.side)} rút 1 lá.` : `${sd(e.side)} rút ${cn(e.card)}.`
     case "drawAuto": return `${sd(e.side)} rút ${cn(e.card)}, lá này kích hoạt ngay.`
+    case "mushroom": return e.phase === "plant" ? `${un(e.source)} gài ${e.count} Nấm vào bộ bài ${sd(e.side)}.` : `Nấm kích nổ${e.target ? ` lên ${un(e.target)}` : ""}.`
     case "discard": return e.reason === "manual" ? `${sd(e.side)} bỏ ${cn(e.card)} vào mộ.` : `${sd(e.side)} bỏ ${cn(e.card)}.`
     case "cardBurned": return `${sd(e.side)} tay đầy, đốt ${cn(e.card)}.`
     case "tempExpired": return `${cn(e.card)} (tạm) tan biến.`
     case "manaChange": return `${un(e.unit)} ${e.delta >= 0 ? "+" : "−"}${Math.abs(e.delta)} mana (${e.mana}/${e.max}).`
+    case "teamManaChange": return `${sd(e.side)} ${e.delta < 0 ? "tiêu hao" : "hồi"} ${Math.abs(e.delta)} Mana đội (${e.mana}/${e.max})${e.unit ? ` · ${un(e.unit)}` : ""}.`
     case "attackCount": return `${sd(e.side)} đã đánh ${e.used}/${e.limit}.`
     case "chainCancel": return `Mắt xích ${e.n} bị huỷ${e.card ? `: ${cn(e.card)}` : ""}.`
     case "cardFrozen": return `${cn(e.card)} của ${sd(e.side)} bị Hoá Băng, không đánh được.`
@@ -271,16 +278,23 @@ export function viText(e: GameEvent, v: CardView, g: cg.Game | null): string | u
     case "prize": return `${sd(e.side)} lật lá thưởng${isHidden(e.card) ? "" : `: ${cn(e.card)}`} (còn ${e.left}).`
     case "pass": return `${sd(e.side)} bỏ qua.`
     case "reveal": return `${sd(e.side)} lộ tay bài cho ${sd(e.to)} (${e.cards.length} lá).`
-    case "log": return e.text
+    case "log": return rewardMirror(e.text) ? undefined : e.text
     case "end": return `${sd(e.winner)} thắng (${WHY_VI[e.reason] ?? e.reason}).`
     }
 }
 
 /** Câu cho ngôn ngữ hiện tại; lá úp luôn dùng bản của ta, tên người chơi theo bạn/đối thủ */
 export function eventLine(e: GameEvent, v: CardView, g: cg.Game | null, lang: Lang): string | undefined {
+    if (e.t === "log" && rewardMirror(e.text)) return undefined
     if (lang === "vi") return viText(e,
         v,
         g)
+    if (e.t === "teamManaChange") return `${sideLabel(v,
+        e.side,
+        "en")} ${e.delta < 0 ? "spends" : "restores"} ${Math.abs(e.delta)} team Mana (${e.mana}/${e.max}).`
+    if (e.t === "mushroom") return e.phase === "plant" ? `Teemo plants ${e.count} Mushrooms in ${sideLabel(v,
+        e.side,
+        "en")}'s deck.` : "A Mushroom detonates on the lowest-HP enemy champion."
     const card = "card" in e ? (e as { card?: Card }).card : undefined
     if (isHidden(card)) {
         if (e.t === "draw") return `${sideLabel(v,

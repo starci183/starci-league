@@ -1,6 +1,8 @@
-// Jinx (Xạ thủ, vật lý): máu 330 · AD 124 · giáp/kháng 25/26. Chất: NHẶT MẠNG, càng nhặt càng Điên.
-// Điên = bộ đếm (stack "frenzy") giữ qua lần chết (chết mất nửa), tối đa 30. Mỗi Điên cộng thêm sát thương cho đòn đánh của Jinx.
-// Đánh đứa đã sứt máu là tích Điên: dưới 75% máu +1, dưới 25% máu +2, hạ gục +10. Q đổi đòn đánh kế thành một phát lan cả đội; E là Quick tự cứu.
+// Jinx (Xạ thủ, vật lý): máu 330 · AD 80 · giáp/kháng 25/26. Chất: NHẶT MẠNG, càng nhặt càng Điên.
+// Điên = bộ đếm (stack "frenzy") VÔ HẠN, giữ nguyên qua lần chết. Mỗi Điên cộng thêm sát thương cho đòn thật của Jinx (gói riêng, không chí mạng).
+// Đánh trúng tướng địch đã sứt máu là tích Điên (so Máu TRƯỚC hit): dưới 75% +1, dưới 25% +2; Jinx hạ thật tướng địch +10.
+// Q đổi phát chính của đòn kế thành một phát lan cả đội (lan không chí mạng, không phải đòn thật); E là phản ứng tự cứu khi bị đánh.
+// Tuning v1: mana Q/E/R = 10/15/35; bỏ trần 30 và bỏ mất nửa Điên khi chết.
 import {
     pct
 } from "../formula"
@@ -15,23 +17,22 @@ import {
 } from "../types"
 
 const FRENZY = "frenzy"
-/** Cờ Q đang chờ (Đổi Súng): đòn đánh kế của Jinx bị thay */
+/** Cờ Q đang chờ (Đổi Súng): phát chính của đòn kế của Jinx bị thay */
 const Q_ON = "jinx_q"
 /** Cờ tạm: bậc máu mục tiêu của đòn đánh vừa rồi (0 = không, 1 = dưới 75%, 2 = dưới 25%), ghi lúc onAttack, đọc ở onAttackHit */
 const TIER = "frenzyLow"
-/** Cờ tạm (khoá ẩn "once:"): sát thương gốc của Q cho đòn đánh vừa rồi, để lan 25% ở onAttackHit */
+/** Cờ tạm: sát thương gốc của Q cho đòn đánh vừa rồi (chụp trước hit), để lan 25% ở onAttackHit */
 const Q_BASE = "once:jinx_q"
-export const MAX_FRENZY = 30
 /** Điên cộng khi hạ gục */
 const KILL_FRENZY = 10
 /** Sát thương cộng thêm mỗi Điên cho đòn đánh (vật lý) */
-const F_PER = "1 + 1% AD + 0.5% AP"
-const F_Q = "50 + 110% AD + 20% AP"
+const F_PER = "2 + 3% AD + 0.8% AP"
+const F_Q = "45 + 215% AD + 20% AP"
 /** Q: cộng thêm mỗi Điên */
 const Q_PER = 2
-/** Q: phần trăm lượng sát thương lan lên mọi địch còn lại */
+/** Q: phần trăm lượng thay thế lan lên mọi tướng địch còn lại */
 const Q_SPLASH = 0.25
-const F_R = "120 + 90% AD + 20% AP"
+const F_R = "100 + 160% AD + 20% AP"
 /** R: cộng thêm mỗi Điên */
 const R_PER = 5
 /** R: phần máu đã mất của mục tiêu cộng thêm vào sát thương */
@@ -39,30 +40,29 @@ const R_MISSING = 0.2
 /** E: giảm sát thương nhận */
 const E_CUT = 0.2
 
-/** Bậc Điên theo máu mục tiêu: dưới 25% → 2, dưới 75% → 1 */
+/** Bậc Điên theo Máu hiện tại của tướng địch: dưới 25% → 2, dưới 75% → 1 (vật triệu hồi không tính) */
 const tierOf = (t: Unit) => (t.token ? 0 : t.hp / t.maxHp < 0.25 ? 2 : t.hp / t.maxHp < 0.75 ? 1 : 0)
 
-/** Q: lan sát thương lên mọi địch còn lại, mỗi đứa trúng đều tính Điên */
+/** Q: lan sát thương lên mọi tướng địch còn lại; mỗi đứa thực sự trúng đủ thấp Máu cũng cho Điên */
 function splash(g: Game, me: Unit, main: Unit, base: number) {
     for (const t of g.enemies(me)) {
         if (t.token || t.id === main.id || t.status !== "board") continue
         const tier = tierOf(t)
-        g.damage(me,
+        const dealt = g.damage(me,
             t,
             base * Q_SPLASH,
             "physical",
             {
-                tag: "skill"
+                tag: "effect"
             })
-        if (tier > 0) g.stack(me,
+        if (tier > 0 && dealt > 0) g.stack(me,
             FRENZY,
-            tier,
-            MAX_FRENZY)
+            tier)
     }
 }
 
 export default defineHero({
-    id: "jinx", name: "Jinx", role: "marksman", damage: "physical", hp: 330, atk: 124, armor: 25, mr: 26,
+    id: "jinx", name: "Jinx", role: "marksman", damage: "physical", hp: 330, atk: 80, armor: 25, mr: 26,
     bot: {
         stackValue: {
             frenzy: 8,
@@ -74,14 +74,14 @@ export default defineHero({
     desc: "Kẻ nhặt mạng: đánh vào đứa đã sứt máu để Điên dần, một phát Đổi Súng tích Điên trên cả đội.",
     passive: {
         name: "Điên Cuồng",
-        desc: `Đòn đánh của Jinx trúng địch dưới 75% máu: +1 Điên; dưới 25% máu: +2 Điên; hạ gục: +${KILL_FRENZY} Điên (tối đa ${MAX_FRENZY}). Jinx chết thì mất nửa Điên. Mỗi Điên: đòn đánh của Jinx gây thêm {${F_PER}} sát thương vật lý.`,
+        desc: `Đòn thật trúng tướng địch có Máu trước hit dưới 75%/25% cho 1/2 Điên; Jinx hạ thật tướng địch cho thêm ${KILL_FRENZY} Điên. Điên vô hạn, giữ qua chết. Mỗi đòn thật trúng gây thêm Điên × ({${F_PER}}) sát thương vật lý, không tự chí mạng.`,
     },
     hooks: {
         onAttack(g, me, d) {
             if (d.attacker.id !== me.id) return
-            me.stacks[TIER] = tierOf(d.target)
+            me.stacks[TIER] = d.target.side !== me.side ? tierOf(d.target) : 0
             me.stacks[Q_BASE] = 0
-            // Q (Đổi Súng): đòn đánh kế bị thay bằng một phát riêng (trượt vẫn tiêu Q)
+            // Q (Đổi Súng): phát chính của đòn kế bị thay (trượt vẫn tiêu Q); chụp lượng thay thế trước hit
             if (g.has(me,
                 Q_ON)) {
                 g.removeStatus(me,
@@ -94,47 +94,45 @@ export default defineHero({
                     me.stacks[Q_BASE] = base
                 }
             }
-            const n = g.stackOf(me,
-                FRENZY)
-            if (n > 0 && !d.info.miss) {
-                d.info.bonus.push({
-                    raw: n * g.f(me,
-                        F_PER), kind: "physical"
-                })
-            }
         },
         onAttackHit(g, me, d) {
             if (d.attacker.id !== me.id) return
             const tier = me.stacks[TIER] ?? 0
-            if (tier > 0) g.stack(me,
-                FRENZY,
-                tier,
-                MAX_FRENZY)
-            me.stacks[TIER] = 0
             const base = me.stacks[Q_BASE] ?? 0
+            me.stacks[TIER] = 0
             me.stacks[Q_BASE] = 0
-            if (base > 0) splash(g,
+            if (d.info.miss || d.target.side === me.side) return
+            // P: Điên × (1 + 1.8% AD + 0.5% AP), gói riêng không nhân chí mạng; tính theo Điên trước khi hit này cộng
+            const n = g.stackOf(me,
+                FRENZY)
+            if (n > 0) g.damage(me,
+                d.target,
+                n * g.f(me,
+                    F_PER),
+                "physical",
+                {
+                    tag: "attack"
+                })
+            // trúng thật (kể cả chạm Khiên); bị chặn hoàn toàn thì không cho Điên, không lan
+            const landed = d.dealt > 0
+            if (landed && tier > 0) g.stack(me,
+                FRENZY,
+                tier)
+            if (landed && base > 0) splash(g,
                 me,
                 d.target,
                 base)
         },
         onKill(g, me, d) {
-            if (d.killer.id === me.id && !d.victim.token) g.stack(me,
+            if (d.killer.id === me.id && !d.victim.token && d.victim.side !== me.side) g.stack(me,
                 FRENZY,
-                KILL_FRENZY,
-                MAX_FRENZY)
-        },
-        onDeath(g, me, d) {
-            if (d.victim.id === me.id) g.setStack(me,
-                FRENZY,
-                Math.floor(g.stackOf(me,
-                    FRENZY) / 2))
+                KILL_FRENZY)
         },
     },
     skills: {
         Q: {
-            key: "Q", name: "Đổi Súng", target: "self",
-            desc: `Đòn đánh kế của Jinx gây {${F_Q}} sát thương vật lý (cộng ${Q_PER} mỗi Điên) lên mục tiêu, và ${pct(Q_SPLASH)}% lượng đó lên mọi địch còn lại (mỗi đứa trúng đều tính Điên).`,
+            key: "Q", mana: 5, name: "Đổi Súng", target: "self",
+            desc: `Lên nòng đòn kế: phát chính được thay bằng {${F_Q}} + ${Q_PER} × Điên sát thương vật lý, rồi vẫn cộng sát thương Điên của P. Nếu phát chính trúng, mọi tướng địch còn lại chịu ${pct(Q_SPLASH)}% lượng thay thế trước chí mạng; mỗi người thực sự trúng đủ thấp Máu cũng cho Điên. Không tự đánh.`,
             resolve(c) {
                 c.g.status(c.self,
                     Q_ON,
@@ -145,11 +143,11 @@ export default defineHero({
             },
         },
         E: {
-            key: "E", name: "Bẫy Lửa", target: "none", quick: true, chainOnly: true,
-            desc: `Quick, Chỉ Nối Chuỗi. Khi địch đánh Jinx: Jinx nhận ít hơn ${pct(E_CUT)}% sát thương tới hết lượt này và lấy 1 lá Q của Jinx từ bộ bài lên tay.`,
-            quickWhen: (c) => c.trigger.side !== c.side && c.trigger.target === c.self.id && (!c.trigger.card || c.trigger.card.id === "basic"),
+            key: "E", mana: 10, name: "Bẫy Lửa", target: "none", quick: true, chainOnly: true,
+            desc: `Quick, Chỉ Nối Chuỗi. Khi địch đánh Jinx (mắt xích địch trên cùng là đòn đánh chỉ định Jinx): cô nhận ít hơn ${pct(E_CUT)}% mọi sát thương tới hết lượt đối phương và lấy 1 Q của mình từ bộ lên tay, thiếu mới tạo. Tay đầy đốt lá thừa.`,
+            quickWhen: (c) => c.trigger.side !== c.side && c.trigger.kind === "attack" && !!c.trigger.single && c.trigger.target === c.self.id,
             resolve(c) {
-                // Giảm sát thương nhận (engine: status dmgCut) tới hết lượt của đối thủ, và lấy 1 lá Q lên tay
+                // Giảm sát thương nhận (engine: status dmgCut, làm mới không cộng dồn) tới hết lượt của đối thủ, và lấy 1 lá Q lên tay
                 c.g.status(c.self,
                     "dmgCut",
                     1,
@@ -163,8 +161,8 @@ export default defineHero({
             },
         },
         R: {
-            key: "R", name: "Tên Lửa", target: "enemy",
-            desc: `Chọn 1 tướng địch; nó nhận {${F_R}} sát thương vật lý, thêm ${R_PER} mỗi Điên và ${pct(R_MISSING)}% máu đã mất của nó.`,
+            key: "R", mana: 30, name: "Tên Lửa", target: "enemy",
+            desc: `Chọn 1 tướng địch hợp lệ; gây {${F_R}} + ${R_PER} × Điên + ${pct(R_MISSING)}% Máu mục tiêu đã mất sát thương vật lý.`,
             resolve(c) {
                 const t = c.target!
                 c.g.damage(c.self,

@@ -32,14 +32,14 @@ Các mục "CHỐT MỚI" và mục 1-6 bên dưới là lịch sử của bản
 - Sau `RULES.respawnRounds` (3) vòng, tướng **hồi sinh đúng đường đó, đầy máu**, còn nguyên đồ. Dịch Chuyển (phép bổ trợ) hồi sinh nó ngay tại đường cũ.
 
 ### 6. Giới hạn 3 đòn đánh mỗi lượt
-- Mỗi người **tối đa 3 đòn đánh mỗi lượt** (`RULES.attackLimit`), áp dụng cho **mọi tướng**, tính **tất cả**: lá Đánh thường, đòn không cần lá của Đấu sĩ, và đòn miễn phí do chiêu cấp (buff đòn kế tiếp).
+- Mỗi người **tối đa 3 đòn đánh mỗi lượt** (`RULES.attackLimit`), áp dụng cho **mọi tướng**, tính **tất cả**: lá Đánh thường, đòn không cần lá của Đấu sĩ.
 - Không có chiêu hay đồ nào nâng quá 3. Đòn đánh nằm **bên trong** một chiêu (ví dụ chiêu tự đánh 3 lần) và đòn tự động của riêng tướng (Kog'Maw) **không tính**.
 - Đếm lại từ 0 ở lượt kế tiếp của bạn.
 
 ### 7. Đấu sĩ
 - Đấu sĩ **không còn tự đánh cuối lượt**. Đấu sĩ **dùng được lá Đánh thường** (100% AD) như mọi người.
 - Mỗi Đấu sĩ có thêm nút **"Đánh không cần lá"**: **66% sát thương** (`RULES.fighterCardlessMult`), **1 lần mỗi lượt mỗi Đấu sĩ**, tính vào giới hạn 3 đòn. Không bao giờ tự chạy: bạn bấm mới đánh, bấm xong có thể dừng.
-- Đây là **đòn chủ động, KHÔNG phải Quick**: chỉ đánh được trong lượt mình, bước chính. Không bao giờ có trong lượt đối thủ hay khi nối chuỗi (quyết định 14). Không dùng được khi Choáng, khi đang có đòn miễn phí chờ, hoặc khi đã đủ 3 đòn. Token vai Đấu sĩ không có nút này.
+- Đây là **đòn chủ động, KHÔNG phải Quick**: chỉ đánh được trong lượt mình, bước chính. Không bao giờ có trong lượt đối thủ hay khi nối chuỗi (quyết định 14). Không dùng được khi Choáng, khi đã đủ 3 đòn. Token vai Đấu sĩ không có nút này.
 
 ### 7b. Bỏ bài xuống mộ
 - Trong lượt mình (bước chính, không trong chuỗi hay bước gọi tướng úp), bạn có thể bỏ **bất kỳ lá nào trên tay** xuống mộ, **miễn phí, không giới hạn số lần**, không tính vào giới hạn hành động. Nút "Bỏ vào mộ" hiện khi bấm một lá trên tay.
@@ -103,7 +103,7 @@ Các mục "CHỐT MỚI" và mục 1-6 bên dưới là lịch sử của bản
 > - **Thẻ thưởng (Prize) kiểu Pokémon:** đầu trận mỗi đội úp **6 lá thưởng** ngẫu nhiên (thẻ hỗ trợ + thẻ chiêu chung Q/E/R, không lấy từ bộ bài chính). Hạ 1 tướng địch thì lật 1 lá thưởng lên tay. **Giữ 7 mạng:** 6 lần hạ đầu mỗi lần lật 1 lá thưởng; lần hạ thứ 7 là thắng trận.
 > - **Quick play** là nhãn của từng chiêu (vd "E · Quick"): chiêu Quick dùng được trong lượt đối thủ để **nối chuỗi** kiểu Yu-Gi-Oh; chuỗi giải quyết từ mắt xích cuối về đầu.
 > - **Ô triệu hồi phụ:** mỗi bên 1 ô ngoài 5 đường cho vật triệu hồi / đồng minh phụ (vd Tibbers làm máu ảo cho Annie: sát thương vào Annie đánh Tibbers trước, hết máu thì Tibbers chết). Không có hiệu ứng vùng tròn; mọi hiệu ứng đặt lên tướng.
-> - **Nhắm vật triệu hồi ở ô phụ:** chỉ **đòn đánh thường của xạ thủ** (lá Đánh thường hoặc đòn miễn phí) chọn được vật triệu hồi làm mục tiêu. Chiêu đơn mục tiêu / tối đa N **không** chọn được vật triệu hồi, trừ khi lá ghi rõ (`targetsTokens`); chiêu "mọi tướng địch" vẫn trúng. Vật triệu hồi có thể **úp mặt** (đối thủ không biết nó là gì tới khi lật, rời sân thì tự lật) và có thể **tự hết hạn** sau N lượt (hiện số lượt còn lại trên token).
+> - **Nhắm vật triệu hồi ở ô phụ:** **đòn đánh thường của mọi vai tướng, bất kể lane** (lá Đánh thường hoặc đòn do chiêu kích hoạt) chọn được vật triệu hồi làm mục tiêu. Chiêu đơn mục tiêu / tối đa N **không** chọn được vật triệu hồi, trừ khi lá ghi rõ (`targetsTokens`); chiêu "mọi tướng địch" vẫn trúng. Vật triệu hồi có thể **úp mặt** (đối thủ không biết nó là gì tới khi lật, rời sân thì tự lật) và có thể **tự hết hạn** sau N lượt (hiện số lượt còn lại trên token).
 > - **Quick dành cho tướng phản ứng:** lá Quick chỉ cấp cho tướng mà mục đích duy nhất là phản ứng. Đòn lớn đánh trong lượt mình để đối thủ có một lượt đọc bàn và đáp trả.
 > - **Số lá chiêu theo từng tướng** (không cố định 6/6/2): Q 3–10 lá, E 3–10 lá, R 1–3 lá (`HeroDef.skillCopies`, mặc định 6/6/2). Đấu sĩ/tướng đánh tay mang ít lá chiêu (bộ gọn), pháp sư mang nhiều. Số lá cũng là núm cân bằng: chiêu mạnh mỗi lá thì ít bản.
 > - **Bộ gốc tự xếp 20 lá** (thay bộ gốc 10 Đánh thường/6 Vàng/6 Đồ): chỉ thẻ hỗ trợ (Đánh thường ≤8, Rút Bài ≤2, Bổ Trợ ≤2, Bình Máu ≤2), Vàng ≤4 và **mảnh Đồ chọn đích danh** (mỗi mảnh ≤2), xem `packages/shared/src/cardgame/deck.ts`. Thiếu/sai thì dùng bộ mặc định. Tay đầu vẫn rút 5 lá từ bộ gốc + 3 thẻ chiêu chung. Mỗi tướng ra sân vẫn xáo thêm 20 thẻ hỗ trợ của tướng (có thể chỉnh riêng: `HeroDef.supportCopies`) + toàn bộ lá chiêu của tướng.

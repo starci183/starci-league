@@ -6,7 +6,7 @@ import {
     chooseActionGreedy
 } from "./botGreedy"
 import {
-    chooseActionSearch
+    chooseActionSearch, EXPERT_SEARCH
 } from "./botSearch"
 import {
     actorsOf
@@ -15,10 +15,13 @@ import type {
     Action, GameState, Side
 } from "./types"
 
-export type BotLevel = "easy" | "hard";
+export type BotLevel = "easy" | "hard" | "expert";
 
 /** Chọn 1 hành động cho `side` (side phải là bên đang được hỏi: lượt hiện tại, hoặc bên đang có quyền nối chuỗi). Tất định theo state. */
 export function chooseAction(state: GameState, side: Side, level: BotLevel = "easy"): Action {
+    if (level === "expert") return chooseActionSearch(state,
+        side,
+        EXPERT_SEARCH)
     return level === "hard" ? chooseActionSearch(state,
         side) : chooseActionGreedy(state,
         side)

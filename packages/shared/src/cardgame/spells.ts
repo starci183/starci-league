@@ -139,7 +139,7 @@ export function resolveSpell(g: Game, side: Side, spell: SpellId, args: PlayArgs
         "ignite",
         SPELL_NUM.ignite.turns,
         {
-            v: SPELL_NUM.ignite.perTurn
+            v: SPELL_NUM.ignite.perTurn, visuals: ["burn"]
         }); g.status(t,
             "grievous",
             SPELL_NUM.ignite.turns); break
@@ -156,16 +156,10 @@ export function resolveSpell(g: Game, side: Side, spell: SpellId, args: PlayArgs
     case "teleport": {
         if (t.status !== "dead" || args.lane === undefined || args.lane !== t.homeLane || g.s.lanes[side][args.lane] !== t.id) break
         t.lane = args.lane; t.status = "board"
-        t.hp = Math.round(t.maxHp * SPELL_NUM.teleport.hpPct); t.shield = 0
+        t.hp = Math.round(t.maxHp * SPELL_NUM.teleport.hpPct); g.clearShields(t)
         g.emit({
             t: "respawn", unit: t.id, lane: args.lane
         })
-        if (g.isMage(t)) {
-            t.mana = g.startMana(t)
-            g.emit({
-                t: "manaChange", unit: t.id, mana: t.mana, max: g.maxMana(t), delta: t.mana, reason: "respawn"
-            })
-        }
         g.hook("onRespawn",
             {
                 unit: t

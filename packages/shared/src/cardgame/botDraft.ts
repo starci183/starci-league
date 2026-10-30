@@ -20,6 +20,10 @@ export interface DraftView {
     action: "ban" | "pick";
     /** Sức mạnh riêng của từng tướng (vd tỉ lệ thắng selfplay − 0.5, nhân 10), cộng vào điểm */
     strength?: Record<string, number>;
+    /** Mô hình học từ selfplay (draftModel.ts): khi có thì thay bảng synergy viết tay */
+    model?: DraftModel;
+    /** Đối thủ còn lượt chọn sau lượt này (để tính rủi ro bị khắc ngược) */
+    theirPicksLeft?: number;
     /** Nhiễu ngẫu nhiên để đa dạng (0 = tất định) */
     noise?: number;
     rnd?: () => number;
@@ -28,6 +32,47 @@ export interface DraftView {
 const combos = (a: string, b: string) => !!SYNERGY[a]?.combos.includes(b) || !!SYNERGY[b]?.combos.includes(a)
 /** a khắc b */
 const counters = (a: string, b: string) => !!SYNERGY[b]?.counteredBy.includes(a)
+
+/** Mô hình cấm/chọn học từ selfplay, đơn vị logit tỉ lệ thắng: strength[h], syn[a][b] (cùng đội), ctr[a][b] (a đấu b) */
+export interface DraftModel {
+    strength: Record<string, number>;
+    syn: Record<string, Record<string, number>>;
+    ctr: Record<string, Record<string, number>>;
+}
+
+/** Giá trị của `h` với đội `mine` khi đối đầu `theirs` theo mô hình */
+function modelValue(m: DraftModel, h: string, mine: string[], theirs: string[]): number {
+    let v = m.strength[h] ?? 0
+    for (const a of mine) v += m.syn[h]?.[a] ?? 0
+    for (const t of theirs) v += m.ctr[h]?.[t] ?? 0
+    return v
+}
+
+function modelPick(m: DraftModel, h: string, v: DraftView): number {
+    if (clashesExtraZone([...v.mine,
+        h])) return -100
+    let sc = modelValue(m,
+        h,
+        v.mine,
+        v.theirs)
+    // rủi ro bị khắc ngược: kẻ khắc h mạnh nhất còn trong pool mà đối thủ còn lượt chọn
+    if ((v.theirPicksLeft ?? 1) > 0) {
+        let worst = 0
+        for (const c of v.available) if (c !== h) worst = Math.max(worst,
+            m.ctr[c]?.[h] ?? 0)
+        sc -= 0.5 * worst
+    }
+    const role = getHero(h)?.role
+    const same = v.mine.filter((x) => getHero(x)?.role === role).length
+    if (same >= 2) sc -= 0.05 * (same - 1)
+    return sc
+}
+
+/** Cấm: tướng có giá trị cao nhất với đối thủ (theo đội họ đã chọn và đội mình) */
+const modelBan = (m: DraftModel, h: string, v: DraftView) => modelValue(m,
+    h,
+    v.theirs,
+    v.mine)
 
 /** Sức mạnh mặc định: khắc được nhiều tướng, ít bị khắc */
 const defaultStrength = (h: string) => 0.4 * countersOf(h).length - 0.3 * (SYNERGY[h]?.counteredBy.length ?? 0)
@@ -69,9 +114,16 @@ export function draftChoice(v: DraftView): string | undefined {
     let best: string | undefined
     let bestSc = -Infinity
     for (const h of v.available) {
-        const sc = (v.action === "ban" ? banScore(h,
-            v) : pickScore(h,
-            v)) + (v.noise ? v.noise * rnd() : 0)
+        const base = v.model
+            ? (v.action === "ban" ? modelBan(v.model,
+                h,
+                v) : modelPick(v.model,
+                h,
+                v))
+            : (v.action === "ban" ? banScore(h,
+                v) : pickScore(h,
+                v))
+        const sc = base + (v.noise ? v.noise * rnd() : 0)
         if (sc > bestSc) { bestSc = sc; best = h }
     }
     return best

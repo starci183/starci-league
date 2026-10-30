@@ -1,0 +1,85 @@
+/* Approved compact-hand concept: these surfaces remain live React controls. */
+.forest-game .game-icon { width: 1.3em; height: 1.3em; flex: none; vertical-align: middle; }
+.forest-game .opponent-hand { position: absolute; left: 50%; top: 0; transform: translateX(-50%); z-index: 12; text-align: center; pointer-events: none; }
+.forest-game .opponent-hand-fan { --back-step: min(2.4cqw,calc(28cqw / var(--back-count))); position: relative; height: 3.3cqh; width: calc(3.5cqw + (var(--back-count) - 1) * var(--back-step)); margin: auto; }
+.forest-game .opponent-hand-tip { position: absolute; top: 0; left: calc(var(--back-index) * var(--back-step)); width: 3.5cqw; height: 3.3cqh; overflow: hidden; transform: rotate(var(--back-angle)); transform-origin: 50% 0; }
+.forest-game .opponent-hand-tip img { position: absolute; width: 100%; height: 5.3cqw; left: 0; bottom: 0; border: 1px solid #ba9c5f; border-radius: 0 0 .28cqw .28cqw; box-sizing: border-box; object-fit: cover; }
+.forest-game .opponent-hand-tip.arriving { visibility: hidden; }
+.forest-game .opponent-hand-count { display: block; width: max-content; margin: .2cqh auto 0; padding: .1cqh .7cqw; color: #f8e6b4; font: 700 clamp(11px,.81cqw,16px) var(--font-game-title); background: #0a211bf2; border: 1px solid #8f7b46; border-radius: .25cqw; white-space: nowrap; }
+.forest-game .opponent-hand-fan { transition: width .18s ease-out; }
+.forest-game .opponent-hand-tip { transition: left .18s ease-out,transform .18s ease-out; }
+.forest-game .bd-duel-hud .bd-bar { padding-top: 4.8cqh; align-content: center; gap: .2cqw; font-size: clamp(11px,.8cqw,16px); }
+.forest-game .bd-duel-hud .bd-bar { display: grid; grid-template-columns: auto auto auto; column-gap: .65cqw; justify-content: center; }
+.forest-game .bd-active-owner,.forest-game .bd-round small { display: none; }
+.forest-game .bd-phase { color: #bed0af; font-size: clamp(10px,.72cqw,14px); }
+.forest-game .bd-round { font-size: clamp(11px,.83cqw,16px); }
+.forest-game .bd-hint { display: none; }
+.forest-game .bd-player-details .bd-fan { display: none; }
+.forest-game .cg-inspector { height: 65cqh; }
+.forest-game .cg-inspector :is(.us-rich,.us-note,.ci-description,.ci-context,.ci-condition,.ci-copies) { font-size: clamp(12px,.84cqw,16px); line-height: 1.5; }
+.forest-game .cg-inspector :is(h3,.us-name) { font-size: clamp(17px,1.25cqw,25px); line-height: 1.16; text-align: left; }
+.forest-game .cg-inspector :is(h4,.us-sk-h b) { font-size: clamp(12px,.91cqw,18px); letter-spacing: 0; }
+.forest-game .cg-inspector .ci-art { height: 18cqh; margin-bottom: 1cqh; }
+.forest-game .cg-inspector .ci-meta { justify-content: start; }
+.forest-game .cg-inspector .ci-context { gap: .55cqh; margin: 1.2cqh 0; }
+.forest-game .cg-inspector .ci-context > div { padding: .35cqh 0; }
+.forest-game .cg-inspector .ci-context dt { color: #c6c5a2; }
+.forest-game .cg-inspector .ci-context dd { color: #fff1c6; }
+.forest-game .ci-effect-title { display: flex; align-items: center; gap: .4cqw; color: #f1d995; margin: 1cqh 0 .6cqh; }
+.forest-game .ci-unavailable { color: #f4d38e; background: #3d3018; border: 1px solid #8b7140; padding: .6cqw; font-size: clamp(12px,.82cqw,16px); line-height: 1.35; }
+.forest-game .bd-name { font-size: clamp(11px,.83cqw,17px); }
+.forest-game .bd-stats span { display: flex; align-items: center; justify-content: center; gap: .1cqw; font-size: .62cqw; }
+.forest-game .bd-stats .game-icon { width: .67cqw; height: .67cqw; }
+.forest-game .cg-side,.forest-game.log-open .cg-side { top: 2.8cqh; height: 78.5cqh; }
+.forest-game .cg-chain.ch { gap: 1.2cqh; background: none; }
+.forest-game .ch-current { height: 23cqh; min-height: 0; padding: .8cqw .6cqw 2.8cqh; background: #dfd3ae url('/ui/examples/forest-vellum-v2.png') center/cover; border: .55cqw solid transparent; border-image: var(--concept-frame) 25% / .8cqw stretch; }
+.forest-game .ch-current-title { font-size: clamp(14px,1.1cqw,22px); }
+.forest-game .ch-current-empty { font-size: clamp(12px,.86cqw,17px); padding: 2cqh 0; }
+.forest-game .ch-current .ch-link-name { font-size: clamp(11px,.81cqw,16px); }
+.forest-game .ch-current .ch-link-sub { font-size: clamp(10px,.72cqw,14px); }
+.forest-game .ch-current .ch-move { font-size: clamp(10px,.7cqw,14px); }
+.forest-game .ch-log { flex: 1; min-height: 14cqh; margin: 0; background: #0a2019f5; border: .55cqw solid transparent; border-image: var(--concept-frame) 25% / .8cqw stretch; }
+.forest-game .ch-log-head { padding: .3cqw; }
+.forest-game .ch-log-bar { color: #eedcb1; font: 700 clamp(13px,.97cqw,19px) var(--font-game-title); background: #152d22; padding: .45cqw; }
+.forest-game .ch-log-list { padding: .2cqw .4cqw; }
+.forest-game .ch-row { font-size: clamp(11px,.77cqw,15px); line-height: 1.45; padding: .4cqh 0 .4cqh .35cqw; }
+.forest-game .reserve-roster { height: 29cqh; flex: none; display: flex; flex-direction: column; gap: .5cqh; padding: .55cqw; background: #0c231bf7; border: .55cqw solid transparent; border-image: var(--concept-frame) 25% / .8cqw stretch; min-height: 0; }
+.forest-game .reserve-roster h3 { display: flex; align-items: center; gap: .35cqw; margin: 0; font: 700 clamp(14px,1.05cqw,21px) var(--font-game-title); color: #f2dfae; }
+.forest-game .reserve-roster h3 small { margin-left: auto; font: 400 clamp(11px,.8cqw,15px) var(--font-game-text); }
+.forest-game .reserve-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); grid-auto-rows: minmax(0,1fr); gap: .55cqw; flex: 1; min-height: 0; }
+.forest-game .reserve-roster[data-count="5"] .reserve-grid { grid-template-columns: repeat(3,minmax(0,1fr)); }
+.forest-game .reserve-hero { position: relative; display: flex; flex-direction: column; min-width: 0; min-height: 0; padding: .12cqw; overflow: hidden; background: #0d2520; color: #f8ebc9; border: 1px solid #a38c54; border-radius: .25cqw; cursor: pointer; }
+.forest-game .reserve-hero img { flex: 1; min-height: 0; width: 100%; object-fit: cover; object-position: center 14%; }
+.forest-game .reserve-hero b { font: 700 clamp(11px,.88cqw,17px) var(--font-game-title); white-space: nowrap; }
+.forest-game .reserve-hero span { display: block; font-size: clamp(10px,.71cqw,14px); color: #c8e3d0; }
+.forest-game .reserve-hero:hover,.forest-game .reserve-hero.selected { border-color: #c7e6ad; box-shadow: 0 0 .4cqw #89c78655; }
+.forest-game .reserve-hero.dead img { filter: grayscale(.75); }
+.forest-game .reserve-roster p { margin: 0; font-size: clamp(10px,.71cqw,14px); color: #d5d7b9; }
+.forest-game .hd-actions { bottom: .8cqh; width: 16.1cqw; height: auto; max-height: 16cqh; padding: .3cqw; overflow: visible; background: #0c2119e8; }
+.forest-game .hd-actions > .hd-group { max-height: 7.5cqh; overflow-y: auto; }
+.forest-game .hd-bottom { gap: .55cqw; }
+.forest-game .hd-actions .hd-btn,.forest-game .hd-end { display: flex; align-items: center; justify-content: center; gap: .35cqw; min-height: 6.2cqh; padding: .4cqw; border: 2px solid #9a8958; border-radius: .3cqw; color: #f6e6bc; background: linear-gradient(#2e3b31,#19251e); font: 700 clamp(13px,1.03cqw,21px) var(--font-game-title); box-shadow: inset 0 0 0 1px #081a15,0 .2cqh .4cqh #0008; }
+.forest-game .hd-end { flex: 1.4; background: linear-gradient(#176247,#083824); border-color: #b5cb80; }
+.forest-game .hd-end:disabled { background: #26322b; color: #b4bba5; border-color: #5e6a53; opacity: .85; filter: none; }
+.forest-game .hd-end:not(:disabled):hover { filter: brightness(1.15); }
+.forest-game .hd-face.locked { filter: brightness(.86) saturate(.85); }
+.forest-game .hd-face .hd-dead.rsv { background: #11251dde; color: #ead9a8; }
+.forest-game .hd-count { font-size: clamp(11px,.8cqw,16px); }
+.forest-game .hd-count b { font-size: inherit; }
+.forest-game .bd-player-details { display: none; }
+.forest-game .bd-player-meta { flex: 1; }
+.forest-game .bd-team-mana { display: flex; align-items: center; gap: .25cqw; width: 100%; max-width: 15cqw; min-width: 0; margin-top: .3cqh; color: #bdeaff; }
+.forest-game .bd-player-hud.me .bd-team-mana { margin-left: auto; }
+.forest-game .bd-team-mana > .game-icon { width: 1.1cqw; height: 1.55cqw; color: #7ce5ff; filter: drop-shadow(0 0 4px #2b9bff); }
+.forest-game .bd-team-mana-track { position: relative; flex: 1; height: 2.4cqh; border: 1px solid #ac9a65; border-radius: .3cqw; background: #061a30; box-shadow: inset 0 0 0 1px #06131f,0 0 6px #2b8de42b; overflow: hidden; }
+.forest-game .bd-team-mana-track > i { position: absolute; inset: 1px auto 1px 1px; display: block; max-width: calc(100% - 2px); background: linear-gradient(#60d7ff,#1186d5 45%,#1564ba 70%,#3ab7eb); box-shadow: 2px 0 8px #8cedff; transition: width .32s cubic-bezier(.2,.7,.2,1); }
+.forest-game .bd-team-mana-track > span { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: .25cqw; font: 700 clamp(10px,.72cqw,15px) var(--font-game-title); color: #eaf9ff; text-shadow: 0 1px 2px #001123,0 0 3px #001123; white-space: nowrap; }
+.forest-game .bd-team-mana-track b { font-variant-numeric: tabular-nums; }
+.forest-game .bd-duel-hud .bd-bar .bd-team-mana { grid-column: 1 / -1; justify-self: center; max-width: 17cqw; width: 17cqw; margin: .15cqh 0 0; }
+.forest-game .bd-slot[data-move-preview] { outline: 2px solid #a8f1c0; box-shadow: 0 0 15px #8de9b666; }
+.forest-game .bd-slot[data-move-preview]::after { content: attr(data-move-preview); position: absolute; left: 50%; bottom: -1.7cqh; transform: translateX(-50%); z-index: 12; width: max-content; max-width: 15cqw; padding: .25cqh .4cqw; border: 1px solid #adc48d; border-radius: .25cqw; background: #0b291eef; color: #f8e6b6; font: 700 clamp(11px,.85cqw,16px) var(--font-game-title); pointer-events: none; }
+.forest-game .cg-phase-panel { position: absolute; left: 1.1%; top: 78%; width: 16.8%; height: 12.8%; z-index: 9; border: .7cqw solid transparent; border-image: var(--concept-frame) 64 fill stretch; background: #0a241bec; box-sizing: border-box; }
+.forest-game .cg-phase-panel .bd-bar { display: flex; flex-wrap: wrap; align-items: center; align-content: center; justify-content: center; height: 100%; gap: .35cqh .45cqw; font-size: clamp(11px,.9cqw,17px); }
+.forest-game .bd-phase-ribbon { display: grid; grid-template-columns: repeat(4,1fr); gap: .1cqw; flex: 0 0 100%; width: 100%; padding-bottom: .45cqh; }
+.forest-game .bd-phase-ribbon > span { padding: .4cqh .1cqw; border: 1px solid #786b3f; border-radius: .2cqw; background: #0b2019; color: #e5d9ae; font: 700 clamp(10px,.72cqw,14px) var(--font-game-title); text-align: center; }
+.forest-game .bd-phase-ribbon > .active { background: linear-gradient(#f8d97a,#b68b34); color: #1b2619; border-color: #ffe296; box-shadow: 0 0 .35cqw #e3c16a66; }

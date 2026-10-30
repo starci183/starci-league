@@ -13,17 +13,26 @@ import {
     attacksOf, cardActions, cardlessOptions, gameOf, targetable, useCard, type CardView
 } from "./store"
 import {
-    GraveModal, PlayerStrip
+    DeckModal, GraveModal, PlayerHud, PlayerPiles
 } from "./board/Strip"
+import {
+    OpponentHand
+} from "./board/OpponentHand"
+import {
+    inspectionActions
+} from "./ui/inspection"
 import {
     CritIcon, DeadCard, Img, UnitCard, UnitTip, type Float
 } from "./board/UnitCard"
 import {
-    heroName, tr, unitName, type Side
+    heroName, isEn, tr, unitName, type Side
 } from "./board/helpers"
 import {
     inspectedUnit
 } from "./stats/UnitPanel"
+import {
+    useChainAnim
+} from "./chain/anim"
 
 const EXTRA = 5
 const FLOAT_MS = 1100
@@ -72,7 +81,7 @@ function floatsOf(events: cg.GameEvent[]): { unit: string; f: Omit<Float, "id"> 
         } else if (e.t === "attack" && e.cardless) {
             out.push({
                 unit: e.attacker, f: {
-                    kind: "tag", text: "66%"
+                    kind: "tag", text: `${Math.round(cg.RULES.fighterCardlessMult * 100)}%`
                 }
             })
         } else if (e.t === "kill") {
@@ -86,8 +95,19 @@ function floatsOf(events: cg.GameEvent[]): { unit: string; f: Omit<Float, "id"> 
     return out
 }
 
-function TurnBar(p: { view: CardView; me: Side; hint: boolean }) {
+export function TurnBar(p: { view: CardView; me: Side; hint: boolean; busy: boolean }) {
     const { view, me } = p
+    const { log } = useCard()
+    const lastAction = [...log].reverse().find(({ e }) => ["play",
+        "attack",
+        "draw",
+        "drawAuto",
+        "prize",
+        "turnStart"].includes(e.t))?.e
+    const actionPhase = lastAction?.t === "attack" || lastAction?.t === "play" && lastAction.card.id === "basic" ? "Battle" : lastAction?.t === "draw" || lastAction?.t === "drawAuto" ? "Draw" : lastAction?.t === "prize" ? "Reward" : "Skills"
+    const chainAnim = useChainAnim()
+    const shownPhase = chainAnim ? "chain" : view.phase
+    const chainCount = chainAnim?.links.length ?? view.chain?.links.length ?? 0
     const t = tr()
     const spectator = view.you === null
     let label: string
@@ -107,13 +127,26 @@ function TurnBar(p: { view: CardView; me: Side; hint: boolean }) {
     } else {
         label = t.oppTurn
     }
+    if (p.busy && view.phase !== "over") label = isEn() ? "Resolving…" : "Đang giải quyết…"
+    else if (chainAnim && view.phase !== "chain") label = isEn() ? "Chain ended" : "Chuỗi kết thúc"
+    const phases = isEn() ? {
+        blind: "Face-down summons", summon: "Summon", main: "Actions", chain: "Chain", over: "Game over"
+    } : {
+        blind: "Gọi tướng úp", summon: "Triệu hồi", main: "Hành động", chain: "Chuỗi", over: "Kết thúc"
+    }
     return (
-        <div className={`bd-bar ${cls}`}>
-            <span className="bd-round">
+        <div className={`bd-bar ${cls} ${p.busy ? "busy" : ""}`}>
+            <div className="bd-phase-ribbon" aria-label={isEn() ? "Turn sequence" : "Trình tự lượt"}>{["Draw",
+                "Reward",
+                "Skills",
+                "Battle"].map(name => <span key={name} className={view.phase === "main" && name === actionPhase ? "active" : ""}>{name}</span>)}</div>
+            <span className="bd-phase">{phases[shownPhase]}{shownPhase === "chain" ? ` ${chainCount}/${cg.RULES.maxChain}` : ""}</span>
+            <span className="bd-round" title={`${t.turn} ${view.turnNo} · ${view.names[view.active]}`}>
                 {`${t.round} ${view.round}`}
                 <small>{` · ${t.turn} ${view.turnNo}`}</small>
             </span>
             <span className="bd-turn">{label}</span>
+            <span className="bd-active-owner">{view.names[view.active]}</span>
             <span className="bd-hint">{p.hint ? t.targetPick : spectator ? t.spectator : ""}</span>
         </div>
     )
@@ -126,6 +159,8 @@ export function Board() {
         setHover] = useState<Hover | null>(null)
     const [grave,
         setGrave] = useState<Side | null>(null)
+    const [deck,
+        setDeck] = useState<Side | null>(null)
     const [floats,
         setFloats] = useState<FloatRec[]>([])
     const posRef = useRef<Map<string, string>>(new Map())
@@ -202,6 +237,20 @@ export function Board() {
     const selId = inspectedUnit(view,
         snap.inspect)?.id
     const hovered = hover ? view.units[hover.id] : undefined
+    const jumpSelected = targeting && view.players[me].hand?.find(card => card.uid === targeting.source)?.id === "khazix_e"
+    const jumper = jumpSelected ? Object.values(view.units).find(unit => unit.side === me && unit.hero === "khazix" && unit.status === "board") : undefined
+    const prey = jumper && hovered?.side === foe && tg.units.has(hovered.id) ? hovered : undefined
+    const movePreview = (side: Side, lane: number): string | undefined => {
+        if (!jumper || !prey || lane === EXTRA) return undefined
+        if (side === foe && lane === prey.lane) return isEn() ? "Prey" : "Con mồi"
+        if (side !== me) return undefined
+        if (lane === prey.lane) return isEn() ? "Kha’Zix lands here" : "Kha’Zix đáp xuống"
+        if (lane === jumper.lane) {
+            const ally = view.units[view.lanes[me][prey.lane] ?? ""]
+            return ally ? `${unitName(ally)} ${isEn() ? "moves here" : "nhường về đây"}` : isEn() ? "Jump starts here" : "Nhảy từ đây"
+        }
+        return undefined
+    }
     const linked = new Set<string>()
     if (hovered?.token?.ownerId) linked.add(hovered.token.ownerId)
     if (hovered && !hovered.token) for (const s of [me,
@@ -212,7 +261,10 @@ export function Board() {
 
     const click = (side: Side, lane: number, uid: string | null) => {
         if (!picking) {
-            if (uid) cardActions.inspect(uid)
+            if (uid) {
+                inspectionActions.unit(uid)
+                cardActions.inspect(uid)
+            }
             return
         }
         if (uid && tg.units.has(uid)) return cardActions.chooseUnit(uid)
@@ -259,7 +311,8 @@ export function Board() {
             })() : undefined
             const soaked = !u.token && !!view.extra[side] && view.units[view.extra[side]!]?.token?.ownerId === u.id
             return (
-                <div key={key} className={`bd-slot occupied ${lane === EXTRA ? "extra" : ""}`} data-lane={lane + 1}>
+                <div key={key} className={`bd-slot occupied ${lane === EXTRA ? "extra" : ""}`} data-lane={lane + 1} data-move-preview={movePreview(side,
+                    lane)}>
                     <UnitCard
                         u={u}
                         g={g}
@@ -270,9 +323,12 @@ export function Board() {
                         ownerName={owner ? unitName(owner) : undefined}
                         soaked={soaked}
                         cardless={cardless}
-                        onEnter={(e) => setHover({
-                            id: u.id, x: e.clientX, y: e.clientY
-                        })}
+                        onEnter={(e) => {
+                            inspectionActions.unit(u.id)
+                            setHover({
+                                id: u.id, x: e.clientX, y: e.clientY
+                            })
+                        }}
                         onMove={(e) => setHover({
                             id: u.id, x: e.clientX, y: e.clientY
                         })}
@@ -288,7 +344,10 @@ export function Board() {
             return (
                 <div key={key} className={`bd-slot occupied dead ${lane === EXTRA ? "extra" : ""}`} data-lane={lane + 1}>
                     <DeadCard u={u} round={view.round} onClick={() => {
-                        if (!picking) cardActions.inspect(u.id)
+                        if (!picking) {
+                            inspectionActions.unit(u.id)
+                            cardActions.inspect(u.id)
+                        }
                     }} />
                 </div>
             )
@@ -316,14 +375,15 @@ export function Board() {
         }
         if (!open) {
             return (
-                <div key={key} className="bd-slot closed">
+                <div key={key} className="bd-slot closed" data-lane={lane + 1}>
                     <span className="bd-lock" />
                     <span className="bd-slot-sub">{`${t.opensRound} ${view.rules.laneOpenRound[lane]}`}</span>
                 </div>
             )
         }
         return (
-            <div key={key} className={`bd-slot empty ${state}`} data-lane={lane + 1} onClick={() => click(side,
+            <div key={key} className={`bd-slot empty ${state}`} data-lane={lane + 1} data-move-preview={movePreview(side,
+                lane)} onClick={() => click(side,
                 lane,
                 null)}>
                 <span className="bd-slot-label">{`${t.lane} ${lane + 1}`}</span>
@@ -353,27 +413,34 @@ export function Board() {
             }
         }}
         >
-            <TurnBar view={view} me={me} hint={picking} />
-            <PlayerStrip side={foe} view={view} isMe={false} onGrave={() => setGrave(foe)} />
-            {view.phase === "blind" && view.blind?.ready[foe] ? (
-                <div className="bd-back picked bd-foe-ready">
-                    <b>?</b>
-                    {tr().foeLocked}
-                </div>
-            ) : null}
-            {row(foe)}
-            <div className="bd-mid">
-                {[0,
-                    1,
-                    2,
-                    3,
-                    4].map((l) => <span key={l} className={view.openLanes.includes(l) ? "open" : ""}>{l + 1}</span>)}
-                <span className="x">+</span>
+            <div className="bd-duel-hud">
+                <PlayerHud side={foe} view={view} isMe={false} />
+                <div className="bd-hud-spacer" aria-hidden="true" />
+                <PlayerHud side={me} view={view} isMe />
             </div>
-            {row(me)}
-            <PlayerStrip side={me} view={view} isMe onGrave={() => setGrave(me)} />
+            <OpponentHand view={view} />
+            <div className="bd-board-body">
+                <div className="bd-playfield">
+                    {view.phase === "blind" && view.blind?.ready[foe] ? <div className="bd-back picked bd-foe-ready"><b>?</b>{tr().foeLocked}</div> : null}
+                    {row(foe)}
+                    <div className="bd-mid">
+                        {[0,
+                            1,
+                            2,
+                            3,
+                            4].map((lane) => <span key={lane} className={view.openLanes.includes(lane) ? "open" : ""}>{lane + 1}</span>)}
+                        <span className="x">+</span>
+                    </div>
+                    {row(me)}
+                </div>
+                <aside className="bd-deck-rail" aria-label={isEn() ? "Decks, graveyards and prizes" : "Bộ bài, mộ và lá thưởng"}>
+                    <PlayerPiles side={foe} view={view} g={g} isMe={false} onGrave={() => setGrave(foe)} onDeck={() => setDeck(foe)} />
+                    <PlayerPiles side={me} view={view} g={g} isMe onGrave={() => setGrave(me)} onDeck={() => setDeck(me)} />
+                </aside>
+            </div>
             {hover && hovered ? <UnitTip u={hovered} g={g} turnNo={view.turnNo} x={hover.x} y={hover.y} /> : null}
             {grave ? <GraveModal side={grave} view={view} g={g} onClose={() => setGrave(null)} /> : null}
+            {deck ? <DeckModal side={deck} view={view} g={g} onClose={() => setDeck(null)} /> : null}
         </section>
     )
 }

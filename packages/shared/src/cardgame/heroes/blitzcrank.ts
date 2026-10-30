@@ -1,4 +1,4 @@
-// Blitzcrank (Đỡ đòn, phép): máu 520 · AD 80 · AP gốc 0 · giáp/kháng 34/33.
+// Blitzcrank (Đỡ đòn, phép): máu 490 · AD 64 · AP gốc 0 · giáp/kháng 34/33.
 // CHẤT: "Thò tay vào bài địch": cướp chiêu của tướng nào thì tướng đó lãnh đòn.
 // Nội tại: mỗi lá cướp được Blitz nhận Khiên; lá chung Blitz giữ dùng, lá chiêu địch biến thành 1 lá Q/E ngẫu nhiên của tướng phe bạn đang sống trên sân.
 // Q cướp 1 lá ngẫu nhiên (chọn lá nếu tay địch đang lộ), lá chiêu thì chủ lá nhận sát thương. E (Quick) huỷ + giật chiêu địch, kẻ tung bị Choáng. R lộ tay địch, tướng có chiêu trên tay nhận sát thương + Choáng.
@@ -12,10 +12,20 @@ import {
 import {
     otherSide, type Card, type PlayArgs, type ReactFx, type SkillKey, type Unit
 } from "../types"
+import {
+    ccApply, ccDuration
+} from "./braum"
 
-export const F_SHIELD = "33 + 10% AD + 15% AP"
-export const F_Q = "90 + 50% AD + 60% AP"
-export const F_R = "120 + 50% AD + 80% AP"
+export const F_SHIELD = "35 + 15% AD + 15% AP"
+export const F_Q = "90 + 65% AD + 60% AP"
+export const F_R = "120 + 65% AD + 80% AP"
+/** E: Choáng 1 + 0,15% AP đơn vị; R: Choáng 1 + 0,1% AP đơn vị (law.md §4, neo phe Blitzcrank) */
+export const E_STUN = {
+    base: 1, ap: 0.0015
+}
+export const R_STUN = {
+    base: 1, ap: 0.001
+}
 
 /** ReactFx kèm id tướng tung chiêu bị giật: Choáng nó SAU khi lá bị giật (Choáng trước thì mắt xích bên dưới "tan" và lá không bị giật) */
 type BlitzFx = ReactFx & { blitzStun?: string }
@@ -23,25 +33,25 @@ type BlitzFx = ReactFx & { blitzStun?: string }
 /** Lá chiêu của một tướng (kể cả Bóng sao chép chiêu) */
 const isSkillCard = (c: Card) => c.kind === "skill" || !!c.copyOf
 
-/** Choáng 1 lượt tướng u: nếu đang là lượt của nó thì tính cả lượt kế tiếp (Choáng đủ 1 lượt đầy đủ) */
-function stun(g: Game, u: Unit | undefined) {
-    if (!u || u.status !== "board" || u.token) return
-    g.status(u,
+/** Choáng theo đơn vị thời gian của Blitzcrank */
+function stun(g: Game, me: Unit, u: Unit | undefined, o: { base: number; ap: number }, label: string) {
+    ccApply(g,
+        me,
+        u,
         "stun",
-        1,
-        {
-            until: g.turnsUntil(u.side,
-                g.s.active === u.side ? 2 : 1)
-        })
+        ccDuration(g,
+            me,
+            o),
+        label)
 }
 
 
 export default defineHero({
-    id: "blitzcrank", name: "Blitzcrank", role: "tank", damage: "magic", hp: 520, atk: 80, armor: 34, mr: 33,
+    id: "blitzcrank", name: "Blitzcrank", role: "tank", damage: "magic", hp: 490, atk: 64, armor: 34, mr: 33,
     desc: "Người máy cướp bài: thò tay vào bài địch, cướp chiêu của tướng nào thì tướng đó lãnh đòn, rồi biến chiêu cướp được thành chiêu của đội mình.",
     passive: {
         name: "Bàn Tay Sắt",
-        desc: `Mỗi lá Blitzcrank Cướp Bài được: Blitzcrank nhận Khiên {${F_SHIELD}}. Lá chung về tay bạn; lá chiêu của tướng địch biến thành 1 lá Q hoặc E ngẫu nhiên của 1 tướng mình đang trên sân.`,
+        desc: `Mỗi lần cướp thành công 1 lá, Blitzcrank nhận {${F_SHIELD}} Khiên trắng. Lá chung về tay; chiêu thường đổi thành 1 Q/E ngẫu nhiên của một đồng minh sống trên bàn. Chiêu tạm biến mất, không tạo bài thật; cướp thành công vẫn cho Khiên.`,
     },
     hooks: {
         onSteal(g, me, d) {
@@ -50,10 +60,14 @@ export default defineHero({
             const fx = g.s.fx as BlitzFx | undefined
             if (fx?.blitzStun) {
                 stun(g,
-                    g.unit(fx.blitzStun))
+                    me,
+                    g.unit(fx.blitzStun),
+                    E_STUN,
+                    "Blitzcrank E Choáng")
                 fx.blitzStun = undefined
                 const owner = g.pick(g.heroes(me.side))
-                if (isSkillCard(d.card) && d.card.hero && owner) g.giveSkillToHand(me.side,
+                // chiêu tạm (mage) biến mất, không đổi thành bài thật
+                if (isSkillCard(d.card) && d.card.hero && !d.card.temp && owner) g.giveSkillToHand(me.side,
                     owner.hero,
                     g.pick<SkillKey>(["Q",
                         "E"])!,
@@ -67,8 +81,8 @@ export default defineHero({
     },
     skills: {
         Q: {
-            key: "Q", name: "Bàn Tay Hoả Tiễn", target: "none",
-            desc: `Đối thủ có ít nhất 1 lá trên tay; Cướp Bài 1 lá ngẫu nhiên trên tay đối thủ (đang Xem Tay thì chọn lá). Nếu là lá chiêu: tướng chủ lá nhận {${F_Q}} sát thương phép; tướng đó đã chết hoặc chưa ra sân thì sát thương rơi vào 1 tướng địch còn sống ngẫu nhiên.`,
+            key: "Q", mana: 15, name: "Bàn Tay Hoả Tiễn", target: "none",
+            desc: `Đối thủ có bài: cướp 1 lá ngẫu nhiên; khi Xem Tay được chọn đúng uid. Nếu là chiêu, chủ lá địch hợp lệ nhận {${F_Q}} sát thương phép; khi chủ không hợp lệ, giữ fallback một tướng địch hợp lệ ngẫu nhiên. Không kéo tướng hay đổi ô.`,
             canPlay: (c) => c.g.player(otherSide(c.side)).hand.length > 0,
             options(c) {
                 const foe = otherSide(c.side)
@@ -114,9 +128,9 @@ export default defineHero({
             },
         },
         E: {
-            key: "E", name: "Tay Giật", target: "none", quick: true, chainOnly: true,
-            desc: "Quick, Chỉ Nối Chuỗi. Khi địch dùng 1 lá chiêu: Vô Hiệu lá đó rồi Cướp Bài nó; tướng tung chiêu bị Choáng 1 lượt.",
-            quickWhen: (c) => c.trigger.side !== c.side && !!c.trigger.card && isSkillCard(c.trigger.card),
+            key: "E", mana: 30, name: "Tay Giật", target: "none", quick: true, chainOnly: true,
+            desc: "Khi địch dùng một lá chiêu (mắt xích trên cùng), bạn có thể dùng lá này: hủy rồi cướp lá đó; sau giao dịch cướp, thử Choáng người tung 1 + 0,15% AP đơn vị. Cướp/hủy được xử lý trước kiểm tra mắt xích nguồn đã bị Choáng; không tự mở hành động.",
+            quickWhen: (c) => c.trigger.side !== c.side && c.trigger.kind === "skill" && !!c.trigger.card && isSkillCard(c.trigger.card),
             resolve(c) {
                 const fx = c.g.chainFx() as BlitzFx
                 fx.cancel = true
@@ -125,8 +139,8 @@ export default defineHero({
             },
         },
         R: {
-            key: "R", name: "Trường Điện Từ", target: "none",
-            desc: `Xem Tay tới hết lượt; mọi tướng địch có lá chiêu của mình trên tay đối thủ nhận {${F_R}} sát thương phép và bị Choáng 1 lượt.`,
+            key: "R", mana: 40, name: "Trường Điện Từ", target: "none",
+            desc: `Lộ tay địch tới hết lượt hiện tại. Mỗi tướng địch hợp lệ có ít nhất một lá chiêu thuộc mình trong tay đó nhận {${F_R}} sát thương phép và Choáng 1 + 0,1% AP đơn vị; mỗi tướng chỉ chịu một lần từ cùng lá R.`,
             resolve(c) {
                 const g = c.g
                 const foe = otherSide(c.side)
@@ -143,7 +157,10 @@ export default defineHero({
                             tag: "skill"
                         })
                     stun(g,
-                        t)
+                        c.self,
+                        t,
+                        R_STUN,
+                        `Blitzcrank R (${g.nameOf(t)})`)
                 }
             },
         },

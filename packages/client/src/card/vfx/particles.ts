@@ -17,7 +17,7 @@
 //   line(layer, a, b, color, width, ms): Promise    -> tia sáng a->b mờ dần
 //   particleCount()                                 -> số hạt đang sống (trần 1500; vượt trần thì burst/stream tự bỏ bớt hạt)
 // Mọi sprite do helper tạo đều được destroy khi xong; texture cache dùng chung, không destroy.
-// Tween/hạt chạy trên Ticker.shared (VfxCanvas tự dừng ticker khi không còn hiệu ứng nào).
+// Tween/hạt tự huỷ callback khi xong hoặc khi chủ bị huỷ; không dừng Ticker.shared của ứng dụng khác.
 import {
     Container, Sprite, Texture, Ticker
 } from "pixi.js"
@@ -30,6 +30,11 @@ export type TexKind = "circle" | "glow" | "spark" | "ring" | "line" | "star"
 export const MAX_PARTICLES = 1500
 let live = 0
 export const particleCount = () => live
+const pending = new Set<() => void>()
+
+export function clearParticles() {
+    for (const cancel of [...pending]) cancel()
+}
 
 export const rand = (a: number, b: number) => a + Math.random() * (b - a)
 export const lerp = (a: number, b: number, t: number) => a + (b - a) * t
@@ -177,9 +182,19 @@ export function makeSprite(layer: Container, kind: TexKind, x: number, y: number
 }
 
 // ---------------- tween ----------------
-export function tween(ms: number, fn: (t: number) => void, easing: (t: number) => number = ease.linear): Promise<void> {
+export function tween(ms: number, fn: (t: number) => void, easing: (t: number) => number = ease.linear, owner?: Container): Promise<void> {
     return new Promise((resolve) => {
         let el = 0
+        let done = false
+        const finish = () => {
+            if (done) return
+            done = true
+            Ticker.shared.remove(tick)
+            owner?.off("destroyed",
+                finish)
+            pending.delete(finish)
+            resolve()
+        }
         const tick = (tk: Ticker) => {
             el += tk.deltaMS
             const t = Math.min(1,
@@ -188,13 +203,15 @@ export function tween(ms: number, fn: (t: number) => void, easing: (t: number) =
             try {
                 fn(easing(t))
             } catch {
-                el = ms
+                finish()
+                return
             }
-            if (t >= 1) {
-                Ticker.shared.remove(tick)
-                resolve()
-            }
+            if (t >= 1) finish()
         }
+        if (owner?.destroyed) { resolve(); return }
+        pending.add(finish)
+        owner?.once("destroyed",
+            finish)
         Ticker.shared.add(tick)
     })
 }
@@ -220,7 +237,7 @@ export interface BurstOpts extends ParticleOpts { count: number }
 interface P { s: Sprite; vx: number; vy: number; age: number; life: number; s0: number; s1: number; a0: number; a1: number; spin: number }
 
 function spawnP(layer: Container, pt: Pt, o: ParticleOpts, list: P[]) {
-    if (live >= MAX_PARTICLES) return
+    if (layer.destroyed || live >= MAX_PARTICLES) return
     const cols = Array.isArray(o.color) ? o.color : [o.color]
     const [sp0,
         sp1] = o.speed ?? [60,
@@ -269,20 +286,35 @@ function spawnP(layer: Container, pt: Pt, o: ParticleOpts, list: P[]) {
     })
 }
 
-function runParticles(list: P[], o: ParticleOpts, more: (dtMs: number) => boolean): Promise<void> {
+function runParticles(layer: Container, list: P[], o: ParticleOpts, more: (dtMs: number) => boolean): Promise<void> {
     return new Promise((resolve) => {
+        let done = false
+        const finish = () => {
+            if (done) return
+            done = true
+            Ticker.shared.remove(tick)
+            layer.off("destroyed",
+                finish)
+            pending.delete(finish)
+            for (const p of list) if (!p.s.destroyed) p.s.destroy()
+            live = Math.max(0,
+                live - list.length)
+            list.length = 0
+            resolve()
+        }
         const g = o.gravity ?? 0
         const drag = o.drag ?? 0
         const asp = ASPECT[o.kind ?? "circle"]
         const tick = (tk: Ticker) => {
+            if (layer.destroyed) { finish(); return }
             const dt = tk.deltaMS / 1000
             const going = more(tk.deltaMS)
             for (let i = list.length - 1; i >= 0; i--) {
                 const p = list[i]
                 p.age += tk.deltaMS
                 const t = p.age / p.life
-                if (t >= 1) {
-                    p.s.destroy()
+                if (t >= 1 || p.s.destroyed) {
+                    if (!p.s.destroyed) p.s.destroy()
                     list.splice(i,
                         1)
                     live--
@@ -310,10 +342,13 @@ function runParticles(list: P[], o: ParticleOpts, more: (dtMs: number) => boolea
                     t)
             }
             if (!list.length && !going) {
-                Ticker.shared.remove(tick)
-                resolve()
+                finish()
             }
         }
+        if (layer.destroyed) { finish(); return }
+        pending.add(finish)
+        layer.once("destroyed",
+            finish)
         Ticker.shared.add(tick)
     })
 }
@@ -330,7 +365,8 @@ export function burst(layer: Container, pt: Pt, o: BurstOpts): Promise<void> {
             list)
     }
     if (!list.length) return Promise.resolve()
-    return runParticles(list,
+    return runParticles(layer,
+        list,
         o,
         () => false)
 }
@@ -352,7 +388,8 @@ export function stream(layer: Container, getPt: () => Pt, ms: number, perSec: nu
         }
         return el < ms
     }
-    return runParticles(list,
+    return runParticles(layer,
+        list,
         o,
         more)
 }
@@ -374,8 +411,9 @@ export async function flash(layer: Container, pt: Pt, color: number, size: numbe
             s.height = z
             s.alpha = 1 - t
         },
-        ease.out)
-    s.destroy()
+        ease.out,
+        layer)
+    if (!s.destroyed) s.destroy()
 }
 
 export async function ring(layer: Container, pt: Pt, color: number, from: number, to: number, ms = 400): Promise<void> {
@@ -394,8 +432,9 @@ export async function ring(layer: Container, pt: Pt, color: number, from: number
             s.height = z
             s.alpha = 1 - t
         },
-        ease.out)
-    s.destroy()
+        ease.out,
+        layer)
+    if (!s.destroyed) s.destroy()
 }
 
 export async function line(layer: Container, a: Pt, b: Pt, color: number, width: number, ms = 220): Promise<void> {
@@ -414,6 +453,7 @@ export async function line(layer: Container, a: Pt, b: Pt, color: number, width:
             s.alpha = 1 - t
             s.height = width * (1 - t * .6)
         },
-        ease.out)
-    s.destroy()
+        ease.out,
+        layer)
+    if (!s.destroyed) s.destroy()
 }

@@ -69,3 +69,7 @@
 .cs-tip { display: none; position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%); width: 240px; z-index: 40; padding: 8px 10px; text-align: left; font-size: 12px; line-height: 1.45; color: #e8dfc8; background: rgba(8, 12, 18, .97); border: 1px solid #c8aa6e; border-radius: 6px; box-shadow: 0 6px 18px rgba(0, 0, 0, .8); pointer-events: none; white-space: normal; }
 .cs-tip b { display: block; margin-bottom: 4px; color: #f0d58a; font-size: 13px; }
 .cs-btn-card:hover .cs-tip { display: block; }
+
+/* Lá bị vô hiệu vẫn giữ số mắt xích để đọc đúng thứ tự xử lý. */
+.cs-link.cancelled .cs-face { filter: grayscale(.8) brightness(.55); }
+.cs-cancelled { position: absolute; z-index: 5; top: 43%; left: -12%; width: 124%; padding: 5px 2px; border: 2px solid #eb7971; background: #511c27ee; color: #ffe5de; font-size: 14px; text-align: center; text-transform: uppercase; transform: rotate(-13deg); box-shadow: 0 0 14px #e3484266; }

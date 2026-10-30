@@ -124,7 +124,9 @@ cg.defineHero({
     skills: {
         ...filler,
         Q: {
-            key: "Q", name: "vanish", desc: "-", target: "self", quick: true, resolve: (c) => { c.g.stealth(c.self,
+            key: "Q", name: "vanish", desc: "Quick khi địch chỉ định tướng này.", target: "self", quick: true,
+            quickWhen: (c) => !!c.trigger.single && c.trigger.target === c.self.id,
+            resolve: (c) => { c.g.stealth(c.self,
                 1,
                 "A") }
         },
@@ -370,7 +372,7 @@ test("Đòn đánh thường: mọi vai 1× AD, Sát thủ 1.25× AD",
             "attack"),
         100)
     })
-test("Quà tặng: từ lượt thứ 2, mỗi RULES.freeBasicEvery lượt +1 Đánh Thường; mỗi RULES.freeItemEvery lượt +1 mảnh đồ; mỗi RULES.freeGoldEvery lượt +1 Vàng; lượt freeSkillOffset + k·freeSkillEvery +1 lá chiêu; không lấy từ bộ bài",
+test("Quà tặng (chốt 31/10): từ lượt thứ 2 mỗi lượt +1 Đánh Thường; cứ RULES.freeLootEvery lượt +1 lá mảnh đồ (70%) hoặc Vàng (30%); không còn quà lá chiêu; không lấy từ bộ bài",
     () => {
         let s = skipBlind({
             s: cg.newGame(SEED,
@@ -396,10 +398,8 @@ test("Quà tặng: từ lượt thứ 2, mỗi RULES.freeBasicEvery lượt +1 �
             free.join(","))
         assert.ok(free.includes("A:item") && free.includes("B:item"),
             free.join(","))
-        assert.ok(free.includes("A:gold") && free.includes("B:gold"),
-            free.join(","))
-        assert.ok(free.includes("A:skill") && free.includes("B:skill"),
-            free.join(","))
+        assert.ok(!free.some((x) => x.endsWith(":skill")),
+            "đã bỏ quà lá chiêu")
         assert.ok(log.some((t) => /free/i.test(t)),
             "có dòng nhật ký")
         assert.ok(lastDeck > 0)
@@ -421,13 +421,15 @@ test("Quà tặng: từ lượt thứ 2, mỗi RULES.freeBasicEvery lượt +1 �
             const n = t.ownTurns![nxt]!
             const got = evs(r.ev,
                 "freeCard").filter((e) => e.side === nxt)
-            const kinds = got.map((e) => e.kind).sort().join()
-            assert.equal(kinds,
-                [(n > 1 && n % cg.RULES.freeBasicEvery === 0) || (n === 1 && cg.RULES.secondFirstBasic > 0 && nxt !== "A") ? "basic" : "",
-                    n % cg.RULES.freeItemEvery === 0 ? "item" : "",
-                    cg.RULES.freeGoldEvery > 0 && n % cg.RULES.freeGoldEvery === 0 ? "gold" : "",
-                    cg.RULES.freeSkillEvery > 0 && n >= cg.RULES.freeSkillOffset && (n - cg.RULES.freeSkillOffset) % cg.RULES.freeSkillEvery === 0 && gm(t).heroes(nxt).length > 0 ? "skill" : ""].filter(Boolean).sort().join(),
-                `lượt thứ ${n} của ${nxt}`)
+            const kinds = got.map((e) => e.kind)
+            const basic = (n > 1 && n % cg.RULES.freeBasicEvery === 0) || (n === 1 && cg.RULES.secondFirstBasic > 0 && nxt !== "A")
+            assert.equal(kinds.filter((k) => k === "basic").length,
+                basic ? 1 : 0,
+                `Đánh Thường lượt thứ ${n} của ${nxt}`)
+            assert.equal(kinds.filter((k) => k === "item" || k === "gold").length,
+                n > 0 && n % cg.RULES.freeLootEvery === 0 ? 1 : 0,
+                `quà đồ/Vàng lượt thứ ${n} của ${nxt}`)
+            assert.ok(!kinds.includes("skill"))
             counts[nxt] = (counts[nxt] ?? 0) + got.length
             void deckBefore
         }
@@ -510,44 +512,79 @@ test("Tháo đồ: lá đồ về tay (mảnh -> 'item', món ghép -> 'legend')
                 t: "unequip", side: "A", unit: "A:v3_fighter", item: "khong_co"
             }))
     })
-test("Ô phụ: chỉ Xạ thủ và Đấu sĩ đánh được token; Đỡ đòn/Sát thủ/Pháp sư thì không; kỹ năng không nhắm token",
+test("Ô phụ: mọi vai đánh được bất kể đường; hành động hợp lệ thực sự gây sát thương",
+    () => {
+        for (const hero of ["v3_fighter",
+            "v3_mark",
+            "v3_tank",
+            "v3_assassin",
+            "v3_mage",
+            "v3_sup"]) {
+            const s = mk({
+                A: {
+                    [hero]: 4
+                }, B: {
+                    v3_sup: 0, v3_tank: 1
+                }
+            })
+            const tok = gm(s).summonToken("B",
+                {
+                    id: "keg", name: "Keg", hp: 1000
+                })
+            const card = give(s,
+                "A",
+                sup(s,
+                    "basic"))
+            const actions = legal(s,
+                "A")
+            const hit = actions.find((a) => a.t === "play" && a.uid === card.uid && a.args?.actor === `A:${hero}` && a.args?.target === tok.id)
+            assert.ok(hit,
+                `${hero}: được đánh ô phụ dù đường đối diện trống và địch có Đỡ đòn`)
+            const out = act(s,
+                hit)
+            assert.ok(out.ev.some((e) => e.t === "damage" && e.target === tok.id),
+                `${hero}: action phải đánh trúng token thật`)
+            assert.ok(out.s.units[tok.id].hp < tok.hp)
+            if (hero === "v3_fighter") assert.ok(actions.some((a) => a.t === "attack" && a.cardless && a.actor === `A:${hero}` && a.target === tok.id))
+        }
+    })
+
+test("Ô phụ: quyền đánh của mọi vai vẫn tôn trọng mục tiêu không thể chọn và phe địch",
     () => {
         const s = mk({
             A: {
-                v3_fighter: 0, v3_mark: 1, v3_tank: 2, v3_assassin: 3, v3_mage: 4
+                v3_mage: 4
             }, B: {
                 v3_sup: 0
             }
         })
-        gm(s).summonToken("B",
+        const g = gm(s)
+        const enemy = g.summonToken("B",
             {
-                id: "keg", name: "Keg", hp: 100
+                id: "keg", name: "Keg", hp: 1000
             })
-        const tok = s.extra.B!
-        const can = (hero: string) => cg.attackTargets(gm(s),
+        const ally = g.summonToken("A",
+            {
+                id: "keg", name: "Keg", hp: 1000
+            })
+        const targets = () => cg.attackTargets(g,
             u(s,
                 "A",
-                hero),
-            false).some((t) => t.id === tok)
-        assert.equal(can("v3_fighter"),
-            true)
-        assert.equal(can("v3_mark"),
-            true)
-        assert.equal(can("v3_tank"),
-            false)
-        assert.equal(can("v3_assassin"),
-            false)
-        assert.equal(can("v3_mage"),
-            false)
-        const c = give(s,
-            "A",
-            sup(s,
-                "basic"))
-        const plays = legal(s,
-            "A").filter((a) => a.t === "play" && a.uid === c.uid && a.args?.target === tok)
-        assert.ok(plays.some((a) => a.t === "play" && a.args?.actor === "A:v3_fighter"))
-        assert.ok(!plays.some((a) => a.t === "play" && a.args?.actor === "A:v3_tank"))
+                "v3_mage"),
+            true).map((x) => x.id)
+        assert.ok(targets().includes(enemy.id))
+        assert.ok(!targets().includes(ally.id))
+        g.status(enemy,
+            "stasis",
+            1)
+        assert.ok(!targets().includes(enemy.id))
+        delete enemy.statuses.stasis
+        g.status(enemy,
+            "stealth",
+            1)
+        assert.ok(!targets().includes(enemy.id))
     })
+
 test("AP gốc = 0 cho MỌI tướng (luật chủ 30/10): kể cả HeroDef khai báo ap; AP chỉ đến từ đồ",
     () => {
         for (const h of cg.allHeroes()) assert.equal(h.ap ?? 0,
@@ -1287,7 +1324,7 @@ test("Nảy đồng minh (bounceAllies): fn gọi 1 + N lần, chỉ lên đồn
         for (let i = 1; i < same.length; i++) assert.notEqual(same[i],
             same[i - 1])
     })
-test("Di chuyển: faceEnemy/swapWith/moveTo trả boolean; tướng chết giữ đường chặn việc đổi",
+test("Di chuyển: faceEnemy/swapWith/moveTo trả boolean; bàn đầy: đổi chỗ với ô của tướng chết dời ô giữ chỗ của nó",
     () => {
         const s = mk({
             A: {
@@ -1328,15 +1365,29 @@ test("Di chuyển: faceEnemy/swapWith/moveTo trả boolean; tướng chết gi�
             "A",
             "v3_fighter")
         f.status = "dead"
+        const cl = c.lane, fl = f.lane
         assert.equal(g.moveTo(c,
-            f.lane),
-        false,
-        "đường giữ cho tướng chết")
+            fl),
+        true,
+        "bàn đầy: hoán đổi với ô giữ cho tướng chết")
+        assert.equal(c.lane,
+            fl)
+        assert.equal(f.lane,
+            cl,
+            "tướng chết bị dời theo ô giữ chỗ")
+        assert.equal(f.homeLane,
+            cl,
+            "hồi sinh tại ô mới")
+        assert.equal(f.status,
+            "dead",
+            "không hồi sinh khi bị dời")
         assert.equal(g.canFace(c,
             u(s,
                 "B",
                 "v3_sup")),
-        c.lane !== 1 && f.lane !== 1)
+        c.lane !== u(s,
+            "B",
+            "v3_sup").lane)
     })
 test("Cướp và đổi (stealCard convert): lá chiêu địch bị đốt, người cướp nhận Q/E ngẫu nhiên của tướng mình đang sống",
     () => {
@@ -1720,15 +1771,12 @@ test("Lá tạm tốn mana như lá thật và đánh được; đánh xong bi�
         }))
         const card = tempsOf(s,
             "A")[0]
-        const mage = u(s,
-            "A",
-            "v3_mage2")
-        const before = mage.mana!
+        const before = s.teamMana.A
         const graveBefore = s.players.A.grave.length
         const r = play(s,
             "A",
             card)
-        assert.equal(before - r.s.units["A:v3_mage2"].mana!,
+        assert.equal(before - r.s.teamMana.A,
             30)
         assert.equal(r.s.players.A.grave.length,
             graveBefore,
@@ -1792,6 +1840,261 @@ test("Lá tạm không tính vào giới hạn tay: tay 10 lá vẫn nhận lá 
         assert.ok(!legal(s4,
             "A").some((a) => a.t === "discard" && a.uid === tmp.uid),
         "không được Bỏ vào mộ lá tạm")
+    })
+
+// ======================================================================
+G("Luật chung bàn đầy 31/10: Tốc Đánh, khống chế lẻ, cứu chết, sát thương cộng thêm")
+// ======================================================================
+let saverCalls = 0
+cg.defineHero({
+    id: "v3_saver", name: "v3_saver", role: "support", ...base, skills: filler,
+    hooks: {
+        onLethal(g, me, d) { saverCalls++; if (d.target.side === me.side) g.surviveWith(d.target,
+            1) },
+    },
+})
+test("Tốc Đánh: 100 = đúng 1 đòn, không tung xác suất; 250 = 2 đòn + 50% đòn thứ 3, chốt một lần mỗi hành động",
+    () => {
+        const s = mk({
+            A: {
+                v3_fighter: 2
+            }, B: {
+                v3_tank: 2
+            }
+        })
+        const g = gm(s)
+        const a = u(s,
+                "A",
+                "v3_fighter"), t = u(s,
+                "B",
+                "v3_tank")
+        let rolls = 0
+        g.rand = () => { rolls++; return 0.4 }
+        assert.equal(g.attackSpeed(a),
+            100)
+        assert.equal(g.attackAction(a,
+            t).length,
+        1)
+        assert.equal(rolls,
+            0,
+            "100 Tốc Đánh không tốn lượt tung")
+        g.status(a,
+            "attack_speed",
+            2,
+            {
+                v: 150
+            })
+        assert.equal(g.attackSpeed(a),
+            250)
+        const hits = g.attackAction(a,
+            t)
+        assert.equal(hits.length,
+            3,
+            "0,4 < 0,5: thêm đòn thứ 3")
+        assert.deepEqual(hits.map((h) => h.hitIndex),
+            [0,
+                1,
+                2])
+        assert.ok(hits.every((h) => h.hits === 3 && h.actionId === hits[0].actionId))
+        g.rand = () => 0.6
+        assert.equal(g.attackAction(a,
+            t).length,
+        2)
+    })
+test("Khống chế lẻ: Choáng 1,5 = chắc chắn 1 đơn vị + 50% thêm 1; 0,75 có thể trượt hẳn; tung 1 lần",
+    () => {
+        const s = mk({
+            A: {
+                v3_fighter: 2
+            }, B: {
+                v3_tank: 2
+            }
+        })
+        const g = gm(s)
+        const t = u(s,
+            "B",
+            "v3_tank")
+        g.rand = () => 0.3
+        g.status(t,
+            "stun",
+            1.5)
+        assert.equal(t.statuses.stun.until,
+            g.turnsUntil("B",
+                2))
+        g.removeStatus(t,
+            "stun")
+        g.rand = () => 0.7
+        g.status(t,
+            "stun",
+            1.5)
+        assert.equal(t.statuses.stun.until,
+            g.turnsUntil("B",
+                1))
+        g.removeStatus(t,
+            "stun")
+        g.rand = () => 0.9
+        g.status(t,
+            "stun",
+            0.75)
+        assert.equal(t.statuses.stun,
+            undefined,
+            "0,75 trượt khi tung 0,9")
+    })
+test("Sát thương cộng thêm của đòn (buff, nội tại, proc) không tự chí mạng",
+    () => {
+        const s = mk({
+            A: {
+                v3_fighter: 2
+            }, B: {
+                v3_tank: 2
+            }
+        })
+        const g = gm(s)
+        const a = u(s,
+                "A",
+                "v3_fighter"), t = u(s,
+                "B",
+                "v3_tank")
+        g.status(a,
+            "alwaysCrit",
+            1)
+        a.nextAttack = [{
+            bonusRaw: 50, bonusKind: "true"
+        } as cg.NextAttackBuff]
+        const r = g.attack(a,
+            t)!
+        assert.equal(r.crit,
+            true)
+        const dmg = g.events.filter((e) => e.t === "damage" && e.target === t.id) as Extract<cg.GameEvent, { t: "damage" }>[]
+        assert.equal(dmg.length,
+            2)
+        assert.equal(dmg[0].amount,
+            Math.round(100 * cg.RULES.critBase))
+        assert.equal(dmg[1].amount,
+            50,
+            "phần cộng thêm giữ nguyên")
+    })
+test("Cứu chết theo thứ tự: nguồn đầu tiên cứu được thì dừng, chỉ nguồn đó bị tiêu",
+    () => {
+        const s = mk({
+            A: {
+                v3_fighter: 2, v3_saver: 1
+            }, B: {
+                v3_tank: 2
+            }
+        })
+        const g = gm(s)
+        const a = u(s,
+            "A",
+            "v3_fighter")
+        g.equip(a,
+            "giap_thien_than")
+        saverCalls = 0
+        g.damage(undefined,
+            a,
+            a.hp + 500,
+            "true")
+        assert.equal(a.status,
+            "board")
+        assert.equal(a.stacks["item:giap_thien_than"],
+            0,
+            "Giáp Thiên Thần (hạng cao hơn) được dùng")
+        assert.equal(saverCalls,
+            0,
+            "nguồn sau không chạy khi đã được cứu")
+        g.damage(undefined,
+            a,
+            a.hp + 500,
+            "true")
+        assert.equal(saverCalls,
+            1)
+        assert.equal(a.status,
+            "board",
+            "lần 2 do nguồn còn lại cứu")
+    })
+
+test("3 loại Khiên: trắng chặn mọi sát thương (kể cả chuẩn); vàng chỉ chặn vật lý; xanh dương chỉ chặn phép; Khiên cùng loại ăn trước Khiên trắng",
+    () => {
+        const s = mk({
+            A: {
+                v3_fighter: 2
+            }, B: {
+                v3_tank: 2
+            }
+        })
+        const g = gm(s)
+        const t = u(s,
+            "B",
+            "v3_tank")
+        const hp0 = t.hp
+        g.shield(undefined,
+            t,
+            50)
+        g.shield(undefined,
+            t,
+            40,
+            {
+                kind: "physical"
+            })
+        g.shield(undefined,
+            t,
+            30,
+            {
+                kind: "magic"
+            })
+        assert.equal(g.totalShield(t),
+            120)
+        g.damage(undefined,
+            t,
+            60,
+            "physical")
+        assert.deepEqual([t.shieldPhys,
+            t.shield,
+            t.shieldMagic,
+            t.hp],
+        [0,
+            30,
+            30,
+            hp0],
+        "vật lý: vàng 40 trước, rồi trắng 20")
+        g.damage(undefined,
+            t,
+            20,
+            "true")
+        assert.deepEqual([t.shield,
+            t.shieldMagic,
+            t.hp],
+        [10,
+            30,
+            hp0],
+        "sát thương chuẩn: chỉ Khiên trắng chặn")
+        g.damage(undefined,
+            t,
+            50,
+            "magic")
+        assert.deepEqual([t.shieldMagic,
+            t.shield,
+            t.hp],
+        [0,
+            0,
+            hp0 - 10],
+        "phép: xanh dương 30, trắng 10, máu mất 10")
+        g.shield(undefined,
+            t,
+            25,
+            {
+                kind: "magic"
+            })
+        g.damage(undefined,
+            t,
+            15,
+            "physical")
+        assert.equal(t.shieldMagic,
+            25,
+            "Khiên phép không chặn vật lý")
+        g.kill(t)
+        assert.equal(g.totalShield(t),
+            0)
     })
 
 // ======================================================================

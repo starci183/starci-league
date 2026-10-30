@@ -1,6 +1,6 @@
 // Bảng chỉ số bên phải: tướng đang chọn (đồ, chỉ số, kỹ năng, hiệu ứng). Chỉ đọc từ store.
 import {
-    useMemo, useState, type ReactNode
+    useEffect, useMemo, useState, type ReactNode
 } from "react"
 import {
     cg, getItem
@@ -18,6 +18,13 @@ import {
     buildEffects, FxCellView
 } from "./effects"
 
+import {
+    CardInspector
+} from "../ui/CardInspector"
+import {
+    inspectionActions, useInspection
+} from "../ui/inspection"
+
 type Side = cg.Side
 type Unit = cg.Unit
 const KEYS: cg.SkillKey[] = ["Q",
@@ -28,7 +35,7 @@ const KEYS: cg.SkillKey[] = ["Q",
 export function inspectedUnit(view: CardView | null, inspect: string | null): Unit | undefined {
     if (!view) return undefined
     const sel = inspect ? view.units[inspect] : undefined
-    if (sel && sel.status === "board") return sel
+    if (sel) return sel
     const me: Side = view.you ?? "A"
     const onBoard = Object.values(view.units).filter((u) => u.status === "board")
     return onBoard.find((u) => u.side === me && !u.token) ?? onBoard.find((u) => !u.token) ?? onBoard[0]
@@ -63,14 +70,13 @@ const VI = {
     hidden: "Úp",
     token: "Vật triệu hồi",
     emptySlot: "Trống",
-    free: "miễn phí",
     source: "từ",
     reserve: "Chưa có tướng trên sân",
-    mana: "Mana",
+    mana: "Mana đội",
     costMana: "Tốn",
     supportNote: "Gọi ra sân: lấy Q và E từ bộ lên tay.",
-    mageNote: "Pháp sư: mỗi chiêu tốn mana (+10 mỗi lượt).",
-    fighterNote: "Đấu sĩ: mỗi lượt đánh không cần lá 1 lần (66% sát thương).",
+    mageNote: "Mọi tướng dùng chung quỹ mana đội; chi phí ghi trên từng chiêu.",
+    fighterNote: `Đấu sĩ: mỗi lượt đánh không cần lá 1 lần (${Math.round(cg.RULES.fighterCardlessMult * 100)}% sát thương).`,
 }
 const EN: typeof VI = {
     damage: "Damage",
@@ -101,14 +107,13 @@ const EN: typeof VI = {
     hidden: "Face-down",
     token: "Summon",
     emptySlot: "Empty",
-    free: "free",
     source: "from",
     reserve: "No champion on board",
-    mana: "Mana",
+    mana: "Team mana",
     costMana: "Costs",
     supportNote: "On summon: take its Q and E from the deck into your hand.",
-    mageNote: "Mage: every skill costs mana (+10 per turn).",
-    fighterNote: "Fighter: one cardless attack per turn (66% damage).",
+    mageNote: "All champions spend the team's shared mana pool; costs appear on each skill.",
+    fighterNote: `Fighter: one cardless attack per turn (${Math.round(cg.RULES.fighterCardlessMult * 100)}% damage).`,
 }
 const T = () => (isEn() ? EN : VI)
 
@@ -162,21 +167,6 @@ function HpRow(p: { u: Unit }) {
                 {`${Math.ceil(u.hp)} / ${u.maxHp}`}
                 {u.shield > 0 ? <b>{` +${Math.ceil(u.shield)}`}</b> : null}
             </span>
-        </div>
-    )
-}
-
-function ManaRow(p: { u: Unit; g: cg.Game }) {
-    const { u, g } = p
-    if (u.mana === undefined) return null
-    const max = Math.max(g.maxMana(u),
-        1)
-    return (
-        <div className="us-mana">
-            <i style={{
-                width: clampPct(u.mana / max)
-            }} />
-            <span>{`${T().mana} ${Math.floor(u.mana)} / ${max}`}</span>
         </div>
     )
 }
@@ -284,9 +274,11 @@ function ItemSlots(p: { u: Unit; view: CardView; legal: cg.Action[] }) {
 
 /** Mana cơ bản của một chiêu (số cố định; chiêu tính động thì không hiện) */
 function manaCostOfSkill(g: cg.Game, u: Unit, def: cg.SkillDef): number | "all" | undefined {
-    const raw = def.mana
-    if (typeof raw === "function") return undefined
-    return raw ?? cg.RULES.mage.defaultCost[def.key as cg.SkillKey]
+    return g.manaCost(u,
+        def,
+        {
+            uid: `inspect:${u.id}:${def.key}`, kind: "skill", id: `${u.hero}_${def.key.toLowerCase()}`, hero: u.hero, side: u.side
+        })
 }
 
 function copiesLine(view: CardView, u: Unit, key: cg.SkillKey, total: number): string {
@@ -298,8 +290,9 @@ function copiesLine(view: CardView, u: Unit, key: cg.SkillKey, total: number): s
         0)
     if (view.you === u.side) {
         const hand = (view.players[u.side].hand ?? []).filter(isMine).length
-        return `${key} ${total} · ${t.hand} ${hand} · ${t.grave} ${grave} · ${t.deckLeft} ${Math.max(0,
-            total - hand - grave)}`
+        const left = view.players[u.side].deckSummary?.filter((e) => isMine(e.card)).reduce((n, e) => n + e.count,
+            0)
+        return `${key} ${total} · ${t.hand} ${hand} · ${t.grave} ${grave}${left === undefined ? "" : ` · ${t.deckLeft} ${left}`}`
     }
     return `${key} ${total} · ${t.used} ${grave}`
 }
@@ -325,7 +318,7 @@ function Skills(p: { u: Unit; g: cg.Game; view: CardView }) {
         <section className="us-sec">
             <h4>{t.skills}</h4>
             {role === "support" ? <p className="us-note">{t.supportNote}</p> : null}
-            {u.mana !== undefined ? <p className="us-note">{t.mageNote}</p> : null}
+            <p className="us-note">{t.mageNote}</p>
             {role === "fighter" ? <p className="us-note">{t.fighterNote}</p> : null}
             <div className="us-skill passive">
                 <Pic srcs={[`/card_skills/${u.hero}_p.png`]} cls="us-sk-ic" letter="P" />
@@ -340,9 +333,9 @@ function Skills(p: { u: Unit; g: cg.Game; view: CardView }) {
                 const def = h.skills[k]
                 const e = en?.skills[k]
                 const total = view.rules.skillCopies[k]
-                const cost = u.mana !== undefined ? manaCostOfSkill(g,
+                const cost = manaCostOfSkill(g,
                     u,
-                    def) : undefined
+                    def)
                 return (
                     <div key={k} className="us-skill">
                         <Pic srcs={[`/card_skills/${u.hero}_${k.toLowerCase()}.png`]} cls="us-sk-ic" letter={k} />
@@ -393,13 +386,26 @@ function TokenInfo(p: { u: Unit; view: CardView }) {
 
 export function UnitPanel() {
     const snap = useCard()
+    const hover = useInspection()
+    useEffect(() => {
+        const key = (e: KeyboardEvent) => { if (e.key === "Escape") inspectionActions.clear() }
+        window.addEventListener("keydown",
+            key)
+        return () => window.removeEventListener("keydown",
+            key)
+    },
+    [])
     const { view } = snap
     const t = T()
     const u = inspectedUnit(view,
-        snap.inspect)
+        hover?.kind === "unit" ? hover.unitId : snap.inspect)
     const g = useMemo(() => (view ? gameOf(view) : null),
         [view])
     if (!view || !g) return <div className="us-root" />
+    if (hover?.kind === "card") {
+        const owner = hover.context.actor ? view.units[hover.context.actor] : hover.card.hero ? view.units[`${hover.card.side ?? hover.context.side ?? view.you}:${hover.card.hero}`] : undefined
+        return <div className="us-root ci-active"><div className="us-scroll" key={`card:${hover.context.source}:${hover.card.uid}`}><CardInspector card={hover.card} context={hover.context} view={view} />{owner && !owner.token ? <Skills u={owner} g={g} view={view} /> : null}</div></div>
+    }
     if (!u) {
         return (
             <div className="us-root">
@@ -498,11 +504,10 @@ export function UnitPanel() {
                         </div>
                     )}
                     <HpRow u={u} />
-                    <ManaRow u={u} g={g} />
                 </div>
             </header>
             {faceDown ? null : (
-                <div className="us-scroll">
+                <div className="us-scroll" key={`unit:${u.id}`}>
                     <div className="us-grid">{grid}</div>
                     {tok ? (
                         <>

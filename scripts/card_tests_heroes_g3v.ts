@@ -13,7 +13,6 @@ import * as ZED from "../packages/shared/src/cardgame/heroes/zed"
 import * as KATARINA from "../packages/shared/src/cardgame/heroes/katarina"
 import * as KHAZIX from "../packages/shared/src/cardgame/heroes/khazix"
 import * as QIYANA from "../packages/shared/src/cardgame/heroes/qiyana"
-import * as SORAKA from "../packages/shared/src/cardgame/heroes/soraka"
 type St = ReturnType<typeof cg.newGame>;
 type Act = Parameters<typeof cg.applyAction>[1];
 type Ev = ReturnType<typeof cg.applyAction>["events"];
@@ -323,11 +322,11 @@ test("R: đánh ngay rồi cuối lượt nổ thêm một lần nữa (phát n�
         "zed_mark"),
         false)
     })
-test("E: Zed đổi chỗ đứng đối diện tướng chọn rồi nó nhận sát thương",
+test("E: Zed swap với đồng minh đứng đối diện tướng chọn rồi nó nhận sát thương",
     () => {
         const s = mk({
             A: {
-                zed: 1
+                zed: 1, g3v_fighter: 3
             }, B: {
                 g3v_mage: 3, g3v_tank: 1
             }
@@ -349,6 +348,9 @@ test("E: Zed đổi chỗ đứng đối diện tướng chọn rồi nó nhận
         3)
         assert.equal(r.s.lanes.A[3],
             "A:zed")
+        assert.equal(r.s.lanes.A[1],
+            "A:g3v_fighter",
+            "đồng minh về ô cũ của Zed (swap nguyên tử)")
         assert.equal(dmgTo(r.ev,
             "B:g3v_mage",
             "skill"),
@@ -569,9 +571,13 @@ test("E (Quick): né đòn đánh, kẻ đánh nhận sát thương phép, gấp
             assert.ok(cg.legalActions(r.s,
                 "A").some((a) => a.t === "chain" && a.uid === e.uid),
             "E nối được lên đòn đánh")
+            // E Quick tự lấy kẻ đánh làm đích (đã đối diện: không cần swap)
             r = settle(chainWith(r.s,
                 "A",
-                e))
+                e,
+                {
+                    target: "B:g3v_fighter"
+                }))
             const kat = u(r.s,
                 "A",
                 "katarina")
@@ -664,10 +670,7 @@ test("Nội tại: tướng Cô Lập nhận thêm (20 + 50% AD + 10% AP) từ �
                 skill(s,
                     "khazix",
                     "A",
-                    "Q")),
-            {
-                target: "B:g3v_tank"
-            }).ev,
+                    "Q"))).ev,
         "B:g3v_tank")
         assert.equal(q(kin),
             Math.round(gm(kin).f(kz,
@@ -677,7 +680,7 @@ test("Nội tại: tướng Cô Lập nhận thêm (20 + 50% AD + 10% AP) từ �
                 KHAZIX.F_Q) + gm(iso).f(kz,
                 KHAZIX.F_Q_ISO)) * (100 / 130)))
     })
-test("E: chọn 1 địch bất kỳ (không đổi đường): nó Cô Lập tới hết lượt và nhận sát thương",
+test("E: nhảy tới con mồi, tự đổi chỗ với đồng minh, gắn Cô Lập rồi gây sát thương",
     () => {
         const s = mk({
             A: {
@@ -708,8 +711,24 @@ test("E: chọn 1 địch bất kỳ (không đổi đường): nó Cô Lập t�
         assert.equal(u(r.s,
             "A",
             "khazix").lane,
+        3,
+        "nhảy tới đường đối diện mục tiêu")
+        assert.equal(u(r.s,
+            "A",
+            "g3v_tank").lane,
         lane0,
-        "không đổi đường")
+        "đồng minh về đường cũ Kha'Zix")
+        const movement = evs(r.ev,
+            "move")
+        assert.equal(movement.length,
+            1,
+            "một thay đổi vị trí nguyên tử")
+        assert.deepEqual(movement[0],
+            {
+                t: "move", unit: "A:khazix", from: lane0, to: 3, with: "A:g3v_tank"
+            })
+        assert.ok(r.ev.indexOf(movement[0]) < r.ev.findIndex(e => e.t === "status" && e.id === "isolated"))
+        assert.ok(r.ev.indexOf(movement[0]) < r.ev.findIndex(e => e.t === "damage"))
         const mage = u(r.s,
             "B",
             "g3v_mage")
@@ -731,6 +750,323 @@ test("E: chọn 1 địch bất kỳ (không đổi đường): nó Cô Lập t�
         "isolated"),
         false,
         "hết lượt thì hết Cô Lập")
+    })
+
+test("E: ô đối diện con mồi trống (bên kia chưa gọi tướng) thì engine dời thẳng tới; đang đối diện thì đánh tại chỗ, không phát move giả",
+    () => {
+        for (const targetLane of [1,
+            3]) {
+            const s = mk({
+                A: {
+                    khazix: 1
+                }, B: {
+                    g3v_mage: targetLane
+                }
+            })
+            const card = give(s,
+                "A",
+                skill(s,
+                    "khazix",
+                    "A",
+                    "E"))
+            const r = play(s,
+                "A",
+                card,
+                {
+                    target: "B:g3v_mage"
+                })
+            assert.equal(u(r.s,
+                "A",
+                "khazix").lane,
+            targetLane)
+            assert.equal(evs(r.ev,
+                "move").length,
+            targetLane === 1 ? 0 : 1)
+            if (targetLane === 3) assert.equal(r.s.lanes.A[1],
+                null,
+                "ô cũ bỏ trống, không ai bị kéo theo")
+            assert.ok(gm(r.s).isolated(u(r.s,
+                "B",
+                "g3v_mage")))
+            assert.ok(dmgTo(r.ev,
+                "B:g3v_mage") > 0)
+        }
+    })
+
+test("E: ô giữ cho đồng minh đã chết không chặn: swap với tướng chết rồi mới Cô Lập + gây sát thương",
+    () => {
+        const s = mk({
+            A: {
+                khazix: 1, g3v_tank: 3
+            }, B: {
+                g3v_mage: 3
+            }
+        })
+        gm(s).kill(u(s,
+            "A",
+            "g3v_tank"))
+        const card = give(s,
+            "A",
+            skill(s,
+                "khazix",
+                "A",
+                "E"))
+        assert.equal(s.lanes.A[3],
+            "A:g3v_tank",
+            "ô được giữ cho tướng chết")
+        assert.ok(cg.legalActions(s,
+            "A").some(a => a.t === "play" && a.uid === card.uid))
+        const r = play(s,
+            "A",
+            card,
+            {
+                target: "B:g3v_mage"
+            })
+        assert.equal(u(r.s,
+            "A",
+            "khazix").lane,
+        3)
+        assert.equal(r.s.lanes.A[1],
+            "A:g3v_tank",
+            "tướng chết đi theo ô về đường cũ của Kha'Zix")
+        assert.ok(gm(r.s).isolated(u(r.s,
+            "B",
+            "g3v_mage")))
+        assert.ok(dmgTo(r.ev,
+            "B:g3v_mage") > 0)
+    })
+
+test("E: chọn con mồi tôn trọng Khiêu Khích và không nhắm tướng Tàng Hình",
+    () => {
+        const s = mk({
+            A: {
+                khazix: 1, g3v_fighter: 3, g3v_tank: 4
+            }, B: {
+                g3v_mage: 3, g3v_tank: 4
+            }
+        })
+        const g = gm(s), card = give(s,
+            "A",
+            skill(s,
+                "khazix",
+                "A",
+                "E"))
+        g.status(u(s,
+            "B",
+            "g3v_tank"),
+        "taunt",
+        1)
+        const targets = () => cg.legalActions(s,
+            "A").filter((a): a is Extract<Act, { t: "play" }> => a.t === "play" && a.uid === card.uid).map(a => a.args?.target)
+        assert.deepEqual(targets(),
+            ["B:g3v_tank"])
+        g.status(u(s,
+            "B",
+            "g3v_tank"),
+        "stealth",
+        1)
+        assert.deepEqual(targets(),
+            [],
+            "Khiêu Khích không cho bỏ qua tướng đó khi nó không thể bị chỉ định")
+    })
+
+test("E: đồng minh ở ô đích chết lúc chờ Chuỗi thì Kha'Zix vẫn swap với tướng chết rồi mới Cô Lập + gây sát thương",
+    () => {
+        const s = mk({
+            A: {
+                khazix: 1, g3v_tank: 3
+            }, B: {
+                g3v_mage: 3, leona: 4
+            }
+        })
+        give(s,
+            "B",
+            skill(s,
+                "leona",
+                "B",
+                "E"))
+        const card = give(s,
+            "A",
+            skill(s,
+                "khazix",
+                "A",
+                "E"))
+        const queued = act(s,
+            {
+                t: "play", side: "A", uid: card.uid, args: {
+                    target: "B:g3v_mage"
+                }
+            })
+        assert.equal(queued.s.phase,
+            "chain")
+        gm(queued.s).kill(u(queued.s,
+            "A",
+            "g3v_tank"))
+        const r = settle(queued)
+        assert.equal(u(r.s,
+            "A",
+            "khazix").lane,
+        3)
+        assert.equal(r.s.lanes.A[1],
+            "A:g3v_tank")
+        assert.ok(dmgTo(r.ev,
+            "B:g3v_mage") > 0)
+        assert.ok(gm(r.s).isolated(u(r.s,
+            "B",
+            "g3v_mage")))
+    })
+
+test("E: đồng minh rời ô đích lúc chờ Chuỗi (ô trống) thì engine dời thẳng Kha'Zix tới rồi mới gây sát thương",
+    () => {
+        const s = mk({
+            A: {
+                khazix: 1, g3v_tank: 3
+            }, B: {
+                g3v_mage: 3, leona: 4
+            }
+        })
+        give(s,
+            "B",
+            skill(s,
+                "leona",
+                "B",
+                "E"))
+        const card = give(s,
+            "A",
+            skill(s,
+                "khazix",
+                "A",
+                "E"))
+        const queued = act(s,
+            {
+                t: "play", side: "A", uid: card.uid, args: {
+                    target: "B:g3v_mage"
+                }
+            })
+        assert.equal(queued.s.phase,
+            "chain")
+        gm(queued.s).moveTo(u(queued.s,
+            "A",
+            "g3v_tank"),
+        0)
+        assert.equal(queued.s.lanes.A[3],
+            null)
+        const r = settle(queued)
+        assert.equal(u(r.s,
+            "A",
+            "khazix").lane,
+        3)
+        assert.ok(dmgTo(r.ev,
+            "B:g3v_mage") > 0)
+        assert.ok(gm(r.s).isolated(u(r.s,
+            "B",
+            "g3v_mage")))
+    })
+
+test("E: con mồi Tàng Hình trong lúc chờ Chuỗi thì không nhảy, không gắn dấu và không gây sát thương",
+    () => {
+        const s = mk({
+            A: {
+                khazix: 1, g3v_tank: 3
+            }, B: {
+                g3v_mage: 3, leona: 4
+            }
+        })
+        give(s,
+            "B",
+            skill(s,
+                "leona",
+                "B",
+                "E"))
+        const card = give(s,
+            "A",
+            skill(s,
+                "khazix",
+                "A",
+                "E"))
+        const queued = act(s,
+            {
+                t: "play", side: "A", uid: card.uid, args: {
+                    target: "B:g3v_mage"
+                }
+            })
+        assert.equal(queued.s.phase,
+            "chain")
+        gm(queued.s).status(u(queued.s,
+            "B",
+            "g3v_mage"),
+        "stealth",
+        1)
+        const r = settle(queued)
+        assert.equal(u(r.s,
+            "A",
+            "khazix").lane,
+        1)
+        assert.equal(evs(r.ev,
+            "move").length,
+        0)
+        assert.equal(dmgTo(r.ev,
+            "B:g3v_mage"),
+        0)
+        assert.ok(!gm(r.s).isolated(u(r.s,
+            "B",
+            "g3v_mage")))
+    })
+
+test("Q: chỉ đánh đối diện, E mở đường cho Q và đòn thường hưởng nội tại Cô Lập",
+    () => {
+        const s = mk({
+            A: {
+                khazix: 1, g3v_tank: 3
+            }, B: {
+                g3v_mage: 3
+            }
+        })
+        const q = give(s,
+            "A",
+            skill(s,
+                "khazix",
+                "A",
+                "Q"))
+        assert.ok(!cg.legalActions(s,
+            "A").some(a => a.t === "play" && a.uid === q.uid))
+        const r = play(s,
+            "A",
+            give(s,
+                "A",
+                skill(s,
+                    "khazix",
+                    "A",
+                    "E")),
+            {
+                target: "B:g3v_mage"
+            })
+        assert.ok(cg.legalActions(r.s,
+            "A").some(a => a.t === "play" && a.uid === q.uid))
+        assert.equal(gm(r.s).opposite(u(r.s,
+            "A",
+            "khazix"))?.id,
+        "B:g3v_mage")
+        const hit = strike(r.s,
+            "A",
+            "A:khazix",
+            "B:g3v_mage")
+        assert.ok(dmgTo(hit.ev,
+            "B:g3v_mage",
+            "attack") > Math.round(gm(r.s).stats(u(r.s,
+            "A",
+            "khazix")).atk * 100 / 130))
+        const qHit = play(r.s,
+            "A",
+            q)
+        const g = gm(r.s), kha = u(r.s,
+            "A",
+            "khazix")
+        assert.equal(dmgTo(qHit.ev,
+            "B:g3v_mage"),
+        Math.round((g.f(kha,
+            KHAZIX.F_Q) + g.f(kha,
+            KHAZIX.F_Q_ISO)) * 100 / 130))
     })
 test("R (Quick): Tàng Hình ngay, địch đối diện Cô Lập tới hết lượt kế của bạn, thêm 1 lá Q lên tay",
     () => {
@@ -892,7 +1228,7 @@ test("Q Đỏ: gây sát thương, rồi mỗi lần Qiyana gây sát thương l
         false,
         "hết lượt thì mất dấu")
     })
-test("Xanh: Q Choáng 1 lượt; R Choáng tướng máu cao nhất và Xạ thủ (không có Xạ thủ thì thêm 1 tướng khác)",
+test("Sông: Q Choáng; R một tướng chọn + một tướng ngẫu nhiên khác, mỗi người bị Choáng",
     () => {
         const blue = (s: St) => QIYANA.setElement(gm(s),
             u(s,
@@ -928,75 +1264,50 @@ test("Xanh: Q Choáng 1 lượt; R Choáng tướng máu cao nhất và Xạ th�
             "A",
             "qiyana"),
         QIYANA.F_Q_BLUE) * (100 / 130)))
-        const withMark = mk({
+        // R Sông: một tướng chọn + tối đa một tướng khác ngẫu nhiên, mỗi người nhận sát thương và Choáng
+        const r3 = mk({
             A: {
                 qiyana: 2
             }, B: {
                 g3v_tank: 2, g3v_mark: 1, g3v_sup: 3
             }
         })
-        blue(withMark)
-        u(withMark,
-            "B",
-            "g3v_mark").hp = 900
-        u(withMark,
-            "B",
-            "g3v_sup").hp = 900
-        const r1 = play(withMark,
+        blue(r3)
+        const r1 = play(r3,
             "A",
-            give(withMark,
+            give(r3,
                 "A",
-                skill(withMark,
+                skill(r3,
                     "qiyana",
                     "A",
-                    "R")))
-        const stunned = (s: St) => ["g3v_tank",
+                    "R")),
+            {
+                target: "B:g3v_sup"
+            })
+        const hit = ["g3v_tank",
             "g3v_mark",
-            "g3v_sup",
-            "g3v_fighter"].filter((h) => s.units[`B:${h}`] && gm(s).has(s.units[`B:${h}`],
-            "stun"))
-        assert.deepEqual(stunned(r1.s).sort(),
-            ["g3v_mark",
-                "g3v_tank"],
-            "máu cao nhất + Xạ thủ")
+            "g3v_sup"].filter((h) => dmgTo(r1.ev,
+            `B:${h}`) > 0)
+        assert.equal(hit.length,
+            2,
+            "đúng 2 nạn nhân")
+        assert.ok(hit.includes("g3v_sup"),
+            "có tướng được chọn")
         assert.equal(dmgTo(r1.ev,
             "B:g3v_sup"),
-        Math.round(gm(withMark).f(u(withMark,
+        Math.round(gm(r3).f(u(r3,
             "A",
             "qiyana"),
         QIYANA.F_R_BLUE) * (100 / 130)))
-        const noMark = mk({
-            A: {
-                qiyana: 2
-            }, B: {
-                g3v_tank: 2, g3v_sup: 3, g3v_fighter: 1
-            }
-        })
-        blue(noMark)
-        u(noMark,
-            "B",
-            "g3v_sup").hp = 900
-        u(noMark,
-            "B",
-            "g3v_fighter").hp = 900
-        const r2 = play(noMark,
-            "A",
-            give(noMark,
-                "A",
-                skill(noMark,
-                    "qiyana",
-                    "A",
-                    "R")))
-        assert.equal(stunned(r2.s).length,
-            2,
-            "không có Xạ thủ: máu cao nhất + 1 tướng ngẫu nhiên")
-        assert.ok(stunned(r2.s).includes("g3v_tank"))
+        for (const h of hit) assert.ok(gm(r1.s).has(r1.s.units[`B:${h}`],
+            "stun"),
+        `${h} Choáng`)
     })
-test("Lục: Q đổi chỗ đứng đối diện; R đổi chỗ tự do rồi lấy 1 lá Q lên tay",
+test("Lục: Q swap đứng đối diện + Tàng Hình; R swap đối diện địch ít máu nhất rồi lấy 1 lá Q lên tay",
     () => {
         const s = mk({
             A: {
-                qiyana: 0, g3v_tank: 2
+                qiyana: 0, g3v_tank: 4
             }, B: {
                 g3v_mage: 4, g3v_fighter: 0
             }
@@ -1021,6 +1332,16 @@ test("Lục: Q đổi chỗ đứng đối diện; R đổi chỗ tự do rồi 
             "A",
             "qiyana").lane,
         4)
+        assert.equal(u(rq.s,
+            "A",
+            "g3v_tank").lane,
+        0,
+        "đồng minh về ô cũ của Qiyana")
+        assert.ok(gm(rq.s).has(u(rq.s,
+            "A",
+            "qiyana"),
+        "stealth"),
+        "Cỏ: Tàng Hình")
         assert.equal(dmgTo(rq.ev,
             "B:g3v_mage"),
         Math.round(gm(s).f(u(s,
@@ -1134,482 +1455,183 @@ test("E (Quick): Đỏ đánh trả, Xanh Choáng kẻ đánh và huỷ đòn, L
     })
 
 // ======================================================================
-G("Soraka")
+G("Vị trí: ô đối diện có tướng đã chết")
 // ======================================================================
-test("đồng minh nhận đòn chí mạng: Soraka chịu thay, đồng minh sống và không mất mạng",
-    () => {
-        let s = mk({
-            A: {
-                soraka: 0, g3v_tank: 2
-            }, B: {
-                g3v_fighter: 2
-            }
-        })
-        s.active = "B"
-        u(s,
-            "A",
-            "g3v_tank").hp = 10
-        const lives = s.players.A.lives
-        const hp0 = u(s,
-            "A",
-            "soraka").hp
-        s = strike(s,
-            "B",
-            "B:g3v_fighter",
-            "A:g3v_tank").s
-        assert.equal(u(s,
-            "A",
-            "g3v_tank").status,
-        "board")
-        assert.equal(u(s,
-            "A",
-            "g3v_tank").hp,
-        10)
-        assert.ok(u(s,
-            "A",
-            "soraka").hp < hp0,
-        "Soraka mất máu thay")
-        assert.equal(s.players.A.lives,
-            lives)
-    })
-test("Q: gây sát thương, Soraka hồi; phần hồi thừa thành Khiên cho đồng minh máu thấp nhất",
-    () => {
-        const s = mk({
-            A: {
-                soraka: 0, g3v_tank: 2
-            }, B: {
-                g3v_fighter: 0
-            }
-        })
-        const so = u(s,
-            "A",
-            "soraka")
-        const heal = gm(s).f(so,
-            SORAKA.F_HEAL)
-        so.hp = so.maxHp - 20
-        const r = play(s,
-            "A",
-            give(s,
-                "A",
-                skill(s,
-                    "soraka",
-                    "A",
-                    "Q")),
-            {
-                target: "B:g3v_fighter"
-            })
-        assert.equal(dmgTo(r.ev,
-            "B:g3v_fighter"),
-        Math.round(gm(s).f(so,
-            SORAKA.F_Q) * (100 / 130)))
-        assert.equal(u(r.s,
-            "A",
-            "soraka").hp,
-        so.maxHp)
-        assert.equal(u(r.s,
-            "A",
-            "g3v_tank").shield,
-        Math.round(heal - 20))
-    })
-test("E (Quick): huỷ lá chiêu địch nhắm vào đồng minh và Câm Lặng kẻ tung chiêu",
-    () => {
-        const s = mk({
-            A: {
-                qiyana: 2
-            }, B: {
-                soraka: 0, g3v_tank: 2
-            }
-        })
-        QIYANA.setElement(gm(s),
-            u(s,
-                "A",
-                "qiyana"),
-            "red")
-        const q = give(s,
-            "A",
-            skill(s,
-                "qiyana",
-                "A",
-                "Q"))
-        const e = give(s,
-            "B",
-            skill(s,
-                "soraka",
-                "B",
-                "E"))
-        let r = act(s,
-            {
-                t: "play", side: "A", uid: q.uid, args: {
-                    target: "B:g3v_tank"
+// Luật gọi tướng dần: đường đã mở luôn có người giữ, nhưng người giữ có thể là tướng ĐÃ CHẾT (giữ ô chờ hồi sinh).
+// Sát thủ nhảy tới con mồi = swap với người giữ ô đối diện nó, kể cả đồng minh đã chết; tướng chết đi theo ô (homeLane đổi).
+const playableArgs = (s: St, side: S, card: { uid: string }) => (cg.legalActions(s,
+    side).filter((a) => a.t === "play" && a.uid === card.uid) as Extract<Act, { t: "play" }>[]).map((a) => a.args?.target)
+for (const [hero,
+    key] of [["zed",
+        "E"],
+    ["katarina",
+        "E"],
+    ["khazix",
+        "E"],
+    ["qiyana",
+        "Q"]] as const) {
+    test(`${hero} ${key}: đồng minh giữ ô đối diện con mồi đã chết thì vẫn swap tới (tướng chết về ô cũ) rồi mới gây sát thương`,
+        () => {
+            const s = mk({
+                A: {
+                    [hero]: 1, g3v_fighter: 3
+                }, B: {
+                    g3v_mage: 3, g3v_tank: 1
                 }
             })
-        assert.ok(cg.legalActions(r.s,
-            "B").some((a) => a.t === "chain" && a.uid === e.uid),
-        "Soraka E nối được")
-        r = settle(chainWith(r.s,
-            "B",
-            e))
-        assert.equal(u(r.s,
-            "B",
-            "g3v_tank").hp,
-        u(r.s,
-            "B",
-            "g3v_tank").maxHp)
-        assert.equal(evs(r.ev,
-            "chainCancel").length,
-        1)
-        assert.ok(inGrave(r.s,
-            "A",
-            q),
-        "lá bị huỷ vẫn vào mộ")
-        assert.ok(gm(r.s).has(u(r.s,
-            "A",
-            "qiyana"),
-        "silence"),
-        "kẻ tung chiêu bị Câm Lặng")
+            gm(s).kill(u(s,
+                "A",
+                "g3v_fighter"))
+            const card = give(s,
+                "A",
+                skill(s,
+                    hero,
+                    "A",
+                    key))
+            assert.ok(playableArgs(s,
+                "A",
+                card).includes("B:g3v_mage"),
+            "lựa chọn hợp lệ có con mồi ở đường có đồng minh chết (bot thấy được)")
+            const r = play(s,
+                "A",
+                card,
+                {
+                    target: "B:g3v_mage"
+                })
+            assert.equal(u(r.s,
+                "A",
+                hero).lane,
+            3)
+            assert.equal(r.s.lanes.A[1],
+                "A:g3v_fighter",
+                "tướng chết bị dời về ô cũ của sát thủ")
+            assert.equal(u(r.s,
+                "A",
+                "g3v_fighter").homeLane,
+            1)
+            assert.equal(u(r.s,
+                "A",
+                "g3v_fighter").status,
+            "dead",
+            "không hồi sinh vì bị dời")
+            assert.ok(dmgTo(r.ev,
+                "B:g3v_mage",
+                "skill") > 0,
+            "tới đối diện rồi mới gây sát thương")
+            if (hero === "khazix") assert.ok(gm(r.s).isolated(u(r.s,
+                "B",
+                "g3v_mage")))
+        })
+}
+test("Zed Q / Kha'Zix Q: địch đối diện đã chết thì không đánh được (không bắn xa)",
+    () => {
+        for (const hero of ["zed",
+            "khazix"]) {
+            const s = mk({
+                A: {
+                    [hero]: 1
+                }, B: {
+                    g3v_tank: 1, g3v_mage: 3
+                }
+            })
+            gm(s).kill(u(s,
+                "B",
+                "g3v_tank"))
+            const q = give(s,
+                "A",
+                skill(s,
+                    hero,
+                    "A",
+                    "Q"))
+            assert.equal(playableArgs(s,
+                "A",
+                q).length,
+            0,
+            hero)
+        }
     })
-test("R hồi cả đội kể cả Soraka",
+test("Kha'Zix R: địch đối diện đã chết thì bỏ phần Cô Lập (không chọn xa, không đổi chỗ) nhưng vẫn Tàng Hình và nhận Q",
     () => {
         const s = mk({
             A: {
-                soraka: 0, g3v_tank: 2
+                khazix: 1
             }, B: {
-                g3v_fighter: 2
+                g3v_tank: 1, g3v_mage: 3
             }
         })
-        const so = u(s,
-            "A",
-            "soraka")
-        const tank = u(s,
-            "A",
-            "g3v_tank")
-        so.hp = 100
-        tank.hp = 100
-        assert.equal(gm(s).ap(so),
-            0,
-            "AP gốc 0")
+        gm(s).kill(u(s,
+            "B",
+            "g3v_tank"))
         const r = play(s,
             "A",
             give(s,
                 "A",
                 skill(s,
-                    "soraka",
+                    "khazix",
                     "A",
-                    "R"))).s
-        const heal = Math.round(gm(s).f(so,
-            SORAKA.F_R))
-        assert.equal(u(r,
+                    "R")))
+        assert.equal(u(r.s,
             "A",
-            "soraka").hp,
-        100 + heal)
-        assert.equal(u(r,
+            "khazix").lane,
+        1)
+        assert.ok(!gm(r.s).isolated(u(r.s,
+            "B",
+            "g3v_mage")))
+        assert.ok(gm(r.s).has(u(r.s,
             "A",
-            "g3v_tank").hp,
-        100 + heal)
+            "khazix"),
+        "stealth"))
+        assert.ok(r.s.players.A.hand.some((c) => c.id === "khazix_q"))
     })
-
-// ======================================================================
-G("Nami")
-// ======================================================================
-// Đồng minh có AD rất lớn: tỉ lệ rút của nội tại bị kẹp về 100% (g.chance), để test không phụ thuộc xúc xắc
-cg.defineHero({
-    id: "g3v_big", name: "g3v_big", role: "fighter", damage: "physical", hp: 1000, atk: 3000, armor: 30, mr: 30,
-    passive: {
-        name: "-", desc: "-"
-    },
-    skills: {
-        Q: noSkill("Q"), E: noSkill("E"), R: noSkill("R")
-    },
-})
-/** Ván có Nami + đồng minh g3v_big, địch có máu cực lớn để đòn 3000 AD không hạ gục */
-function mkNami(): St {
-    const s = mk({
-        A: {
-            nami: 0, g3v_big: 2
-        }, B: {
-            g3v_fighter: 2, g3v_tank: 1
-        }
-    })
-    for (const h of ["g3v_fighter",
-        "g3v_tank"]) {
-        u(s,
-            "B",
-            h).hp = 1_000_000
-        u(s,
-            "B",
-            h).maxHp = 1_000_000
-    }
-    s.active = "A"
-    return s
-}
-test("nội tại: đồng minh ra đòn là có cơ hội rút bài (tỉ lệ theo chỉ số đồng minh đó), tối đa 2 lá mỗi lượt",
+test("Qiyana R Cỏ: địch ít Máu nhất ở đường có đồng minh chết thì vẫn swap tới đối diện nó",
     () => {
-        let s = mkNami()
-        assert.equal(gm(s).chance(u(s,
-            "A",
-            "g3v_big"),
-        {
-            base: 0.05, ad: 0.05, ap: 0.05
-        }),
-        1,
-        "AD 3000 => kẹp 100%")
-        // Đồng minh thường: 5% + 0.05% mỗi điểm AD/AP (AD 88, AP gốc 0 của Nami)
-        const nami = u(s,
-            "A",
-            "nami")
-        assert.ok(Math.abs(gm(s).chance(nami,
-            {
-                base: 0.05, ad: 0.05, ap: 0.05
-            }) - (0.05 + 0.0005 * 88)) < 1e-9)
-        const hits: number[] = []
-        for (let i = 0; i < 3; i++) {
-            const r = strike(s,
-                "A",
-                "A:g3v_big",
-                "B:g3v_fighter")
-            s = r.s
-            hits.push(s.players.A.hand.length)
-        }
-        assert.deepEqual(hits,
-            [1,
-                2,
-                2],
-            "đòn 1 và 2 rút mỗi đòn 1 lá, đòn 3 chạm trần 2 lá/lượt")
-    })
-test("Q: (76 + 25% AD + 55% AP) + Choáng 1 lượt + đánh dấu 3 đòn của đồng minh, mỗi đòn thêm (23 + 10% AD + 20% AP) phép",
-    () => {
-        let s = mkNami()
-        const q = give(s,
-            "A",
-            skill(s,
-                "nami",
-                "A",
-                "Q"))
-        const nami = u(s,
-            "A",
-            "nami")
-        const g = gm(s)
-        const qRaw = g.f(nami,
-            "76 + 25% AD + 55% AP")
-        const markRaw = g.f(nami,
-            "23 + 10% AD + 20% AP")
-        const r = play(s,
-            "A",
-            q,
-            {
-                target: "B:g3v_fighter"
-            })
-        s = r.s
-        assert.equal(dmgTo(r.ev,
-            "B:g3v_fighter"),
-        Math.round(qRaw * 100 / 130))
-        assert.ok(u(s,
-            "B",
-            "g3v_fighter").statuses.stun,
-        "Choáng")
-        assert.equal(gm(s).marksOn(u(s,
-            "B",
-            "g3v_fighter"),
-        "nami_q")[0]?.hits,
-        3)
-        for (let i = 0; i < 3; i++) {
-            const left = gm(s).marksOn(u(s,
-                "B",
-                "g3v_fighter"),
-            "nami_q")[0]?.hits ?? 0
-            assert.equal(left,
-                3 - i)
-            const hit = strike(s,
-                "A",
-                "A:g3v_big",
-                "B:g3v_fighter")
-            s = hit.s
-            assert.equal(dmgTo(hit.ev,
-                "B:g3v_fighter",
-                "effect"),
-            Math.round(Math.round(markRaw) * 100 / 130),
-            `đòn ${i + 1} có phần đánh dấu`)
-        }
-        assert.equal(gm(s).marksOn(u(s,
-            "B",
-            "g3v_fighter"),
-        "nami_q").length,
-        0,
-        "hết 3 nấc")
-    })
-test("E: Nami hồi (58 + 15% AD + 35% AP), rồi nảy 5 lần giữa các đồng minh, mỗi lần hồi (58 + 15% AD + 35% AP)",
-    () => {
-        const s = mkNami()
-        for (const h of ["nami",
-            "g3v_big"]) {
-            u(s,
-                "A",
-                h).hp = 100
-            u(s,
-                "A",
-                h).maxHp = 5000
-        }
-        const e = give(s,
-            "A",
-            skill(s,
-                "nami",
-                "A",
-                "E"))
-        const per = Math.round(gm(s).f(u(s,
-            "A",
-            "nami"),
-        "58 + 15% AD + 35% AP"))
-        const r = play(s,
-            "A",
-            e)
-        const heals = evs(r.ev,
-            "heal")
-        assert.equal(heals.length,
-            6,
-            "1 lần hồi đầu + 5 lần nảy")
-        assert.ok(heals.every((h) => h.amount === per),
-            `mỗi lần hồi ${per}: ${heals.map((h) => h.amount).join()}`)
-        assert.ok(heals.every((h) => h.target.startsWith("A:")))
-    })
-test("R: mọi đồng minh hồi (146 + 30% AD + 70% AP), mọi địch Choáng 1 lượt",
-    () => {
-        const s = mkNami()
-        for (const h of ["nami",
-            "g3v_big"]) {
-            u(s,
-                "A",
-                h).hp = 100
-            u(s,
-                "A",
-                h).maxHp = 5000
-        }
-        const rr = give(s,
-            "A",
-            skill(s,
-                "nami",
-                "A",
-                "R"))
-        const per = Math.round(gm(s).f(u(s,
-            "A",
-            "nami"),
-        "146 + 30% AD + 70% AP"))
-        const r = play(s,
-            "A",
-            rr)
-        for (const h of ["nami",
-            "g3v_big"]) assert.equal(u(r.s,
-            "A",
-            h).hp,
-        100 + per,
-        h)
-        for (const h of ["g3v_fighter",
-            "g3v_tank"]) assert.ok(u(r.s,
-            "B",
-            h).statuses.stun,
-        `${h} Choáng`)
-    })
-
-test("nội tại: đồng minh khác hồi máu bằng chiêu cũng có cơ hội rút bài cho chủ Nami",
-    () => {
-        cg.defineHero({
-            id: "g3v_healer", name: "g3v_healer", role: "support", damage: "physical", hp: 1000, atk: 3000, armor: 30, mr: 30,
-            passive: {
-                name: "-", desc: "-"
-            },
-            skills: {
-                Q: {
-                    key: "Q", name: "-", desc: "-", target: "none", resolve(c) { c.g.heal(c.self,
-                        c.self,
-                        10) }
-                }, E: noSkill("E"), R: noSkill("R")
-            },
-        })
         const s = mk({
             A: {
-                nami: 0, g3v_healer: 2
+                qiyana: 1, g3v_fighter: 3
             }, B: {
-                g3v_fighter: 2
+                g3v_mage: 3, g3v_tank: 1
             }
         })
-        s.active = "A"
+        gm(s).kill(u(s,
+            "A",
+            "g3v_fighter"))
+        const q = u(s,
+            "A",
+            "qiyana")
+        gm(s).setStack(q,
+            "element",
+            3)
         u(s,
-            "A",
-            "g3v_healer").hp = 100
-        const q = give(s,
-            "A",
-            skill(s,
-                "g3v_healer",
-                "A",
-                "Q"))
+            "B",
+            "g3v_mage").hp = 2000
+        u(s,
+            "B",
+            "g3v_mage").maxHp = 2000
+        u(s,
+            "B",
+            "g3v_tank").hp = 2500
+        u(s,
+            "B",
+            "g3v_tank").maxHp = 2500
         const r = play(s,
             "A",
-            q)
-        assert.equal(evs(r.ev,
-            "heal").length,
-        1)
-        assert.equal(r.s.players.A.hand.length,
-            1,
-            "lá Q đã dùng, hồi máu kích nội tại rút 1 lá")
+            give(s,
+                "A",
+                skill(s,
+                    "qiyana",
+                    "A",
+                    "R")))
+        assert.equal(u(r.s,
+            "A",
+            "qiyana").lane,
+        3)
+        assert.equal(r.s.lanes.A[1],
+            "A:g3v_fighter")
     })
 
-test("nội tại (onHeal): hút máu của đồng minh cũng là một lần kích, 1 đòn hút máu = 2 lần (sát thương + hồi)",
-    () => {
-        cg.defineHero({
-            id: "g3v_vamp", name: "g3v_vamp", role: "fighter", damage: "physical", hp: 1000, atk: 3000, armor: 30, mr: 30,
-            passive: {
-                name: "-", desc: "-"
-            },
-            bonusStats: () => ({
-                lifesteal: 0.5
-            }),
-            skills: {
-                Q: noSkill("Q"), E: noSkill("E"), R: noSkill("R")
-            },
-        })
-        let s = mk({
-            A: {
-                nami: 0, g3v_vamp: 2
-            }, B: {
-                g3v_fighter: 2
-            }
-        })
-        u(s,
-            "B",
-            "g3v_fighter").hp = 1_000_000
-        u(s,
-            "B",
-            "g3v_fighter").maxHp = 1_000_000
-        s.active = "A"
-        u(s,
-            "A",
-            "g3v_vamp").hp = 100
-        const r = strike(s,
-            "A",
-            "A:g3v_vamp",
-            "B:g3v_fighter")
-        s = r.s
-        assert.ok(evs(r.ev,
-            "heal").some((e) => e.target === "A:g3v_vamp" && e.amount > 0),
-        "có hút máu")
-        assert.equal(s.players.A.hand.length,
-            2,
-            "sát thương rút 1 lá, hút máu rút thêm 1 lá")
-    })
-test("nội tại (onHeal): hồi máu của địch không kích",
-    () => {
-        let s = mkNami()
-        const foe = u(s,
-            "B",
-            "g3v_fighter")
-        foe.hp = 100
-        const g = gm(s)
-        g.heal(foe,
-            foe,
-            50)
-        s = g.s
-        assert.equal(s.players.A.hand.length,
-            0)
-    })
+// ======================================================================
+// Soraka, Nami: kit cân bằng starci-33 (support v7) được kiểm thử trong scripts/card_tests_balance_support.ts
+// ======================================================================
 
 // ======================================================================
 G("Chữ V2")
@@ -1620,6 +1642,7 @@ test("công thức EN khớp bản Việt của 6 tướng; từ khoá có đủ
             " ").trim()).join("|")
         for (const [id,
             en] of Object.entries(HERO_EN_V2_G3V)) {
+            if (id === "soraka" || id === "nami") continue // kiểm trong card_tests_balance_support.ts (EN dùng "max HP")
             const h = cg.getHero(id)!
             assert.equal(norm(en.passive.desc),
                 norm(h.passive.desc),

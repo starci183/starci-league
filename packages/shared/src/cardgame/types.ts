@@ -40,24 +40,24 @@ export const LANE_ORDER = [2,
     3,
     0,
     4]
-/** V3: các vòng được GỌI TƯỚNG (úp đồng thời, mỗi bên 1 tướng); đường LANE_ORDER[i] mở ở vòng SUMMON_ROUNDS[i]. Cân bằng V3 đợt 2: 1/4/8/13/19 -> 1/3/6/9/12 (trận kết thúc vài vòng sau tướng thứ 4) */
+/** V3: các vòng được GỌI TƯỚNG (úp đồng thời, mỗi bên 1 tướng); đường LANE_ORDER[i] mở ở vòng SUMMON_ROUNDS[i]. Chốt 31/10/2026: 1/4/8/13/19 */
 export const SUMMON_ROUNDS = [1,
-    3,
-    6,
-    9,
-    12]
+    4,
+    8,
+    13,
+    19]
 
 export const RULES = {
     lives: LIVES,
     prizeCount: PRIZE_COUNT,
-    /** Tối đa số mắt xích trong một Chuỗi */
-    maxChain: 10,
+    /** Tối đa 4 mắt xích, phản ứng theo điều kiện lên mắt xích địch ngay trước; giải quyết cuối → đầu. */
+    maxChain: 4,
     handMax: 10,
     /** Tay đầu: rút trước bước gọi tướng đầu tiên */
     startHand: 5,
     /** Bù cho bên đi sau: thêm lá vào tay đầu (chốt 30/10) */
     secondPlayerBonus: 1,
-    /** Bù bên đi sau (cân bằng V3 đợt 2): 1 = bên đi trước KHÔNG được đánh (lá Đánh thường, đòn không cần lá, đòn miễn phí) trong lượt đầu tiên của mình; 0 = tắt */
+    /** Bù bên đi sau (cân bằng V3 đợt 2): 1 = bên đi trước KHÔNG được đánh (lá Đánh thường, đòn không cần lá) trong lượt đầu tiên của mình; 0 = tắt */
     firstTurnNoAttack: 0,
     /** Bù bên đi sau (cân bằng V3 đợt 2): 1 = bên đi sau nhận quà Đánh Thường ngay lượt đầu của mình; 0 = tắt */
     secondFirstBasic: 0,
@@ -76,14 +76,20 @@ export const RULES = {
         2,
         3,
         4].map((l) => SUMMON_ROUNDS[LANE_ORDER.indexOf(l)]) as number[],
+    /** false = gọi tướng dần theo RULES.summonRounds, đường mở dần (luật đang dùng); true = xếp đủ 5 tướng ngay vòng 1 */
+    fullBoard: false,
     /** V3: cứ mỗi bấy nhiêu lượt CỦA MÌNH, người chơi được tặng 1 lá Đánh Thường / 1 mảnh đồ ngẫu nhiên (không lấy từ bộ bài) */
     freeBasicEvery: 1,
-    freeItemEvery: 3,
-    /** Chủ chốt 30/10: cứ mỗi bấy nhiêu lượt CỦA MÌNH, người chơi được tặng 1 lá Vàng (không lấy từ bộ bài) */
-    freeGoldEvery: 4,
-    /** Chủ chốt 30/10: cứ mỗi bấy nhiêu lượt CỦA MÌNH (bắt đầu từ lượt freeSkillOffset: 2, 6, 10...) người chơi được tặng 1 lá chiêu tạo mới của 1 tướng mình đang sống trên sân (ngẫu nhiên; không có thì bỏ qua) */
-    freeSkillEvery: 4,
-    /** Lượt CỦA MÌNH đầu tiên nhận quà lá chiêu (2 = xen kẽ với quà Vàng ở lượt 4, 8, 12...) */
+    /** Chốt 31/10/2026: quà đồ/Vàng gộp: cứ mỗi bấy nhiêu lượt CỦA MÌNH +1 lá, mảnh đồ với xác suất freeLootItemChance, còn lại là Vàng */
+    freeLootEvery: 2,
+    freeLootItemChance: 0.7,
+    /** 0 = tắt (đã thay bằng freeLootEvery) */
+    freeItemEvery: 0,
+    /** 0 = tắt (đã thay bằng freeLootEvery) */
+    freeGoldEvery: 0,
+    /** Quà lá chiêu tạo mới của 1 tướng mình trên sân; 0 = tắt (chốt 31/10/2026: bỏ để giảm lá thưởng) */
+    freeSkillEvery: 0,
+    /** Lượt CỦA MÌNH đầu tiên nhận quà lá chiêu (khi freeSkillEvery > 0) */
     freeSkillOffset: 2,
     /** Tỉ lệ loại lá chiêu của quà: Q / E / R */
     freeSkillOdds: {
@@ -95,11 +101,27 @@ export const RULES = {
     } as Record<SkillKey, number>,
     /** Số lá của bộ gốc người chơi xếp (deck.ts); mỗi tướng thêm 18 lá chiêu => 80 + 5 x 18 = 170 (bộ gấp đôi, chủ chốt 30/10) */
     sharedDeckSize: 80,
-    /** Giới hạn CỨNG số đòn đánh mỗi người mỗi lượt: tính cả lá Đánh thường, đòn không cần lá của Đấu sĩ và đòn miễn phí (nextAttack free) */
+    /** Giới hạn CỨNG số đòn đánh mỗi người mỗi lượt: tính cả lá Đánh thường và đòn không cần lá của Đấu sĩ */
     attackLimit: 3,
     /** Đòn không cần lá của Đấu sĩ: hệ số sát thương (Quick, 1 lần/lượt/đấu sĩ) */
-    fighterCardlessMult: 0.66,
-    /** Pháp sư: mana nhân 10 (mỗi tướng có thể đặt riêng qua HeroDef.mana) */
+    fighterCardlessMult: 0.5,
+    /** One public resource pool per team. Regen amount retained pending balance review. */
+    teamManaMax: 200, teamManaStart: 80, teamManaRegen: 20,
+    /** Chốt 31/10/2026: mana trên đồ KHÔNG nới trần bể 200 và KHÔNG có công thức quy đổi chung. Mỗi món tự mang 1 trong 2 kiểu:
+     *  giảm mana chiêu của chính tướng đeo (CardItemDef.manaCostMod) hoặc hồi bể mana đội (CardItemDef.manaRegen / hook hoàn mana).
+     *  Hai hệ số dưới để 0 (giữ để chỉnh thử khi cân bằng). */
+    itemManaToRegen: 0,
+    itemManaCostCut: 0,
+    /** Tốc Đánh nền: 100 = 1 đòn mỗi hành động đánh; 250 = 2 đòn + 50% đòn thứ 3 */
+    baseAttackSpeed: 100,
+    /** Thứ tự thử các nguồn cứu chết; nguồn đầu tiên cứu được thì dừng */
+    lethalOrder: ["item:truong_truong_sinh", // Khiên cứu nguy của Quyền Trượng chặn trước khi tính cứu chết
+        "hero:soraka",
+        "hero:renata",
+        "transform",
+        "item:giap_thien_than",
+        "item:ao_choang_bong_toi"] as string[],
+    /** Legacy cost/restore configuration; pools are now team-owned. */
     mage: {
         manaMax: 100, manaStart: 100, manaRegen: 10,
         /** Chi phí mặc định khi SkillDef.mana thiếu */
@@ -134,7 +156,7 @@ export const RULES = {
     itemScale: {
         hp: 0.4, atk: 1
     } as Record<string, number>,
-    critBase: 1.5,
+    critBase: 2.25,
     /** 1 điểm manaRegen của đồ = bấy nhiêu AP (không có mana trong chế độ này) */
     manaRegenToAp: 1.2,
     maxActionsPerTurn: 120,
@@ -173,18 +195,24 @@ export interface StatusInst {
   at?: number;
   /** Cuối lượt của CHỦ trạng thái, v giảm bấy nhiêu; v <= 0 thì gỡ (Say Mê của Ahri...). Đặt bằng g.status(..., { decay }) */
   decay?: number;
+  /** Ordered presentation recipe selected by the effect source; [] deliberately suppresses it. */
+  visuals?: string[];
+  /** Recipe for a later periodic tick, independent of the status application visual. */
+  tickVisuals?: string[];
+  /** Independent source applications for timed control; effective expiry is their maximum. */
+  instances?: Record<string, { until: number; v: number; at: number; src?: string; card?: string }>;
 }
 /** Buff của đòn đánh kế tiếp (Nami E, Blitz E, TF R...). Tiêu hết khi tướng đánh. */
 export interface NextAttackBuff {
   id: string;
   /** id tướng đã tạo buff (để hook nhận ra: Nami rút bài nếu đòn chí mạng) */
   source: string;
-  /** Đòn này không cần lá Đánh thường */
-  free?: boolean;
   bonusRaw?: number;
   bonusKind?: DamageKind;
   mult?: number;
 }
+/** Loại Khiên: "all" trắng (chặn mọi sát thương), "physical" vàng, "magic" xanh dương */
+export type ShieldKind = "all" | "physical" | "magic"
 export interface Unit {
   id: string; // `${side}:${hero}`
   hero: string;
@@ -193,7 +221,12 @@ export interface Unit {
   status: "reserve" | "board" | "dead";
   lane: number; // -1 nếu không ở trên sân
   homeLane: number;
+  /** shield = Khiên TRẮNG (chặn mọi loại sát thương, kể cả chuẩn). shieldPhys (vàng) chỉ chặn vật lý, shieldMagic (xanh dương) chỉ chặn phép. Tổng: g.totalShield(u). */
   hp: number; maxHp: number; shield: number;
+  shieldPhys?: number;
+  shieldMagic?: number;
+  /** Phần Khiên có hạn (g.shield o.turns): hết hạn thì trừ phần còn lại khỏi shield. Sát thương ăn phần có hạn trước. */
+  shieldTimed?: { amount: number; until: number; kind?: ShieldKind }[];
   items: string[]; // id đồ huyền thoại đã ghép
   /** Trạng thái có thời hạn: stun, silence, chill (Buốt), shred (Rã giáp), taunt, empower, blind... */
   statuses: Record<string, StatusInst>;
@@ -202,7 +235,7 @@ export interface Unit {
   nextAttack: NextAttackBuff[];
   respawnRound: number;
   deaths: number;
-  /** Chỉ pháp sư (undefined với vai khác và token). Công khai. Mana tối đa tính bằng g.maxMana(u). */
+  /** @deprecated Legacy snapshots only; ignored by gameplay. Read GameState.teamMana / g.manaOf(u). */
   mana?: number;
   /** V3: dấu trúng đòn (Nami Q, Braum Q): đồng minh của người đánh dấu đánh trúng thì tiêu 1 nấc và gây thêm sát thương */
   marks?: HitMark[];
@@ -212,6 +245,9 @@ export interface Unit {
   itemSince?: number[];
   /** Có = đây là VẬT TRIỆU HỒI (token) ở ô triệu hồi phụ, không phải tướng: không tính mạng khi chết, không có lá */
   token?: TokenInfo;
+  statModifiers?: Record<string, { stats: Partial<UnitStats>; until: number; src?: string; harmful?: boolean }>;
+  shieldLayers?: { key: string; amount: number; until?: number; src?: string; kind?: DamageKind | "all" }[];
+  summonedOnce?: boolean;
 }
 /** Định nghĩa vật triệu hồi (dữ liệu thuần, truyền cho g.summonToken) */
 export interface TokenDef {
@@ -282,6 +318,8 @@ export interface DelayedEffect {
   at: "turnStart" | "turnEnd";
   side: Side;
   data?: Record<string, number | string>;
+  surviveOwnerDeath?: boolean;
+  context?: { src?: string; card?: string; uid?: string; actionId?: string };
 }
 export interface Player {
   side: Side;
@@ -293,6 +331,8 @@ export interface Player {
   lives: number;
 }
 export interface Trigger {
+  /** Loại hành động ngay trước để xét điều kiện phản ứng; optional cho tương thích dữ liệu cũ. */
+  kind?: "attack" | "skill" | "support";
   side: Side; card: Card; actor?: string; target: string;
   /** Chiêu/đòn này nhắm đúng 1 tướng bên phản ứng (Braum Q) */
   single?: boolean;
@@ -313,6 +353,8 @@ export interface ReactFx {
   cutNoCc?: boolean;
   /** Tướng này phản lại reflectPct sát thương nhận từ kẻ tấn công */
   reflectUnit?: string; reflectPct?: number;
+  reflectFlat?: number;
+  reflectSource?: string;
   /** Huỷ mắt xích ngay dưới (lá/đòn không có tác dụng; lá vẫn coi như đã dùng và vào mộ). Đặt qua g.chainFx().cancel = true (Janna Q, Soraka E, Blitz E) */
   cancel?: boolean;
   /** Cùng cancel: phe này "giật" lá bị huỷ (g.stealFromChain): lá chung về tay phe đó, lá chiêu bị đốt vào mộ chủ và bắn hook onSteal */
@@ -337,9 +379,9 @@ export interface ChainLink {
   quick: boolean;
   /** Trigger của mắt xích mà nó đáp lại (đưa vào ctx.trigger khi giải quyết) */
   reactTo?: Trigger;
-  /** kind = "attack": "free" = đòn miễn phí từ buff, "cardless" = đòn không cần lá của Đấu sĩ (Quick, 66%) */
-  mode?: "free" | "cardless";
-  /** kind = "card", chiêu của pháp sư: mana đã trả khi kích hoạt */
+  /** kind = "attack": đòn không cần lá của Đấu sĩ. */
+  mode?: "cardless";
+  /** kind = "card": team mana already paid when this skill was activated */
   manaPaid?: number;
 }
 export interface Chain {
@@ -352,7 +394,7 @@ export interface Chain {
   opened?: boolean;
 }
 export interface TurnAttacks {
-  /** số đòn đã tính (lá Đánh thường, đòn không cần lá, đòn miễn phí) */
+  /** số đòn đã tính (lá Đánh thường, đòn không cần lá) */
   used: number;
   /** id các Đấu sĩ đã dùng đòn không cần lá trong lượt này */
   cardless: string[];
@@ -372,6 +414,11 @@ export interface GameState {
   phase: "blind" | "summon" | "main" | "chain" | "over";
   actionsThisTurn: number;
   players: Record<Side, Player>;
+  /** Public shared mana, all champion roles spend from their team's pool. */
+  teamMana: Record<Side, number>;
+  actionSequence?: number;
+  actionLedger?: Record<string, { crit?: boolean; critTarget?: string; used: Record<string, boolean>; enemyDamage: number; allyHealing: number; attackDamage: number }>;
+  graveHighWater?: Partial<Record<Side, number>>;
   units: Record<string, Unit>;
   /** lanes[side][đường] = id tướng đang đứng (hoặc null) */
   lanes: Record<Side, (string | null)[]>;
@@ -428,18 +475,22 @@ export interface PlayArgs {
   discard?: string[];
   /** lựa chọn tự do khác: uid / id lá, tên chế độ... */
   pick?: string;
+  manaSpent?: number;
+  amount?: number;
 }
 export type Action =
   | { t: "summon"; side: Side; hero: string; lane: number }
   | { t: "play"; side: Side; uid: string; args?: PlayArgs }
-  /** Không có cardless = đòn miễn phí từ buff nextAttack (tính vào giới hạn 3). cardless = đòn không cần lá của Đấu sĩ (Quick: đánh được trong lượt mình hoặc nối chuỗi ở lượt đối thủ, 66%, 1 lần/lượt/Đấu sĩ, tính vào giới hạn 3) */
-  | { t: "attack"; side: Side; actor: string; target: string; cardless?: true }
+  /** Đấu sĩ đánh không cần lá trong lượt mình; đòn do chiêu/hook kích hoạt không dùng Action này. */
+  | { t: "attack"; side: Side; actor: string; target: string; cardless: true }
   /** Chốt bước gọi tướng úp (chỉ phase "blind"); summon trong phase "blind" là lựa chọn úp */
   | { t: "ready"; side: Side }
   /** Ghép 2 Đồ + 1 Vàng trên tay thành 1 lá ĐỒ HUYỀN THOẠI lên tay (support "legend", card.item = id món). `unit` cũ bị bỏ qua. */
   | { t: "craft"; side: Side; items: [string, string]; gold: string; unit?: string }
   /** Ghép tại chỗ: tướng `unit` đang mang 1 mảnh; `item` = uid lá mảnh thứ hai trên tay, `gold` = uid lá Vàng. Mảnh trong ô biến thành món theo bảng ghép (không tốn thêm ô). */
   | { t: "upgrade"; side: Side; unit: string; item: string; gold: string }
+  /** Lời Thề Hiệp Sĩ: tướng `unit` (đang đeo) đổi đồng minh bảo hộ sang `ally`. Lượt mình, bước chính, 1 lần/lượt mỗi người đeo, miễn phí. */
+  | { t: "vow"; side: Side; unit: string; ally: string }
   | { t: "chain"; side: Side; uid: string; args?: PlayArgs }
   /** V3: tháo 1 món đồ khỏi tướng `unit` (id món): lá đồ về tay (tay đầy thì đốt). Hành động trong lượt mình. */
   | { t: "unequip"; side: Side; unit: string; item: string }
@@ -451,6 +502,10 @@ export type Action =
   | { t: "end"; side: Side };
 
 // ---------------- Sự kiện (cho client chơi hiệu ứng / log) ----------------
+/** `visuals` on semantic effects is an ordered list of IMPACT VFX registry names.
+ *  Undefined uses semantic defaults, [] suppresses appearance, and N names never
+ *  multiply the gameplay result. Projectile delivery belongs to the action recipe.
+ */
 export type GameEvent =
   | { t: "roundStart"; round: number; openLanes: number[] }
   | { t: "turnStart"; side: Side; round: number }
@@ -460,10 +515,10 @@ export type GameEvent =
   | { t: "play"; side: Side; card: Card; args?: PlayArgs; reaction?: boolean }
   | { t: "cast"; unit: string; skill: string; target?: string }
   | { t: "attack"; attacker: string; target: string; crit: boolean; miss: boolean; free: boolean; cardless?: boolean }
-  | { t: "damage"; src?: string; target: string; amount: number; hpLost: number; absorbed: number; kind: DamageKind; tag: string; crit?: boolean; hp: number }
-  | { t: "heal"; src?: string; target: string; amount: number; hp: number }
-  | { t: "shield"; src?: string; target: string; amount: number; shield: number }
-  | { t: "status"; target: string; id: string; turns: number; v: number; src?: string; card?: string }
+  | { t: "damage"; src?: string; target: string; amount: number; hpLost: number; absorbed: number; kind: DamageKind; tag: string; crit?: boolean; hp: number; visuals?: string[]; visualGroup?: string }
+  | { t: "heal"; src?: string; target: string; amount: number; hp: number; visuals?: string[]; visualGroup?: string }
+  | { t: "shield"; src?: string; target: string; amount: number; shield: number; visuals?: string[]; visualGroup?: string; expired?: boolean; kind?: ShieldKind }
+  | { t: "status"; target: string; id: string; turns: number; v: number; src?: string; card?: string; visuals?: string[]; tickVisuals?: string[]; visualGroup?: string }
   | { t: "statusEnd"; target: string; id: string }
   | { t: "stack"; unit: string; key: string; value: number }
   | { t: "move"; unit: string; from: number; to: number; with?: string }
@@ -471,6 +526,8 @@ export type GameEvent =
   | { t: "lives"; side: Side; lives: number }
   | { t: "draw"; side: Side; card: Card; reason: string; by?: string }
   | { t: "drawAuto"; side: Side; card: Card }
+  /** Public trap animation; no card UID or deck order is exposed. */
+  | { t: "mushroom"; side: Side; source: string; phase: "plant" | "burst"; count: number; target?: string; drawn?: boolean }
   | { t: "discard"; side: Side; card: Card; reason: string }
   | { t: "burn"; side: Side; card: Card }
   /** Tay đầy: lá thừa bị đốt vào mộ (lá tạm/đặc biệt thì biến mất) */
@@ -485,6 +542,7 @@ export type GameEvent =
   /** Tay của `side` hết bị lộ (bắt đầu lộ: sự kiện "reveal" có cards) */
   | { t: "revealEnd"; side: Side }
   | { t: "manaChange"; unit: string; mana: number; max: number; delta: number; reason: "summon" | "respawn" | "turn" | "spend" | "restore" | "effect" }
+  | { t: "teamManaChange"; side: Side; unit?: string; mana: number; max: number; delta: number; reason: "turn" | "spend" | "restore" | "effect" }
   /** Số đòn đã đánh / giới hạn của phe sau mỗi đòn tính */
   | { t: "attackCount"; side: Side; used: number; limit: number }
   /** Một phe đã chốt gọi tướng úp (không lộ chọn gì); tướng lộ ra bằng các sự kiện "summon" khi cả hai chốt */
@@ -550,8 +608,9 @@ export interface Ctx {
   targets: Unit[];
   lane?: number;
   trigger?: Trigger;
-  /** Mana đã trả để tung lá này (0 với tướng không phải pháp sư) */
+  /** Shared team mana paid by this skill (zero for a free skill or non-skill card). */
   manaPaid: number;
+  actionId?: string;
   /** Tính công thức theo chỉ số của tướng dùng lá: ctx.f("40 + 60% AD") */
   f(expr: string): number;
   /** Lá này quay về tay thay vì vào mộ (Darius R hạ gục, Viktor Q bậc 3) */
@@ -559,7 +618,7 @@ export interface Ctx {
   /** Lá này biến mất, không vào mộ */
   vanish(): void;
 }
-export interface OptCtx { g: Game; side: Side; self: Unit; card: Card; trigger?: Trigger }
+export interface OptCtx { g: Game; side: Side; self: Unit; card: Card; trigger?: Trigger; args?: PlayArgs }
 
 export interface SkillDef {
   key: SkillKey;
@@ -574,18 +633,19 @@ export interface SkillDef {
   canPlay?(c: OptCtx): boolean;
   /** Ghi đè cách liệt kê lựa chọn (Soraka E bỏ tuỳ ý...). Trả về các PlayArgs hợp lệ. */
   options?(c: OptCtx): PlayArgs[];
-  /** Nhãn QUICK: chiêu này đánh được trong lượt mình như thường, VÀ được kích hoạt để nối Chuỗi lên lá vừa đánh (cả lượt đối thủ). */
+  /** Nhãn QUICK: chiêu có thể nối Chuỗi khi quickWhen thoả điều kiện; vẫn đánh được chủ động nếu không chainOnly. */
   quick?: boolean;
-  /** Điều kiện kích hoạt khi NỐI CHUỖI (mắt xích đang đáp lại mô tả bởi trigger). Không khai báo = nối được với mọi mắt xích. */
+  /** Điều kiện kích hoạt khi NỐI CHUỖI lên mắt xích trên cùng. Không khai báo = không được nối chuỗi. */
   quickWhen?(c: OptCtx & { trigger: Trigger }): boolean;
   /** Quick chỉ dùng để nối chuỗi, không đánh được chủ động (resolve dùng ctx.trigger; ctx.target = trigger.target) */
   chainOnly?: boolean;
-  /** Chiêu enemy / enemies_upto được chọn cả vật triệu hồi ở ô phụ của địch (mặc định KHÔNG: chỉ đòn đánh của xạ thủ nhắm được token) */
+  /** Chiêu enemy / enemies_upto được chọn cả vật triệu hồi ở ô phụ của địch (mặc định KHÔNG; đòn đánh thường của mọi vai được chọn ô phụ) */
   targetsTokens?: boolean;
   /** Không thể bị nối chuỗi (không ai được đáp lại lá này bằng lá Quick) */
   uncounterable?: boolean;
-  /** Chi phí mana (chỉ pháp sư; số lẻ như 15, 25 được). Số hoặc hàm động. Thiếu = RULES.mage.defaultCost[key]. */
+  /** Shared team mana cost, all roles. Number/dynamic function; absent = existing Q/E/R defaults. */
   mana?: number | "all" | ((c: OptCtx) => number);
+  usesPerCycle?: number;
   /** Với extra = "discard": bỏ tối đa N lá (liệt kê mọi tổ hợp 1..N lá khác nhau; mặc định 1 lá). args.discard là mảng uid. */
   discardMax?: number;
   resolve(ctx: Ctx): void;
@@ -599,13 +659,23 @@ export interface AttackInfo {
   cardless?: boolean;
   /** V3: hook onAttack đặt true = đòn này không thể chí mạng (Ashe) */
   noCrit?: boolean;
+  /** Giáp bỏ qua của đòn chính khi chí mạng (Vô Cực Kiếm) */
+  critArmorPen?: number;
   /** Đòn thứ mấy (1, 2, 3...) của người đánh trong lượt hiện tại (Sát Thủ Kraken) */
   nth: number;
   bonus: { raw: number; kind: DamageKind }[];
+  actionId?: string;
+  hitIndex?: number;
+  hits?: number;
   buffs: NextAttackBuff[];
 }
 /** Dữ liệu từng hook (xem docs/CARDGAME_API.md) */
 export interface HookData {
+  /** Independent scheduled passive, including owners currently dead or controlled. */
+  onStandby: { side: Side };
+  onStatusApplied: { unit: Unit; id: string; turns: number; v: number; src?: string };
+  onActionCommitted: { actionId: string; side: Side; card?: Card; unit?: Unit; action: "attack" | "skill" };
+  onActionEnd: { actionId: string; side: Side; actor?: Unit; card?: Card; actualEnemyDamage: number; actualAllyHealing: number; qualifyingAttackDamage: number };
   onSummon: { unit: Unit };
   onRespawn: { unit: Unit };
   onTurnStart: { side: Side };
@@ -619,7 +689,7 @@ export interface HookData {
   onAttack: { attacker: Unit; target: Unit; info: AttackInfo };
   onAttackHit: { attacker: Unit; target: Unit; info: AttackInfo; dealt: number };
   onCrit: { attacker: Unit; target: Unit; info: AttackInfo };
-  onDamage: { src?: Unit; target: Unit; amount: number; hpLost: number; kind: DamageKind; tag: string; crit?: boolean };
+  onDamage: { src?: Unit; target: Unit; amount: number; hpLost: number; absorbed: number; kind: DamageKind; tag: string; crit?: boolean; component?: string; actionId?: string };
   /** Một lần hồi máu thật (mọi nguồn: chiêu, hút máu, đồ...). src = tướng gây hồi (có thể không có), amount = máu thật được hồi (> 0). */
   onHeal: { src?: Unit; target: Unit; amount: number };
   onShieldBreak: { target: Unit };
@@ -643,7 +713,7 @@ export interface HookData {
   onBeforeStatus: { unit: Unit; id: string; turns: number; v: number; cancel: boolean };
   /** Địch `src` sắp giải quyết lá chiêu `card` có `affected` (id tướng bị ảnh hưởng, đã gồm "mọi địch"). Hook đẩy id vào d.immune để tướng đó MIỄN mọi sát thương/trạng thái do lá này gây (Mũ Thích Nghi); lá vẫn bị tiêu. */
   onTargeted: { src: Unit; card: Card; skill: SkillDef; affected: string[]; immune: string[] };
-  /** Pháp sư vừa trả mana để tung `card` */
+  /** A champion of any role paid shared team mana to activate `card`. */
   onManaSpent: { unit: Unit; amount: number; card: Card };
   /** Lá tạm của `side` bị gỡ khỏi tay cuối lượt */
   onTempExpired: { side: Side; card: Card };
@@ -676,12 +746,20 @@ export interface HeroDef {
   summonLanes?(g: Game, side: Side): number[];
   /** Mục tiêu tự đánh cuối lượt (đấu sĩ mặc định tướng đối diện; Kog E...). Trả undefined = không đánh. */
   autoAttack?(g: Game, me: Unit): Unit | undefined;
+  /** Hook vẫn gọi khi tướng này đã chết (giữ ô): nội tại/hiệu ứng độc lập với việc còn trên sân (Yorick, dấu Braum Q, Bỏng Brand) */
+  offBoardHooks?: HookName[];
+  /** Nhân Khiên MỚI do bất kỳ ai tạo cho `target` khi tướng này đang trên sân (1 lần mỗi Khiên; Janna nội tại) */
+  shieldGivenMult?(g: Game, me: Unit, src: Unit | undefined, target: Unit): number;
+  /** Tốc Đánh cộng cho `u` khi tướng này đang trên sân (hào quang, vd Janna nội tại); đọc trong Game.attackSpeed */
+  attackSpeedAura?(g: Game, me: Unit, u: Unit): number;
   /** Nhân sát thương cho MỌI sát thương trong trận khi tướng này đang trên sân (kể cả sát thương lên đồng đội/địch): trả hệ số (1 = giữ). Nội tại giảm sát thương, "lần đầu x2" (Braum, Malphite, Garen, Qiyana, Janna R...). Có thể có tác dụng phụ (đánh dấu). Không gọi g.damage bên trong. */
   modifyDamage?(g: Game, me: Unit, d: { src?: Unit; target: Unit; kind: DamageKind; tag: string; crit?: boolean }): number;
   /** V3: hào quang đồ (Ornn): với MỖI món đồ đang mặc của đồng minh (kể cả chính mình), trả % cộng thêm (0.12 = +12%) lên mọi chỉ số KHÔNG PHẢI máu của món đó. `roundsWorn` = số vòng món đã được mặc. Trong lúc tính, g.stats/atk/ap trả giá trị CHƯA có hào quang (an toàn khi đọc chỉ số của mình). */
   itemAura?(g: Game, me: Unit, wearer: Unit, item: string, roundsWorn: number): number;
   /** Chỉ số cộng thêm cho CHÍNH tướng này (cộng vào g.stats): Lux AP theo mana, Yorick ATK theo mộ, Ornn Rèn. Không gọi g.stats/atk/ap bên trong. */
   bonusStats?(g: Game, me: Unit): Partial<UnitStats>;
+  allyBonusStats?(g: Game, owner: Unit, target: Unit): Partial<UnitStats>;
+  shieldGivenMult?(g: Game, owner: Unit, source: Unit | undefined, target: Unit): number;
   /** Số lá rút thêm ở bước rút đầu lượt của chủ khi tướng này đang trên sân (Twisted Fate: 1) */
   drawBonus?(g: Game, me: Unit): number;
   /** Mục tiêu đánh thường THÊM (không qua khiêu khích), vd Thùng của chính mình cho Gangplank */
@@ -693,7 +771,7 @@ export interface HeroDef {
     can(g: Game, me: Unit, card: Card): boolean;
     resolve(g: Game, me: Unit, card: Card): void;
   };
-  /** Pháp sư: ghi đè mana (thiếu khoá = RULES.mage). Đơn vị đã nhân 10 */
+  /** @deprecated Per-hero pool overrides are ignored by shared team mana; retained for old definitions. */
   mana?: { max?: number; start?: number; regen?: number };
   /** @deprecated V2: engine bỏ qua (luôn 4Q/4E/1R). File tướng sẽ xoá trường này. */
   skillCopies?: Partial<Record<SkillKey, number>>;

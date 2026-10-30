@@ -574,7 +574,7 @@ test("chiêu trúng +1 Phân Rã; đủ 3 thì nổ sát thương chuẩn rồi 
         "phải có sát thương chuẩn")
     })
 
-test("Q: đứa chính nhận gấp đôi, 2 địch ngẫu nhiên khác cũng +1 Phân Rã",
+test("Q: đứa chính nhận gấp đôi, 1 địch ngẫu nhiên khác cũng +1 Phân Rã",
     () => {
         const s = mk({
             A: {
@@ -599,7 +599,7 @@ test("Q: đứa chính nhận gấp đôi, 2 địch ngẫu nhiên khác cũng +
             "g1_mark"].filter((h) => decay(r.s,
             h) === 1)
         assert.equal(hit.length,
-            2)
+            VK.Q_SIDE_TARGETS)
         const mainRaw = gm(r.s).f(u(r.s,
             "A",
             "velkoz"),
@@ -653,7 +653,7 @@ test("E: sát thương ngay và nhịp hai cuối lượt, mỗi nhịp +1 Phân
         2)
     })
 
-test("R: 10 tia ngẫu nhiên, mỗi tia là một lần trúng",
+test("R: 6 tia vào 1 mục tiêu chọn, mỗi tia là một lần trúng, đủ 6 tia = 2 chu kỳ Phân Rã",
     () => {
         const s = mk({
             A: {
@@ -669,11 +669,23 @@ test("R: 10 tia ngẫu nhiên, mỗi tia là một lần trúng",
                 skill(s,
                     "velkoz",
                     "A",
-                    "R")))
+                    "R")),
+            {
+                target: "B:g1_fighter"
+            })
         const rays = evs(r.ev,
             "damage").filter((d) => d.tag === "skill" && d.kind === "magic")
         assert.equal(rays.length,
             VK.RAYS)
+        assert.ok(rays.every((d) => d.target === "B:g1_fighter"),
+            "mọi tia vào đúng mục tiêu chọn")
+        assert.equal(evs(r.ev,
+            "damage").filter((d) => d.tag === "effect" && d.kind === "true" && d.target === "B:g1_fighter").length,
+        2,
+        "6 tia = 2 lần nổ Phân Rã")
+        assert.equal(decay(r.s,
+            "g1_fighter"),
+        0)
     })
 
 test("chủ 30/10: không còn lá tạm Phân Rã Hữu Cơ đầu lượt (nội tại chỉ cộng Phân Rã khi chiêu trúng)",

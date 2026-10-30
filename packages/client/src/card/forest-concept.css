@@ -1,0 +1,291 @@
+/* One 16:9 play surface. Extra monitor space belongs to the environment. */
+.cg-viewport {
+    width: 100%; height: 100%; display: grid; place-items: center; overflow: hidden;
+    background: linear-gradient(#06140bc9,#06140be8),url('/map/board5.jpg') center/cover;
+}
+.forest-game,.forest-game.log-open {
+    --inspector-width: 19%; --journal-width: 17%; --hand-height: 16%;
+    --concept-frame: url('/ui/examples/forest-stone-leaf-frame.png');
+    position: relative; width: min(100vw,177.777778dvh); height: min(100dvh,56.25vw);
+    aspect-ratio: 16/9; max-width: 100%; max-height: 100%; container-type: size;
+    display: grid; grid-template-columns: 19% 64% 17%; grid-template-rows: 100%;
+    padding: 0; gap: 0; overflow: hidden;
+    background: #17351e url('/ui/examples/forest-duel-underlay.png') center/100% 100%;
+    color: #f0e5c8; font-size: .78cqw;
+}
+.forest-game .cg-main {
+    position: relative; grid-column: 2; grid-row: 1; display: grid;
+    grid-template-rows: 84% 16%; border: 0; border-radius: 0;
+    overflow: visible; background: none; box-shadow: none;
+}
+.forest-game .cg-panel-controls { display: none; }
+.forest-game .cg-inspector {
+    position: absolute; display: flex; left: .8%; top: 7.7%; width: 17.5%; height: 74%;
+    border: 0; border-image: none; background: #081d16dc; padding: .35cqw;
+    color: #e8e4ca; z-index: 8; overflow: hidden;
+}
+.forest-game .cg-side,.forest-game.log-open .cg-side {
+    position: absolute; display: flex; left: 84%; right: auto; top: 3%; bottom: auto;
+    width: 15%; height: 79%; border: 0; background: none; padding: 0;
+    overflow: hidden; z-index: 8;
+}
+.forest-game .cg-chainwrap { height: 100%; width: 100%; }
+
+/* A framed top HUD, a generous portrait battlefield, and physical card piles. */
+.forest-game .cg-board { padding: 0; gap: 0; background: none; overflow: visible; }
+.forest-game .bd-duel-hud {
+    display: grid; grid-template-columns: 30% 40% 30%; align-items: center;
+    height: 9%; min-height: 0; flex: none; position: relative; gap: 0;
+    padding: .3cqw .55cqw; background: #071c13b8;
+}
+.forest-game .bd-player-hud { display: flex; align-items: center; gap: .45cqw; min-width: 0; }
+.forest-game .bd-player-hud.me { flex-direction: row-reverse; text-align: right; }
+.forest-game .bd-avatar { position: relative; width: 2.9cqw; height: 2.9cqw; flex: none; border: .14cqw solid #b5a05f; border-radius: 50%; overflow: hidden; background: #0d271b; box-shadow: 0 2px 5px #0009; }
+.forest-game .bd-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.forest-game .bd-avatar .bd-side { position: absolute; bottom: 0; right: 0; width: 1cqw; height: 1cqw; font-size: .6cqw; background: #092735; color: #cce6ed; }
+.forest-game .bd-player-meta { min-width: 0; }
+.forest-game .bd-pname { display: flex; gap: .25cqw; align-items: center; font-size: .74cqw; }
+.forest-game .bd-player-hud.me .bd-pname { justify-content: end; }
+.forest-game .bd-pname b { max-width: 9cqw; color: #f7ebc7; }
+.forest-game .bd-pname small { font-size: .5cqw; color: #a5c599; }
+.forest-game .bd-lives { display: flex; gap: .18cqw; align-items: center; height: 1.15cqw; }
+.forest-game .bd-lives i { width: .6cqw; height: .8cqw; border: 1px solid #72483b; background: #26352a; border-radius: 35% 35% 45% 45%; transform: none; box-shadow: none; }
+.forest-game .bd-player-hud.foe .bd-lives i.on { background: linear-gradient(#f76e59,#a9201d); border-color: #db8b6b; }
+.forest-game .bd-player-hud.me .bd-lives { justify-content: end; }
+.forest-game .bd-player-hud.me .bd-lives i.on { background: linear-gradient(#70dff1,#157cb6); border-color: #91d9dc; clip-path: polygon(50% 0,100% 25%,90% 80%,50% 100%,10% 80%,0 25%); }
+.forest-game .bd-life-count { font-size: .6cqw; margin-left: .2cqw; color: #d5dbb4; }
+.forest-game .bd-player-details { display: flex; align-items: center; gap: .35cqw; }
+.forest-game .bd-player-hud.me .bd-player-details { justify-content: end; }
+.forest-game .bd-player-details .bd-cnt { font-size: .55cqw; display: flex; gap: .15cqw; white-space: nowrap; }
+.forest-game .bd-player-details .bd-cnt b { font-size: .64cqw; }
+.forest-game .bd-reserve { display: flex; gap: .12cqw; }
+.forest-game .bd-res { padding: 0; width: 1.25cqw; height: 1.3cqw; border: 1px solid #92875b; background: #10281b; border-radius: .2cqw; cursor: help; }
+.forest-game .bd-res img { width: 100%; height: 100%; object-fit: cover; }
+.forest-game .bd-res em { font-size: .48cqw; }
+.forest-game .bd-fan { display: none; }
+.forest-game .bd-player-details .bd-fan { display: flex; align-items: center; padding-right: .2cqw; }
+.forest-game .bd-player-details .bd-fan .bd-mini { width: .65cqw; height: .9cqw; margin-left: -.4cqw; }
+.forest-game .bd-player-details .bd-fan .bd-mini:first-child { margin-left: 0; }
+.forest-game .bd-bar { display: flex; justify-content: center; flex-wrap: wrap; align-content: center; gap: .22cqw .5cqw; padding: 0; height: 100%; border: 0; background: none; box-shadow: none; font-size: .84cqw; }
+.forest-game .bd-round { color: #eaddac; }
+.forest-game .bd-round small { color: #9fb38e; font-size: .65cqw; }
+.forest-game .bd-turn { font-size: .63cqw; padding: .15cqw .55cqw; letter-spacing: .04cqw; }
+.forest-game .bd-hint { flex-basis: 100%; text-align: center; margin: 0; font-size: .6cqw; }
+.forest-game .bd-board-body { height: 91%; min-height: 0; }
+/* Coordinates follow the five painted roads in forest-duel-underlay.png.
+   The board starts at 19% of the game width and spans 62.5%; these centers
+   correspond to 27.5 / 38.6 / 50.4 / 62.75 / 73.55% of the full artwork. */
+.forest-game .bd-playfield {
+    --road-1: 13.6%; --road-2: 31.36%; --road-3: 50.24%;
+    --road-4: 70%; --road-5: 87.28%;
+    position: absolute; inset: 0; padding: 0; display: block; pointer-events: none;
+}
+.forest-game .bd-row { position: absolute; left: 0; top: 10cqh; width: 100%; height: 25cqh; display: block; }
+.forest-game .bd-row.me { top: 54cqh; }
+.forest-game .bd-row > .bd-slot {
+    position: absolute; top: 0; width: 8.2cqw; height: 100%;
+    margin: 0; transform: translateX(-50%); pointer-events: auto;
+}
+.forest-game .bd-row > .bd-slot.occupied { align-items: center; justify-content: center; }
+.forest-game .bd-row > .bd-slot:nth-child(1), .forest-game .bd-mid > span:nth-child(1) { left: var(--road-1); }
+.forest-game .bd-row > .bd-slot:nth-child(2), .forest-game .bd-mid > span:nth-child(2) { left: var(--road-2); }
+.forest-game .bd-row > .bd-slot:nth-child(3), .forest-game .bd-mid > span:nth-child(3) { left: var(--road-3); }
+.forest-game .bd-row > .bd-slot:nth-child(4), .forest-game .bd-mid > span:nth-child(4) { left: var(--road-4); }
+.forest-game .bd-row > .bd-slot:nth-child(5), .forest-game .bd-mid > span:nth-child(5) { left: var(--road-5); }
+/* Auxiliary summons use the two river shrines, never a sixth lane. */
+.forest-game .bd-row > .bd-slot.extra { width: 6.8cqw; height: 12cqh; margin: 0; }
+.forest-game .bd-row.foe > .bd-slot.extra { left: var(--road-1); top: 27.5cqh; }
+.forest-game .bd-row.me > .bd-slot.extra { left: var(--road-5); top: -16.5cqh; }
+.forest-game .bd-mid { position: absolute; left: 0; top: 50cqh; width: 100%; height: 1cqh; display: block; color: #dccb8c; font-size: .63cqw; }
+.forest-game .bd-mid > span { position: absolute; transform: translateX(-50%); }
+.forest-game .bd-slot { min-height: 0; }
+.forest-game .bd-slot.empty,.forest-game .bd-slot.closed { border: 1px solid #e7d18b77; background: #12361c22; border-radius: .5cqw; opacity: 1; box-shadow: inset 0 0 10px #0a201222; }
+.forest-game .bd-slot.closed { opacity: .5; }
+.forest-game .bd-slot.extra.empty { border-style: dashed; background: #163c2340; }
+.forest-game .bd-slot-sub { font-size: .56cqw; }
+.forest-game .bd-slot-label { font-size: .65cqw; }
+.forest-game .bd-unit { flex: none; height: 94%; width: auto; aspect-ratio: .58; max-width: 100%; padding: .22cqw; gap: .12cqw; border: 1px solid #a8b17b; background: #0c2719; border-radius: .25cqw; }
+.forest-game .bd-unit::before { inset: -.3cqw; border-width: .7cqw; border-image: var(--concept-frame) 25% / .7cqw stretch; }
+.forest-game .bd-unit.foe { border-color: #d39c71; }
+.forest-game .bd-art { flex: 1 1 0; min-height: 0; border-radius: .15cqw; }
+.forest-game .bd-img { object-position: center 12%; }
+.forest-game .bd-name { font-size: .72cqw; bottom: .15cqw; left: .15cqw; right: .15cqw; }
+.forest-game .bd-role { font-size: .47cqw; padding: .1cqw .22cqw; }
+.forest-game .bd-hp { height: .65cqw; border-radius: .1cqw; }
+.forest-game .bd-hp span { font-size: .53cqw; }
+.forest-game .bd-mana { height: .45cqw; }
+.forest-game .bd-mana span { font-size: .43cqw; }
+.forest-game .bd-stats { gap: .1cqw; }
+.forest-game .bd-stats span { font-size: .6cqw; line-height: .8cqw; }
+.forest-game .bd-items { gap: .15cqw; }
+.forest-game .bd-item { width: 1.1cqw; height: 1.1cqw; border-radius: .15cqw; }
+.forest-game .bd-srow { height: 1.05cqw; min-height: 1.05cqw; gap: .1cqw; }
+.forest-game .bd-sc { width: 1cqw; height: 1cqw; border-radius: .1cqw; }
+.forest-game .bd-deck-rail { position: absolute; right: .25cqw; top: 8.8cqh; bottom: 1cqh; width: 3.15cqw; display: flex; flex-direction: column; justify-content: space-between; padding: .15cqw; min-width: 0; gap: 8%; }
+.forest-game .bd-deck-rail .bd-pile { border-width: .3cqw; border-image-width: .4cqw; padding: .12cqw; }
+.forest-game .bd-deck-rail .bd-pile-art { max-width: 100%; }
+.forest-game .bd-player-piles { display: flex; flex-direction: column; align-items: center; gap: .5cqw; min-height: 0; }
+.forest-game .bd-pile { width: 100%; background: #091b16ed; color: #ecdfbb; border: .45cqw solid transparent; border-image: var(--concept-frame) 25% / .6cqw stretch; padding: .15cqw; cursor: pointer; display: flex; align-items: center; flex-direction: column; border-radius: 0; font: inherit; transition: filter .15s; }
+.forest-game .bd-pile:hover { filter: brightness(1.22); }
+.forest-game .bd-pile-art { width: 2.6cqw; height: 3.6cqw; display: block; position: relative; }
+.forest-game .bd-pile-back { width: 100%; height: 100%; object-fit: contain; }
+.forest-game .bd-pile.grave .bd-pile-art { width: 1.85cqw; height: 2.6cqw; }
+.forest-game .bd-pile.grave .empty { filter: grayscale(1) brightness(.7); }
+.forest-game .bd-pile-label { font-size: .6cqw; line-height: 1.2; }
+.forest-game .bd-pile-count { font-size: .9cqw; line-height: 1.2; color: #fff0c7; }
+.forest-game .bd-pile-prizes { display: flex; align-items: center; justify-content: center; gap: .2cqw; flex-wrap: wrap; }
+.forest-game .bd-prizes { display: flex; flex-wrap: wrap; justify-content: center; gap: .08cqw; max-width: 100%; }
+.forest-game .bd-mini { width: .48cqw; height: .67cqw; }
+.forest-game .bd-pile-prizes .bd-pile-label,.forest-game .bd-pile-prizes .bd-pile-count { font-size: .5cqw; }
+
+/* The inspector is dark leather; the upper chain list is parchment. */
+.forest-game .us-root { color: #ebe4c9; font-size: .72cqw; }
+.forest-game .us-head { padding: .45cqw; background: #102b20b8; border-bottom-color: #8a8151; }
+.forest-game .us-portrait { width: 3.5cqw; height: 4.7cqw; }
+.forest-game .us-id h3 { font-size: 1.03cqw; color: #eee3c1; }
+.forest-game .us-meta span { font-size: .54cqw; }
+.forest-game .us-scroll { padding: .45cqw; scrollbar-color: #8e956b #10291c; }
+.forest-game .us-grid { gap: .2cqw; }
+.forest-game .us-st { padding: .25cqw; background: #122e20; border-color: #707c4a; }
+.forest-game .us-st span { color: #a3b293; font-size: .56cqw; }
+.forest-game .us-st b { color: #e4dba5; }
+.forest-game .us-sec { margin-top: .55cqw; }
+.forest-game .us-sec h4 { color: #ccbb83; border-color: #6c7449; font-size: .64cqw; padding-bottom: .25cqw; box-shadow: none; }
+.forest-game .us-skill { padding: .55cqw 0; gap: .4cqw; border-color: #607049; }
+.forest-game .us-sk-ic { width: 2.1cqw; height: 2.1cqw; }
+.forest-game .us-sk-h b { color: #f1e4bd; font-size: .76cqw; }
+.forest-game .us-rich,.forest-game .us-sk-b p { color: #d8dfc4; font-size: .69cqw; line-height: 1.6; }
+.forest-game .us-note,.forest-game .us-none,.forest-game .us-copies { color: #a5b596; font-size: .61cqw; }
+.forest-game .us-item { background: #17322188; border-color: #6f8055; }
+.forest-game .us-item.empty { min-height: 1.8cqw; color: #91a17a; }
+.forest-game .us-item-n { color: #cfdbb5; }
+.forest-game .cg-rich b { color: #f5e6b9; }
+.forest-game .cg-kw { color: #c7d6aa; border-bottom-color: #8c9f6e; }
+.forest-game .ci-root { color: #e2dfc2; font-size: .75cqw; }
+.forest-game .ci-head { background: #102c20; padding: .45cqw; font-size: .7cqw; }
+.forest-game .ci-head button { font-size: 1cqw; }
+.forest-game .ci-art { width: 9.5cqw; height: 14cqw; margin: .6cqw auto .4cqw; border: 0; }
+.forest-game .ci-root > h3 { color: #f2e6c4; font-size: 1.1cqw; margin: .5cqw 0; }
+.forest-game .ci-meta { padding: 0 .4cqw .5cqw; font-size: .61cqw; }
+.forest-game .ci-meta span { color: #c1d3ac; background: #1c3b27; border-color: #6c8153; padding: .12cqw .35cqw; }
+.forest-game .ci-context,.forest-game .ci-description,.forest-game .ci-condition { padding: .6cqw; border-color: #6f7a4f; line-height: 1.6; }
+.forest-game .ci-context dt,.forest-game .ci-copies { color: #a7b995; }
+.forest-game .ci-context dd { color: #efe5bf; }
+.forest-game .ci-copies { font-size: .62cqw; padding: .6cqw; }
+.forest-game .ci-condition h4 { color: #d8cca3; }
+.forest-game .cg-chain { height: 100%; font-size: .7cqw; gap: .55cqw; }
+.forest-game .ch-head { background: #1a3225d9; padding: .5cqw; min-height: 0; }
+.forest-game .ch-round-n { font-size: .9cqw; }
+.forest-game .ch-turn,.forest-game .ch-move { font-size: .58cqw; }
+.forest-game .ch-btn { font-size: .58cqw; padding: .2cqw .5cqw; }
+.forest-game .ch-chain { background: #dfd4ad url('/ui/examples/forest-vellum-v2.png') center/25cqw; max-height: 40%; padding: .6cqw; border: .5cqw solid transparent; border-image: var(--concept-frame) 25% / .7cqw stretch; }
+.forest-game .ch-chain-title { font-size: .76cqw; color: #34452e; }
+.forest-game .ch-link { padding: .3cqw; gap: .3cqw; background: #e9dfc2c9; border-color: #9caa7c; }
+.forest-game .ch-link-name { color: #273c2b; font-size: .65cqw; }
+.forest-game .ch-link-sub { color: #667958; font-size: .56cqw; }
+.forest-game .ch-link-n { width: 1.2cqw; height: 1.2cqw; font-size: .7cqw; }
+.forest-game .ch-art { width: 1.65cqw; height: 1.9cqw; }
+.forest-game .ch-log { flex: 1; min-height: 0; background: #0a2319df; border: .5cqw solid transparent; border-image: var(--concept-frame) 25% / .7cqw stretch; color: #e5e2c3; }
+.forest-game .ch-log-bar { background: #152e20; color: #d2c08b; font-size: .67cqw; padding: .5cqw; }
+.forest-game .ch-log-list { padding: .3cqw; scrollbar-color: #829363 #10261b; }
+.forest-game .ch-row { color: #d7dfbf; font-size: .66cqw; padding: .25cqw .4cqw; line-height: 1.5; }
+.forest-game .ch-row.minor { color: #a0b18b; font-size: .6cqw; }
+.forest-game .ch-row.k-chainAdd,.forest-game .ch-row.k-chainResolve,.forest-game .ch-row.k-chainEnd,.forest-game .ch-row.k-chainWindow { color: #a2d7e4; }
+.forest-game .ch-row.k-damage,.forest-game .ch-row.k-kill { color: #f1b19a; }
+.forest-game .ch-row.k-heal { color: #a1dba9; }
+.forest-game .ch-row.k-lives,.forest-game .ch-row.k-prize,.forest-game .ch-row.k-end,.forest-game .ch-row.k-turnStart { color: #e9ce8d; }
+.forest-game .ch-chip { color: #b9c9a6; font-size: .6cqw; padding: .1cqw .4cqw; }
+.forest-game .ch-empty { font-size: .65cqw; color: #a5b48e; }
+
+/* The hand follows the lower tray; controls occupy the bottom-right stone panel. */
+.forest-game .cg-hand { --cw: 6.6cqw; --ch: 9.8cqw; height: 100%; min-height: 0; grid-template-columns: minmax(0,1fr); padding: .25cqw 1cqw .5cqw; gap: 0; background: none; border: 0; box-shadow: none; z-index: 30; }
+.forest-game .hd-count { position: absolute; left: 1cqw; top: -.4cqw; height: 1cqw; font-size: .6cqw; gap: .55cqw; z-index: 2; }
+.forest-game .hd-count b { font-size: .65cqw; }
+.forest-game .hd-left { height: 100%; justify-content: end; }
+.forest-game .hd-fan { height: 100%; padding: 0 1cqw; align-items: end; }
+.forest-game .hd-slot { height: var(--ch); }
+.forest-game .hd-face { top: .4cqw; }
+.forest-game .hd-actions { position: absolute; left: calc(100% + .45cqw); right: auto; bottom: .8cqw; width: 15.3cqw; height: calc(100% - 1.2cqw); max-height: none; overflow-y: auto; padding: .4cqw; gap: .4cqw; display: flex; flex-direction: column; background: #0b211a88; }
+.forest-game .hd-bottom { margin-top: auto; gap: .4cqw; display: flex; }
+.forest-game .hd-actions .hd-btn,.forest-game .hd-end { flex: 1; min-height: 3.8cqw; font-size: .85cqw; border-width: .6cqw; border-image-width: .7cqw; padding: .2cqw; }
+.forest-game .hd-end:not(:disabled) { filter: drop-shadow(0 0 .35cqw #66c99b77); }
+.forest-game .hd-group > label { color: #c3d3ac; font-size: .65cqw; }
+.forest-game .hd-hero { width: 2.3cqw; font-size: .55cqw; }
+.forest-game .hd-quick { font-size: .7cqw; }
+.forest-game .hd-queue-status { top: -.9cqw; font-size: .65cqw; padding: .3cqw .6cqw; }
+
+/* Chain links are full readable cards, connected back towards their predecessor. */
+.forest-game .cs-root,.forest-game.log-open .cs-root { left: 20%; right: 19%; top: 12%; bottom: 21%; }
+.forest-game .cs-stack { top: 50%; width: max-content; max-width: 96%; padding: 1.2cqw 1.5cqw .8cqw; border: 1.2cqw solid transparent; border-image: var(--concept-frame) 25% / 1.4cqw stretch; background: #071e18ed; box-shadow: 0 .6cqw 2cqw #0009; }
+.forest-game .cs-title { justify-content: center; flex-direction: column; margin-bottom: 1.3cqw; gap: .2cqw; font-size: 1.35cqw; text-transform: uppercase; letter-spacing: .07cqw; }
+.forest-game .cs-title span { font-size: .65cqw; letter-spacing: 0; text-transform: none; }
+.forest-game .cs-links { gap: 1.1cqw; }
+.forest-game .cs-slot { width: 8.2cqw; height: 13.1cqw; }
+.forest-game .cs-link { width: 8.2cqw; height: auto; border-radius: .2cqw; }
+.forest-game .cs-num { width: auto; min-width: 2.5cqw; height: 1.5cqw; left: -.2cqw; top: -.8cqw; padding: 0 .4cqw; border-radius: .25cqw; font-size: .9cqw; border: 1px solid #bcdbe1; color: #d7f4fd; background: #0c3142; }
+.forest-game .cs-link.foe .cs-num { border-color: #e38c7d; background: #5a1c1c; color: #ffe6cc; }
+.forest-game .cs-link.resolving { box-shadow: 0 0 0 2px #9be8ae,0 0 1.2cqw #63eaa784; }
+.forest-game .cs-order { gap: .7cqw; margin-top: .8cqw; padding: .4cqw 1cqw; border: 1px solid #9f985c; border-radius: 2px; color: #e1d5a8; font-size: .9cqw; text-transform: uppercase; }
+.forest-game .cs-order .active { color: #b5f6c0; }
+.forest-game .cs-line { width: 3cqw; left: -2.6cqw; top: -.75cqw; height: 1.5cqw; font-size: 1.3cqw; color: #ff6860; text-shadow: 0 0 .4cqw #f1352d; }
+.forest-game .cs-prompt { right: .5cqw; bottom: -.5cqw; width: 15cqw; max-width: 32%; padding: .6cqw; border-width: .75cqw; border-image-width: 1cqw; }
+.forest-game .cs-ask { font-size: .9cqw; }
+.forest-game .cs-trigger { font-size: .63cqw; }
+.forest-game .cs-btn-card { width: 4.8cqw; }
+.forest-game .cs-eligible { font-size: .55cqw; }
+.forest-game .cs-pass { min-height: 2cqw; font-size: .75cqw; }
+.forest-game .cs-wait { bottom: 0; font-size: .7cqw; }
+.forest-game .cs-cancelled { font-size: .75cqw; padding: .3cqw 0; }
+.forest-game .bd-modal-box { width: min(1000px,85vw); }
+.forest-game .bd-modal-box .ci-root { color: #263c28; font-size: 12px; }
+.forest-game .bd-modal-box .ci-root > h3 { color: #29402c; font-size: 16px; }
+.forest-game .bd-modal-box .ci-context dd { color: #2c472e; }
+.forest-game .bd-modal-box .cg-rich b { color: #30452b; }
+.forest-game .bd-modal-box .cg-kw { color: #58652f; }
+.forest-game .bd-modal-box .ci-description { font-size: 12px; }
+/* Align the live panels to the painted underlay's apertures. */
+.forest-game,.forest-game.log-open { grid-template-columns: 19% 62.5% 18.5%; }
+.forest-game .cg-inspector { left: 1.65%; top: 9%; width: 15.45%; height: 62.5%; background: none; padding: 0; }
+.forest-game .cg-side,.forest-game.log-open .cg-side { left: 83%; top: 3.4%; width: 15.1%; height: 78%; }
+.forest-game .ch-current { height: 42%; flex: none; position: relative; padding: .7cqw .15cqw 2cqw; color: #2b3e28; }
+.forest-game .ch-current-title { color: #263a24; font: 700 1.03cqw Georgia,serif; text-align: center; margin: 0 0 .6cqw; }
+.forest-game .ch-current-empty { text-align: center; color: #7c8257; font-size: .72cqw; padding: 2cqw 0; }
+.forest-game .ch-current .ch-head { position: absolute; bottom: 0; left: 0; right: 0; padding: .15cqw; background: none; color: #4c6340; display: block; border: 0; }
+.forest-game .ch-current .ch-round { display: none; }
+.forest-game .ch-current .ch-move { padding: .15cqw; font-size: .55cqw; color: #567246; background: none; max-width: 72%; }
+.forest-game .ch-current .ch-resign-btn { position: absolute; right: 0; bottom: .15cqw; background: #d2c9a7; border-color: #9d9a6f; color: #475435; }
+.forest-game .ch-current .ch-chain { max-height: 100%; margin: 0; padding: 0; background: none; border: 0; box-shadow: none; }
+.forest-game .ch-current .ch-chain-title { display: none; }
+.forest-game .ch-current .ch-link { background: none; border: 0; border-bottom: 1px solid #a49e73; border-radius: 0; padding: .3cqw 0; }
+.forest-game .ch-current .ch-link-name { font-size: .7cqw; }
+.forest-game .ch-current .ch-link-sub { font-size: .55cqw; }
+.forest-game .ch-log { margin-top: 2.5cqw; }
+.forest-game .hd-actions { width: 16.1cqw; }
+.forest-game .cg-inspector,.forest-game .cg-side,.forest-game.log-open .cg-side { grid-column: 1 / -1; grid-row: 1; }
+.forest-game .hd-face { top: auto; bottom: 0; }
+.forest-game .cg-hand { grid-template-rows: minmax(0,1fr); }
+.forest-game .hd-left,.forest-game .hd-fan { min-height: 0; }
+.forest-game .cs-slot { height: 14cqw; }
+.forest-game .cs-link-detail { min-height: 3.1cqw; padding: .35cqw; background: #e4d7b2 url('/ui/examples/forest-vellum-v2.png') center/20cqw; color: #263721; border: 1px solid #ac9d64; border-radius: 0 0 .2cqw .2cqw; display: flex; flex-direction: column; justify-content: center; gap: .2cqw; text-align: center; }
+.forest-game .cs-link-detail small { font-size: .64cqw; }
+.forest-game .cs-link-detail b { font-size: .74cqw; }
+.forest-game .cs-line { width: 8.7cqw; left: -7.6cqw; top: -2.1cqw; height: 2.6cqw; overflow: visible; filter: drop-shadow(0 0 .24cqw #fc403b); }
+.forest-game .cs-title { min-width: 70%; width: max-content; padding: .5cqw 1.7cqw; margin: -2.3cqw auto 2cqw; position: relative; background: #09251cf5; border: 1px solid #c1ac64; }
+.forest-game .cs-stack { background: #071e18f8; }
+.forest-game .cs-order { margin-top: 1cqw; }
+.forest-game .cs-title { background: url('/ui/examples/forest-title-banner.png') center/100% 100%; border: 0; min-height: 4.1cqw; padding: .8cqw 3.1cqw; margin-top: -3.5cqw; margin-bottom: 1.6cqw; }
+.forest-game .cs-order { background: url('/ui/examples/forest-title-banner.png') center/100% 100%; border: 0; min-height: 2.7cqw; padding: .7cqw 1.8cqw; }
+.forest-game .bd-modal,.forest-game .cd-modal { position: fixed; inset: auto; left: calc((100vw - min(100vw,177.777778dvh))/2); top: calc((100dvh - min(100dvh,56.25vw))/2); width: min(100vw,177.777778dvh); height: min(100dvh,56.25vw); }
+.forest-game .bd-modal-box { max-height: 88cqh; }
+.forest-game .cd-dialog { max-height: 90cqh; }
+.forest-game .cs-title,.forest-game .cs-order { background-size: 100% 240%; }
+.forest-game .bd-modal-box,.forest-game .cd-dialog { border-image-source: var(--concept-frame); }
+.forest-game .cs-link.done .cs-num { opacity: 1; }
+.forest-game .bd-modal-box .ci-context dt,.forest-game .bd-modal-box .ci-copies { color: #5e704f; }
+.forest-game .bd-modal-box .ci-condition h4 { color: #3d592f; }
+/* Inspecting a skill uses a full illustration, like the reference's left card window. */
+.forest-game .cg-inspector .ci-art { width: 100%; height: 13.4cqw; margin: .4cqw 0 .6cqw; overflow: hidden; border: 1px solid #8f9660; }
+.forest-game .cg-inspector .ci-art .cv,.forest-game .cg-inspector .ci-art .cv-in { width: 100%; height: 100%; padding: 0; border: 0; border-image: none; background: none; }
+.forest-game .cg-inspector .ci-art .cv-icon { width: 100%; height: 100%; aspect-ratio: auto; }
+.forest-game .cg-inspector .ci-art .cv-icon::after { border: 0; border-image: none; }
+.forest-game .cg-inspector .ci-art .cv-name,.forest-game .cg-inspector .ci-art .cv-badge { display: none; }

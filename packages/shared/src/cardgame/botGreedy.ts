@@ -69,8 +69,9 @@ function scoreEvents(events: GameEvent[], before: GameState, after: GameState, s
         // tay đầy: lá bị đốt vào mộ (lá tạm đằng nào cũng mất nên không phạt)
         case "cardBurned": if (!e.card.temp) sc += e.side === side ? -10 : 6; break
         // mana thang x10: chi mana trừ nhẹ (đổi lấy hiệu ứng), hồi mana cộng
-        case "manaChange": {
-            const us = sideOf(e.unit)
+        case "manaChange":
+        case "teamManaChange": {
+            const us = e.t === "teamManaChange" ? e.side : sideOf(e.unit)
             if (us === side && e.reason === "spend") sc += e.delta * 0.3
             else if (us === side && e.reason === "restore") sc += e.delta * 0.4
             break

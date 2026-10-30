@@ -1,6 +1,6 @@
 // Hộp "Ghép đồ": bảng công thức 8x8 + chỉ ô ghép được ngay từ tay bài. Ghép xong lá đồ huyền thoại về TAY (đeo sau bằng cách đánh lá đó).
 import {
-    useEffect, useMemo, useState
+    useEffect, useId, useMemo, useRef, useState
 } from "react"
 import {
     cg
@@ -39,6 +39,29 @@ const nameOf = (id: string) => cg.itemText(id,
 
 export function CraftDialog({ onClose }: { onClose: () => void }) {
     const { view, legal } = useCard()
+    const titleId = useId()
+    const dialog = useRef<HTMLDivElement>(null)
+    const close = useRef(onClose)
+    close.current = onClose
+    useEffect(() => {
+        const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null
+        dialog.current?.querySelector<HTMLButtonElement>("button")?.focus()
+        const key = (e: KeyboardEvent) => {
+            if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); close.current(); return }
+            if (e.key !== "Tab") return
+            const targets = [...(dialog.current?.querySelectorAll<HTMLElement>("button:not([disabled]), input, select, [tabindex=\"0\"]") ?? [])]
+            const first = targets[0], last = targets[targets.length - 1]
+            if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last?.focus() }
+            else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first?.focus() }
+        }
+        window.addEventListener("keydown",
+            key,
+            true)
+        return () => { window.removeEventListener("keydown",
+            key,
+            true); previous?.focus() }
+    },
+    [])
     const [pick,
         setPick] = useState<CraftAction[] | null>(null)
     const [hover,
@@ -128,14 +151,15 @@ export function CraftDialog({ onClose }: { onClose: () => void }) {
         lang) : undefined
 
     return (
-        <div className="cd-modal" onClick={onClose}>
-            <div className="cd-dialog" onClick={(e) => e.stopPropagation()}>
+        <div className="cd-modal" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
+            <div className="cd-dialog" ref={dialog} role="dialog" aria-modal="true" aria-labelledby={titleId} aria-describedby={`${titleId}-rule`}>
                 <div className="cd-head">
-                    <h3>{L("Ghép đồ",
+                    <h3 id={titleId}>{L("Ghép đồ",
                         "Craft")}</h3>
-                    <span className="cd-rule">{L("2 mảnh + 1 Vàng từ tay thành 1 đồ huyền thoại về tay",
+                    <span id={`${titleId}-rule`} className="cd-rule">{L("2 mảnh + 1 Vàng từ tay thành 1 đồ huyền thoại về tay",
                         "2 components + 1 Gold from hand make 1 legendary item card in hand")}</span>
-                    <button className="cd-x" onClick={onClose}>×</button>
+                    <button type="button" className="cd-x" onClick={onClose} aria-label={L("Đóng ghép đồ",
+                        "Close crafting")}>×</button>
                 </div>
                 <div className="cd-have">
                     <span className="cd-chip gold">
@@ -151,12 +175,13 @@ export function CraftDialog({ onClose }: { onClose: () => void }) {
                 </div>
                 {hint ? <div className="cd-hint">{hint}</div> : null}
                 <div className="cd-body">
-                    <table className="cd-table">
+                    <table className="cd-table" aria-label={L("Bảng công thức ghép trang bị",
+                        "Equipment recipes")}>
                         <thead>
                             <tr>
                                 <th />
                                 {COMPS.map((c) => (
-                                    <th key={c} title={nameOf(c)}>
+                                    <th key={c} scope="col" title={nameOf(c)}>
                                         <Icon id={c} />
                                     </th>
                                 ))}
@@ -166,7 +191,7 @@ export function CraftDialog({ onClose }: { onClose: () => void }) {
                             {COMPS.map((r,
                                 ri) => (
                                 <tr key={r}>
-                                    <th title={nameOf(r)}>
+                                    <th scope="row" title={nameOf(r)}>
                                         <Icon id={r} />
                                     </th>
                                     {COMPS.map((c,
@@ -180,6 +205,23 @@ export function CraftDialog({ onClose }: { onClose: () => void }) {
                                             <td
                                                 key={c}
                                                 className={cls}
+                                                role="button"
+                                                tabIndex={list || (!crafts.length && ri === 0 && ci === 0) ? 0 : -1}
+                                                aria-disabled={!list}
+                                                aria-label={`${nameOf(r)} + ${nameOf(c)}: ${res ? nameOf(res) : ""}${list ? "" : ` · ${hint || L("Chưa đủ nguyên liệu",
+                                                    "Missing components")}`}`}
+                                                onFocus={() => setHover(res ?? null)}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === "Enter" || e.key === " ") { e.preventDefault(); if (list) click(list); return }
+                                                    const move: Record<string, number> = {
+                                                        ArrowLeft: -1, ArrowRight: 1, ArrowUp: -COMPS.length, ArrowDown: COMPS.length
+                                                    }
+                                                    if (!(e.key in move)) return
+                                                    e.preventDefault()
+                                                    const cells = e.currentTarget.closest("table")?.querySelectorAll<HTMLElement>("td.cd-cell")
+                                                    const next = ri * COMPS.length + ci + move[e.key]
+                                                    if (cells && next >= 0 && next < cells.length) cells[next].focus()
+                                                }}
                                                 onMouseEnter={() => setHover(res ?? null)}
                                                 onMouseLeave={() => setHover(null)}
                                                 onClick={() => (list ? click(list) : undefined)}
@@ -192,7 +234,7 @@ export function CraftDialog({ onClose }: { onClose: () => void }) {
                             ))}
                         </tbody>
                     </table>
-                    <div className="cd-info">
+                    <div className="cd-info" aria-live="polite">
                         {hv ? (
                             <>
                                 <b>{hv.name}</b>
@@ -206,8 +248,8 @@ export function CraftDialog({ onClose }: { onClose: () => void }) {
                                 ) : null}
                             </>
                         ) : (
-                            <span className="cd-mute">{L("Rê chuột vào ô để xem đồ. Ô sáng = ghép được ngay.",
-                                "Hover a cell for details. Bright cells can be crafted now.")}</span>
+                            <span className="cd-mute">{L("Rê chuột hoặc dùng phím mũi tên để xem đồ. Ô sáng = ghép được ngay.",
+                                "Hover or use arrow keys for details. Bright cells can be crafted now.")}</span>
                         )}
                     </div>
                 </div>

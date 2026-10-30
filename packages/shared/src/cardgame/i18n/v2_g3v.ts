@@ -13,41 +13,41 @@ export const HERO_EN_V2_G3V: Record<string, HeroTextEn> = {
         desc: "Master of Shadows: unload your whole hand in one beat, every hit hurting more than the last.",
         passive: {
             name: "Chain Beat",
-            desc: "Each time Zed deals damage with an attack or skill: that hit deals {8 + 8% AD + 2% AP} extra damage for each time Zed already dealt damage earlier this turn, plus 5% of the target's missing HP. Resets to 0 every turn.",
+            desc: "Each real attack or original skill beat of Zed that damages an enemy champion adds 1 Chain Beat until end of turn, uncapped. After the main damage, if the enemy is still alive, deal extra damage equal to earlier beats this turn × {8 + 15% AD + 2% AP} + 5% of its current missing HP, of the same type as the main damage. The extra does not crit on its own and does not add Chain Beat.",
         },
         skills: {
             Q: {
                 name: "Razor Shuriken",
-                desc: "Choose the enemy champion opposite Zed; deal {40 + 100% AD + 20% AP} physical damage.",
+                desc: "Lock the targetable enemy champion opposite Zed; deal {45 + 180% AD + 20% AP} physical damage. Q is one Chain Beat, not multiple hits by attack speed.",
             },
             E: {
                 name: "Living Shadow",
-                desc: "Choose 1 enemy champion; Zed swaps lanes to stand opposite it, then it takes {30 + 80% AD + 15% AP} physical damage.",
+                desc: "Choose an enemy champion; in another lane, Zed swaps with the ally holding the slot opposite it (even a dead one); in the same lane he stays. Only once validly opposite does it deal {30 + 130% AD + 15% AP} physical damage; a failed swap deals no damage.",
             },
             R: {
                 name: "Death Mark",
-                desc: "Choose 1 enemy champion; it takes {60 + 100% AD + 20% AP} physical damage now. At the end of this turn it takes that damage again.",
+                desc: "Choose a valid enemy champion in any lane; deal {60 + 165% AD + 20% AP} physical damage now. If the target is still on the board, this card schedules one more beat of that same base damage at the end of the current turn; each R card has its own schedule, and it is cancelled if the target leaves the board.",
             },
         },
     },
     katarina: {
-        desc: "The Sinister Blade: stick Daggers, dodge and punish the attacker, sweep the board; take one down and the whole card pile comes back to hand.",
+        desc: "The Sinister Blade: stick Daggers, blink to the prey or dodge and punish the attacker, sweep the board; take one down and the whole card pile comes back to hand.",
         passive: {
             name: "Voracity",
-            desc: "When an enemy champion dies in a turn in which Katarina damaged it (anyone may take it down): every Katarina card used this turn returns to your hand.",
+            desc: "Positive real damage to HP or Shield that Katarina deals to an enemy champion marks it Touched until end of turn. If that champion really dies the same turn (anyone may take it down), every Katarina card used this turn that is in the graveyard returns to your hand, including the card resolving now if it took the champion down; no copies, no mana refund.",
         },
         skills: {
             Q: {
                 name: "Bouncing Blade",
-                desc: "Choose 1 enemy champion; deal {94 + 30% AD + 60% AP} magic damage and put a Dagger on it.",
+                desc: "Choose an enemy champion from afar; deal {110 + 55% AD + 70% AP} magic damage and, if it is still on the board, put a Dagger on it for 2 turns of the marked side. Daggers don't stack, reuse refreshes the duration; E/R don't consume Daggers.",
             },
             E: {
                 name: "Shunpo",
-                desc: "Quick, Chain Only. When the enemy attacks Katarina: Katarina dodges (the attack misses) and the attacker takes {58 + 20% AD + 40% AP} magic damage, doubled if it has a Dagger.",
+                desc: "Quick. Active: choose an enemy champion; in another lane Katarina swaps with the ally holding the slot opposite it (even a dead one), then deals {60 + 30% AD + 40% AP} magic damage, ×2 if it has a Dagger. Chain when the enemy attacks Katarina (top single attack): the attacker becomes the target; only after a valid repositioning does she dodge (cancel the attack) and strike back. Already opposite needs no swap; a failed swap means no dodge and no damage.",
             },
             R: {
                 name: "Death Lotus",
-                desc: "Every enemy champion takes {85 + 25% AD + 55% AP} magic damage; champions with a Dagger take 60% more.",
+                desc: "Every enemy champion takes {85 + 40% AD + 55% AP} magic damage; champions with a Dagger before the damage beat take 60% more (total × 1.6). One beat per champion, not split by attack speed.",
             },
         },
     },
@@ -55,83 +55,83 @@ export const HERO_EN_V2_G3V: Record<string, HeroTextEn> = {
         desc: "The Voidreaver: mark your prey as Isolated, then hunt it. Vanish, and load another hunting strike.",
         passive: {
             name: "Hunter's Instinct",
-            desc: "Enemy champions that are Isolated (a status Kha'Zix applies): Kha'Zix's attacks deal {20 + 50% AD + 10% AP} extra physical damage to them; Q deals {40 + 90% AD + 15% AP} extra.",
+            desc: "A real normal attack that hits an Isolated champion (a status Kha'Zix applies) adds {20 + 80% AD + 10% AP} physical damage, which does not crit on its own. Q on an Isolated champion adds a separate {40 + 145% AD + 15% AP} to that Q's own damage.",
         },
         skills: {
             Q: {
                 name: "Taste Their Fear",
-                desc: "Choose 1 enemy champion; deal {50 + 110% AD + 20% AP} physical damage (plus the passive's extra if it is Isolated).",
+                desc: "Stab the targetable enemy champion opposite Kha'Zix for {55 + 200% AD + 20% AP} physical damage; if it is Isolated add {40 + 145% AD + 15% AP}. Not multiplied by attack speed.",
             },
             E: {
                 name: "Leap Into the Herd",
-                desc: "Choose 1 enemy champion; it is Isolated until the end of this turn and takes {30 + 60% AD + 10% AP} physical damage.",
+                desc: "Choose a valid enemy champion; in another lane Kha'Zix swaps with the ally holding the slot opposite it (even a dead one), already opposite he stays. Once confirmed opposite, the target is Isolated until the end of your current turn and takes {30 + 95% AD + 10% AP} physical damage. Invalid target or swap: no mark, no damage.",
             },
             R: {
                 name: "Void Stalk",
-                desc: "Quick. Kha'Zix is Stealthed now until the end of the opponent's next turn; the enemy champion opposite Kha'Zix (or a random enemy champion if there is none) is Isolated until the end of your next turn; add 1 Kha'Zix Q card to your hand.",
+                desc: "Kha'Zix is Stealthed until the end of the opponent's next turn and gains 1 Kha'Zix Q card. He automatically Isolates the valid enemy champion opposite him until the end of your next turn; with no valid enemy opposite, only the mark is skipped (no manual choice, no random target, no repositioning).",
             },
         },
     },
     qiyana: {
-        desc: "Queen of the Elements: a random element each turn, and Q, E, R change with it. Red burst, Blue control, Green mobility.",
+        desc: "Queen of the Elements: a public random element, and Q, E, R change with it. Rock burst, River control, Grass mobility.",
         passive: {
             name: "Elements",
-            desc: "At the start of each of your turns, Qiyana gains 1 random element, kept until the start of your next turn: Red (Rock) burst, Blue (River) control, Green (Grass) mobility. The opponent sees the current element.",
+            desc: "On entering the board, on respawn and at the start of your turn, Qiyana gains a public random Rock/River/Grass (1/3 each), kept until the next change. A Rock Mark on an enemy grows by 15 percentage points after each real attack/original skill of Qiyana that actually deals positive damage to its HP/Shield this turn; uncapped, and a new Rock Q does not reset it.",
         },
         skills: {
             Q: {
                 name: "Elemental Strike",
-                desc: "By current element. Red: choose 1 enemy champion; deal {50 + 120% AD + 20% AP} physical damage; until the end of this turn, each time Qiyana damages it, her later hits on it deal +15% (stacking). Blue: choose 1 enemy champion; deal {30 + 80% AD + 15% AP} physical damage and Stun it for 1 turn. Green: choose 1 enemy champion; Qiyana swaps lanes to stand opposite it, then it takes {30 + 80% AD + 15% AP} physical damage.",
+                desc: "Every element: choose an enemy champion; in another lane Qiyana swaps with the ally holding the slot opposite it (even a dead one), already opposite she strikes at once; a failed swap has no effect. Rock: {60 + 230% AD + 20% AP} physical damage and opens/keeps a Rock Mark until end of turn. River: {40 + 155% AD + 15% AP} physical damage and Stun for {1 + 0.2% AD + 0.2% AP} units. Grass: {40 + 155% AD + 15% AP} physical damage, Qiyana is Stealthed until the end of the opponent's next turn.",
             },
             E: {
                 name: "Elemental Counter",
-                desc: "Quick, Chain Only. When the enemy attacks Qiyana, by current element. Red: Qiyana strikes the attacker back for {30 + 80% AD + 15% AP} physical damage. Blue: the attacker is Stunned for 1 turn before the hit lands (the attack is cancelled). Green: Qiyana swaps lanes with another allied champion (the attack misses).",
+                desc: "Quick, Chain Only. When the enemy attacks Qiyana (top single attack), by current element. Rock: strike the attacker back for {40 + 155% AD + 15% AP} physical damage, without cancelling the attack. River: try to Stun the attacker for {1 + 0.2% AD + 0.2% AP} units and cancel the attack (cancelled even if the Stun is blocked). Grass: Qiyana swaps with the other valid ally with the highest HP ratio; only a successful swap cancels the attack.",
             },
             R: {
                 name: "Order of Erasure",
-                desc: "By current element. Red: every enemy champion takes {60 + 120% AD + 20% AP} physical damage. Blue: every enemy champion takes {40 + 80% AD + 15% AP} physical damage; the enemy champion with the most HP and every enemy Marksman are Stunned for 1 turn (with no Marksman, 1 other random enemy champion too). Green: every enemy champion takes {40 + 80% AD + 15% AP} physical damage; Qiyana swaps lanes freely and takes 1 Qiyana Q card into your hand.",
+                desc: "By current element. Rock: every enemy champion takes {60 + 195% AD + 20% AP} physical damage. River: choose an enemy champion; it and up to one other random enemy champion each take {40 + 130% AD + 15% AP} physical damage and are Stunned for {1 + 0.2% AD + 0.2% AP} units. Grass: every enemy champion takes {40 + 130% AD + 15% AP} physical damage; Qiyana swaps with an ally to face the valid enemy champion with the lowest current HP if possible, and gains 1 Qiyana Q card whether or not the swap succeeds.",
             },
         },
     },
     soraka: {
-        desc: "The team's shared life pool: take lethal blows for allies, refill the pool, cancel skills aimed at the team and Silence the caster, and heal everyone in the big fight.",
+        desc: "The team's shared life pool: pays her own HP to keep an ally from being taken down, refills the pool, negates skills aimed at the team and heals everyone in the big fight.",
         passive: {
             name: "Shared Life",
-            desc: "When another allied champion would take a lethal blow: Soraka takes all of that damage instead and the ally survives. If Soraka does not have enough HP, Soraka falls and the ally still survives.",
+            desc: "When another allied champion is about to be taken down and you have not used Shared Life this cycle: Soraka loses {20 + 10% max HP} HP directly; that champion is kept at 1 HP. Then it heals {35 + 10% max HP + 50% AP} HP. Once per team per cycle, reset at your Draw Phase. Soraka can be taken down by the HP cost, but the rescue still completes.",
         },
         skills: {
             Q: {
                 name: "Starcall",
-                desc: "Choose 1 enemy champion; it takes {75 + 20% AD + 60% AP} magic damage and Soraka heals {83 + 20% AD + 40% AP}. Overheal becomes a Shield on the allied champion with the lowest HP.",
+                desc: "Choose 1 enemy champion; deal {30 + 20% AD + 25% AP} magic damage to it. Then Soraka heals {35 + 7% max HP + 40% AP} HP.",
             },
             E: {
                 name: "Equinox",
-                desc: "Quick, Chain Only. When the enemy plays a skill card that targets your champions: cancel that card (it still goes to the graveyard) and the champion who played it is Silenced for 1 turn.",
+                desc: "Quick, Chain Only. When an enemy skill card on top of the Chain selects exactly 1 allied champion, and Soraka has more HP than the rounded HP cost: Soraka pays {5% max HP} HP; negate that skill card.",
             },
             R: {
                 name: "Wish",
-                desc: "Every allied champion, Soraka included, heals {196 + 40% AD + 80% AP}.",
+                desc: "Heal {90 + 7% max HP + 45% AP} HP to every living allied champion on the board, Soraka included.",
             },
         },
     },
     nami: {
-        desc: "Tide feeds the hand: every ally hit and every heal is a chance to draw; Q and R control, E and R heal.",
+        desc: "Tide feeds the hand: every useful action of the team is a Rhythm, and enough Rhythm draws cards; Q controls, E heals two allies, R hits the whole enemy board and Empowers the team.",
         passive: {
             name: "Tide of Cards",
-            desc: "Each time an allied champion deals damage or heals: a chance (5% + 0.05% per point of AD and per point of AP of that ally) for you to draw 1 card (the same for every ally, Nami included). At most 2 cards per turn from this passive.",
+            desc: "After an original action of Nami's side (a skill card or an attack) makes an enemy lose HP/Shield or actually heals HP on your side: Nami gains 1 Rhythm (once per action). At 3 Rhythm: lose 3 Rhythm, then draw 1 card. At most 2 cards in each of your cycles; once the cap is reached, no more Rhythm is gained that cycle. Unfinished Rhythm is kept across turns.",
         },
         skills: {
             Q: {
                 name: "Ebb and Flow",
-                desc: "Choose 1 enemy champion; it takes {76 + 25% AD + 55% AP} magic damage, is Stunned for 1 turn and is marked 3 times: the next 3 attacks of allies on it each spend 1 mark and deal {23 + 10% AD + 20% AP} extra magic damage (based on Nami's stats).",
+                desc: "Choose 1 enemy champion; deal {60 + 30% AD + 35% AP} magic damage to it. Then Stun it for {0,35 + 0,1% AD + 0,2% AP} time units, at most 1.5 units (the fraction is a chance for 1 more unit).",
             },
             E: {
                 name: "Surging Tide",
-                desc: "Nami heals {58 + 15% AD + 35% AP}, then the water bounces randomly between allies (it may bounce back to the same one), up to 5 bounces; each bounce heals {58 + 15% AD + 35% AP}. Every heal triggers the passive.",
+                desc: "Pay 20 or 30 mana from the team pool and choose 1 wounded allied champion; heal it {35 + 30% AD + 55% AP} + M HP (M = the mana actually paid for this card). Then heal the same base amount to 1 other random wounded allied champion. With no valid second champion, only the first is healed.",
             },
             R: {
                 name: "Tidal Wave",
-                desc: "Every allied champion heals {146 + 30% AD + 70% AP}; every enemy champion is Stunned for 1 turn. Every heal triggers the passive.",
+                desc: "Deal {50 + 25% AD + 40% AP} magic damage to every enemy champion on the board. Then every allied champion on the board is Empowered for 1 time unit. Finally, heal {65 + 25% AD + 50% AP} HP to the 1 allied champion with the lowest HP ratio.",
             },
         },
     },
@@ -140,34 +140,34 @@ export const HERO_EN_V2_G3V: Record<string, HeroTextEn> = {
 export const STATUS_V2_G3V: Record<string, { vi: { name: string; desc: string }; en: { name: string; desc: string } }> = {
     zed_chain: {
         vi: {
-            name: "Liên Hoàn", desc: "Số lần Zed đã gây sát thương trong lượt này; mỗi phát sau đau hơn phát trước. Hết lượt thì về 0."
+            name: "Liên Hoàn", desc: "Số nhịp đòn thật/chiêu gốc Zed đã gây sát thương lên địch trong lượt này; mỗi phát sau đau hơn phát trước. Hết lượt thì về 0."
         },
         en: {
-            name: "Chain Beat", desc: "How many times Zed has dealt damage this turn; each later hit hurts more. Resets at end of turn."
+            name: "Chain Beat", desc: "How many real attack/original skill beats Zed has landed on enemies this turn; each later hit hurts more. Resets at end of turn."
         },
     },
     zed_mark: {
         vi: {
-            name: "Dấu Ấn Tử Thần", desc: "Cuối lượt của Zed, tướng này nhận thêm một lần sát thương của R."
+            name: "Dấu Ấn Tử Thần", desc: "Cuối lượt này, tướng này nhận thêm một nhịp bằng sát thương gốc của mỗi lá R Zed đã đánh dấu nó (số hiện số lịch còn chờ)."
         },
         en: {
-            name: "Death Mark", desc: "At the end of Zed's turn this champion takes R's damage again."
+            name: "Death Mark", desc: "At the end of this turn, this champion takes one more beat of the base damage of each Zed R that marked it (the number shows pending schedules)."
         },
     },
     kat_dagger: {
         vi: {
-            name: "Dao", desc: "Dao của Katarina: E của Katarina gây gấp đôi lên tướng này, R gây thêm 60%."
+            name: "Dao", desc: "Dao của Katarina (2 lượt của phe mang dấu, không cộng dồn): E của Katarina gây gấp đôi lên tướng này, R gây thêm 60%. E/R không tiêu Dao."
         },
         en: {
-            name: "Dagger", desc: "Katarina's Dagger: her E deals double to this champion and her R deals 60% more."
+            name: "Dagger", desc: "Katarina's Dagger (2 turns of the marked side, no stacking): her E deals double to this champion and her R deals 60% more. E/R don't consume it."
         },
     },
     qiyana_mark: {
         vi: {
-            name: "Dấu Đỏ", desc: "Đến hết lượt, mỗi lần Qiyana gây sát thương lên tướng này, các đòn sau của Qiyana lên nó thêm 15% (số hiện % đang cộng)."
+            name: "Dấu Đá", desc: "Đến hết lượt, mỗi đòn thật/chiêu gốc của Qiyana gây sát thương dương lên tướng này làm các đòn sau của Qiyana lên nó thêm 15 điểm % (không trần; số hiện % đang cộng)."
         },
         en: {
-            name: "Red Mark", desc: "Until end of turn, each time Qiyana damages this champion, her later hits on it deal 15% more (the number shows the current bonus %)."
+            name: "Rock Mark", desc: "Until end of turn, each real attack/original skill of Qiyana that deals positive damage to this champion makes her later hits on it deal 15 percentage points more (uncapped; the number shows the current bonus %)."
         },
     },
     alwaysCrit: {
@@ -180,10 +180,10 @@ export const STATUS_V2_G3V: Record<string, { vi: { name: string; desc: string };
     },
     isolated: {
         vi: {
-            name: "Cô Lập", desc: "Trạng thái do Kha'Zix gắn: đòn đánh và Q của Kha'Zix gây thêm sát thương lên tướng này."
+            name: "Cô Lập", desc: "Trạng thái do Kha'Zix gắn (E, R; Thanh Tẩy gỡ được): đòn đánh và Q của Kha'Zix gây thêm sát thương lên tướng này."
         },
         en: {
-            name: "Isolated", desc: "A status Kha'Zix applies: Kha'Zix's attacks and Q deal extra damage to this champion."
+            name: "Isolated", desc: "A status Kha'Zix applies (E, R; Cleanse removes it): Kha'Zix's attacks and Q deal extra damage to this champion."
         },
     },
 }
@@ -191,10 +191,18 @@ export const STATUS_V2_G3V: Record<string, { vi: { name: string; desc: string };
 export const STACK_V2_G3V: Record<string, { vi: { name: string; desc: string }; en: { name: string; desc: string } }> = {
     element: {
         vi: {
-            name: "Nguyên Tố", desc: "Nguyên tố hiện tại của Qiyana: 1 Đỏ (Đá, dồn sát thương), 2 Xanh (Sông, khống chế), 3 Lục (Cỏ, cơ động). Đổi đầu mỗi lượt của bạn."
+            name: "Nguyên Tố", desc: "Nguyên tố hiện tại của Qiyana: 1 Đá (dồn sát thương), 2 Sông (khống chế), 3 Cỏ (cơ động). Đổi khi ra sân, hồi sinh và đầu mỗi lượt của bạn."
         },
         en: {
-            name: "Element", desc: "Qiyana's current element: 1 Red (Rock, burst), 2 Blue (River, control), 3 Green (Grass, mobility). Changes at the start of each of your turns."
+            name: "Element", desc: "Qiyana's current element: 1 Rock (burst), 2 River (control), 3 Grass (mobility). Changes on entering the board, on respawn and at the start of each of your turns."
+        },
+    },
+    nami_rhythm: {
+        vi: {
+            name: "Nhịp", desc: "Nhịp của Nami: mỗi hành động hữu ích của phe +1 Nhịp; đủ 3 Nhịp thì rút 1 lá (tối đa 2 lá mỗi chu kỳ). Giữ qua lượt."
+        },
+        en: {
+            name: "Rhythm", desc: "Nami's Rhythm: each useful action of her side gives +1; at 3 Rhythm she draws 1 card (at most 2 cards per cycle). Kept across turns."
         },
     },
 }
@@ -203,8 +211,8 @@ export const KEYWORDS_V2_G3V: Record<string, Keyword> = {
     zed_chain: {
         vi: "Liên Hoàn",
         en: "Chain Beat",
-        descVi: "Nội tại của Zed: mỗi lần Zed gây sát thương trong lượt, phát đó thêm sát thương theo số lần Zed đã gây trước đó trong lượt, cộng 5% máu đã mất của mục tiêu (xem Zed).",
-        descEn: "Zed's passive: each time Zed deals damage in a turn, that hit deals extra damage per earlier hit this turn, plus 5% of the target's missing HP (see Zed)."
+        descVi: "Nội tại của Zed: mỗi đòn thật/chiêu gốc gây sát thương trong lượt là một nhịp; phát đó thêm sát thương theo số nhịp trước đó trong lượt, cộng 5% máu đã mất của mục tiêu (xem Zed).",
+        descEn: "Zed's passive: each real attack/original skill that deals damage in a turn is a beat; that hit deals extra damage per earlier beat this turn, plus 5% of the target's missing HP (see Zed)."
     },
     kat_dagger: {
         vi: "Dao",
@@ -215,8 +223,8 @@ export const KEYWORDS_V2_G3V: Record<string, Keyword> = {
     qiyana_element: {
         vi: "Nguyên Tố",
         en: "Element",
-        descVi: "Qiyana nhận 1 nguyên tố ngẫu nhiên mỗi đầu lượt của bạn (Đỏ dồn sát thương, Xanh khống chế, Lục cơ động); Q, E, R đổi tác dụng theo nó (xem Qiyana).",
-        descEn: "Qiyana gains 1 random element at the start of each of your turns (Red burst, Blue control, Green mobility); Q, E, R change with it (see Qiyana)."
+        descVi: "Qiyana nhận 1 nguyên tố ngẫu nhiên khi ra sân, hồi sinh và mỗi đầu lượt của bạn (Đá dồn sát thương, Sông khống chế, Cỏ cơ động); Q, E, R đổi tác dụng theo nó (xem Qiyana).",
+        descEn: "Qiyana gains 1 random element on entering the board, on respawn and at the start of each of your turns (Rock burst, River control, Grass mobility); Q, E, R change with it (see Qiyana)."
     },
     isolated: {
         vi: "Cô Lập",

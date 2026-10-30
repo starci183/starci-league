@@ -6,7 +6,7 @@ import {
     cg
 } from "@starci/shared"
 import {
-    ELEMENT_CLS, elementName, formName, itemEmoji, itemIcon, itemName, markInfo, passiveOf, portrait, roleName, stackIcon, stackInfoV2, stackValueText, tr, unitName
+    ELEMENT_CLS, elementName, formName, isEn, itemEmoji, itemIcon, itemName, markInfo, passiveOf, portrait, roleName, stackIcon, stackInfoV2, stackValueText, statusIcon, tr, unitName
 } from "./helpers"
 import {
     RichText
@@ -15,8 +15,11 @@ import {
     buildEffects, FxCellView
 } from "../stats/effects"
 import {
-    StatusFx, StatusRow, StatusTags
+    StatusFx, StatusRow, StatusTags, type ExtraCell
 } from "./StatusFx"
+import {
+    GameIcon
+} from "../ui/GameIcon"
 
 /** Số nổi: dmg kèm loại sát thương (vật lý đỏ, phép xanh dương, chuẩn trắng), crit thêm biểu tượng chí mạng */
 export interface Float { id: number; kind: "dmg" | "crit" | "heal" | "shield" | "kill" | "block" | "mana" | "tag"; text: string; dmg?: "physical" | "magic" | "true" }
@@ -47,41 +50,94 @@ const clampPct = (n: number) => `${Math.max(0,
     Math.min(100,
         n * 100))}%`
 
+/** Dấu do đồ của tướng khác đặt lên `u` (lưu trong stacks kỹ thuật `itemT:<khoá>:<id mục tiêu>` của người đeo): hiện thành ô icon có giải thích */
+const ITEM_MARKS: { key: string; item: string; vi: string; en: string; letter: string }[] = [
+    {
+        key: "ash", item: "mat_na_liandry", vi: "Tro Tàn (Liandry): đầu lượt mất 3% máu tối đa", en: "Ashes (Liandry): loses 3% max HP at turn start", letter: "Tr"
+    },
+    {
+        key: "hex", item: "sung_hextech", vi: "Dấu Hextech: đòn đánh đầu tiên lên tướng này lượt này gây thêm sát thương phép", en: "Hextech mark: the first attack on it this turn deals bonus magic damage", letter: "Hx"
+    },
+    {
+        key: "abyss", item: "khien_hu_vo", vi: "Khai Thác Điểm Yếu: lá chiêu kế tiếp của đồng minh người đeo bỏ qua 15 Kháng phép", en: "Exploit Weakness: the next skill card of the wearer's ally ignores 15 MR", letter: "Kp"
+    },
+]
+function itemMarkCells(u: cg.Unit, g: cg.Game): ExtraCell[] {
+    const en = isEn()
+    const out: ExtraCell[] = []
+    for (const w of Object.values(g.s.units)) {
+        if (w.id === u.id) continue
+        for (const m of ITEM_MARKS) {
+            const v = w.stacks[`itemT:${m.key}:${u.id}`] ?? 0
+            // ash: số lượt còn lại; hex: lượt đặt (chỉ hiệu lực trong lượt đó); abyss: mốc hết hạn
+            if (m.key === "ash" ? v <= 0 : m.key === "hex" ? v !== g.s.turnNo : v < g.s.turnNo) continue
+            out.push({
+                key: `im:${m.key}:${w.id}`, icons: [itemIcon(m.item)], num: "", tip: `${en ? m.en : m.vi} · ${unitName(w)}`, letter: m.letter
+            })
+        }
+    }
+    return out
+}
+
+/** Icon Khiên trong hàng hiệu ứng: mỗi loại Khiên đang có 1 ô (trắng: mọi sát thương, vàng: vật lý, xanh dương: phép) */
+function shieldCells(u: cg.Unit): ExtraCell[] {
+    const en = isEn()
+    const rows: [string, number, string, string][] = [["sh-all",
+        u.shield,
+        en ? "Shield: blocks all damage, including true damage" : "Khiên trắng: chặn mọi loại sát thương, kể cả sát thương chuẩn",
+        "K"],
+    ["sh-phys",
+        u.shieldPhys ?? 0,
+        en ? "Physical shield: blocks physical damage only" : "Khiên vật lý: chỉ chặn sát thương vật lý",
+        "KV"],
+    ["sh-magic",
+        u.shieldMagic ?? 0,
+        en ? "Magic shield: blocks magic damage only" : "Khiên phép: chỉ chặn sát thương phép",
+        "KP"]]
+    return rows.filter(([, v]) => v > 0).map(([cls,
+        v,
+        tip,
+        letter]) => ({
+        key: cls, cls, icons: [statusIcon("shield")], num: `${Math.ceil(v)}`, tip: `${tip}: ${Math.ceil(v)}`, letter
+    }))
+}
+
 export function HpBar(p: { u: cg.Unit; big?: boolean }) {
     const { u } = p
+    // 3 loại Khiên nối sau phần máu: trắng (mọi sát thương), vàng (vật lý), xanh dương (phép)
+    const parts = [["sh",
+        u.shield],
+    ["sh-phys",
+        u.shieldPhys ?? 0],
+    ["sh-magic",
+        u.shieldMagic ?? 0]] as const
+    const shieldTotal = parts.reduce((n, [, v]) => n + v,
+        0)
     const total = Math.max(u.maxHp,
-        u.hp + u.shield,
+        u.hp + shieldTotal,
         1)
+    let left = u.hp / total
     return (
         <div className={`bd-hp ${p.big ? "big" : ""} ${u.hp / u.maxHp < 0.3 ? "low" : ""}`}>
             <i className="hp" style={{
                 width: clampPct(u.hp / total)
             }} />
-            {u.shield > 0 ? <i className="sh" style={{
-                left: clampPct(u.hp / total), width: clampPct(u.shield / total)
-            }} /> : null}
+            {parts.map(([cls,
+                v]) => {
+                if (v <= 0) return null
+                const at = left
+                left += v / total
+                return <i key={cls} className={cls} style={{
+                    left: clampPct(at), width: clampPct(v / total)
+                }} />
+            })}
             <span>
                 {Math.ceil(u.hp)}
                 /
                 {u.maxHp}
-                {u.shield > 0 ? <b>{` +${Math.ceil(u.shield)}`}</b> : null}
+                {parts.map(([cls,
+                    v]) => (v > 0 ? <b key={cls} className={`t-${cls}`}>{` +${Math.ceil(v)}`}</b> : null))}
             </span>
-        </div>
-    )
-}
-
-/** Thanh mana (pháp sư): xanh dương, vạch chia mỗi 10 mana; ẩn khi tướng không có mana */
-export function ManaBar(p: { u: cg.Unit; g: cg.Game; big?: boolean }) {
-    const { u, g } = p
-    if (u.mana === undefined) return null
-    const max = Math.max(g.maxMana(u),
-        1)
-    return (
-        <div className={`bd-mana ${p.big ? "big" : ""}`} title={`Mana ${Math.floor(u.mana)}/${max}`}>
-            <i style={{
-                width: clampPct(u.mana / max)
-            }} />
-            <span>{`${Math.floor(u.mana)}/${max}`}</span>
         </div>
     )
 }
@@ -114,7 +170,7 @@ export function DeadCard(p: { u: cg.Unit; round: number; onClick(): void }) {
             </div>
             <div className="bd-dead-l">
                 <b>{t.deadLabel}</b>
-                <small>{`${t.respawnIn} ${left} ${t.roundUnit}`}</small>
+                <small>{left > 0 ? `${t.respawnIn} ${left} ${t.roundUnit}` : isEn() ? "Reviving soon" : "Sắp hồi sinh"}</small>
             </div>
         </div>
     )
@@ -158,34 +214,37 @@ export function UnitCard(p: UnitCardProps) {
             <StatusRow
                 u={u}
                 turnNo={p.turnNo}
-                extra={[...stacks.map(([k,
-                    v]) => {
-                    const info = stackInfoV2(k)
-                    const name = info?.name ?? k
-                    return {
-                        key: `sk:${k}`,
-                        icons: [stackIcon(k,
-                            u.hero)],
-                        num: stackValueText(k,
-                            v),
-                        tip: `${name}: ${stackValueText(k,
-                            v)}${info ? `
+                extra={[...shieldCells(u),
+                    ...itemMarkCells(u,
+                        g),
+                    ...stacks.map(([k,
+                        v]) => {
+                        const info = stackInfoV2(k)
+                        const name = info?.name ?? k
+                        return {
+                            key: `sk:${k}`,
+                            icons: [stackIcon(k,
+                                u.hero)],
+                            num: stackValueText(k,
+                                v),
+                            tip: `${name}: ${stackValueText(k,
+                                v)}${info ? `
 ${info.desc}` : ""}`,
-                        letter: initials(name),
-                    }
-                }),
-                ...marks.map((m, i) => {
-                    const info = markInfo(m.id)
-                    return {
-                        key: `mk${i}`,
-                        icons: [`/card_skills/${m.id.split("_")[0]}_q.png`,
-                            `/card_skills/${m.id.split("_")[0]}_p.png`],
-                        num: `${m.hits}`,
-                        tip: `${info.name}: ${m.hits}
+                            letter: initials(name),
+                        }
+                    }),
+                    ...marks.map((m, i) => {
+                        const info = markInfo(m.id)
+                        return {
+                            key: `mk${i}`,
+                            icons: [`/card_skills/${m.id.split("_")[0]}_q.png`,
+                                `/card_skills/${m.id.split("_")[0]}_p.png`],
+                            num: `${m.hits}`,
+                            tip: `${info.name}: ${m.hits}
 ${info.desc}`,
-                        letter: initials(info.name),
-                    }
-                })]}
+                            letter: initials(info.name),
+                        }
+                    })]}
                 unitOf={(id) => {
                     const x = g.unit(id)
                     return x ? unitName(x) : undefined
@@ -219,12 +278,11 @@ ${info.desc}`,
                 ) : null}
             </div>
             <HpBar u={u} />
-            <ManaBar u={u} g={g} />
             <div className="bd-stats">
-                <span className="ad" title={t.ad}>{g.atk(u)}</span>
-                <span className="ap" title={t.ap}>{g.ap(u)}</span>
-                <span className="ar" title={t.armor}>{g.armor(u)}</span>
-                <span className="mr" title={t.mr}>{g.mr(u)}</span>
+                <span className="ad" title={t.ad}><GameIcon name="sword" />{g.atk(u)}</span>
+                <span className="ap" title={t.ap}><GameIcon name="wand" />{g.ap(u)}</span>
+                <span className="ar" title={t.armor}><GameIcon name="shield" />{g.armor(u)}</span>
+                <span className="mr" title={t.mr}><GameIcon name="diamond" />{g.mr(u)}</span>
             </div>
             {u.token ? (
                 <div className="bd-owner">
@@ -288,7 +346,6 @@ export function UnitTip(p: { u: cg.Unit; g: cg.Game; turnNo: number; x: number; 
                 </div>
             </div>
             <HpBar u={u} big />
-            <ManaBar u={u} g={g} big />
             <div className="bd-tip-stats">
                 <span>
                     {t.ad}
@@ -308,7 +365,7 @@ export function UnitTip(p: { u: cg.Unit; g: cg.Game; turnNo: number; x: number; 
                 </span>
             </div>
             {role === "fighter" && !u.token ? <p className="bd-tip-p">{t.fighterLine}</p> : null}
-            {u.mana !== undefined ? <p className="bd-tip-p">{t.mageLine}</p> : null}
+            {!u.token ? <p className="bd-tip-p">{isEn() ? "Skills spend the team's shared mana pool." : "Các chiêu dùng chung quỹ mana của đội."}</p> : null}
             {passive ? (
                 <p className="bd-tip-p">
                     <b>{`${t.passive}: ${passive.name}`}</b>

@@ -1,6 +1,6 @@
 // Bảng 9-slice dùng chung cho cả game (Phaser / Rex UI) lẫn Sảnh và Xây bộ bài (CSS border-image), để UI đồng bộ:
 // cùng ảnh Codex vẽ, cùng số px cắt góc. Thêm tấm mới: vẽ ảnh vào public/ui/nine, cập nhật nineMeta.ts, khai báo vào NINE.
-import Phaser from "phaser"
+import type Phaser from "phaser"
 import {
     NINE_META
 } from "./nineMeta"
@@ -25,7 +25,7 @@ export const NINE: Record<string, { img: NineName; border: number }> = {
     },    // ô trống đặt lá
 }
 
-const url = (img: NineName) => `ui/nine/${img}.png`
+const url = (img: NineName) => `/ui/nine/${img}.png`
 
 /** CSS cho các class .nine-<vai trò>: border-image kéo giãn 9 ô (fill = lấy luôn ruột ảnh làm nền) */
 export function injectNineCss() {

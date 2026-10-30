@@ -146,6 +146,7 @@ export function fingerprint(s: GameState, side: Side): string {
         String(s.turnNo),
         String(s.chain?.links.length ?? 0),
         String(s.chain?.priority ?? "")]
+    parts.push(`mana:${s.teamMana?.A ?? RULES.teamManaStart}:${s.teamMana?.B ?? RULES.teamManaStart}`)
     const ids = Object.keys(s.units).sort()
     for (const id of ids) {
         const u = s.units[id]
@@ -153,7 +154,7 @@ export function fingerprint(s: GameState, side: Side): string {
         for (const k of Object.keys(u.statuses).sort()) st += `${k}:${u.statuses[k].v}:${u.statuses[k].until},`
         let sk = ""
         for (const k of Object.keys(u.stacks).sort()) sk += `${k}:${u.stacks[k]},`
-        parts.push(`${id}/${u.status}/${u.lane}/${u.hp}/${u.shield}/${u.items.join("+")}/${st}/${sk}/${u.nextAttack.length}/${u.mana ?? ""}`)
+        parts.push(`${id}/${u.status}/${u.lane}/${u.hp}/${u.shield}:${u.shieldPhys ?? 0}:${u.shieldMagic ?? 0}/${u.items.join("+")}/${st}/${sk}/${u.nextAttack.length}`)
     }
     for (const sd of [side,
         otherSide(side)]) {

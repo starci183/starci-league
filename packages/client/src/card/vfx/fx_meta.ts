@@ -363,7 +363,7 @@ class Scene {
     }
 
     clear() {
-        this.root.destroy({
+        if (!this.root.destroyed) this.root.destroy({
             children: true
         })
         this.parts = []
@@ -373,26 +373,41 @@ class Scene {
 /** Chạy một cảnh: tick(elapsedMs, dtMs) gọi mỗi khung cho tới `ms`, rồi chờ hạt tắt hẳn */
 function run(ctx: VfxCtx, ms: number, setup: (sc: Scene) => ((el: number, dt: number) => void) | void): Promise<void> {
     return new Promise<void>((resolve) => {
+        if (ctx.layer.destroyed) { resolve(); return }
         const sc = new Scene(ctx)
-        const tick = setup(sc)
         let el = 0
         let done = false
+        let tick: ((el: number, dt: number) => void) | void
+        const finish = () => {
+            if (done) return
+            done = true
+            sc.root.off("destroyed",
+                finish)
+            ctx.app.ticker.remove(fn)
+            sc.clear()
+            resolve()
+        }
         const fn = (t: Ticker) => {
             if (done) return
+            if (sc.root.destroyed) { finish(); return }
             const dt = Math.min(t.deltaMS,
                 50)
             el += dt
-            if (tick && el < ms) tick(el,
-                dt)
-            sc.update(dt)
+            try {
+                if (tick && el < ms) tick(el,
+                    dt)
+                sc.update(dt)
+            } catch { finish(); return }
             if ((el >= ms && sc.alive() === 0) || el > ms + 4000) {
-                done = true
-                ctx.app.ticker.remove(fn)
-                sc.clear()
-                resolve()
+                finish()
             }
         }
-        ctx.app.ticker.add(fn)
+        try {
+            tick = setup(sc)
+            sc.root.once("destroyed",
+                finish)
+            ctx.app.ticker.add(fn)
+        } catch { finish() }
     })
 }
 

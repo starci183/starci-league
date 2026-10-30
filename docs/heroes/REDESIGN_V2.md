@@ -19,7 +19,7 @@
 - **Bài trên tay quyết định gọi ai ra sân.** Chiêu của tướng chưa ra sân là bài chết trên tay, nên phải tính. Ví dụ tay: Đánh, Đánh, Đánh, E Blitz, E Renata. Mốc gọi đầu có thể gọi Renata để dựng thế thủ (E Renata là Quick, ra sân còn nhận Q), gọi Blitz để mở giao tranh, hoặc gọi đấu sĩ dùng 3 lá Đánh (đấu sĩ không cần bài vẫn đánh) và giữ E Blitz, E Renata chờ mốc sau. Mốc gọi giờ thưa hơn (1, 4, 8, 13, 19) nên giữ đúng bài cho đúng tướng càng quan trọng. Bot cũng phải chọn tướng ra sân theo bài trên tay.
 - **Pha triệu hồi: 2 bên úp bài gọi tướng cùng lúc rồi mới lật**, mỗi bên gọi cùng số tướng; không có chuyện bên này thấy bên kia gọi 1 rồi gọi thêm 2 để ăn hiếp.
 - Chiêu dùng xong vào mộ. Thua khi phải rút mà bộ bài rỗng, hoặc mất hết 7 mạng.
-- Chỉ Xạ thủ đánh được ô phụ (ô triệu hồi thêm); riêng ô Thùng của Gangplank thì Xạ thủ và Đấu sĩ đều đánh được.
+- Mọi vai tướng đều đánh thường được đơn vị ở ô triệu hồi phụ địch, bất kể lane (law.md mục 6).
 - **Cơ chế giữ nguyên, con số sẽ QA lại** (chốt 2026-10-30).
 
 ### Luật số liệu V3 (chốt 2026-10-30)
@@ -47,7 +47,7 @@ Một chiêu vừa gây sát thương vừa khống chế là **được**, mi�
 
 - **Tàng Hình (chốt 2026-10-30):** không bị chọn làm mục tiêu, nhưng vẫn nhận đủ sát thương từ hiệu ứng không chọn mục tiêu (đánh mọi địch, nổ, Bỏng...).
 
-- **Ô phụ (chốt 2026-10-30):** Xạ thủ và Đấu sĩ đánh được mọi thứ ở ô phụ (Thùng, Thiếu Nữ, token khác); các vai khác không đánh được.
+- **Ô phụ (chốt 2026-10-30):** Mọi vai tướng đánh thường được đơn vị trong ô phụ địch (Thùng, Thiếu Nữ, token khác), bất kể lane.
 
 - **Quà Vàng (chốt 2026-10-30):** cứ N lượt (bắt đầu N = 4, cân bằng chỉnh) mỗi người được tặng 1 lá Vàng, không lấy từ bộ bài.
 
@@ -83,7 +83,7 @@ Bổ sung sau khi duyệt với chủ:
 
 | | Quick? | Tác dụng | Điều kiện/ý đồ |
 |---|---|---|---|
-| Nội tại | - | Đồng minh bị hạ thì hồi sinh với 25% máu tối đa + (20 + 15% AD + 25% AP) máu và hoá **Cuồng Bạo**: tới hết lượt kế của nó, đòn đánh +(15 + 15% AD + 25% AP) sát thương, kèm 1 Đòn Miễn Phí | 1 lần/đồng minh/trận, Renata phải đang trên sân |
+| Nội tại | - | Đồng minh bị hạ thì hồi sinh với 25% máu tối đa + (20 + 15% AD + 25% AP) máu và hoá **Cuồng Bạo**: tới hết lượt kế của nó, đòn đánh +(15 + 15% AD + 25% AP) sát thương | 1 lần/đồng minh/trận, Renata phải đang trên sân |
 | Q | - | Cả đội +Giáp (10 + 10% AD + 15% AP) và mọi địch nhận (20 + 20% AD + 30% AP) sát thương phép | Mỏng nhưng trúng cả hai đội; lên đồ là dày (chủ chốt) |
 | E | Có | Khi một địch tấn công 1 đồng minh: phản lại 40% sát thương đòn đó + (10 + 10% AD + 15% AP), sát thương chuẩn | Ép địch phải cân nhắc trước khi đánh |
 | R | - | Thâu Tóm: mỗi tướng địch đánh 2 đòn vào 1 đồng đội ngẫu nhiên của chính nó (không đánh chính nó; không có đồng đội thì bỏ qua) | Địch càng mạnh càng tự hại nhau nặng |

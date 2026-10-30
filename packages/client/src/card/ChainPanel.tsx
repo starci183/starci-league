@@ -6,6 +6,9 @@ import {
     cg
 } from "@starci/shared"
 import {
+    ReserveRoster
+} from "./ui/ReserveRoster"
+import {
     cardActions, gameOf, useCard, type CardView, type LogEntry
 } from "./store"
 import {
@@ -14,6 +17,10 @@ import {
 import {
     TXT, cardArt, cardName, eventLine, eventSide, getLang, heroArt, isHidden, isMinor, sideLabel, unitName, type Lang
 } from "./chain/text"
+
+import {
+    inspectionActions
+} from "./ui/inspection"
 
 type Side = cg.Side
 type Action = cg.Action
@@ -28,7 +35,8 @@ function Art({ src, glyph, cls }: { src: string | null; glyph: string; cls?: str
         [src])
     return (
         <span className={`ch-art ${cls ?? ""}`}>
-            {src && !bad ? <img src={src} alt="" draggable={false} onError={() => setBad(true)} /> : <b>{glyph}</b>}
+            {src && !bad ? <img src={`/${src.replace(/^\//,
+                "")}`} alt="" draggable={false} onError={() => setBad(true)} /> : <b>{glyph}</b>}
         </span>
     )
 }
@@ -83,7 +91,13 @@ function LinkRow({ l, v, g, lang, state }: { l: LinkView; v: CardView; g: cg.Gam
     const tg = l.targets.map((x) => unitName(v,
         x)).join(", ")
     return (
-        <li className={`ch-link ${sideCls(v,
+        <li tabIndex={0} onMouseEnter={() => { if (l.card) inspectionActions.card(l.card,
+            {
+                source: "chain", side: l.side, actor: l.actor, targets: l.targets, link: l.n
+            }); else if (l.actor) inspectionActions.unit(l.actor) }} onFocus={() => { if (l.card) inspectionActions.card(l.card,
+            {
+                source: "chain", side: l.side, actor: l.actor, targets: l.targets, link: l.n
+            }) }} className={`ch-link ${sideCls(v,
             l.side)} ${state}`}>
             <span className="ch-link-n">{l.n}</span>
             <Art src={art} glyph={l.kind === "attack" ? "⚔" : "✦"} cls={l.kind} />
@@ -130,7 +144,13 @@ function Prompt({ v, g, lang }: { v: CardView; g: cg.Game; lang: Lang }) {
                         card,
                         lang) : uid
                     return (
-                        <button key={uid} className="ch-card" onClick={() => cardActions.beginTargeting(uid,
+                        <button key={uid} className="ch-card" onMouseEnter={() => { if (card) inspectionActions.card(card,
+                            {
+                                source: "reaction", side: me ?? undefined, actor, trigger: v.chain?.links.at(-1)?.trigger
+                            }) }} onFocus={() => { if (card) inspectionActions.card(card,
+                            {
+                                source: "reaction", side: me ?? undefined, actor, trigger: v.chain?.links.at(-1)?.trigger
+                            }) }} onClick={() => cardActions.beginTargeting(uid,
                             acts)}>
                             <Art src={cardArt(card,
                                 actor)} glyph="✦" />
@@ -152,7 +172,7 @@ function ChainStack({ v, lang }: { v: CardView; lang: Lang }) {
         [v])
     const live = v.chain
     const links = anim ? anim.links : live ? linksOf(live) : []
-    if (!links.length) return null
+    if (!links.length) return <div className="ch-current-empty">{lang === "en" ? "No active chain" : "Chưa có chuỗi"}</div>
     const asking = !anim && v.phase === "chain" && !!live && live.priority === v.you
     const waiting = !anim && v.phase === "chain" && !!live && live.priority !== v.you && v.you !== null
     return (
@@ -163,7 +183,7 @@ function ChainStack({ v, lang }: { v: CardView; lang: Lang }) {
                 {anim ? <em>{t.resolving}</em> : null}
             </div>
             <ol className="ch-stack">
-                {[...links].reverse().map((l) => (
+                {links.map((l) => (
                     <LinkRow
                         key={l.n}
                         l={l}
@@ -266,16 +286,64 @@ function BattleLog({ v, lang }: { v: CardView; lang: Lang }) {
         lang)
     const shown = detail ? rows : rows.filter((r) => !r.minor)
     const box = useRef<HTMLDivElement>(null)
+    const content = useRef<HTMLDivElement>(null)
     const stick = useRef(true)
+    const userIntentUntil = useRef(0)
+    const pointerActive = useRef(false)
+    const followTimer = useRef<number | undefined>(undefined)
+    const lastPosition = useRef<{ top: number; height: number; viewport: number } | null>(null)
     const [away,
         setAway] = useState(false)
-
-    useLayoutEffect(() => {
+    const follow = () => {
         const el = box.current
-        if (el && stick.current) el.scrollTop = el.scrollHeight
+        if (el && stick.current && performance.now() > userIntentUntil.current) {
+            el.scrollTop = el.scrollHeight
+            lastPosition.current = {
+                top: el.scrollTop, height: el.scrollHeight, viewport: el.clientHeight
+            }
+        }
+    }
+    const markIntent = (ms = 600) => {
+        userIntentUntil.current = performance.now() + ms
+        window.clearTimeout(followTimer.current)
+        followTimer.current = window.setTimeout(follow,
+            ms + 1)
+    }
+    useLayoutEffect(follow,
+        [shown.at(-1)?.n,
+            detail])
+    useEffect(() => {
+        const observer = typeof ResizeObserver !== "undefined" ? new ResizeObserver(follow) : null
+        if (box.current) observer?.observe(box.current)
+        if (content.current) observer?.observe(content.current)
+        const released = () => {
+            if (!pointerActive.current) return
+            pointerActive.current = false
+            markIntent(150)
+        }
+        const blurred = () => { pointerActive.current = false; userIntentUntil.current = 0; follow() }
+        window.addEventListener("pointerup",
+            released)
+        window.addEventListener("pointercancel",
+            released)
+        window.addEventListener("blur",
+            blurred)
+        window.addEventListener("resize",
+            follow)
+        return () => {
+            window.clearTimeout(followTimer.current)
+            observer?.disconnect()
+            window.removeEventListener("pointerup",
+                released)
+            window.removeEventListener("pointercancel",
+                released)
+            window.removeEventListener("blur",
+                blurred)
+            window.removeEventListener("resize",
+                follow)
+        }
     },
-    [shown.length,
-        detail])
+    [])
 
     const toggle = () => {
         const nx = !detail
@@ -286,15 +354,26 @@ function BattleLog({ v, lang }: { v: CardView; lang: Lang }) {
     const onScroll = () => {
         const el = box.current
         if (!el) return
+        const before = lastPosition.current
+        const manualUp = !!before && el.scrollTop < before.top - 1 && el.scrollHeight === before.height && el.clientHeight === before.viewport
+        lastPosition.current = {
+            top: el.scrollTop, height: el.scrollHeight, viewport: el.clientHeight
+        }
         const near = el.scrollHeight - el.scrollTop - el.clientHeight < 28
-        stick.current = near
-        setAway(!near)
+        if (near) {
+            stick.current = true
+            setAway(false)
+        } else if (manualUp || performance.now() <= userIntentUntil.current) {
+            stick.current = false
+            setAway(true)
+        }
     }
     const toEnd = () => {
         const el = box.current
         if (!el) return
-        el.scrollTop = el.scrollHeight
         stick.current = true
+        userIntentUntil.current = 0
+        el.scrollTop = el.scrollHeight
         setAway(false)
     }
 
@@ -304,11 +383,22 @@ function BattleLog({ v, lang }: { v: CardView; lang: Lang }) {
                 <span>{t.log}</span>
                 <button className={`ch-chip ${detail ? "on" : ""}`} onClick={toggle}>{t.detail}</button>
             </div>
-            <div className="ch-log-list" ref={box} onScroll={onScroll}>
-                {shown.length ? shown.map((r) => (
-                    <div key={r.n} className={`ch-row ${sideCls(v,
-                        r.side)} k-${r.kind}${r.minor ? " minor" : ""}`}>{r.text}</div>
-                )) : <div className="ch-empty">{t.empty}</div>}
+            <div className="ch-log-list" ref={box} onScroll={onScroll} tabIndex={0} aria-label={t.log}
+                onWheel={() => markIntent()}
+                onPointerDown={() => { pointerActive.current = true; userIntentUntil.current = Number.POSITIVE_INFINITY }}
+                onKeyDown={(e) => { if (["ArrowUp",
+                    "ArrowDown",
+                    "PageUp",
+                    "PageDown",
+                    "Home",
+                    "End",
+                    " "].includes(e.key)) markIntent() }}>
+                <div ref={content} className="ch-log-content">
+                    {shown.length ? shown.map((r) => (
+                        <div key={r.n} className={`ch-row ${sideCls(v,
+                            r.side)} k-${r.kind}${r.minor ? " minor" : ""}`}>{r.text}</div>
+                    )) : <div className="ch-empty">{t.empty}</div>}
+                </div>
             </div>
             {away ? <button className="ch-latest" onClick={toEnd}>↓ {t.latest}</button> : null}
         </section>
@@ -324,9 +414,13 @@ export function ChainPanel() {
     if (!view) return <section className="cg-chain ch" />
     return (
         <section className="cg-chain ch">
-            <TurnHeader v={view} lang={lang} over={stage === "ended" || view.phase === "over"} />
-            <ChainStack v={view} lang={lang} />
+            <section className="ch-current">
+                <h3 className="ch-current-title">{lang === "en" ? "Current skill chain" : "Chuỗi kỹ năng hiện tại"}</h3>
+                <TurnHeader v={view} lang={lang} over={stage === "ended" || view.phase === "over"} />
+                <ChainStack v={view} lang={lang} />
+            </section>
             <BattleLog v={view} lang={lang} />
+            <ReserveRoster />
             <div className="ch-toasts">
                 {toasts.map((x) => <div key={x.id} className={`ch-toast ${sideCls(view,
                     x.side)}`}>{x.text}</div>)}

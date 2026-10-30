@@ -25,6 +25,12 @@ export interface VfxCtx {
     icon?: string;
     /** 1 = bình thường, 2+ = chiêu cuối / chí mạng */
     intensity: number;
+    /** Resource amount displayed by a resource-specific effect. */
+    amount?: number;
+    /** Optional authoritative receipt beat, called once by the effect. */
+    onBeat?(): void;
+    /** A card-grabbing effect follows the actual moving DOM card, not a fixed beam. */
+    tether?: { target(): Pt; released(): boolean; contact(): void };
     /** Rung màn hình (gọi từ hiệu ứng khi trúng) */
     shake(power: number, ms: number): void;
 }

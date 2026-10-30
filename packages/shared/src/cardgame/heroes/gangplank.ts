@@ -1,7 +1,7 @@
-// Gangplank (Đấu sĩ, vật lý): máu 420 · AD 106 · giáp/kháng 30/29 (V3).
+// Gangplank (Đấu sĩ, vật lý): máu 420 · AD 73 · giáp/kháng 30/29 (V3).
 // CHẤT: "Ăn cam trụ đường, gài thùng nổ một tướng địch": đấu sĩ bền, bịp bằng Thùng giả. Thùng KHÔNG tự xuất hiện: E đặt Thùng thật,
 // hoặc úp BẤT KỲ lá trên tay làm Thùng giả (lá đó mất). Thùng thật +1 Thuốc Súng đầu mỗi lượt của Gangplank, không hết hạn.
-// Đòn đánh của Gangplank (kể cả nút Đánh nhanh 66%) vào Thùng của mình = nổ 1 Thùng thật: 1 tướng địch NGẪU NHIÊN nhận sát thương theo Thuốc Súng.
+// Đòn đánh của Gangplank (kể cả nút Đánh nhanh 50%) vào Thùng của mình = nổ 1 Thùng thật: 1 tướng địch NGẪU NHIÊN nhận sát thương theo Thuốc Súng.
 // Ô phụ chứa tối đa 1 Thùng (thật hoặc giả). Xạ thủ và Đấu sĩ địch nhắm được Thùng; đòn đánh của họ vỡ 1 Thùng NGẪU NHIÊN (địch không
 // biết cái nào thật): Thùng giả lật mặt, lá úp vào mộ (đòn đó coi như phí); Thùng thật vỡ KHÔNG nổ (mất luôn Thuốc Súng).
 // Engine: engine chỉ có 1 ô triệu hồi phụ mỗi bên nên mọi Thùng nằm trong MỘT token úp "keg"; danh sách từng Thùng (thật/giả,
@@ -24,9 +24,9 @@ const MAX_KEGS = 1
 const START_POWDER = 1
 const FAKE_ID = "gp_fake"
 /** Sát thương vật lý lên mỗi tướng địch cho mỗi Thuốc Súng của Thùng nổ */
-export const F_POWDER = "40 + 60% AD + 10% AP"
+export const F_POWDER = "55 + 120% AD + 10% AP"
 /** Q: hồi máu cho chính Gangplank */
-export const F_HEAL = "100 + 60% AD + 15% AP"
+export const F_HEAL = "100 + 85% AD + 15% AP"
 
 interface Keg {
     real: boolean;
@@ -84,8 +84,11 @@ function saveKegs(g: Game, me: Unit, ks: Keg[]) {
         "kegs",
         ks.length)
 }
-const hasRoom = (g: Game, me: Unit) => kegsOf(g,
+/** Đặt Thùng (thật/giả) cần ô phụ chung của phe đang TRỐNG: không đè vật triệu hồi đồng minh, tối đa MAX_KEGS Thùng */
+const hasRoom = (g: Game, me: Unit) => !g.tokenOf(me.side) && kegsOf(g,
     me).length < MAX_KEGS
+/** Mọi cách úp Thùng (E thật hoặc lá giả) cùng một giá mana công khai */
+export const PLACE_MANA = 15
 function placeKeg(g: Game, me: Unit, keg: Keg) {
     const ks = kegsOf(g,
         me)
@@ -110,18 +113,19 @@ function blast(g: Game, me: Unit, keg: Keg) {
         F_POWDER)
     const t = g.pick(g.targetableEnemies(me).filter((x) => !x.token))
     if (!t) return
+    // nguồn nội tại (không phải lá chiêu): không spellcrit, không đặt dấu của lá gốc
     const dealt = g.damage(me,
         t,
         dmg,
         "physical",
         {
-            tag: "skill"
+            tag: "effect"
         })
     g.log(`Thùng nổ trúng ${g.nameOf(t)} (−${Math.round(dealt)})`)
 }
 
 export default defineHero({
-    id: "gangplank", name: "Gangplank", role: "fighter", damage: "physical", hp: 420, atk: 106, armor: 30, mr: 29,
+    id: "gangplank", name: "Gangplank", role: "fighter", damage: "physical", hp: 440, atk: 73, armor: 30, mr: 29,
     bot: {
         tokenValue: 30,
         tokenStackValue: {
@@ -132,7 +136,7 @@ export default defineHero({
     desc: "Đấu sĩ trụ đường nhờ Cam, gài Thùng thuốc súng nổ cả đội. Thùng thật to dần mỗi lượt; Thùng giả (úp bất kỳ lá nào) khiến địch phải đoán cái nào đáng phá.",
     passive: {
         name: "Thuốc Súng Bilgewater",
-        desc: `Đầu lượt của bạn: Thùng thật của Gangplank +1 Thuốc Súng. Bạn có thể úp BẤT KỲ lá trên tay làm Thùng giả (lá đó mất; tốn 1 lượt đánh). Ô phụ chứa tối đa ${MAX_KEGS} Thùng; địch không phân biệt thật/giả. Đòn đánh của Xạ Thủ và Đấu Sĩ địch nhắm được Thùng (vỡ 1 Thùng ngẫu nhiên: Thùng giả bị lật và lá vào mộ, Thùng thật mất mà không nổ). Địch phá Thùng giả: Gangplank hồi 30% lượng hồi của Q (nếu là lá Cam: 160%). Trong lượt của bạn, đòn đánh của Gangplank (cả Đánh nhanh) có thể nhắm Thùng của bạn: Kích Nổ 1 Thùng thật, 1 tướng địch ngẫu nhiên nhận {${F_POWDER}} sát thương vật lý mỗi Thuốc Súng. Hết Thùng thật, đòn đánh vào Thùng giả = ăn nó: lá vào mộ, nếu là lá Cam hồi 40% lượng hồi của Q.`,
+        desc: `Đầu lượt mình, Thùng thật thêm 1 Thuốc Súng không giới hạn. Đòn hợp lệ trúng Thùng mình tiêu một Thùng thật và nổ vào một tướng địch hợp lệ ngẫu nhiên, gây Thuốc Súng × {${F_POWDER}} sát thương vật lý. Địch đánh phá Thùng thật khiến nó mất mà không nổ; phá giả cho Gangplank hồi theo loại lá.`,
     },
     extraAttackTargets(g, me) {
         if (g.s.active !== me.side) return []
@@ -144,9 +148,13 @@ export default defineHero({
     handUse: {
         id: FAKE_ID,
         name: "Úp làm Thùng giả",
+        // cùng điều kiện và cùng giá 15 mana như E thật (không lộ thật/giả qua chi phí)
         can: (g, me) => hasRoom(g,
-            me),
+            me) && g.canCast(me) && g.manaOf(me) >= PLACE_MANA,
         resolve(g, me, card) {
+            if (!g.spendMana(me,
+                PLACE_MANA,
+                card)) return
             placeKeg(g,
                 me,
                 {
@@ -230,8 +238,8 @@ export default defineHero({
     },
     skills: {
         Q: {
-            key: "Q", name: "Ăn Cam", target: "self",
-            desc: `Gangplank hồi {${F_HEAL}} máu (chỉ hồi cho chính hắn). Lá này cũng úp được làm Thùng giả (lá Cam): địch phá thì hồi 160% lượng hồi này, tự đánh thì hồi 40%.`,
+            key: "Q", mana: 10, name: "Ăn Cam", target: "self",
+            desc: `Hồi cho chính Gangplank {${F_HEAL}} Máu. Nếu úp làm giả, địch đánh phá Cam cho hồi 160% lượng này; tự đánh ăn Cam giả hồi 40%. Địch phá giả là lá khác cho hồi 30%, tự phá lá khác không hồi.`,
             resolve(c) {
                 c.g.heal(c.self,
                     c.self,
@@ -240,8 +248,8 @@ export default defineHero({
             },
         },
         E: {
-            key: "E", name: "Đặt Thùng", target: "none",
-            desc: `Đặt 1 Thùng thật (${START_POWDER} Thuốc Súng) vào ô phụ. Cần ô phụ còn chỗ (tối đa ${MAX_KEGS} Thùng).`,
+            key: "E", mana: PLACE_MANA, name: "Đặt Thùng", target: "none",
+            desc: "Khi có quyền dùng chiêu và ô phụ chung đang trống, úp E thành Thùng thật hoặc giả, hoặc úp một lá khác thành giả qua cùng wrapper kín, đều tốn 15 mana. Thùng thật bắt đầu với 1 Thuốc Súng; đặt không tiêu hay cấp quyền đánh.",
             canPlay: (c) => hasRoom(c.g,
                 c.self),
             resolve(c) {
@@ -253,8 +261,8 @@ export default defineHero({
             },
         },
         R: {
-            key: "R", name: "Mưa Đại Bác", target: "none",
-            desc: "Thêm 1 lá Q (Cam) và 1 lá E (Thùng) của Gangplank lên tay.",
+            key: "R", mana: 20, name: "Mưa Đại Bác", target: "none",
+            desc: "Tiếp Tế Bilgewater: tạo 1 lá Q Cam và 1 lá E Thùng của Gangplank lên tay; các lá này dùng sau vẫn phải trả chi phí và tuân theo điều kiện thường.",
             resolve(c) {
                 c.g.giveSkillToHand(c.self.side,
                     c.self.hero,

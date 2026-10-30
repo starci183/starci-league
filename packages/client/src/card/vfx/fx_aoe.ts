@@ -41,7 +41,7 @@ const kOf = (ctx: VfxCtx): number => 1 + (Math.max(1,
 
 // ---------- Texture sinh bằng canvas ----------
 
-type TexName = "glow" | "ring" | "spark" | "slash" | "star4" | "star5" | "shard" | "hex" | "smoke" | "debris" | "cross" | "rune" | "chev"
+type TexName = "glow" | "ring" | "spark" | "slash" | "star4" | "star5" | "shard" | "hex" | "smoke" | "debris" | "cross" | "rune" | "chev" | "bubble" | "wind"
 
 type G2 = CanvasRenderingContext2D
 
@@ -274,6 +274,69 @@ function build(name: TexName): Texture {
                             90]
                     ])
                 g.fill()
+            })
+    case "bubble": // bong bóng Khiên: lòng trong suốt, viền sáng, vệt bóng phản chiếu
+        return canvasTex(256,
+            256,
+            (g) => {
+                const fill = g.createRadialGradient(128,
+                    128,
+                    60,
+                    128,
+                    128,
+                    118)
+                fill.addColorStop(0,
+                    "rgba(255,255,255,0.04)")
+                fill.addColorStop(1,
+                    "rgba(255,255,255,0.32)")
+                g.fillStyle = fill
+                g.beginPath()
+                g.arc(128,
+                    128,
+                    118,
+                    0,
+                    TAU)
+                g.fill()
+                g.shadowColor = "white"
+                g.shadowBlur = 8
+                g.strokeStyle = "rgba(255,255,255,0.95)"
+                g.lineWidth = 5
+                g.beginPath()
+                g.arc(128,
+                    128,
+                    116,
+                    0,
+                    TAU)
+                g.stroke()
+                g.lineWidth = 7
+                g.strokeStyle = "rgba(255,255,255,0.7)"
+                g.beginPath()
+                g.arc(104,
+                    100,
+                    66,
+                    Math.PI * 1.1,
+                    Math.PI * 1.5)
+                g.stroke()
+            })
+    case "wind": // vệt gió cong (~110°), đầu đậm đuôi mảnh
+        return canvasTex(256,
+            256,
+            (g) => {
+                const n = 24
+                for (let i = 0; i < n; i++) {
+                    const a0 = Math.PI * 1.2 + (i / n) * 1.9
+                    const a1 = a0 + 1.9 / n + 0.02
+                    g.strokeStyle = `rgba(255,255,255,${(0.15 + 0.85 * (i / n)).toFixed(2)})`
+                    g.lineWidth = 2 + 5 * (i / n)
+                    g.lineCap = "round"
+                    g.beginPath()
+                    g.arc(128,
+                        128,
+                        110,
+                        a0,
+                        a1)
+                    g.stroke()
+                }
             })
     case "hex":
         return canvasTex(128,
@@ -663,6 +726,8 @@ function play(ctx: VfxCtx, ms: number, setup: (s: Scope) => void): Promise<void>
                 return
             }
             done = true
+            s.root.off("destroyed",
+                finish)
             try {
                 ctx.app.ticker.remove(tick)
             } catch {
@@ -683,8 +748,11 @@ function play(ctx: VfxCtx, ms: number, setup: (s: Scope) => void): Promise<void>
             }
         }
         try {
+            if (ctx.layer.destroyed) { finish(); return }
             ctx.layer.addChild(s.root)
             setup(s)
+            s.root.once("destroyed",
+                finish)
             ctx.app.ticker.add(tick)
         } catch {
             finish()
@@ -2529,121 +2597,74 @@ registerVfx("heal",
             })
     })
 
-// --- shield: vỏ lục giác trắng vàng hình thành rồi mờ dần ---
+// --- shield: bong bóng tròn kiểu Janna phát MỘT LẦN lúc tạo Khiên (màu theo loại: trắng / vàng vật lý / xanh dương phép).
+// Sau đó Khiên chỉ hiện bằng đoạn máu màu và icon trong hàng hiệu ứng, không vẽ bong bóng bám lá. ---
 registerVfx("shield",
     (ctx) => {
         const k = kOf(ctx)
         const c = ctx.color
-        const c2 = ctx.color2 ?? 0xfff3c4
+        const c2 = ctx.color2 ?? 0xffffff
         const pts = targets(ctx)
         return play(ctx,
-            2000,
+            1300,
             (s) => {
                 for (const p of pts) {
-                    const R = 120 * k
-                    const dome = s.spr("glow",
-                        p.x,
-                        p.y,
-                        c)
-                    const shell = s.spr("hex",
+                    const R = 105 * k
+                    const bubble = s.spr("bubble",
                         p.x,
                         p.y,
                         c2)
-                    const shell2 = s.spr("hex",
+                    const tint = s.spr("glow",
                         p.x,
                         p.y,
                         c)
-                    dome.visible = false
-                    shell.visible = false
-                    shell2.visible = false
+                    bubble.visible = false
+                    tint.visible = false
                     s.anim(0,
-                        1700,
+                        1150,
                         (u) => {
-                            const form = easeOut(clamp01(u / 0.28))
-                            const fade = u < 0.6 ? 1 : 1 - (u - 0.6) / 0.4
-                            const hum = 1 + 0.025 * Math.sin(u * TAU * 4)
-                            dome.visible = true
-                            shell.visible = true
-                            shell2.visible = true
-                            sz(dome,
-                                R * 2.2 * form)
-                            dome.alpha = fade * 0.5
-                            sz(shell,
-                                R * 1.9 * (1.5 - 0.5 * form) * hum)
-                            shell.alpha = form * fade
-                            shell.rotation = u * 0.8
-                            sz(shell2,
-                                R * 1.35 * (1.7 - 0.7 * form) * hum)
-                            shell2.alpha = form * fade * 0.8
-                            shell2.rotation = -u * 1.2
+                            const grow = easeOut(clamp01(u / 0.35))
+                            const fade = u < 0.55 ? 1 : 1 - (u - 0.55) / 0.45
+                            const wobble = 1 + 0.03 * Math.sin(u * TAU * 3) * (1 - u)
+                            bubble.visible = true
+                            tint.visible = true
+                            sz(bubble,
+                                R * 2 * grow * wobble)
+                            bubble.alpha = fade
+                            sz(tint,
+                                R * 2.1 * grow)
+                            tint.alpha = 0.35 * fade
                         })
-                    const m = 6
-                    for (let i = 0; i < m; i++) {
-                        const a = (i / m) * TAU - Math.PI / 2
-                        const farX = p.x + Math.cos(a) * R * 2.4
-                        const farY = p.y + Math.sin(a) * R * 2.4
-                        const nearX = p.x + Math.cos(a) * R * 0.95
-                        const nearY = p.y + Math.sin(a) * R * 0.95
-                        const piece = s.spr("hex",
-                            farX,
-                            farY,
-                            c2)
-                        piece.visible = false
-                        s.anim(i * 30,
-                            420,
+                    for (let i = 0; i < 3; i++) { // gió xoáy quanh mép
+                        const wind = s.spr("wind",
+                            p.x,
+                            p.y,
+                            i === 1 ? c : c2)
+                        wind.visible = false
+                        const r = R * (1.55 - i * 0.12)
+                        s.anim(i * 60,
+                            900,
                             (u) => {
                                 const e = easeOut(u)
-                                piece.visible = true
-                                piece.position.set(farX + (nearX - farX) * e,
-                                    farY + (nearY - farY) * e)
-                                piece.rotation = u * 3
-                                sz(piece,
-                                    34 * k * (1.2 - 0.4 * u))
-                                piece.alpha = u < 1 ? 1 : 0
+                                wind.visible = true
+                                sz(wind,
+                                    (r - (r - R * (0.92 + i * 0.06)) * e) * 2)
+                                wind.rotation = i * 2.1 + u * (5 + i)
+                                wind.alpha = u < 0.6 ? 0.95 : 0.95 * (1 - (u - 0.6) / 0.4)
                             })
                     }
-                    s.anim(440,
+                    s.anim(340,
                         0,
                         () => {
                             s.emit(p,
                                 {
-                                    tex: "glow",
-                                    life: 320,
-                                    s0: R * 1.4,
-                                    s1: R * 3,
-                                    tint: WHITE,
-                                    a0: 0.8
-                                })
-                            s.emit(p,
-                                {
                                     tex: "ring",
-                                    life: 520,
-                                    s0: R * 1.5,
-                                    s1: R * 3.4,
+                                    life: 420,
+                                    s0: R * 1.9,
+                                    s1: R * 2.6,
                                     tint: c2,
-                                    a0: 0.9
+                                    a0: 0.7
                                 })
-                            const n = Math.round(12 * k)
-                            for (let i = 0; i < n; i++) {
-                                const a = rnd(0,
-                                    TAU)
-                                s.emit({
-                                    x: p.x + Math.cos(a) * R,
-                                    y: p.y + Math.sin(a) * R
-                                },
-                                {
-                                    tex: "star4",
-                                    vx: Math.cos(a) * 30,
-                                    vy: Math.sin(a) * 30 - 20,
-                                    life: rnd(500,
-                                        900),
-                                    s0: rnd(10,
-                                        20),
-                                    s1: 4,
-                                    tint: c2,
-                                    inout: true
-                                })
-                            }
                         })
                 }
             })

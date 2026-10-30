@@ -217,3 +217,5 @@
 .hd-btn.up { font-size: 12px; padding: 6px 10px; }
 .hd-pop-foot .hd-btn.sec { padding: 2px 10px; font-size: 12px; background: transparent; color: #b8b4a8; border: 1px solid #5a5f6a; border-radius: 6px; }
 .hd-pop-foot .hd-btn.sec:hover { border-color: #ff8a7a; color: #ffb0a4; }
+
+.hd-queue-status { position: absolute; top: 6px; left: 50%; transform: translateX(-50%); z-index: 12; padding: 6px 14px; border-radius: 6px; border: 1px solid #c8a050; background: #101c2b; color: #f5d27a; font-size: 13px; pointer-events: none; }

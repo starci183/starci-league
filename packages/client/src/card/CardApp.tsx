@@ -9,13 +9,19 @@ import {
     createRoot
 } from "react-dom/client"
 import {
-    cardActions, useCard, type CardJoin
+    createPortal
+} from "react-dom"
+import {
+    useState
+} from "react"
+import {
+    cardActions, setDisplayLag, useCard, type CardJoin
 } from "./store"
 import {
     DraftScreen, EndScreen, WaitingScreen
 } from "./Screens"
 import {
-    Board
+    Board, TurnBar
 } from "./Board"
 import {
     Hand
@@ -35,36 +41,63 @@ import {
 import {
     VfxCanvas
 } from "./vfx/VfxCanvas"
+import {
+    noFx, reducedMotion, setNoFx
+} from "./anim/helpers"
+import "../cardFrame.css"
 import "./card.css"
 import "./screens.css"
 import "./board.css"
 import "./hand.css"
 import "./chain.css"
 import "./stats/stats.css"
+import "./forest.css"
+import "./forest-concept.css"
+import "./forest-polish.css"
 
-function CardApp() {
-    const { stage, error } = useCard()
+export function CardApp() {
+    const { stage, error, view, targeting, presenting } = useCard()
+    const [logOpen,
+        setLogOpen] = useState(true)
+    const [infoOpen,
+        setInfoOpen] = useState(false)
+    const [fxOff,
+        setFxOff] = useState(noFx)
     if (stage === "idle" || stage === "connecting") return <div className="cg-center">…</div>
     if (stage === "error") return <div className="cg-center cg-error">{error}</div>
     if (stage === "waiting") return <WaitingScreen />
     if (stage === "draft") return <DraftScreen />
     return (
-        <div className="cg-root">
+        <div className="cg-viewport"><div className={`cg-root forest-game${logOpen ? " log-open" : ""}${infoOpen ? " info-open" : ""}`}>
+            <aside className="cg-inspector" aria-label="Thông tin lá bài và tướng">
+                <UnitPanel />
+            </aside>
+            {view ? <aside className="cg-phase-panel" aria-label="Pha và lượt"><TurnBar view={view} me={view.you ?? "A"} hint={!!targeting} busy={presenting} /></aside> : null}
             <main className="cg-main">
+                <div className="cg-panel-controls">
+                    <button className="cg-info-toggle" aria-expanded={infoOpen} onClick={() => setInfoOpen(!infoOpen)}>Thông tin</button>
+                    <button className="cg-log-toggle" aria-expanded={logOpen} onClick={() => setLogOpen(!logOpen)}>{logOpen ? "Ẩn nhật ký" : "Nhật ký"}</button>
+                </div>
                 <Board />
                 <Hand />
             </main>
             <aside className="cg-side">
-                <UnitPanel />
                 <div className="cg-chainwrap">
                     <ChainPanel />
                 </div>
             </aside>
+            <button className="cg-fx-toggle" aria-pressed={fxOff} title="No effect: tắt hoạt ảnh và VFX, kết quả hiện ngay" onClick={() => {
+                const off = !fxOff
+                setNoFx(off)
+                setFxOff(off)
+                setDisplayLag(!reducedMotion())
+            }}>{fxOff ? "Hiệu ứng: tắt" : "Hiệu ứng: bật"}</button>
             <ChainStage />
-            <AnimLayer />
-            <VfxCanvas />
+            {createPortal(<AnimLayer />,
+                document.body)}
+            {fxOff ? null : <VfxCanvas />}
             {stage === "ended" ? <EndScreen /> : null}
-        </div>
+        </div></div>
     )
 }
 

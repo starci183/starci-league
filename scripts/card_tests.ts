@@ -215,7 +215,8 @@ cg.defineHero({
     },
     skills: {
         Q: {
-            key: "Q", name: "Test Spark", desc: "Quick: 50 sát thương chuẩn lên 1 tướng địch.", target: "enemy", quick: true, resolve: (c) => { if (c.target) c.g.damage(c.self,
+            key: "Q", name: "Test Spark", desc: "Quick khi địch tấn công hoặc dùng lá chiêu: 50 sát thương chuẩn lên 1 tướng địch.", target: "enemy", quick: true,
+            quickWhen: (c) => c.trigger.kind === "attack" || c.trigger.kind === "skill", resolve: (c) => { if (c.target) c.g.damage(c.self,
                 c.target,
                 50,
                 "true",
@@ -297,10 +298,10 @@ test("V2: tay đầu RULES.startHand (5) có ngay ở đầu ván, trước khi 
         })
         assert.equal(r.s.phase,
             "main")
-        assert.equal(r.s.players.A.hand.length,
-            cg.RULES.startHand)
+        assert.equal(r.s.players.A.hand.filter((c) => !c.temp).length,
+            cg.RULES.startHand) // lá tạm của pháp sư không tính
         assert.ok(!r.s.players.A.hand.some((c) => c.kind === "wild"))
-        assert.equal(r.s.players.A.hand.length + r.s.players.A.deck.length,
+        assert.equal(r.s.players.A.hand.filter((c) => !c.temp).length + r.s.players.A.deck.length,
             total0,
             "gọi tướng không thêm lá")
         assert.equal(total0,
@@ -345,12 +346,12 @@ test("Mỗi bên 7 mạng, A đi trước, vòng 1, mở đầu ở bước gọ
             "A").every((a) => a.t === "summon"),
         "lượt đầu bắt buộc gọi tướng (chưa được rút)")
     })
-test("Rút bài sau khi gọi tướng: lượt đầu A chỉ có tay đầu 5 lá, không lá nào tràn vào mộ",
+test("Rút bài sau khi gọi tướng: lượt đầu A chỉ có tay đầu 5 lá (không tính lá tạm pháp sư), không lá nào tràn vào mộ",
     () => {
         const s = boot(cg.newGame(SEED,
             TEAM,
             TEAM)).s
-        assert.equal(s.players.A.hand.length,
+        assert.equal(s.players.A.hand.filter((c) => !c.temp).length,
             cg.RULES.startHand)
         assert.equal(s.players.A.grave.length,
             0)
@@ -1922,7 +1923,7 @@ test("Lá Quick thường (không chainOnly) vẫn đánh được chủ động
             "A",
             "t_spark_q").length > 0)
     })
-test("Chuỗi 3 mắt xích: A nối lá Quick của mình lên lá Quick của B; giải quyết 3 → 2 → 1",
+test("Chuỗi tối đa 4, A phản ứng được lên lá Quick ngay trước của B; giải quyết 3 → 2 → 1",
     () => {
         const s = mk({
             A: {
@@ -1935,16 +1936,16 @@ test("Chuỗi 3 mắt xích: A nối lá Quick của mình lên lá Quick của 
                 "basic"), spark = skill(s,
                 "t_spark",
                 "A",
-                "Q"); setHand(s,
-            "A",
-            [strike,
-                spark])
-        setHand(s,
-            "B",
-            [skill(s,
+                "Q"), guard = skill(s,
                 "t_guard",
                 "B",
-                "Q")])
+                "Q")
+        setHand(s,
+            "A",
+            [strike,
+                spark]); setHand(s,
+            "B",
+            [guard])
         let w = play(s,
             "A",
             strike,
@@ -1954,11 +1955,15 @@ test("Chuỗi 3 mắt xích: A nối lá Quick của mình lên lá Quick của 
         w = act(w.s,
 cg.legalActions(w.s,
     "B").find((a) => a.t === "chain")!)
-        assert.equal(w.s.phase,
-            "chain",
-            "A còn lá Quick thì được quyền nối tiếp")
+        assert.equal(cg.RULES.maxChain,
+            4)
         assert.equal(w.s.chain?.priority,
             "A")
+        assert.equal(w.s.chain?.links.length,
+            2)
+        assert.deepEqual(cg.legalActions(w.s,
+            "B"),
+        [])
         const r = act(w.s,
 cg.legalActions(w.s,
     "A").find((a) => a.t === "chain")!)
@@ -1969,24 +1974,65 @@ cg.legalActions(w.s,
         [3,
             2,
             1])
-        const first = evs(r.ev,
-            "damage")[0]
-        assert.equal(first.kind,
-            "true"); assert.equal(first.absorbed,
-            0,
-            "mắt xích 3 giải quyết trước khi có Khiên")
     })
-test("Hai lần bỏ qua liên tiếp mới giải quyết: B nối xong, A bỏ qua, B vẫn được nối thêm",
+
+test("Đối thủ bỏ qua thì giải quyết ngay, bên đánh không nối Quick lên lá gốc của mình",
     () => {
         const s = mk({
             A: {
                 t_spark: 2
             }, B: {
-                t_guard: 2, t_spark: 1
+                t_guard: 2
             }
         })
         const strike = sup(s,
-            "basic"); setHand(s,
+            "basic")
+        const spark = skill(s,
+            "t_spark",
+            "A",
+            "Q")
+        setHand(s,
+            "A",
+            [strike,
+                spark])
+        setHand(s,
+            "B",
+            [skill(s,
+                "t_guard",
+                "B",
+                "Q")])
+        const w = play(s,
+            "A",
+            strike,
+            {
+                actor: "A:t_spark", target: "B:t_guard"
+            })
+        const r = act(w.s,
+            {
+                t: "pass", side: "B"
+            })
+        assert.equal(r.s.phase,
+            "main")
+        assert.equal(r.s.chain,
+            null)
+        assert.deepEqual(evs(r.ev,
+            "chainResolve").map((e) => e.n),
+        [1])
+        assert.ok(r.s.players.A.hand.some((c) => c.uid === spark.uid))
+    })
+
+test("Đối thủ không có Quick: không mở cửa sổ tự phản ứng dù bên đánh có Quick",
+    () => {
+        const s = mk({
+            A: {
+                t_spark: 2
+            }, B: {
+                t_guard: 2
+            }
+        })
+        const strike = sup(s,
+            "basic")
+        setHand(s,
             "A",
             [strike,
                 skill(s,
@@ -1995,37 +2041,135 @@ test("Hai lần bỏ qua liên tiếp mới giải quyết: B nối xong, A bỏ
                     "Q")])
         setHand(s,
             "B",
-            [skill(s,
-                "t_guard",
-                "B",
-                "Q"),
-            skill(s,
-                "t_spark",
-                "B",
-                "Q")])
-        let w = play(s,
+            [])
+        const r = play(s,
             "A",
             strike,
             {
                 actor: "A:t_spark", target: "B:t_guard"
             })
+        assert.equal(r.s.phase,
+            "main")
+        assert.equal(r.s.chain,
+            null)
+        assert.equal(evs(r.ev,
+            "chainWindow").length,
+        0)
+    })
+
+test("Phản ứng có điều kiện xét mắt xích ngay trước; huỷ chiêu có thể bị huỷ lại, tối đa 4",
+    () => {
+        cg.defineHero({
+            id: "t_interrupt", name: "Test interrupt", role: "mage", damage: "magic", hp: 1000, atk: 50, armor: 30, mr: 30,
+            passive: {
+                name: "-", desc: "-"
+            },
+            skills: {
+                Q: {
+                    key: "Q", name: "Cancel spell", desc: "Only respond to a skill", target: "none", quick: true, chainOnly: true,
+                    quickWhen: (c) => c.trigger.kind === "skill", resolve: (c) => { c.g.chainFx().cancel = true; c.g.shield(c.self,
+                        c.self,
+                        1) }
+                },
+                E: {
+                    key: "E", name: "Respond to attack", desc: "Only respond to an attack", target: "none", quick: true, chainOnly: true,
+                    quickWhen: (c) => c.trigger.kind === "attack", resolve: () => {}
+                },
+                R: {
+                    key: "R", name: "-", desc: "-", target: "none", canPlay: () => false, resolve: () => {}
+                }
+            }
+        })
+        const s = mk({
+            A: {
+                t_spark: 2, t_interrupt: 1
+            }, B: {
+                t_interrupt: 2
+            }
+        })
+        const spark = skill(s,
+            "t_spark",
+            "A",
+            "Q")
+        const wrong = skill(s,
+            "t_interrupt",
+            "A",
+            "E")
+        setHand(s,
+            "A",
+            [spark,
+                skill(s,
+                    "t_interrupt",
+                    "A",
+                    "Q"),
+                wrong])
+        setHand(s,
+            "B",
+            [skill(s,
+                "t_interrupt",
+                "B",
+                "Q"),
+            skill(s,
+                "t_interrupt",
+                "B",
+                "Q")])
+        let w = play(s,
+            "A",
+            spark,
+            {
+                target: "B:t_interrupt"
+            })
+        assert.equal(w.s.chain?.links[0].trigger.kind,
+            "skill")
         w = act(w.s,
 cg.legalActions(w.s,
-    "B").find((a) => a.t === "chain" && w.s.players.B.hand.find((c) => c.uid === a.uid)?.id === "t_guard_q")!)
-        w = act(w.s,
+    "B").find((a) => a.t === "chain")!)
+        assert.ok(!cg.legalActions(w.s,
+            "A").some((a) => a.t === "chain" && a.uid === wrong.uid),
+        "chặn phản ứng đánh thường khi mắt xích trên là chiêu")
+        assert.throws(() => act(w.s,
             {
-                t: "pass", side: "A"
-            })
-        assert.equal(w.s.phase,
-            "chain"); assert.equal(w.s.chain?.priority,
-            "B")
+                t: "chain", side: "A", uid: wrong.uid
+            }))
+        assert.equal(cg.chainOptions(new Game(w.s),
+            "B",
+w.s.chain!.links[1].trigger).length,
+        0,
+        "không nối lên mắt xích cùng phe")
         w = act(w.s,
-            {
-                t: "pass", side: "B"
-            })
-        assert.equal(w.s.phase,
+cg.legalActions(w.s,
+    "A").find((a) => a.t === "chain")!)
+        const result = act(w.s,
+cg.legalActions(w.s,
+    "B").find((a) => a.t === "chain")!)
+        assert.equal(result.s.phase,
             "main")
+        assert.equal(result.s.chain,
+            null)
+        assert.deepEqual(evs(result.ev,
+            "chainResolve").map((e) => e.n),
+        [4,
+            3,
+            2,
+            1])
+        assert.deepEqual(evs(result.ev,
+            "chainCancel").map((e) => e.n),
+        [3,
+            1])
+        assert.equal(evs(result.ev,
+            "shield").length,
+        2,
+        "chỉ mắt xích 4 và 2 phát hiệu ứng; mắt xích 3 bị huỷ không tạo Khiên")
+        assert.equal(evs(result.ev,
+            "damage").length,
+        0,
+        "chiêu gốc bị huỷ không gây sát thương")
+        assert.equal(evs(result.ev,
+            "chainWindow").length,
+        0,
+        "đủ 4 không mở cửa sổ thứ 5")
     })
+
 test("Chuỗi tối đa RULES.maxChain mắt xích",
     () => {
         const s = mk({
@@ -2098,34 +2242,32 @@ test("V2: cuối lượt đấu sĩ không có đòn tự đánh nào mở chu�
         assert.equal(r.s.phase,
             "main")
     })
-test("Đòn miễn phí do buff (Nami E) nhắm tướng có lá Quick thì mở chuỗi",
+test("Không có hành động đánh từ buff: từ chối dữ liệu đòn tự do cũ, Đấu sĩ vẫn đánh không cần lá",
     () => {
-        needHero("nami")
         const s = mk({
             A: {
-                nami: 2
+                nami: 2, darius: 1
             }, B: {
-                t_guard: 2
+                t_guard: 2, t_spark: 1
             }
         })
-        u(s,
+        // Dữ liệu cũ không được tái tạo cơ chế đã bỏ.
+        Object.assign(u(s,
             "A",
-            "nami").nextAttack.push({
-            id: "nami_bless", source: "A:nami", free: true
-        })
-        setHand(s,
-            "B",
-            [skill(s,
-                "t_guard",
-                "B",
-                "Q")])
-        const r = act(s,
-            {
-                t: "attack", side: "A", actor: "A:nami", target: "B:t_guard"
-            })
-        assert.equal(r.s.phase,
-            "chain")
+            "nami").nextAttack,
+        [{
+            id: "legacy", source: "A:nami", free: true
+        }])
+        assert.ok(!cg.legalActions(s,
+            "A").some((a) => a.t === "attack" && a.actor === "A:nami"))
+        assert.throws(() => act(s,
+{
+    t: "attack", side: "A", actor: "A:nami", target: "B:t_guard"
+} as cg.Action))
+        assert.ok(cg.legalActions(s,
+            "A").some((a) => a.t === "attack" && a.actor === "A:darius" && a.cardless))
     })
+
 test("Chiêu 'opposite' (Darius Q) nhắm tướng có lá Quick cũng mở chuỗi",
     () => {
         needHero("darius")
@@ -2857,7 +2999,7 @@ test("Bản đồ đội hình: mọi tướng đã viết có engine, ≥2 comb
         }
     })
 
-test("Token ở ô phụ: chỉ đòn đánh của xạ thủ nhắm được; chiêu 1 mục tiêu thì không",
+test("Token ở ô phụ: đòn đánh của mọi vai chọn được; chiêu 1 mục tiêu vẫn cần quyền riêng",
     () => {
         needHero("teemo")
         const s = mk({
@@ -2883,8 +3025,10 @@ test("Token ở ô phụ: chỉ đòn đánh của xạ thủ nhắm được; c
             "A")
         assert.ok(plays.some((a) => a.args?.actor === "A:teemo" && a.args?.target === tok.id),
             "xạ thủ đánh được token")
-        assert.ok(!plays.some((a) => a.args?.actor !== "A:teemo" && a.args?.target === tok.id),
-            "chiêu đơn mục tiêu không chọn được token")
+        assert.ok(plays.some((a) => a.args?.actor === "A:t_spark" && a.args?.target === tok.id && s.players.A.hand.find((c) => c.uid === a.uid)?.id === "basic"),
+            "pháp sư cũng đánh thường được token")
+        assert.ok(!plays.some((a) => a.args?.target === tok.id && s.players.A.hand.find((c) => c.uid === a.uid)?.kind === "skill"),
+            "quyền đánh ô phụ không tự cho chiêu đơn mục tiêu quyền chọn token")
     })
 test("Token úp mặt: lật khi rời sân (tokenFlip lộ secret); token tự hết hạn sau N lượt của chủ",
     () => {
@@ -3277,7 +3421,7 @@ console.log(`\nTỔNG (lõi + nhóm lead): ${results.length} test | PASS ${c("PA
 let total = results.length, pass = c("PASS"), fail = c("FAIL")
 if (!only && !process.argv.includes("--core")) {
     const dir = path.dirname(fileURLToPath(import.meta.url))
-    for (const f of fs.readdirSync(dir).filter((x) => /^card_tests_(g\d+|items|bot|v2|v3|heroes_g\d+v?|heroes_new)\.ts$/.test(x)).sort()) {
+    for (const f of fs.readdirSync(dir).filter((x) => /^card_tests_(g\d+|items|bot|v2|v3|reactions|heroes_g\d+v?|heroes_new|balance_[a-z_]+)\.ts$/.test(x)).sort()) {
         const r = spawnSync(process.execPath,
             ["--import",
                 "tsx",

@@ -23,7 +23,7 @@ Bản chốt để chép nguyên văn vào `desc` (VI, trong `heroes/*.ts`) và 
 | # | Xấu (bản cũ) | Tốt (bản mới) | Vì sao |
 |---|---|---|---|
 | 1 | `{55 + 75% AD + 25% AP} sát thương vật lý lên tướng đối diện, +1 dấu. **Điều kiện:** tướng đối diện đang Kề Đao sau đòn này thì bị kết liễu.` | `Chọn tướng địch đối diện Darius; gây {55 + 75% AD + 25% AP} sát thương vật lý và +1 Chảy Máu. Nếu sau đó nó đang Kề Đao: Kết Liễu nó.` | mục tiêu trước `;`, điều kiện thành `Nếu …:`, "dấu" thành từ khoá Chảy Máu |
-| 2 | `Mỗi khi 1 tướng địch bị hạ trong lượt của bạn, Jinx nhận Phấn Khích tới hết lượt (hiện trên tướng): bạn rút 1 lá và đòn đánh kế tiếp của Jinx không cần lá Đánh thường.` | `Khi 1 tướng địch bị hạ trong lượt của bạn: Jinx nhận Phấn Khích và 1 Đòn Miễn Phí; bạn rút 1 lá.` | kích hoạt `Khi …:`; "không cần lá Đánh thường" là từ khoá Đòn Miễn Phí; Phấn Khích định nghĩa trong glossary |
+| 2 | `Mỗi khi 1 tướng địch bị hạ trong lượt của bạn, Jinx nhận Phấn Khích tới hết lượt (hiện trên tướng): bạn rút 1 lá .` | `Khi 1 tướng địch bị hạ trong lượt của bạn: Jinx nhận Phấn Khích ; bạn rút 1 lá.` | kích hoạt `Khi …:`; "đòn đánh thêm là hiệu ứng chiêu; Phấn Khích định nghĩa trong glossary |
 | 3 | `**Quick, chỉ nối chuỗi**, khi địch đánh/tung chiêu nhắm đúng 1 tướng mình: đổi mục tiêu sang Braum, …` | `Quick, Chỉ Nối Chuỗi. Khi lá hoặc đòn đánh của địch nhắm đúng 1 tướng mình: Đỡ Thay; Braum nhận Khiên {130 + 10% máu cộng thêm + 30% AP}. …` | nhãn đứng riêng, cơ chế "đổi mục tiêu" thành từ khoá Đỡ Thay |
 | 4 | `Chọn 1 tướng mình, bỏ bao nhiêu lá trên tay tuỳ ý: mỗi lá bỏ đi hồi cho tướng đó {45 + 30% AP}. **Điều kiện:** lá bỏ là **lá chết** (lá chiêu của tướng đang chết hoặc chưa ra sân) thì hồi thêm 50%.` | `Chọn 1 tướng mình và bỏ bao nhiêu lá trên tay tuỳ ý; mỗi lá bỏ: tướng đó hồi {45 + 30% AP}, hồi thêm 50% nếu lá đó là Lá Chết.` | chi phí + mục tiêu trước `;`, không định nghĩa lại Lá Chết |
 | 5 | `Bỏ 1 lá Vàng trên tay: đồ của 1 tướng mình (đang đeo đồ) được rèn lên **Kiệt Tác**: mọi chỉ số từ đồ +30% (tối đa +100% = gấp đôi, hiện trên tướng). …` | `Bỏ 1 lá Vàng, chọn 1 tướng mình đang đeo đồ; nó +30% Kiệt Tác và Ornn nhận Khiên {40 + 30% AP}. Nếu nó đeo đủ 3 món: bạn rút 1 lá.` | chi phí đầu câu; Kiệt Tác là từ khoá, không giải thích lại |
@@ -50,9 +50,8 @@ Bản chốt để chép nguyên văn vào `desc` (VI, trong `heroes/*.ts`) và 
 | quick | Quick | Quick | Đánh được trong lượt bạn như thường, và nối được Chuỗi lên lá hoặc đòn đánh vừa đánh (cả trong lượt đối thủ) khi đúng điều kiện ghi trên lá. | Playable on your turn as normal, and can be chained onto the card or attack just played (even on the opponent's turn) when the card's condition is met. |
 | chain_only | Chỉ Nối Chuỗi | Chain Only | Lá Quick này không đánh chủ động được; chỉ dùng để nối Chuỗi. | This Quick card can't be played on its own; it can only be chained. |
 | uncounterable | Không Thể Bị Nối Chuỗi | Unchainable | Không ai được nối Chuỗi lên lá này. | No one can chain onto this card. |
-| chain | Chuỗi | Chain | Lá hoặc đòn đánh vừa đánh mở Chuỗi; hai bên lần lượt nối lá Quick; Chuỗi giải quyết từ mắt xích cuối về đầu (tối đa 10 mắt xích). | A played card or attack opens a Chain; players take turns adding Quick cards; the Chain resolves from the last link to the first (max 10 links). |
+| chain | Chuỗi | Chain | Tối đa 4 mắt xích. Chỉ nối lá Quick lên mắt xích địch ngay trước khi đúng điều kiện ghi trên lá. Bỏ qua hoặc không có lá phù hợp thì giải quyết từ cuối về đầu; lá bị huỷ không có hiệu ứng. | At most 4 links. Add a Quick card only in response to the immediately preceding enemy link when its conditions are met. Passing or having no valid response resolves last to first; cancelled links have no effect. |
 | negate | Vô Hiệu | Negate | Phe được bảo vệ không nhận sát thương và khống chế từ lá đó. | The protected side takes no damage and no crowd control from that card. |
-| free_attack | Đòn Miễn Phí | Free Attack | Một đòn đánh thường không cần lá Đánh thường (theo luật vai); giữ tới khi dùng. | A basic attack that needs no Strike card (following role rules); kept until used. |
 | strike | Đánh thường | Strike | Thẻ hỗ trợ: 1 tướng mình đánh thường theo luật vai (Xạ Thủ 200% AD lên tướng bất kỳ; Sát Thủ 350% AD; vai khác 100% AD lên tướng đối diện). | Support card: 1 allied champion attacks by role rules (Marksman 200% AD on any enemy; Assassin 350% AD; others 100% AD on the opposing champion). |
 | search | Tìm | Search | Lục bộ bài lấy 1 lá đúng loại lên tay, rồi xáo bộ bài. | Take 1 card of the named kind from your deck into your hand, then shuffle. |
 | mill | Đốt | Mill | Đưa N lá trên cùng bộ bài thẳng vào mộ (không qua tay). | Put the top N cards of a deck straight into the graveyard (not via the hand). |
@@ -61,7 +60,7 @@ Bản chốt để chép nguyên văn vào `desc` (VI, trong `heroes/*.ts`) và 
 | dead_card | Lá Chết | Dead Card | Lá chiêu của tướng đang chờ hồi sinh hoặc chưa ra sân: không dùng được nhưng vẫn chiếm chỗ. | A skill card of a champion that is respawning or not yet summoned: unplayable but still takes space. |
 | prize | Lá Thưởng | Prize Card | 6 lá úp mỗi bên đầu trận; mỗi lần bạn hạ 1 tướng địch, lật 1 Lá Thưởng lên tay. | 6 face-down cards per side; each time you take down an enemy champion, flip 1 Prize Card into your hand. |
 | behind | Thua Mạng | Behind | Đội bạn còn ít mạng hơn đội địch. | Your team has fewer lives left than the enemy team. |
-| token | Vật Triệu Hồi | Summon | Đơn vị ở ô triệu hồi phụ (mỗi bên 1 ô): không phải tướng, chết không mất mạng, biến mất khi tướng chủ rời sân. Chỉ đòn đánh của Xạ Thủ (hoặc lá ghi rõ) chọn được nó. | A unit in the extra summon slot (1 per side): not a champion, losing it costs no life, it vanishes when its owner leaves the board. Only Marksman attacks (or cards that say so) can target it. |
+| token | Vật Triệu Hồi | Summon | Đơn vị ở ô triệu hồi phụ (mỗi bên 1 ô): không phải tướng, chết không mất mạng, biến mất khi tướng chủ rời sân. Tướng địch thuộc mọi vai đều đánh thường được nó, không phụ thuộc đường. Chiêu chỉ chọn nó nếu lá ghi rõ. | A unit in the extra summon slot (1 per side): not a champion, losing it costs no life, it vanishes when its owner leaves the board. Enemy champions of every role can attack it regardless of lane. Skills target it only when explicitly allowed. |
 | soak | Máu Ảo | Soak | Sát thương nhắm tướng chủ đánh vào Vật Triệu Hồi này trước. | Damage aimed at its owner hits this Summon first. |
 | face_down | Úp | Face-down | Vật Triệu Hồi úp: đối thủ không thấy lá gắn với nó tới khi lật; rời sân thì tự lật. | A face-down Summon: the opponent can't see its attached card until it is flipped; it flips when it leaves the board. |
 | pull | Kéo | Pull | Đưa tướng địch sang đường đối diện tướng kéo (đổi chỗ với tướng địch đang đứng đó). | Move an enemy champion to the lane opposite the puller (swapping with the enemy standing there). |
@@ -72,7 +71,6 @@ Bản chốt để chép nguyên văn vào `desc` (VI, trong `heroes/*.ts`) và 
 | bleed | Chảy Máu | Bleed | Dấu của Darius trên tướng (tối đa 5, hết sau 2 lượt của tướng mang kể từ lần cộng cuối). | Darius's mark (max 5, expires 2 of its turns after the last one added). |
 | darius_block | Kề Đao | On the Block | Tướng có máu ≤ 10% máu tối đa × số Chảy Máu của nó. | A champion whose HP is ≤ 10% max HP × its Bleed. |
 | execute | Kết Liễu | Execute | Gây sát thương chuẩn đủ hạ tướng đó ngay (Khiên không cứu được; hiệu ứng "không bị hạ" vẫn áp dụng). | Deal enough true damage to take it down at once (Shields don't save it; "can't be taken down" effects still apply). |
-| nami_bless | Phước Lành | Blessing | Tướng này có 1 Đòn Miễn Phí (giữ tới khi dùng). Nếu đòn đó chí mạng khi Nami còn trên sân: bạn rút 1 lá. | This champion has a Free Attack (kept until used). If that attack crits while Nami is on the board: draw 1 card. |
 | braum_cover | Đỡ Thay | Intercept | Lá hoặc đòn đánh của địch đổi mục tiêu sang Braum. | The enemy card or attack is redirected to Braum. |
 | zedmark | Dấu Ấn Tử Thần | Death Mark | Dấu của Zed trên 1 tướng địch, hiện số đòn (tối đa 8); nổ cuối lượt Zed (xem Zed R). | Zed's mark on an enemy champion, showing its hit count (max 8); bursts at the end of Zed's turn (see Zed R). |
 | shadow | Bóng | Shadow | Lá tạm sao chép 1 lá Q hoặc R của Zed: dùng như lá đó rồi biến mất; cuối lượt còn trên tay cũng biến mất. | A temporary copy of a Zed Q or R card: play it as that card, then it vanishes; it also vanishes at end of turn if unused. |
@@ -85,7 +83,7 @@ Bản chốt để chép nguyên văn vào `desc` (VI, trong `heroes/*.ts`) và 
 | mushroom | Nấm Độc | Toxic Mushroom | Lá đặc biệt của Teemo nằm trong bộ bài đối thủ. Khi bị rút: Nấm nổ (xem Teemo) rồi biến mất, chiếm chỗ lá rút đó. | Teemo's special card hidden in the opponent's deck. When drawn it explodes (see Teemo), then vanishes, taking the place of that draw. |
 | mushroom_season | Mùa Nấm | Mushroom Season | Trạng thái của Teemo tới hết lượt kế tiếp của đối thủ: mỗi Nấm Độc nổ Đốt 4 lá thay vì 3. | Teemo's status until the end of the opponent's next turn: each Toxic Mushroom mills 4 cards instead of 3. |
 | kog | Kog Stack | Kog Stack | Bộ đếm của Kog'Maw, hiện trên tướng, giữ qua các lần chết. | Kog'Maw's counter, shown on him, kept through deaths. |
-| kog_arty | Cao Xạ | Bio-Arcane Barrage | Trạng thái của Kog'Maw: cuối lượt của bạn Kog'Maw tự đánh 1 tướng địch (Đòn Miễn Phí); Đòn Miễn Phí của Kog'Maw gây thêm 3% máu tối đa của mục tiêu. | Kog'Maw's status: at the end of your turn he attacks 1 enemy (Free Attack); his Free Attacks deal +3% of the target's max HP. |
+| kog_arty | Cao Xạ | Bio-Arcane Barrage | Trạng thái của Kog'Maw: cuối lượt của bạn Kog'Maw tự đánh 1 tướng địch (đòn đánh do chiêu kích hoạt); đòn đánh do chiêu kích hoạt của Kog'Maw gây thêm 3% máu tối đa của mục tiêu. | Kog'Maw's status: at the end of your turn he attacks 1 enemy (skill-triggered attack); his skill-triggered attacks deal +3% of the target's max HP. |
 | pay_hp | Trả Máu | Pay HP | Mất bấy nhiêu máu thẳng (không qua Khiên); không thể tự hạ mình (còn ít nhất 1 máu). | Lose that much HP directly (ignores Shields); can't take yourself down (stays at 1 HP or more). |
 | aatrox_r | Kẻ Diệt Thế | World Ender | Trạng thái của Aatrox (2 lượt của Aatrox): Cái Giá Bằng Máu tối đa +100%; lần đầu về 0 máu thì không bị hạ (xem Aatrox R) và hết trạng thái. | Aatrox's status (2 of his turns): Blood Price caps at +100%; the first time he drops to 0 HP he isn't taken down (see Aatrox R) and the status ends. |
 | garen_lead | Dẫn Trước | Ahead | Một hạng mục mà phe địch hơn phe bạn: mạng còn lại, tổng số đồ đang đeo, số lá trên tay. | A category where the enemy side beats yours: lives left, total items equipped, cards in hand. |
@@ -180,8 +178,8 @@ Tên nội tại/chiêu giữ nguyên như code (chỉ ghi để đối chiếu)
   - VI: `Đối thủ có ít nhất 1 lá trên tay; Cướp 1 lá ngẫu nhiên trên tay đối thủ, rồi gây {120 + 50% AP + 80% AD} sát thương phép lên tướng địch đối diện Blitzcrank. Nếu lá cướp được là lá chiêu của 1 tướng địch đang trên sân: Kéo tướng đó trước khi gây sát thương.`
   - EN: `The opponent has at least 1 card in hand; Steal 1 random card from their hand, then deal {120 + 50% AP + 80% AD} magic damage to the enemy champion opposite Blitzcrank. If the stolen card is a skill card of an enemy champion on the board: Pull that champion before dealing damage.`
 - E · Đấm Móc
-  - VI: `Chọn tướng địch đối diện Blitzcrank; Blitzcrank đánh thường nó (Đòn Miễn Phí) thêm {100 + 80% AD} sát thương, rồi Choáng nó 1 lượt. Nếu tay đối thủ còn từ 5 lá trở xuống: Choáng 2 lượt.`
-  - EN: `Choose the enemy champion opposite Blitzcrank; Blitzcrank attacks it (Free Attack) for {100 + 80% AD} bonus damage, then Stuns it for 1 turn. If the opponent holds 5 cards or fewer: Stun for 2 turns.`
+  - VI: `Chọn tướng địch đối diện Blitzcrank; Blitzcrank đánh thường nó (đòn đánh do chiêu kích hoạt) thêm {100 + 80% AD} sát thương, rồi Choáng nó 1 lượt. Nếu tay đối thủ còn từ 5 lá trở xuống: Choáng 2 lượt.`
+  - EN: `Choose the enemy champion opposite Blitzcrank; Blitzcrank attacks it (skill-triggered attack) for {100 + 80% AD} bonus damage, then Stuns it for 1 turn. If the opponent holds 5 cards or fewer: Stun for 2 turns.`
 - R · Trường Điện Từ
   - VI: `Đối thủ bỏ 2 lá ngẫu nhiên trên tay; mọi tướng địch nhận {140 + 40% AP} sát thương phép và bị Câm Lặng 1 lượt. Nếu sau đó tay đối thủ còn từ 2 lá trở xuống: Choáng 1 lượt thay vì Câm Lặng.`
   - EN: `The opponent discards 2 random cards; every enemy champion takes {140 + 40% AP} magic damage and is Silenced for 1 turn. If the opponent then holds 2 cards or fewer: Stun for 1 turn instead of Silence.`
@@ -191,8 +189,8 @@ Tên nội tại/chiêu giữ nguyên như code (chỉ ghi để đối chiếu)
   - VI: `Chiêu của Zed gây thêm 3% sát thương cho mỗi lá Zed trong mộ bài của bạn (tối đa +30%). Khi Zed gây sát thương bằng đòn đánh hoặc chiêu lên tướng có Dấu Ấn Tử Thần: dấu +1 đòn (tối đa 8).`
   - EN: `Zed's skills deal 3% more damage per Zed card in your graveyard (max +30%). When Zed damages a champion with a Death Mark using an attack or skill: the mark gains +1 hit (max 8).`
 - Q · Phi Tiêu Sắc Lẻm
-  - VI: `Chọn 1 tướng địch; gây {40 + 55% AD + 20% AP} sát thương vật lý. Nếu nó có Dấu Ấn Tử Thần: Zed đánh thường nó thêm 1 lần (Đòn Miễn Phí, 40% sát thương).`
-  - EN: `Choose 1 enemy champion; deal {40 + 55% AD + 20% AP} physical damage. If it has a Death Mark: Zed also attacks it once (Free Attack, 40% damage).`
+  - VI: `Chọn 1 tướng địch; gây {40 + 55% AD + 20% AP} sát thương vật lý. Nếu nó có Dấu Ấn Tử Thần: Zed đánh thường nó thêm 1 lần (đòn đánh do chiêu kích hoạt, 40% sát thương).`
+  - EN: `Choose 1 enemy champion; deal {40 + 55% AD + 20% AP} physical damage. If it has a Death Mark: Zed also attacks it once (skill-triggered attack, 40% damage).`
 - E · Phân Thân Bóng Tối
   - VI: `Chọn 1 đường có tướng địch; Zed chuyển sang đường đó (đổi chỗ với tướng mình nếu có), rồi tạo 1 Bóng của lá Q hoặc R của Zed vào mộ gần nhất. Nếu mộ bài có từ 4 lá Zed: tạo 2 Bóng (từ 2 lá Q/R gần nhất).`
   - EN: `Choose 1 lane with an enemy champion; Zed moves there (swapping with an ally if any), then create 1 Shadow of the Zed Q or R card most recently put into your graveyard. If your graveyard has 4 or more Zed cards: create 2 Shadows (from the 2 most recent Q/R cards).`
@@ -335,8 +333,8 @@ Tên nội tại/chiêu giữ nguyên như code (chỉ ghi để đối chiếu)
   - VI: `Khi 1 đồng minh khác của Leona (kể cả Vật Triệu Hồi) gây sát thương bằng đòn đánh hoặc chiêu lên tướng có Ánh Dương: mọi Ánh Dương trên nó nổ, mỗi dấu gây {45 + 60% Giáp + 20% AP} sát thương phép. Nếu nổ đủ 3 dấu: Choáng nó 1 lượt.`
   - EN: `When another ally of Leona (Summons included) damages a champion with Sunlight using an attack or skill: all its Sunlight detonates, each deals {45 + 60% Armor + 20% AP} magic damage. If 3 detonate: Stun it for 1 turn.`
 - Q · Khiên Bình Minh
-  - VI: `Chọn tướng địch đối diện Leona; Leona đánh thường nó (Đòn Miễn Phí) thêm {50 + 40% AP} sát thương phép, rồi +2 Ánh Dương. Nếu nó đã có Ánh Dương từ trước: Choáng nó 1 lượt.`
-  - EN: `Choose the enemy champion opposite Leona; Leona attacks it (Free Attack) for {50 + 40% AP} bonus magic damage, then +2 Sunlight. If it already had Sunlight: Stun it for 1 turn.`
+  - VI: `Chọn tướng địch đối diện Leona; Leona đánh thường nó (đòn đánh do chiêu kích hoạt) thêm {50 + 40% AP} sát thương phép, rồi +2 Ánh Dương. Nếu nó đã có Ánh Dương từ trước: Choáng nó 1 lượt.`
+  - EN: `Choose the enemy champion opposite Leona; Leona attacks it (skill-triggered attack) for {50 + 40% AP} bonus magic damage, then +2 Sunlight. If it already had Sunlight: Stun it for 1 turn.`
 - E · Thiên Đỉnh Kiếm
   - VI: `Chọn 1 tướng địch; Leona chuyển sang đường đối diện nó, gây {60 + 40% AP} sát thương phép và +1 Ánh Dương. Nếu nó đã có Ánh Dương từ trước: Choáng nó 1 lượt.`
   - EN: `Choose 1 enemy champion; Leona moves to the lane opposite it, deals {60 + 40% AP} magic damage and +1 Sunlight. If it already had Sunlight: Stun it for 1 turn.`
@@ -488,8 +486,8 @@ Tên nội tại/chiêu giữ nguyên như code (chỉ ghi để đối chiếu)
 
 #### Jinx
 - Nội tại · Phấn Khích!
-  - VI: `Khi 1 tướng địch bị hạ trong lượt của bạn: Jinx nhận Phấn Khích và 1 Đòn Miễn Phí; bạn rút 1 lá.`
-  - EN: `When an enemy champion is taken down during your turn: Jinx gets Excited and gains 1 Free Attack; draw 1 card.`
+  - VI: `Khi 1 tướng địch bị hạ trong lượt của bạn: Jinx nhận Phấn Khích ; bạn rút 1 lá.`
+  - EN: `When an enemy champion is taken down during your turn: Jinx gets Excited ; draw 1 card.`
 - Q · Tráo Súng: Cá Mập
   - VI: `Chọn 1 tướng địch; gây {30 + 70% AD} sát thương vật lý. Với mỗi món đồ Jinx đeo: 1 tướng địch khác (ít máu nhất trước) nhận 50% lượng đó. Nếu Jinx đang Phấn Khích: bạn rút 1 lá.`
   - EN: `Choose 1 enemy champion; deal {30 + 70% AD} physical damage. For each item Jinx has: 1 other enemy champion (fewest HP first) takes 50% of that. If Jinx is Excited: draw 1 card.`
@@ -505,8 +503,8 @@ Tên nội tại/chiêu giữ nguyên như code (chỉ ghi để đối chiếu)
   - VI: `Khi đòn đánh của Vayne trúng 1 tướng: +1 Mũi Bạc trên nó. Mũi thứ 3 nổ: 12% máu tối đa của nó + {30 + 20% AD} sát thương chuẩn.`
   - EN: `When Vayne's attack hits a champion: it gains 1 Silver Bolt. The 3rd bolt bursts: 12% of its max HP + {30 + 20% AD} true damage.`
 - Q · Lộn Nhào
-  - VI: `Chọn 1 tướng địch; Vayne đánh thường nó (Đòn Miễn Phí, 60% sát thương) thêm {40 + 50% AD + 20% AP} sát thương vật lý. Nếu nó là Đỡ Đòn: +1 Mũi Bạc.`
-  - EN: `Choose 1 enemy champion; Vayne attacks it (Free Attack, 60% damage) for {40 + 50% AD + 20% AP} bonus physical damage. If it is a Tank: +1 Silver Bolt.`
+  - VI: `Chọn 1 tướng địch; Vayne đánh thường nó (đòn đánh do chiêu kích hoạt, 60% sát thương) thêm {40 + 50% AD + 20% AP} sát thương vật lý. Nếu nó là Đỡ Đòn: +1 Mũi Bạc.`
+  - EN: `Choose 1 enemy champion; Vayne attacks it (skill-triggered attack, 60% damage) for {40 + 50% AD + 20% AP} bonus physical damage. If it is a Tank: +1 Silver Bolt.`
 - E · Kết Án
   - VI: `Chọn 1 tướng địch; gây {35 + 50% AD + 20% AP} sát thương vật lý, +1 Mũi Bạc, rồi đẩy nó 1 đường ra phía mép bàn (đường giữa đẩy sang trái; có đồng đội của nó thì đổi chỗ). Nếu phía đó là mép bàn hoặc đường chưa mở: nó bị ghim vào tường, và nếu đã mang Mũi Bạc từ trước thì Choáng 1 lượt.`
   - EN: `Choose 1 enemy champion; deal {35 + 50% AD + 20% AP} physical damage, +1 Silver Bolt, then push it 1 lane toward the board edge (the middle lane pushes left; an ally of it there swaps places). If that side is the edge or a closed lane: it is pinned to the wall, and if it already had a Silver Bolt, Stun it for 1 turn.`
@@ -522,8 +520,8 @@ Tên nội tại/chiêu giữ nguyên như code (chỉ ghi để đối chiếu)
   - VI: `Chọn 1 tướng địch; gây {70 + 40% AP} sát thương phép và Mù 1. Nếu nó là Xạ Thủ hoặc Sát Thủ: Mù 2.`
   - EN: `Choose 1 enemy champion; deal {70 + 40% AP} magic damage and Blind 1. If it is a Marksman or Assassin: Blind 2.`
 - E · Mắt Bão
-  - VI: `Chọn 1 tướng mình; nó nhận Khiên {80 + 40% AP} và 1 Đòn Miễn Phí. Nếu tướng địch đối diện nó đang Mù: Khiên +50%.`
-  - EN: `Choose 1 allied champion; it gains a Shield of {80 + 40% AP} and 1 Free Attack. If the enemy champion opposite it is Blinded: +50% Shield.`
+  - VI: `Chọn 1 tướng mình; nó nhận Khiên {80 + 40% AP} . Nếu tướng địch đối diện nó đang Mù: Khiên +50%.`
+  - EN: `Choose 1 allied champion; it gains a Shield of {80 + 40% AP} . If the enemy champion opposite it is Blinded: +50% Shield.`
 - R · Gió Mùa
   - VI: `Mọi tướng mình hồi {90 + 40% AP}; mọi tướng địch bị Mù 1. Nếu bạn còn từ 3 mạng trở xuống: Mù 2.`
   - EN: `Every allied champion heals {90 + 40% AP}; every enemy champion suffers Blind 1. If you have 3 lives or fewer: Blind 2.`
@@ -550,11 +548,11 @@ Tên nội tại/chiêu giữ nguyên như code (chỉ ghi để đối chiếu)
   - VI: `Chọn 1 tướng địch; Kéo nó, gây {60 + 40% AP} sát thương phép và Choáng nó 1 lượt. Nếu bạn đang Thua Mạng: Cướp 1 lá ngẫu nhiên trên tay đối thủ.`
   - EN: `Choose 1 enemy champion; Pull it, deal {60 + 40% AP} magic damage and Stun it for 1 turn. If you are Behind: Steal 1 random card from the opponent's hand.`
 - E · Gói Cứu Trợ
-  - VI: `Chọn 1 tướng mình; nó nhận Khiên {40 + 30% AP} + 20% máu nó đã mất, và Cường Hoá tới hết lượt kế tiếp của đối thủ. Nếu nó dưới 40% máu hoặc đang Cứu Trợ: nó nhận 1 Đòn Miễn Phí.`
-  - EN: `Choose 1 allied champion; it gains a Shield of {40 + 30% AP} + 20% of its missing HP, and is Empowered until the end of the opponent's next turn. If it is below 40% HP or has Bailout: it gains 1 Free Attack.`
+  - VI: `Chọn 1 tướng mình; nó nhận Khiên {40 + 30% AP} + 20% máu nó đã mất, và Cường Hoá tới hết lượt kế tiếp của đối thủ.`
+  - EN: `Choose 1 allied champion; it gains a Shield of {40 + 30% AP} + 20% of its missing HP, and is Empowered until the end of the opponent's next turn.`
 - R · Thâu Tóm
-  - VI: `Mọi tướng địch Nổi Điên: lần lượt mỗi tướng đánh thường (Đòn Miễn Phí, theo vai, đồ, chí mạng, hút máu) 1 đồng đội của chính nó (ưu tiên đường kề, rồi máu thấp nhất; không còn ai thì tự đánh mình). Nếu bạn đang Thua Mạng: mỗi tướng đánh 2 lần.`
-  - EN: `Every enemy champion goes Berserk: one by one, each makes a full attack (Free Attack, with its role, items, crits and life steal) on one of its own allies (adjacent lane first, then lowest HP; if alone, it hits itself). If you are Behind: each attacks twice.`
+  - VI: `Mọi tướng địch Nổi Điên: lần lượt mỗi tướng đánh thường (đòn đánh do chiêu kích hoạt, theo vai, đồ, chí mạng, hút máu) 1 đồng đội của chính nó (ưu tiên đường kề, rồi máu thấp nhất; không còn ai thì tự đánh mình). Nếu bạn đang Thua Mạng: mỗi tướng đánh 2 lần.`
+  - EN: `Every enemy champion goes Berserk: one by one, each makes a full attack (skill-triggered attack, with its role, items, crits and life steal) on one of its own allies (adjacent lane first, then lowest HP; if alone, it hits itself). If you are Behind: each attacks twice.`
 
 ## 5. Ghi chú cho agent code chữ
 - Mỗi agent nhóm A/B/C/D: chép VI vào `desc` (giữ `${HẰNG_SỐ}` đúng như code), EN vào file `i18n/en_g*.ts` tương ứng, từ khoá vào `keywords/<nhóm>.ts`. GENERAL do agent lead/đồ chép.

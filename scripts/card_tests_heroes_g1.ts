@@ -12,6 +12,7 @@ import * as DARIUS from "../packages/shared/src/cardgame/heroes/darius"
 import * as GAREN from "../packages/shared/src/cardgame/heroes/garen"
 import * as AATROX from "../packages/shared/src/cardgame/heroes/aatrox"
 import * as YORICK from "../packages/shared/src/cardgame/heroes/yorick"
+import * as GANGPLANK from "../packages/shared/src/cardgame/heroes/gangplank"
 import * as ORNN from "../packages/shared/src/cardgame/heroes/ornn"
 type St = ReturnType<typeof cg.newGame>
 type Act = Parameters<typeof cg.applyAction>[1]
@@ -85,6 +86,10 @@ function mk(o: Setup = {
         })),
         fill(Object.keys(o.B ?? {
         })))
+    // Resource-rich fixture isolates repeated champion mechanics from mana exhaustion.
+    s.teamMana = {
+        A: 200, B: 200
+    }
     s.round = 8
     const g = new Game(s)
     for (const side of ["A",
@@ -247,14 +252,27 @@ test("Q gây (30 + 100% AD + 20% AP) vật lý, +2 Chảy Máu và hồi (6 + 8%
             "darius"),
         DARIUS.F_Q_HEAL)))
     })
-test("E: đối diện trống thì kéo 1 địch về và +1 Chảy Máu; đối diện có người thì chỉ đánh người đó",
+/** Bàn đủ 5 đường hai bên (luật: không bao giờ có đường trống) */
+const FULL_A = (hero: string, lane: number) => {
+    const out: Record<string, number> = {
+        [hero]: lane
+    }
+    let l = 0
+    for (const d of DUMMIES) {
+        if (Object.keys(out).length >= 5) break
+        if (l === lane) l++
+        out[d] = l++
+    }
+    return out
+}
+const FULL_B = () => ({
+    g1_tank: 0, g1_fighter: 1, g1_mage: 2, g1_mark: 3, g1_sup: 4
+})
+test("E (bàn đủ): chọn địch khác đường thì swap nó với kẻ đối diện Darius, +1 Chảy Máu rồi gây sát thương; chọn kẻ đối diện thì áp dụng ngay",
     () => {
         let s = mk({
-            A: {
-                darius: 2
-            }, B: {
-                g1_fighter: 4, g1_tank: 0
-            }
+            A: FULL_A("darius",
+                2), B: FULL_B()
         })
         const e = give(s,
             "A",
@@ -262,10 +280,11 @@ test("E: đối diện trống thì kéo 1 địch về và +1 Chảy Máu; đ�
                 "darius",
                 "A",
                 "E"))
-        assert.ok(playable(s,
+        assert.equal(playable(s,
             "A",
-            e).length >= 2,
-        "đối diện trống: chọn được địch bất kỳ")
+            e).length,
+        5,
+        "chọn được cả 5 tướng địch")
         const r = play(s,
             "A",
             e,
@@ -276,7 +295,13 @@ test("E: đối diện trống thì kéo 1 địch về và +1 Chảy Máu; đ�
         assert.equal(u(s,
             "B",
             "g1_fighter").lane,
-        2)
+        2,
+        "kẻ bị chọn sang đối diện Darius")
+        assert.equal(u(s,
+            "B",
+            "g1_mage").lane,
+        1,
+        "kẻ đang đối diện bị đổi sang đường cũ (swap nguyên tử)")
         assert.equal(gm(s).statusV(u(s,
             "B",
             "g1_fighter"),
@@ -289,30 +314,38 @@ test("E: đối diện trống thì kéo 1 địch về và +1 Chảy Máu; đ�
             "A",
             "darius"),
         DARIUS.F_E)))
+        // chọn đúng kẻ đối diện: không di chuyển
         const e2 = give(s,
             "A",
             skill(s,
                 "darius",
                 "A",
                 "E"))
-        assert.equal(playable(s,
+        s = play(s,
             "A",
-            e2).length,
-        1,
-        "đối diện có người: chỉ đánh người đó")
+            e2,
+            {
+                target: "B:g1_fighter"
+            }).s
+        assert.equal(u(s,
+            "B",
+            "g1_fighter").lane,
+        2)
+        assert.equal(gm(s).statusV(u(s,
+            "B",
+            "g1_fighter"),
+        "bleed"),
+        2)
     })
-test("R xả Chảy Máu thành (12 + 20% AD + 5% AP) sát thương chuẩn mỗi dấu; hạ gục thì lá R về tay",
+test("R xả Chảy Máu thành (12 + 20% AD + 5% AP) sát thương chuẩn mỗi dấu; hạ gục thì lá R về tay; khác đường thì Darius swap với đồng minh đối diện mục tiêu",
     () => {
         let s = mk({
-            A: {
-                darius: 2
-            }, B: {
-                g1_fighter: 2
-            }
+            A: FULL_A("darius",
+                2), B: FULL_B()
         })
         const foe = u(s,
             "B",
-            "g1_fighter")
+            "g1_mage")
         gm(s).status(foe,
             "bleed",
             2,
@@ -330,17 +363,190 @@ test("R xả Chảy Máu thành (12 + 20% AD + 5% AP) sát thương chuẩn mỗ
                 "darius",
                 "A",
                 "R"))
+        assert.equal(playable(s,
+            "A",
+            r).length,
+        1,
+        "chỉ chọn được địch có Chảy Máu")
         s = play(s,
             "A",
-            r).s
+            r,
+            {
+                target: "B:g1_mage"
+            }).s
         assert.equal(u(s,
             "B",
-            "g1_fighter").status,
+            "g1_mage").status,
         "dead")
         assert.ok(inHand(s,
             "A",
             r),
         "R về tay vì hạ gục")
+        // mục tiêu khác đường: Darius swap với đồng minh đang đối diện nó
+        const far = u(s,
+            "B",
+            "g1_sup")
+        gm(s).status(far,
+            "bleed",
+            2,
+            {
+                v: 2
+            })
+        const hp0 = far.hp
+        const ally = gm(s).laneHolder("A",
+            far.lane)!
+        s = play(s,
+            "A",
+            r,
+            {
+                target: "B:g1_sup"
+            }).s
+        assert.equal(u(s,
+            "A",
+            "darius").lane,
+        4)
+        assert.equal(s.units[ally.id].lane,
+            2,
+            "đồng minh đổi sang đường cũ của Darius")
+        assert.equal(gm(s).statusV(u(s,
+            "B",
+            "g1_sup"),
+        "bleed"),
+        0,
+        "tiêu toàn bộ dấu")
+        assert.equal(hp0 - u(s,
+            "B",
+            "g1_sup").hp,
+        Math.round(2 * gm(s).f(u(s,
+            "A",
+            "darius"),
+        DARIUS.F_R_STACK)))
+        assert.ok(!inHand(s,
+            "A",
+            r),
+        "không hạ gục thì lá không về tay")
+    })
+test("Q (ô đối diện là tướng địch đã chết): không đánh được, không bắn xa",
+    () => {
+        const s = mk({
+            A: FULL_A("darius",
+                2), B: FULL_B()
+        })
+        gm(s).kill(u(s,
+            "B",
+            "g1_mage"))
+        const q = give(s,
+            "A",
+            skill(s,
+                "darius",
+                "A",
+                "Q"))
+        assert.equal(playable(s,
+            "A",
+            q).length,
+        0)
+    })
+test("E (kẻ giữ ô đối diện Darius đã chết): vẫn kéo được địch khác đường, swap với tướng chết rồi +1 Chảy Máu và gây sát thương",
+    () => {
+        let s = mk({
+            A: FULL_A("darius",
+                2), B: FULL_B()
+        })
+        gm(s).kill(u(s,
+            "B",
+            "g1_mage"))
+        const e = give(s,
+            "A",
+            skill(s,
+                "darius",
+                "A",
+                "E"))
+        assert.ok(playable(s,
+            "A",
+            e).some((a) => a.args?.target === "B:g1_fighter"),
+        "bot thấy lựa chọn kéo địch dù ô đối diện là tướng chết")
+        const r = play(s,
+            "A",
+            e,
+            {
+                target: "B:g1_fighter"
+            })
+        s = r.s
+        assert.equal(u(s,
+            "B",
+            "g1_fighter").lane,
+        2)
+        assert.equal(s.lanes.B[1],
+            "B:g1_mage",
+            "tướng chết bị dời theo ô giữ chỗ")
+        assert.equal(u(s,
+            "B",
+            "g1_mage").homeLane,
+        1)
+        assert.equal(u(s,
+            "B",
+            "g1_mage").status,
+        "dead")
+        assert.equal(gm(s).statusV(u(s,
+            "B",
+            "g1_fighter"),
+        "bleed"),
+        1)
+        assert.ok(dmgTo(r.ev,
+            "B:g1_fighter",
+            "skill") > 0)
+    })
+test("R (đồng minh giữ ô đối diện mục tiêu đã chết): Darius swap với tướng chết rồi mới xả dấu",
+    () => {
+        let s = mk({
+            A: FULL_A("darius",
+                2), B: FULL_B()
+        })
+        const far = u(s,
+            "B",
+            "g1_sup")
+        gm(s).status(far,
+            "bleed",
+            2,
+            {
+                v: 2
+            })
+        const ally = gm(s).laneHolder("A",
+            4)!
+        gm(s).kill(ally)
+        const r = give(s,
+            "A",
+            skill(s,
+                "darius",
+                "A",
+                "R"))
+        assert.equal(playable(s,
+            "A",
+            r).length,
+        1)
+        const hp0 = far.hp
+        s = play(s,
+            "A",
+            r,
+            {
+                target: "B:g1_sup"
+            }).s
+        assert.equal(u(s,
+            "A",
+            "darius").lane,
+        4)
+        assert.equal(s.lanes.A[2],
+            ally.id,
+            "đồng minh chết dời sang đường cũ của Darius")
+        assert.equal(s.units[ally.id].homeLane,
+            2)
+        assert.equal(hp0 - u(s,
+            "B",
+            "g1_sup").hp,
+        Math.round(2 * gm(s).f(u(s,
+            "A",
+            "darius"),
+        DARIUS.F_R_STACK)))
     })
 
 // ======================================================================
@@ -744,7 +950,7 @@ const enemyShoot = (s: St) => {
         gm(s).tokenOf("A")!.id).s
 }
 const Hq = (s: St) => gm(s).f(gpOf(s),
-    "100 + 60% AD + 15% AP")
+    GANGPLANK.F_HEAL)
 test("E đặt Thùng thật vào ô phụ úp; Thuốc Súng +1 mỗi đầu lượt, không hết hạn; tối đa 1 Thùng",
     () => {
         const s = placeE(mkGp())
@@ -787,7 +993,7 @@ test("đòn đánh của Gangplank vào Thùng thật: 1 tướng địch ngẫu
             "A:gangplank",
             tok.id).s
         const dmg = afterArmor(3 * gm(s).f(gp,
-            "40 + 60% AD + 10% AP"))
+            GANGPLANK.F_POWDER))
         void hp0
         const lost = ["g1_fighter",
             "g1_tank",
@@ -964,7 +1170,7 @@ test("Đấu sĩ địch cũng đánh vỡ được Thùng (đánh thường l�
 // ======================================================================
 G("Yorick")
 // ======================================================================
-test("nội tại: đòn đánh gây (50% + 2%/lá mộ, tối đa 130%), vứt 1 lá trên cùng bộ bài vào mộ và rút 1 lá (tối đa 2 lá/lượt)",
+test("nội tại: đòn đánh gây (50% + 2%/lá mộ, không trần), vứt 1 lá trên cùng bộ bài vào mộ và rút 1 lá (tối đa 2 lá/lượt)",
     () => {
         let s = mk({
             A: {
@@ -1014,10 +1220,11 @@ test("nội tại: đòn đánh gây (50% + 2%/lá mộ, tối đa 130%), vứt 
             "đòn thứ 3 chỉ vứt, không rút (tối đa 2 lá/lượt)")
         assert.equal(YORICK.attackMult(0),
             YORICK.ATTACK_BASE)
-        assert.equal(YORICK.attackMult(1000),
-            YORICK.ATTACK_MAX)
+        // bỏ trần 130%: hệ số tăng tuyến tính theo mộ
+        assert.equal(YORICK.attackMult(100),
+            YORICK.ATTACK_BASE + YORICK.ATTACK_PER_GRAVE * 100)
     })
-test("Q bỏ 1 lá trên tay vào mộ, rút 1 lá và Yorick hồi (35 + 30% AD + 5% AP)",
+test("Q bỏ 1 lá trên tay vào mộ, rút 1 lá và Yorick hồi (30 + 35% AD + 4.3% AP)",
     () => {
         let s = mk({
             A: {
@@ -1057,7 +1264,7 @@ test("Q bỏ 1 lá trên tay vào mộ, rút 1 lá và Yorick hồi (35 + 30% AD
             grave0 + 2)
         assert.equal(me().hp - 100,
             Math.round(gm(s).f(me(),
-                "35 + 30% AD + 5% AP")))
+                YORICK.F_Q)))
     })
 test("E vứt 3 lá trên cùng bộ bài vào mộ rồi chọn 1 lá trong 3 lá đó về tay",
     () => {
@@ -1208,8 +1415,8 @@ test("R: Thiếu Nữ đánh ngay + Yorick nhận Ma Sương vĩnh viễn (cộn
         // giảm sát thương
         const cut = YORICK.mistCut(gm(s),
             me())
-        assert.ok(Math.abs(cut - Math.min(YORICK.MIST_CUT_MAX,
-            YORICK.MIST_CUT_BASE + YORICK.MIST_CUT_PER_ARMOR * gm(s).armor(me()))) < 1e-9)
+        // 1 tầng: nhân 1 / (1 + 0,15 + 0,001 × Giáp)
+        assert.ok(Math.abs(cut - (1 - 1 / (1 + YORICK.MIST_CUT_BASE + YORICK.MIST_CUT_PER_ARMOR * gm(s).armor(me())))) < 1e-9)
         // cộng dồn
         s = play(s,
             "A",
@@ -1222,9 +1429,11 @@ test("R: Thiếu Nữ đánh ngay + Yorick nhận Ma Sương vĩnh viễn (cộn
         assert.equal(gm(s).statusV(me(),
             YORICK.MIST),
         2)
+        // 2 tầng: 1 / (1 + 2 × (0,15 + 0,001 × Giáp)); lợi ích biên giảm, không trần
+        assert.ok(Math.abs(YORICK.mistMult(gm(s),
+            me()) - 1 / (1 + 2 * (YORICK.MIST_CUT_BASE + YORICK.MIST_CUT_PER_ARMOR * gm(s).armor(me())))) < 1e-9)
         assert.ok(YORICK.mistCut(gm(s),
-            me()) > cut && YORICK.mistCut(gm(s),
-            me()) <= YORICK.MIST_CUT_TOTAL_MAX)
+            me()) > cut)
         // đầu lượt: mỗi tầng Thiếu Nữ đánh 1 lần và đào 1 lá
         const g = gm(s)
         const deck0 = s.players.A.deck.length

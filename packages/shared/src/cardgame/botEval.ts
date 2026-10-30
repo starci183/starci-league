@@ -146,7 +146,7 @@ function cardValue(g: Game, side: Side, c: Card): number {
         if (u.status === "board") {
             const def = skillOfCard(c)
             // pháp sư: trừ giá mana; chưa đủ mana thì chỉ còn nửa giá trị
-            if (def && g.isMage(u)) {
+            if (def) {
                 const cost = g.manaCost(u,
                     def,
                     c)
@@ -221,7 +221,7 @@ function statusValue(g: Game, u: Unit): number {
         const w = per * (id === "ignite" ? Math.abs(st.v) : amt) * dur * live
         v += fromFoe ? -w : w
     }
-    for (const b of u.nextAttack) v += (b.free ? 45 : 10) + 0.5 * (b.bonusRaw ?? 0)
+    for (const b of u.nextAttack) v += 10 + 0.5 * (b.bonusRaw ?? 0)
     return v
 }
 
@@ -253,41 +253,67 @@ function tokenValue(g: Game, tok: Unit, viewer: Side): number {
     return v
 }
 
-/** Giá trị phe `side` nhìn từ `viewer` */
-function sideValue(g: Game, side: Side, viewer: Side, common: number): number {
+/** Các thành phần của giá trị một phe (cộng lại = sideValue). Tách riêng để học trọng số từ dữ liệu selfplay (VALUE_MODEL). */
+export const TERM_KEYS = ["life",
+    "mana",
+    "lastLives",
+    "token",
+    "items",
+    "reserve",
+    "deadStack",
+    "respawn",
+    "presence",
+    "hp",
+    "shield",
+    "risk",
+    "status",
+    "stack",
+    "grave",
+    "hand",
+    "foeHand",
+    "deck",
+    "marker"] as const
+export type TermKey = typeof TERM_KEYS[number];
+type Terms = Record<TermKey, number>
+const zeroTerms = (): Terms => Object.fromEntries(TERM_KEYS.map((k) => [k,
+    0])) as Terms
+
+/** Giá trị phe `side` nhìn từ `viewer`, theo từng thành phần */
+function sideTerms(g: Game, side: Side, viewer: Side, common: number): Terms {
     const s = g.s
     const p = s.players[side]
-    let v = EVAL.life * p.lives
-    for (let i = 0; i < EVAL.lastLives.length; i++) if (p.lives <= i + 1) v -= EVAL.lastLives[i]
+    const t = zeroTerms()
+    t.life = EVAL.life * p.lives
+    const mana = g.teamManaOf(side)
+    const safeMana = Math.min(mana,
+        Math.max(0,
+            RULES.teamManaMax - g.teamManaRegen(side)))
+    t.mana = EVAL.manaPoint * (safeMana + .5 * (mana - safeMana))
+    for (let i = 0; i < EVAL.lastLives.length; i++) if (p.lives <= i + 1) t.lastLives -= EVAL.lastLives[i]
     for (const u of Object.values(s.units)) {
         if (u.side !== side) continue
-        if (u.token) { if (u.status === "board") v += tokenValue(g,
+        if (u.token) { if (u.status === "board") t.token += tokenValue(g,
             u,
             viewer); continue }
         const role = roleOf(u)
-        for (const id of u.items) v += (COMPONENTS as readonly string[]).includes(id) ? EVAL.component : EVAL.item
+        for (const id of u.items) t.items += (COMPONENTS as readonly string[]).includes(id) ? EVAL.component : EVAL.item
         // stack giữ qua lúc chưa gọi / chờ hồi sinh (Đêm của Vayne, Đói của Kog'Maw...) vẫn là tài sản
-        if (u.status === "reserve") { v += EVAL.reserve + stackValue(u); continue }
-        if (u.status === "dead") { v += stackValue(u); v -= Math.max(0,
+        if (u.status === "reserve") { t.reserve += EVAL.reserve; t.stack += stackValue(u); continue }
+        if (u.status === "dead") { t.deadStack += stackValue(u); t.respawn -= Math.max(0,
             u.respawnRound - s.round) * EVAL.respawnPerRound; continue }
         const soak = g.soakOf(u)
-        const ehp = u.hp + EVAL.shield * u.shield + (soak ? 0.6 * soak.hp : 0)
-        if (g.isMage(u)) {
-            const m = g.manaOf(u)
-            const safe = Math.min(m,
-                Math.max(0,
-                    g.maxMana(u) - (g.hero(u).mana?.regen ?? RULES.mage.manaRegen)))
-            v += EVAL.manaPoint * (safe + 0.5 * (m - safe))
-        }
-        v += EVAL.presence[role] + (role === "tank" ? 0.75 : 1) * EVAL.hpWeight * Math.min(u.hp,
-            u.maxHp) + EVAL.shield * u.shield
-        v -= (s.active === side ? EVAL.riskActive : 1) * EVAL.riskScale * (EVAL.life + EVAL.presence[role] * 0.5) * deathRisk(ehp,
+        const ehp = u.hp + EVAL.shield * g.totalShield(u) + (soak ? 0.6 * soak.hp : 0)
+        t.presence += EVAL.presence[role]
+        t.hp += (role === "tank" ? 0.75 : 1) * EVAL.hpWeight * Math.min(u.hp,
+            u.maxHp)
+        t.shield += EVAL.shield * g.totalShield(u)
+        t.risk -= (s.active === side ? EVAL.riskActive : 1) * EVAL.riskScale * (EVAL.life + EVAL.presence[role] * 0.5) * deathRisk(ehp,
             threatOn(g,
                 u,
                 common)) * (u.statuses.stealth ? 0.4 : 1)
-        v += statusValue(g,
+        t.status += statusValue(g,
             u)
-        v += stackValue(u)
+        t.stack += stackValue(u)
     }
     // mộ bài là tài nguyên (Viktor bậc, Zed, Yorick)
     for (const h of p.heroes) {
@@ -295,36 +321,53 @@ function sideValue(g: Game, side: Side, viewer: Side, common: number): number {
         if (!gv) continue
         let n = 0
         for (const c of p.grave) if (c.kind === "skill" && c.hero === h) n++
-        v += gv * Math.min(n,
+        t.grave += gv * Math.min(n,
             12)
     }
-    v += side === viewer ? handValue(g,
-        side) : p.hand.length * EVAL.foeHandCard
-    v += deckValue(s,
+    if (side === viewer) t.hand = handValue(g,
+        side)
+    else t.foeHand = p.hand.length * EVAL.foeHandCard
+    t.deck = deckValue(s,
         side)
     const mk = s.markers?.[side]
-    if (mk) for (const l of mk) v += l.length * EVAL.marker
-    return v
+    if (mk) for (const l of mk) t.marker += l.length * EVAL.marker
+    return t
+}
+
+/** Trọng số học từ selfplay cho từng thành phần (null = 1 cho mọi thành phần, tức bộ chấm viết tay) */
+export const VALUE_MODEL: { w: Partial<Record<TermKey, number>> | null } = {
+    w: null
+}
+
+/** Hiệu thành phần (side − đối thủ), nhìn từ `side`. Dùng để ghi dữ liệu huấn luyện. */
+export function evalTermDiff(s: GameState, side: Side): Terms {
+    const g = new Game(s)
+    const foe = otherSide(side)
+    const a = sideTerms(g,
+        side,
+        side,
+        burst(g,
+            foe))
+    const b = sideTerms(g,
+        foe,
+        side,
+        burst(g,
+            side))
+    const d = zeroTerms()
+    for (const k of TERM_KEYS) d[k] = a[k] - b[k]
+    return d
 }
 
 /** Điểm thế cờ cho `side` (dương = tốt cho side). Không dùng thông tin ẩn với `side`. */
 export function evaluate(s: GameState, side: Side): number {
     if (s.phase === "over") return s.winner === side ? EVAL.win : s.winner ? -EVAL.win : 0
-    const g = new Game(s)
-    const foe = otherSide(side)
-    const mine = sideValue(g,
-        side,
-        side,
-        burst(g,
-            foe))
-    const theirs = sideValue(g,
-        foe,
-        side,
-        burst(g,
-            side))
-    return mine - theirs
+    const d = evalTermDiff(s,
+        side)
+    const w = VALUE_MODEL.w
+    let v = 0
+    for (const k of TERM_KEYS) v += d[k] * (w?.[k] ?? 1)
+    return v
 }
-
 /** Giá trị 1 đòn Đánh thường của tướng `u` (chưa tính giáp), dùng để so sánh các tướng với nhau */
 const swingOf = (g: Game, u: Unit) => g.atk(u) * RULES.roleAttack[roleOf(u)] * EVAL.summonSwing
 

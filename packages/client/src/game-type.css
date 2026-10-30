@@ -1,0 +1,29 @@
+:root {
+    --font-game-title: "Alegreya", Georgia, serif;
+    --font-game-text: "Alegreya Sans", "Segoe UI", sans-serif;
+}
+
+#lobby, .cg-host, body.vfx-example-page, body.vfx-page,
+.forest-game.cg-root, .an-layer {
+    font-family: var(--font-game-text);
+    font-synthesis: none;
+}
+
+.forest-game.cg-root :is(button, input, select, textarea) {
+    font-family: inherit;
+}
+
+#lobby :is(h1, h2, h3, .lb-logo),
+.forest-game.cg-root :is(h2, h3, h4, .us-name, .us-sk-h b, .ci-name,
+    .bd-name, .cv-name, .bd-turn, .bd-round, .hd-end, .hd-btn,
+    .cs-title, .cs-order, .cs-num, .ch-current-title, .cd-head b),
+.an-layer :is(.cv-name, .an-show-bn) {
+    font-family: var(--font-game-title);
+    font-weight: 700;
+    letter-spacing: .015em;
+}
+
+.forest-game.cg-root :is(.bd-stats, .bd-hp, .bd-mana, .us-hp,
+    .us-mana, .bd-pile-count, .us-stats) {
+    font-variant-numeric: lining-nums tabular-nums;
+}

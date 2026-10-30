@@ -1,7 +1,10 @@
-// Bản đồ chiêu thức -> hiệu ứng canvas cho chế độ thẻ bài (chỉnh tay từng chiêu của 30 tướng).
+// Bản đồ vũ khí/chiêu thức -> hiệu ứng canvas cho chế độ thẻ bài (33 tướng).
 import type {
     SkillVfx
 } from "./types"
+import {
+    cg
+} from "@starci/shared"
 
 export type SkillKey = "q" | "e" | "r" | "p"
 
@@ -661,6 +664,253 @@ const HEROES: Record<string, HeroVfx> = {
     }
 }
 
+// Dùng lại từ vựng nguyên tố/vũ khí, vẫn giữ sắc thái và hệ số riêng từng tướng.
+Object.assign(HEROES.blitzcrank,
+    {
+        q: fx("bolt",
+            "magicHit",
+            0xd4b86e,
+            0xe8f3ff),
+        e: fx("none",
+            "spellCast",
+            0xd4b86e,
+            0xe8f3ff)
+    })
+Object.assign(HEROES.annie,
+    {
+        e: fx("none",
+            "shield",
+            0xff9b65,
+            0xffe6c1,
+            "spellCast")
+    })
+Object.assign(HEROES.gangplank,
+    {
+        r: ult("none",
+            "buff",
+            0xe5bd72,
+            0xffefb5,
+            "spellCast")
+    })
+Object.assign(HEROES.leona,
+    {
+        e: fx("none",
+            "none",
+            0xd6bd70,
+            0xf7e5b2,
+            "spellCast")
+    })
+Object.assign(HEROES.renata,
+    {
+        q: fx("bolt",
+            "magicHit",
+            0xb685ce,
+            0xc5e7a1,
+            "spellCast"),
+        e: fx("none",
+            "reflectWard",
+            0xb685ce,
+            0xc5e7a1)
+    })
+Object.assign(HEROES.lux,
+    {
+        q: fx("none",
+            "shield",
+            0xffefaa,
+            0xffffff,
+            "holyLight"),
+        e: fx("beam",
+            "stunHit",
+            0xffe984,
+            0xffffff,
+            "spellCast"),
+        r: ult("beam",
+            "holyLight",
+            0xfff6c0,
+            0xffffff,
+            "spellCast")
+    })
+Object.assign(HEROES.yorick,
+    {
+        q: fx("heavyStrike",
+            "darkPulse",
+            0x40c796,
+            0xb9f4e4),
+        e: fx("none",
+            "darkPulse",
+            0x40c796,
+            0xb9f4e4),
+        r: ult("none",
+            "darkPulse",
+            0x30d6a0,
+            0xd2fff0,
+            "spellCast"),
+        p: passive("darkPulse",
+            0x40c796,
+            0xb9f4e4)
+    })
+Object.assign(HEROES.teemo,
+    {
+        q: fx("none",
+            "poisonCloud",
+            0x77ba35,
+            0xcaff83),
+        e: fx("poisonBolt",
+            "poisonHit",
+            0x65b82e,
+            0xd9ff8e),
+        r: ult("none",
+            "poisonCloud",
+            0x4ba021,
+            0xc1ff64,
+            "spellCast"),
+        p: passive("poisonHit",
+            0x77ba35,
+            0xcaff83)
+    })
+Object.assign(HEROES.kogmaw,
+    {
+        q: fx("poisonBolt",
+            "poisonHit",
+            0x7bd63d,
+            0xe3ff88),
+        r: ult("poisonBolt",
+            "poisonCloud",
+            0x7bd63d,
+            0xe3ff88,
+            "spellCast"),
+        p: passive("poisonHit",
+            0x7bd63d,
+            0xe3ff88)
+    })
+Object.assign(HEROES.janna,
+    {
+        q: fx("windSlash",
+            "tornado",
+            0x93d9df,
+            0xffffff,
+            "spellCast"),
+        r: ult("none",
+            "invulnerability",
+            0xa5eaf2,
+            0xffffff,
+            "spellCast")
+    })
+Object.assign(HEROES.nami,
+    {
+        q: fx("waterWave",
+            "stunHit",
+            0x37b9e5,
+            0xc5faff,
+            "spellCast"),
+        r: ult("waterWave",
+            "nova",
+            0x249cdd,
+            0xb6fbff,
+            "spellCast")
+    })
+Object.assign(HEROES.lissandra,
+    {
+        e: fx("iceShard",
+            "freeze",
+            0x63c9f2,
+            0xe0faff),
+        r: ult("none",
+            "freeze",
+            0x90ddff,
+            0xe0faff,
+            "spellCast")
+    })
+Object.assign(HEROES.ashe,
+    {
+        q: fx("bowShot",
+            "frostBurst",
+            0x89d8f7,
+            0xffffff),
+        e: fx("bowShot",
+            "magicHit",
+            0x89d8f7,
+            0xffffff),
+        r: ult("bowShot",
+            "freeze",
+            0x75d4ff,
+            0xffffff,
+            "spellCast")
+    })
+Object.assign(HEROES.brand,
+    {
+        e: fx("none",
+            "burn",
+            0xff681e,
+            0xffd375),
+        r: ult("fireball",
+            "explosion",
+            0xff521c,
+            0xffdb6b,
+            "spellCast"),
+        p: passive("burn",
+            0xff681e,
+            0xffd375)
+    })
+Object.assign(HEROES.malphite,
+    {
+        q: fx("heavyStrike",
+            "earthSpikes",
+            0x9a8a78,
+            0xe0d0b8),
+        r: ult("dash",
+            "earthSpikes",
+            0xa09080,
+            0xffc060,
+            "charge")
+    })
+Object.assign(HEROES.katarina,
+    {
+        q: fx("daggerThrow",
+            "swordHit",
+            0xdb355b,
+            0xf1e9ff)
+    })
+Object.assign(HEROES.zed,
+    {
+        q: fx("daggerThrow",
+            "shadowStrike",
+            0x7c469c,
+            0xded3f0)
+    })
+Object.assign(HEROES.gangplank,
+    {
+        q: fx("gunshot",
+            "bulletHit",
+            0xffb030,
+            0xfff0b0)
+    })
+Object.assign(HEROES.jinx,
+    {
+        q: fx("gunshot",
+            "bulletHit",
+            0xff4aa0,
+            0x40c8ff)
+    })
+Object.assign(HEROES.tristana,
+    {
+        q: fx("gunshot",
+            "bulletHit",
+            0x40b0ff,
+            0xffd060)
+    })
+Object.assign(HEROES.missfortune,
+    {
+        q: fx("gunshot",
+            "bulletHit",
+            0xff4060,
+            0xffd0a0)
+    })
+
+export const heroVfxEntries = (): [string, HeroVfx][] => Object.entries(HEROES)
+export const hasHeroVfx = (hero: string): boolean => Object.hasOwn(HEROES,
+    hero)
+
 /** Hiệu ứng của một chiêu (q/e/r/p) của một tướng; không có thì DEFAULT_VFX */
 export function skillVfx(hero: string, key: SkillKey): SkillVfx {
     return HEROES[hero]?.[key] ?? DEFAULT_VFX
@@ -708,6 +958,175 @@ const SPELLS: Record<string, SkillVfx> = {
 
 /** Hiệu ứng thẻ phép bổ trợ */
 export const spellVfx = (spell: string): SkillVfx => SPELLS[spell] ?? DEFAULT_VFX
+export const spellVfxEntries = (): [string, SkillVfx][] => Object.entries(SPELLS)
+
+const BASIC: Record<string, SkillVfx> = {
+    ashe: fx("bowShot",
+        "frostBurst",
+        0x8adaff,
+        0xf0ffff),
+    vayne: fx("bowShot",
+        "trueHit",
+        0xb0b5ed,
+        0xffffff),
+    jinx: fx("gunshot",
+        "bulletHit",
+        0xf570be,
+        0x80d8ff),
+    tristana: fx("gunshot",
+        "bulletHit",
+        0xffa848,
+        0xffe8a8),
+    missfortune: fx("gunshot",
+        "bulletHit",
+        0xff7858,
+        0xffe5c2),
+    gangplank: fx("gunshot",
+        "bulletHit",
+        0xffb952,
+        0xffecca),
+    teemo: fx("poisonBolt",
+        "poisonHit",
+        0x77ca3b,
+        0xddffa2),
+    kogmaw: fx("poisonBolt",
+        "poisonHit",
+        0xa4cd39,
+        0xf5ff95),
+    annie: fx("fireball",
+        "fireHit",
+        0xff732e,
+        0xffd273),
+    brand: fx("fireball",
+        "fireHit",
+        0xff5329,
+        0xffc357),
+    lissandra: fx("iceShard",
+        "frostBurst",
+        0x76d2ff,
+        0xd8f7ff),
+    lux: fx("bolt",
+        "holyLight",
+        0xffeda3,
+        0xffffff),
+    ahri: fx("bolt",
+        "magicHit",
+        0xff85cb,
+        0xffd8f1),
+    velkoz: fx("beam",
+        "magicHit",
+        0xb083f8,
+        0xdce7ff),
+    viktor: fx("bolt",
+        "lightningHit",
+        0xbc76f1,
+        0x73dff7),
+    janna: fx("windSlash",
+        "magicHit",
+        0xabedf0,
+        0xffffff),
+    nami: fx("waterWave",
+        "magicHit",
+        0x4cbfdd,
+        0xcdffff),
+    soraka: fx("bolt",
+        "holyLight",
+        0xf6d99b,
+        0xe1d4ff),
+    renata: fx("poisonBolt",
+        "poisonHit",
+        0xb46cdf,
+        0x9de382),
+    twistedfate: fx("daggerThrow",
+        "magicHit",
+        0xf1cc6c,
+        0x8bbdff),
+    darius: fx("heavyStrike",
+        "swordHit",
+        0xb4323e,
+        0xe5d7cd),
+    aatrox: fx("swordSlash",
+        "swordHit",
+        0xd3304b,
+        0xffb1a8),
+    garen: fx("swordSlash",
+        "swordHit",
+        0xe7c26e,
+        0xffffff),
+    yorick: fx("heavyStrike",
+        "physicalHit",
+        0x6fbc9c,
+        0xe3f8e9),
+    ornn: fx("heavyStrike",
+        "physicalHit",
+        0xb67f55,
+        0xffc88c),
+    malphite: fx("heavyStrike",
+        "physicalHit",
+        0xa3947d,
+        0xddccb1),
+    blitzcrank: fx("heavyStrike",
+        "lightningHit",
+        0xd3b057,
+        0xb5ddff),
+    braum: fx("heavyStrike",
+        "frostBurst",
+        0xa3cde8,
+        0xffffff),
+    leona: fx("swordSlash",
+        "physicalHit",
+        0xefc56a,
+        0xfff4c6),
+    katarina: fx("swordSlash",
+        "swordHit",
+        0xda4567,
+        0xe9e7f2),
+    khazix: fx("swordSlash",
+        "swordHit",
+        0xb377dd,
+        0xeed2ff),
+    zed: fx("swordSlash",
+        "shadowStrike",
+        0x9a829e,
+        0xddd9eb),
+    qiyana: fx("windSlash",
+        "swordHit",
+        0xcba25e,
+        0xa6e7de)
+}
+
+/** Shared role actions; unusual mechanics opt in to an explicit champion override. */
+export const BASIC_ACTION_VFX: Record<string, SkillVfx[]> = {
+    assassin: [basicVfx("assassin",
+        "physical")],
+    fighter: [basicVfx("fighter",
+        "physical")],
+    mage: [basicVfx("mage",
+        "magic")],
+    support: [basicVfx("support",
+        "magic")],
+    marksman: [basicVfx("marksman",
+        "physical")],
+    tank: [basicVfx("tank",
+        "physical")]
+}
+export const heroBasicVfxSequence = (hero: string, damage?: "physical" | "magic", role?: string): SkillVfx[] => {
+    const definition = cg.getHero(hero)
+    if (["teemo",
+        "kogmaw",
+        "blitzcrank"].includes(hero) && BASIC[hero]) return [{
+        ...BASIC[hero]
+    }]
+    const key = role ?? definition?.role ?? "fighter"
+    const tint = damage ?? definition?.damage ?? "physical"
+    return (BASIC_ACTION_VFX[key] ?? [basicVfx(key,
+        tint)]).map(style => ({
+        ...style, impact: tint === "magic" ? "magicHit" : style.impact
+    }))
+}
+export const heroBasicVfx = (hero: string, damage?: "physical" | "magic", role?: string): SkillVfx => heroBasicVfxSequence(hero,
+    damage,
+    role)[0]
 
 /** Hiệu ứng đòn đánh thường theo vai trò + loại sát thương */
 export function basicVfx(role: string, damage: "physical" | "magic"): SkillVfx {
@@ -715,52 +1134,52 @@ export function basicVfx(role: string, damage: "physical" | "magic"): SkillVfx {
     switch (role) {
     case "marksman":
         return magic
-            ? fx("arrow",
+            ? fx("bowShot",
                 "magicHit",
                 0x8ad0ff,
                 0xffffff)
-            : fx("arrow",
+            : fx("bowShot",
                 "physicalHit",
                 0xe8e0c0,
                 0xffffff)
     case "mage":
-        return fx("bolt",
+        return fx("mageOrb",
             "magicHit",
             0xb08aff,
             0xe8d8ff)
     case "support":
-        return fx("bolt",
+        return fx("supportOrb",
             "magicHit",
             0x90e0ff,
             0xffffff)
     case "assassin":
         return magic
-            ? fx("slash",
+            ? fx("assassinSlashes",
                 "magicHit",
                 0xe03050,
                 0xffffff)
-            : fx("slash",
+            : fx("assassinSlashes",
                 "slashHit",
                 0xd8d8e8,
                 0xffffff)
     case "tank":
         return magic
-            ? fx("slash",
+            ? fx("heavyImpact",
                 "magicHit",
                 0xffd060,
                 0xffffff)
-            : fx("slash",
+            : fx("heavyImpact",
                 "physicalHit",
                 0xb0a090,
                 0xffffff)
     case "fighter":
         return magic
-            ? fx("slash",
+            ? fx("daggerStab",
                 "magicHit",
                 0xffa060,
                 0xffffff)
-            : fx("slash",
-                "slashHit",
+            : fx("daggerStab",
+                "physicalHit",
                 0xe0d0c0,
                 0xffffff)
     default:

@@ -1,0 +1,22 @@
+/* lá bài gọn: icon vuông + tên + viên mana, viền màu theo loại (giống lá bài trong trận) */
+/* .cv là khung đo (container), .cv-in bên trong mới dùng đơn vị cqw theo đúng bề rộng lá */
+.cv { --tint: #4a8ef0; container-type: inline-size; user-select: none; }
+/* Khung thẻ: ảnh 9-slice Codex vẽ theo loại (public/ui/nine/card_<loại>.png, CSS sinh trong nine.ts).
+   Ô tranh có khung trong mảnh (card_art). Huy hiệu loại thẻ ở giữa mép trên. */
+.cv-in { position: relative; box-sizing: border-box; padding: 2cqw 2.5cqw 1.5cqw; }
+.cv.spell { --tint: #4a8ef0; } .cv.trap { --tint: #a060e0; } .cv.stat { --tint: #4cc07a; } .cv.combat { --tint: #e0563a; } .cv.item { --tint: #e0a030; }
+.cv-icon { position: relative; aspect-ratio: 1; overflow: hidden; background: #1a2230; }
+.cv-icon::after { content: ""; position: absolute; inset: 0; pointer-events: none; }
+.cv-art { width: 100%; height: 100%; object-fit: cover; display: block; }
+.cv-frame { display: none; }
+.cv-badge { position: absolute; top: -12cqw; left: 50%; width: 24cqw; height: 24cqw; transform: translateX(-50%); z-index: 2;
+  filter: drop-shadow(0 1cqw 1.5cqw rgba(0,0,0,.7)); pointer-events: none; }
+.cv-name { display: block; margin: 6cqw 0 0; padding: 0 1cqw; text-align: center; font-weight: 800;
+  font-size: 10.5cqw; line-height: 1.15; color: #f0e6d2; text-shadow: 0 0 3px #000;
+  min-height: 2.3em; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.cv-gem { position: absolute; left: -3cqw; top: -3cqw; width: 20cqw; height: 20cqw; display: flex; align-items: center; justify-content: center;
+  border-radius: 50%; background: radial-gradient(circle at 35% 30%, #6ea8ff, #2f6fde 60%, #173c80); border: 1.5cqw solid #f5d27a;
+  color: #fff; font-weight: 700; font-size: 10cqw; text-shadow: 0 0 2px #000; box-sizing: border-box; }
+/* thẻ quá nhỏ (danh sách, sảnh) thì chỉ giữ tranh, khung mỏng lại */
+@container (max-width: 70px) { .cv-name, .cv-badge { display: none; } }
+

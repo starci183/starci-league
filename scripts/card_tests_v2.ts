@@ -46,6 +46,7 @@ type V2Rules = {
     drawPerTurn: number; handMax: number; startHand: number; attackLimit: number
     skillCopies: Record<"Q" | "E" | "R", number>; sharedDeckSize: number; respawnRounds: number
     fighterCardlessMult: number
+    teamManaMax: number; teamManaStart: number; teamManaRegen: number
     mage: { manaMax: number; manaStart: number; manaRegen: number; defaultCost: Record<"Q" | "E" | "R", number> }
     laneOpenEvery?: number
 }
@@ -57,7 +58,6 @@ type V2Game = InstanceType<typeof Game> & {
     attackLimit(side: S): number; attacksLeft(side: S): number
     turnAttacks(): { used: number; bonus: number; cardless: string[] }
     canCardless(u: cg.Unit): boolean; allowCardless(u: cg.Unit): void
-    grantFreeAttack(u: cg.Unit, buff?: Partial<cg.NextAttackBuff>): void
     giveSkillToHand(side: S, hero: string, key: cg.SkillKey, reason: string): void
 }
 const gm = (s: St) => new Game(s) as V2Game
@@ -115,7 +115,8 @@ cg.defineHero({
     skills: {
         Q: ping("Q",
             {
-                quick: true, mana: 20
+                quick: true, mana: 20, desc: "Quick khi địch tấn công.",
+                quickWhen: (c: cg.OptCtx & { trigger: cg.Trigger }) => c.trigger.kind === "attack"
             }),
         E: ping("E",
             {
@@ -261,7 +262,7 @@ const basicsPlayable = (s: St, side: S) => legal(s,
     side).filter((a) => a.t === "play" && s.players[side].hand.find((c) => c.uid === a.uid)?.id === "basic")
 const cardlessActs = (s: St, side: S, actor?: string) => legal(s,
     side).filter((a) => a.t === "attack" && a.cardless === true && (!actor || a.actor === actor))
-const freeActs = (s: St, side: S) => legal(s,
+const legacyAttackActions = (s: St, side: S) => legal(s,
     side).filter((a) => a.t === "attack" && !a.cardless)
 const heroCount = (cards: cg.Card[], hero: string, k: string) => cards.filter((c) => c.kind === "skill" && c.hero === hero && c.id === `${hero}_${k}`).length
 const fighterDuel = (hand = 0) => {
@@ -395,21 +396,15 @@ test("Tay đầu RULES.startHand có ngay ở đầu ván, trước khi gọi t�
             "blind")
         assert.ok(legal(s,
             "A").every((a) => a.t === "summon"),
-        "chưa có tướng: bắt buộc chọn 1 tướng, chưa chốt được")
-        s = act(s,
-legal(s,
-    "A").find((a) => a.t === "summon")!).s
-        s = act(s,
-legal(s,
-    "B").find((a) => a.t === "summon")!).s
+        "chưa xếp đủ tướng: bắt buộc chọn tướng, chưa chốt được")
         s = skipBlind({
             s, ev: []
         }).s
         assert.equal(s.phase,
             "main")
-        assert.equal(s.players.A.hand.length,
-            R.startHand,
-            "lượt đầu không rút thêm")
+        const tutored = gm(s).heroes("A").filter((h) => gm(s).role(h) === "support").length * R.supportSummonKeys.length
+        assert.ok(s.players.A.hand.filter((c) => !c.temp).length <= R.startHand + tutored,
+            "lượt đầu không rút thêm (chỉ có tay đầu + Q/E của Trợ thủ, không tính lá tạm pháp sư)")
     })
 // ======================================================================
 G("V2: rút bài, tay đầy, hết bộ")
@@ -579,47 +574,24 @@ test("3 lá Đánh thường -> lá thứ 4 không còn trong legalActions; atta
             "A").length,
         0)
     })
-test("Đòn miễn phí từ buff nextAttack CŨNG bị tính và chặn sau đòn thứ 3",
+test("API cấp đòn đánh độc lập bị bỏ; dữ liệu buff cũ không tạo hành động và không chặn Đấu sĩ",
     () => {
-        let s = fighterDuel(3)
-        const f = u(s,
+        const s = fighterDuel(0)
+        assert.equal((gm(s) as unknown as Record<string, unknown>).grantFreeAttack,
+            undefined)
+        Object.assign(u(s,
             "A",
-            "v2_fighter")
-        for (let i = 0; i < 3; i++) {
-            const a = basicsPlayable(s,
-                "A")[0]
-            s = act(s,
-                a).s
-            if (s.phase === "chain") s = act(s,
-                {
-                    t: "pass", side: cg.whoseMove(s)
-                }).s
-        }
-        u(s,
-            "A",
-            "v2_fighter").nextAttack.push({
-            id: "v2_free", source: f.id, free: true
-        })
-        assert.equal(freeActs(s,
+            "v2_fighter").nextAttack,
+        [{
+            id: "legacy", source: "A:v2_fighter", free: true
+        }])
+        assert.equal(legacyAttackActions(s,
             "A").length,
-        0,
-        "hết 3 đòn thì đòn free cũng không hợp lệ")
-        const t = fighterDuel(0)
-        u(t,
-            "A",
-            "v2_fighter").nextAttack.push({
-            id: "v2_free", source: "A:v2_fighter", free: true
-        })
-        assert.ok(freeActs(t,
+        0)
+        assert.ok(cardlessActs(s,
             "A").length > 0)
-        const r = act(t,
-            freeActs(t,
-                "A")[0])
-        assert.equal(anyEv(r.ev,
-            "attackCount")[0]?.used,
-        1,
-        "đòn free đếm vào giới hạn")
     })
+
 test("g.attack() bên trong chiêu/hook không bị tính (chỉ đòn do người chơi bấm)",
     () => {
         const s = fighterDuel(0)
@@ -698,10 +670,10 @@ test("Đấu sĩ chơi được lá Đánh thường (100% AD)",
             "v2_tank").hp,
         Math.round(100 * cg.RULES.roleAttack.fighter))
     })
-test("Đòn không cần lá: hợp lệ 1 lần/lượt, sát thương = hệ số RULES.fighterCardlessMult (0.66) của đòn lá, được tính vào giới hạn",
+test("Đòn không cần lá: hợp lệ 1 lần/lượt, sát thương = hệ số RULES.fighterCardlessMult (0.5) của đòn lá, được tính vào giới hạn",
     () => {
-        assert.ok(Math.abs(R.fighterCardlessMult - 0.66) < 1e-9,
-            "chủ game chốt 66%")
+        assert.ok(Math.abs(R.fighterCardlessMult - 0.5) < 1e-9,
+            "thầy chốt 50% (cân bằng 31/10)")
         let s = fighterDuel(0)
         const acts = cardlessActs(s,
             "A",
@@ -750,18 +722,8 @@ test("allowCardless cho phép đánh không cần lá thêm lần nữa",
             "A").length,
         1)
     })
-test("Không được đề nghị đòn không cần lá khi: có buff free, bị choáng, hết lượt đánh",
+test("Không được đề nghị đòn không cần lá khi bị choáng hoặc hết lượt đánh",
     () => {
-        const a = fighterDuel(0)
-        u(a,
-            "A",
-            "v2_fighter").nextAttack.push({
-            id: "v2_free", source: "A:v2_fighter", free: true
-        })
-        assert.equal(cardlessActs(a,
-            "A").length,
-        0,
-        "có buff free")
         const b = fighterDuel(0)
         gm(b).status(u(b,
             "A",
@@ -984,17 +946,18 @@ test("Hết Q/E trong bộ thì tạo mới; hồi sinh không lấy thêm; tay 
     })
 
 // ======================================================================
-G("V2: Pháp sư - mana x10")
+G("Mana chung của đội")
 // ======================================================================
-test("Hằng số mana: mặc định max 100, hồi +10 mỗi lượt",
+test("Mana chung: khởi đầu 80/200, hồi nền +20 mỗi lượt sau lượt đầu (thầy duyệt 31/10)",
     () => {
-        assert.equal(R.mage.manaMax,
-            100)
-        assert.equal(R.mage.manaRegen,
-            10)
-        assert.ok(R.mage.manaStart <= R.mage.manaMax && R.mage.manaStart > 0)
+        assert.equal(R.teamManaMax,
+            200)
+        assert.equal(R.teamManaRegen,
+            20)
+        assert.equal(R.teamManaStart,
+            80)
     })
-test("Gọi pháp sư: mana = start (override theo tướng), phát manaChange summon; tướng khác không có mana",
+test("Gọi thêm tướng: mọi vai đọc cùng một pool; không nạp lại mana theo từng tướng",
     () => {
         const s = mk({
             A: {
@@ -1007,25 +970,22 @@ test("Gọi pháp sư: mana = start (override theo tướng), phát manaChange s
         g.summon("A",
             "v2_mage",
             0)
-        assert.equal(u(s,
-            "A",
-            "v2_mage").mana,
-        R.mage.manaStart)
-        assert.equal(u(s,
-            "A",
-            "v2_mage2").mana,
-        30)
+        assert.equal(s.teamMana.A,
+            R.teamManaStart)
+        assert.equal(s.teamMana.A,
+            R.teamManaStart)
         assert.equal(g.maxMana(u(s,
             "A",
             "v2_mage2")),
-        60)
-        assert.equal(u(s,
+        R.teamManaMax)
+        assert.equal(g.manaOf(u(s,
             "A",
-            "v2_tank").mana,
-        undefined)
-        assert.ok(g.events.some((e) => (e as { t: string; reason?: string }).t === "manaChange" && (e as { reason?: string }).reason === "summon"))
+            "v2_tank")),
+        R.teamManaStart)
+        assert.ok(!g.events.some(e => e.t === "teamManaChange"),
+            "summoning cannot refill the pool")
     })
-test("Đầu lượt chủ: pháp sư trên sân +regen (theo tướng) chặn ở max; dự bị/chết không đổi",
+test("Đầu lượt chủ: nhiều pháp sư chỉ hồi một lần cho đội, đội không có pháp sư vẫn hồi",
     () => {
         let s = mk({
             A: {
@@ -1034,24 +994,16 @@ test("Đầu lượt chủ: pháp sư trên sân +regen (theo tướng) chặn �
                 v2_tank: 2
             }
         })
-        u(s,
-            "A",
-            "v2_mage").mana = 50
-        u(s,
-            "A",
-            "v2_mage2").mana = 58
+        s.teamMana.A = 58
+        s.ownTurns = {
+            A: 1, B: 1
+        }
         s = end(s,
             "A").s
         const r = end(s,
             "B")
-        assert.equal(u(r.s,
-            "A",
-            "v2_mage").mana,
-        50 + R.mage.manaRegen)
-        assert.equal(u(r.s,
-            "A",
-            "v2_mage2").mana,
-        60)
+        assert.equal(r.s.teamMana.A,
+            58 + R.teamManaRegen)
         const rs = mk({
             A: {
                 v2_tank: 2
@@ -1059,15 +1011,17 @@ test("Đầu lượt chủ: pháp sư trên sân +regen (theo tướng) chặn �
                 v2_tank: 2
             }
         })
-        const reserve = rs.units["A:v2_mage"]
-        reserve.mana = 7
+        rs.teamMana.A = 7
+        rs.ownTurns = {
+            A: 1, B: 1
+        }
         const r2 = end(end(rs,
             "A").s,
         "B")
-        assert.equal(r2.s.units["A:v2_mage"].mana,
-            7)
+        assert.equal(r2.s.teamMana.A,
+            7 + R.teamManaRegen)
     })
-test("Hồi sinh: pháp sư về mana start",
+test("Hồi sinh: giữ nguyên mana đội, không nạp lại theo tướng",
     () => {
         const s = mk({
             A: {
@@ -1079,14 +1033,14 @@ test("Hồi sinh: pháp sư về mana start",
         const m = u(s,
             "A",
             "v2_mage")
-        m.mana = 5
+        s.teamMana.A = 5
         gm(s).kill(m)
         m.respawnRound = s.round
         gm(s).respawnDue("A")
         assert.equal(m.status,
             "board")
-        assert.equal(m.mana,
-            R.mage.manaStart)
+        assert.equal(s.teamMana.A,
+            5)
     })
 test("Đánh lá chiêu pháp sư: trừ mana (manaChange spend), ctx.manaPaid, lá vào mộ; hàm mana động và defaultCost",
     () => {
@@ -1104,9 +1058,7 @@ test("Đánh lá chiêu pháp sư: trừ mana (manaChange spend), ctx.manaPaid, 
                 "v2_mage",
                 "A",
                 "E"))
-        const m0 = u(s,
-            "A",
-            "v2_mage").mana ?? 0
+        const m0 = s.teamMana.A ?? 0
         const r = play(s,
             "A",
             e,
@@ -1118,12 +1070,10 @@ test("Đánh lá chiêu pháp sư: trừ mana (manaChange spend), ctx.manaPaid, 
             {
                 t: "pass", side: cg.whoseMove(s)
             }).s
-        assert.equal(u(s,
-            "A",
-            "v2_mage").mana,
-        m0 - 35)
+        assert.equal(s.teamMana.A,
+            m0 - 35)
         assert.ok(anyEv(r.ev,
-            "manaChange").some((x) => x.reason === "spend" && x.delta === -35))
+            "teamManaChange").some((x) => x.reason === "spend" && x.delta === -35))
         assert.ok(s.players.A.grave.some((c) => c.uid === e.uid),
             "lá chiêu vào mộ")
         assert.deepEqual(manaSeen.paid,
@@ -1155,15 +1105,11 @@ test("Không đủ mana -> lá không hợp lệ (cả Quick trong chuỗi ở l
                 "v2_mage",
                 "A",
                 "E"))
-        u(s,
-            "A",
-            "v2_mage").mana = 34
+        s.teamMana.A = 34
         assert.equal(cg.legalActions(s,
             "A").filter((a) => a.t === "play" && a.uid === e.uid).length,
         0)
-        u(s,
-            "A",
-            "v2_mage").mana = 35
+        s.teamMana.A = 35
         assert.ok(cg.legalActions(s,
             "A").some((a) => a.t === "play" && a.uid === e.uid))
         // Quick của pháp sư A (Q: 20 mana) trong chuỗi mở bởi lá của B
@@ -1190,9 +1136,7 @@ test("Không đủ mana -> lá không hợp lệ (cả Quick trong chuỗi ở l
                 basicCard(t))
             const tt = toTurn(t,
                 "B")
-            u(tt,
-                "A",
-                "v2_mage").mana = mana
+            tt.teamMana.A = mana
             const open = cg.legalActions(tt,
                 "B").find((a) => a.t === "play" && a.uid === bb.uid)
             assert.ok(open,
@@ -1234,13 +1178,11 @@ test("Mana: ném hết Q khi đủ rồi hết mana; mana không bao giờ âm",
                     t: "pass", side: cg.whoseMove(s)
                 }).s
             n++
-            assert.ok((u(s,
-                "A",
-                "v2_mage").mana ?? 0) >= 0)
+            assert.ok((s.teamMana.A ?? 0) >= 0)
         }
         assert.equal(n,
-            Math.floor(R.mage.manaStart / 20) > 0 ? Math.min(6,
-                Math.floor(R.mage.manaStart / 20)) : 0)
+            Math.floor(R.teamManaStart / 20) > 0 ? Math.min(6,
+                Math.floor(R.teamManaStart / 20)) : 0)
     })
 test("Đồ có maxMana / manaRegen / manaCostMod được tính (stub)",
     () => {
@@ -1261,7 +1203,7 @@ test("Đồ có maxMana / manaRegen / manaCostMod được tính (stub)",
         m.items = ["v2_stub"]
         const g = gm(s)
         assert.equal(g.maxMana(m),
-            R.mage.manaMax + 40)
+            R.teamManaMax)
         const e = skill(s,
             "v2_mage",
             "A",
@@ -1269,18 +1211,19 @@ test("Đồ có maxMana / manaRegen / manaCostMod được tính (stub)",
         assert.equal(g.manaCost(m,
 cg.getHero("v2_mage")!.skills.E,
 e),
-        25)
-        m.mana = 10
+        25 - Math.round(40 * R.itemManaCostCut)) // hệ số quy đổi chung (đang 0): mỗi món tự giảm chi phí qua manaCostMod
+        s.teamMana.A = 10
+        s.ownTurns = {
+            A: 1, B: 1
+        }
         const t = end(end(s,
             "A").s,
         "B").s
-        assert.equal(u(t,
-            "A",
-            "v2_mage").mana,
-        10 + R.mage.manaRegen + 5)
+        assert.equal(t.teamMana.A,
+            10 + R.teamManaRegen + 5 + Math.round(40 * R.itemManaToRegen)) // hệ số quy đổi chung (đang 0): mỗi món tự hồi qua manaRegen
         delete items.v2_stub
     })
-test("Thẻ 'mana' hồi mana (chặn max), chỉ nhắm pháp sư chưa đầy",
+test("Thẻ mana hồi pool của đội, không chỉ định tướng, chặn đúng 200",
     () => {
         const s = mk({
             A: {
@@ -1289,27 +1232,18 @@ test("Thẻ 'mana' hồi mana (chặn max), chỉ nhắm pháp sư chưa đầy"
                 v2_tank: 0
             }
         })
-        u(s,
-            "A",
-            "v2_mage").mana = 10
-        u(s,
-            "A",
-            "v2_mage2").mana = 60
+        s.teamMana.A = 190
         const c = give(s,
             "A",
             sup(s,
                 "mana"))
         const targets = cg.legalActions(s,
             "A").filter((a) => a.t === "play" && a.uid === c.uid) as Extract<Act, { t: "play" }>[]
-        assert.ok(targets.length > 0 && targets.every((a) => a.args?.target === "A:v2_mage"))
+        assert.ok(targets.length > 0 && targets.every(a => !a.args?.target))
         const r = act(s,
             targets[0])
-        assert.ok((u(r.s,
-            "A",
-            "v2_mage").mana ?? 0) <= R.mage.manaMax)
-        assert.ok((u(r.s,
-            "A",
-            "v2_mage").mana ?? 0) > 10)
+        assert.equal(r.s.teamMana.A,
+            R.teamManaMax)
     })
 
 // ======================================================================
@@ -1656,7 +1590,7 @@ lv as "easy" | "hard")
                     a)
                 for (const e of r.ev) {
                     if (e.t === "attack" && (e as { cardless?: boolean }).cardless) cardless++
-                    if (e.t === "manaChange" as string && (e as unknown as { reason: string }).reason === "spend") mageSkill++
+                    if (e.t === "teamManaChange" as string && (e as unknown as { reason: string }).reason === "spend") mageSkill++
                 }
                 s = r.s
             }

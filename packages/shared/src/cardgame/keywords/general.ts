@@ -92,20 +92,14 @@ export const KEYWORDS_GENERAL: Record<string, Keyword> = {
     chain: {
         vi: "Chuỗi",
         en: "Chain",
-        descVi: "Lá hoặc đòn đánh vừa đánh mở Chuỗi; hai bên lần lượt nối lá Quick; Chuỗi giải quyết từ mắt xích cuối về đầu (tối đa 10 mắt xích).",
-        descEn: "A played card or attack opens a Chain; players take turns adding Quick cards; the Chain resolves from the last link to the first (max 10 links)."
+        descVi: "Tối đa 4 mắt xích. Chỉ nối lá Quick lên mắt xích địch ngay trước khi đúng điều kiện ghi trên lá. Bỏ qua hoặc không có lá phù hợp thì giải quyết từ cuối về đầu; lá bị huỷ không có hiệu ứng.",
+        descEn: "At most 4 links. Add a Quick card only in response to the immediately preceding enemy link when its conditions are met. Passing or having no valid response resolves last to first; cancelled links have no effect."
     },
     negate: {
         vi: "Vô Hiệu",
         en: "Negate",
         descVi: "Phe được bảo vệ không nhận sát thương và khống chế từ lá đó.",
         descEn: "The protected side takes no damage and no crowd control from that card."
-    },
-    free_attack: {
-        vi: "Đòn Miễn Phí",
-        en: "Free Attack",
-        descVi: "Một đòn đánh thường không cần lá Đánh thường (theo luật vai); giữ tới khi dùng.",
-        descEn: "A basic attack that needs no Strike card (following role rules); kept until used."
     },
     strike: {
         vi: "Đánh thường",
@@ -158,8 +152,8 @@ export const KEYWORDS_GENERAL: Record<string, Keyword> = {
     token: {
         vi: "Vật Triệu Hồi",
         en: "Summon",
-        descVi: "Đơn vị ở ô triệu hồi phụ (mỗi bên 1 ô): không phải tướng, chết không mất mạng, biến mất khi tướng chủ rời sân. Chỉ đòn đánh của Xạ Thủ (hoặc lá ghi rõ) chọn được nó.",
-        descEn: "A unit in the extra summon slot (1 per side): not a champion, losing it costs no life, it vanishes when its owner leaves the board. Only Marksman attacks (or cards that say so) can target it."
+        descVi: "Đơn vị ở ô triệu hồi phụ (mỗi bên 1 ô): không phải tướng, chết không mất mạng, biến mất khi tướng chủ rời sân. Tướng địch thuộc mọi vai đều đánh thường được nó, không phụ thuộc đường. Chiêu chỉ chọn nó nếu lá ghi rõ.",
+        descEn: "A unit in the extra summon slot (1 per side): not a champion, losing it costs no life, it vanishes when its owner leaves the board. Enemy champions of every role can attack it regardless of lane. Skills target it only when explicitly allowed."
     },
     soak: {
         vi: "Máu Ảo",

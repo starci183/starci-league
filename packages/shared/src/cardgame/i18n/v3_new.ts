@@ -15,20 +15,20 @@ export const HERO_EN_V3_NEW: Record<string, HeroTextEn> = {
         desc: "Time bomb: stick a Bomb on one enemy and pound it until it blows; a Bomb that kills gives you the E card back.",
         passive: {
             name: "Explosive Charge",
-            desc: "Tristana's attacks on an enemy carrying a Bomb: the Bomb gains 1 Charge. At 4 Charges, or at the end of the enemy's next turn, the Bomb explodes for {40 + 50% AD + 50% AP} physical damage plus {15 + 20% AD} per Charge. If the explosion takes down the enemy, the E card returns to your hand.",
+            desc: "E plants a Bomb or adds 1 Charge; each real attack hit by Tristana on the Bomb carrier adds 1 Charge. At 4 Charges or at the end of the next enemy turn, the Bomb is spent and explodes for {40 + 100% AD + 55% AP} + Charges × ({20 + 45% AD}) physical damage. If the explosion itself truly takes down the enemy champion after saves, take 1 E from the deck, creating one only if none is left.",
         },
         skills: {
             Q: {
                 name: "Rapid Fire",
-                desc: "This turn, each of Tristana's attacks deals {20 + 40% AD} extra physical damage.",
+                desc: "Until the end of the current turn, each real attack hit deals {20 + 90% AD} extra physical damage; needs no Bomb and grants no attacks.",
             },
             E: {
                 name: "Explosive Charge",
-                desc: "Choose 1 enemy champion; it takes {45 + 50% AD + 30% AP} physical damage and gets a Bomb (+1 Charge).",
+                desc: "Choose 1 valid enemy champion; deal {45 + 100% AD + 35% AP} physical damage, then plant a Bomb with 1 Charge or add 1 Charge to its existing Bomb. Adding Charges does not delay the explosion.",
             },
             R: {
                 name: "Buster Shot",
-                desc: "Choose 1 enemy champion; it takes {100 + 110% AD + 50% AP} physical damage, the Bomb on it explodes at once and it is Stunned for 1 turn.",
+                desc: "Choose 1 valid enemy champion; the Bomb on it explodes first. If the target survives, deal {85 + 195% AD + 50% AP} physical damage, then Stun it for d = {0.7 + 0.4% AD + 0.3% AP} units if it is still alive (the fraction is the chance of 1 extra unit). Still fires and Stuns without a Bomb.",
             },
         },
     },
@@ -37,42 +37,42 @@ export const HERO_EN_V3_NEW: Record<string, HeroTextEn> = {
         desc: "Bullet storm: keep switching targets and shoot the whole board. Q ricochets, E sprays and cuts healing, R is a two-wave barrage.",
         passive: {
             name: "Love Tap",
-            desc: "Each turn, Miss Fortune's first attack on each different enemy deals {20 + 50% AD + 10% AP} extra physical damage.",
+            desc: "Each turn, the first real attack hit on each different enemy champion deals {20 + 105% AD + 15% AP} extra physical damage. A → B → A does not reward A again; a miss does not use the bonus, and summons/allies do not trigger it.",
         },
         skills: {
             Q: {
                 name: "Double Up",
-                desc: "Choose 1 enemy champion; it takes {30 + 80% AD + 20% AP} physical damage. The bullet ricochets to 1 other random enemy for ×1.5 that amount (×2 if the first shot takes down its target).",
+                desc: "Choose 1 valid enemy champion; deal {25 + 140% AD + 20% AP} physical damage. It ricochets to 1 other random targetable enemy champion for 150% of the base amount; if the first shot truly takes down its target, the ricochet deals 200%. With no ricochet target, the first shot still fires.",
             },
             E: {
                 name: "Make It Rain",
-                desc: "Quick. Every enemy champion takes {20 + 30% AD + 20% AP} physical damage and gets Grievous Wounds until the end of the next turn.",
+                desc: "Every enemy champion on the board takes {15 + 50% AD + 20% AP} physical damage and receives 50% less healing/Shield (Grievous Wounds) until the end of the next enemy turn. E is not a response.",
             },
             R: {
                 name: "Bullet Time",
-                desc: "Every enemy champion takes {35 + 50% AD + 20% AP} physical damage now and again at the end of the enemy's turn. If Miss Fortune is controlled before the second wave lands, the second wave is cancelled.",
+                desc: "Each card fires at every enemy champion now and once more at the end of the enemy turn, each wave dealing {30 + 85% AD + 20% AP} physical damage. Each R has its own schedule; if Miss Fortune dies or truly receives a new Stun/Silence/Blind/Disarm, every pending wave is cancelled.",
             },
         },
     },
 
     velkoz: {
-        desc: "Disintegration: many small beams, every skill hit is one Decay and three Decay unravel the target.",
+        desc: "Disintegration: every skill beam that hits is one Decay, three Decay unravel the target. Q splits a beam onto another enemy, E hits twice, R focuses 6 beams on one target.",
         passive: {
             name: "Organic Deconstruction",
-            desc: "Each time a Vel'Koz skill hits an enemy: it gains 1 Decay. At 3 Decay it blows up for {62 + 10% AD + 40% AP + 5% target max HP} true damage and goes back to 0.",
+            desc: "Each original skill beam that hits an enemy champion adds 1 Decay; at 3 it spends exactly 3 and blows up for {60 + 10% AD + 40% AP + 5% target max HP} true damage. A hit needs no HP/Shield loss: damage-only immunity or Guard still counts; whole-card immunity or a miss does not. The blast cannot crit and adds no mark. Decay is lost when the target dies.",
         },
         skills: {
             Q: {
                 name: "Plasma Fission",
-                desc: "Choose 1 enemy champion; it takes double: {168 + 20% AD + 160% AP + 4% target missing HP} magic damage. 2 other random enemies each take {84 + 10% AD + 80% AP + 2% target missing HP} magic damage. Each one hit gains 1 Decay.",
+                desc: "Choose 1 enemy champion: it takes {135 + 20% AD + 130% AP + 4% target missing HP} magic damage; another random valid enemy champion takes {70 + 9% AD + 65% AP + 2% target missing HP} magic damage by its own missing HP. Each beam that hits adds 1 Decay.",
             },
             E: {
                 name: "Void Rift",
-                desc: "Choose 1 enemy champion; it takes {70 + 10% AD + 50% AP + 4% target missing HP} magic damage now, and again at the end of this turn (recomputed from its missing HP then). Each hit gains 1 Decay.",
+                desc: "Choose 1 enemy champion: it takes {60 + 9% AD + 40% AP + 4% target missing HP} magic damage now and once more at the end of the current turn if still alive. Both hits belong to one card with AD/AP snapshotted when E resolves; each hit adds 1 Decay and recomputes missing HP at that moment.",
             },
             R: {
                 name: "Life Form Disintegration Ray",
-                desc: "Fire 10 beams, each at a random enemy: {25 + 3% AD + 12% AP + 3% target missing HP} magic damage. Each beam that hits gains 1 Decay.",
+                desc: "Choose 1 enemy champion and fire up to 6 beams in a row within one resolution; each beam deals {25 + 4% AD + 10% AP + 3% target missing HP} magic damage by its current missing HP and adds 1 Decay on a hit. If the target dies the beams stop and do not retarget. All 6 hits complete 2 Decay cycles.",
             },
         },
     },
@@ -85,18 +85,18 @@ type Bi = { vi: Txt; en: Txt }
 export const STATUS_V3_NEW: Record<string, Bi> = {
     tri_bomb: {
         vi: {
-            name: "Bom", desc: "Bom của Tristana (v = số Nạp, tối đa 4). Đòn đánh của Tristana +1 Nạp; đủ 4 Nạp hoặc tới cuối lượt địch kế thì nổ, gây sát thương theo số Nạp."
+            name: "Bom", desc: "Bom của Tristana (v = số Nạp). Đòn thật của Tristana +1 Nạp; đủ 4 Nạp hoặc tới cuối lượt địch kế (không dời hạn) thì nổ, gây sát thương theo số Nạp, kể cả khi Tristana đã chết."
         },
         en: {
-            name: "Bomb", desc: "Tristana's Bomb (v = Charges, max 4). Tristana's attacks add 1 Charge; at 4 Charges or at the end of the enemy's next turn it explodes for damage per Charge."
+            name: "Bomb", desc: "Tristana's Bomb (v = Charges). Tristana's real attack hits add 1 Charge; at 4 Charges or at the end of the next enemy turn (never delayed) it explodes for damage per Charge, even if Tristana has died."
         },
     },
     tri_q: {
         vi: {
-            name: "Bắn Nhanh", desc: "Tới hết lượt: mỗi đòn đánh của Tristana gây thêm sát thương vật lý."
+            name: "Bắn Nhanh", desc: "Tới hết lượt: mỗi đòn thật trúng của Tristana gây thêm sát thương vật lý (không chí mạng)."
         },
         en: {
-            name: "Rapid Fire", desc: "Until the end of the turn: each of Tristana's attacks deals extra physical damage."
+            name: "Rapid Fire", desc: "Until the end of the turn: each of Tristana's real attack hits deals extra physical damage (no crit)."
         },
     },
 }
@@ -105,18 +105,18 @@ export const STATUS_V3_NEW: Record<string, Bi> = {
 export const STACK_V3_NEW: Record<string, Bi> = {
     mf_rain: {
         vi: {
-            name: "Bão Đạn Chờ", desc: "1 = nhịp hai của Bão Đạn sẽ nổ cuối lượt địch. Miss Fortune bị khống chế trước đó thì về 0 (huỷ)."
+            name: "Bão Đạn Chờ", desc: "Số nhịp hai của Bão Đạn sẽ nổ cuối lượt địch (mỗi lá R một nhịp). Miss Fortune chết hoặc thực sự nhận Choáng/Câm Lặng/Mù/Cấm đánh thì về 0 (huỷ)."
         },
         en: {
-            name: "Pending Barrage", desc: "1 = the second wave of Bullet Time will land at the end of the enemy's turn. It drops to 0 (cancelled) if Miss Fortune is controlled first."
+            name: "Pending Barrage", desc: "Number of Bullet Time second waves that will land at the end of the enemy turn (one per R card). Drops to 0 (cancelled) if Miss Fortune dies or truly receives a Stun/Silence/Blind/Disarm first."
         },
     },
     velkoz_decay: {
         vi: {
-            name: "Phân Rã", desc: "Dấu của Vel'Koz trên địch: mỗi chiêu trúng +1; đủ 3 thì nổ sát thương chuẩn và về 0."
+            name: "Phân Rã", desc: "Dấu của Vel'Koz trên địch: mỗi tia chiêu trúng +1; đủ 3 thì tiêu đúng 3 và nổ sát thương chuẩn. Mục tiêu chết thì mất dấu."
         },
         en: {
-            name: "Decay", desc: "Vel'Koz's mark on an enemy: +1 per skill hit; at 3 it blows up for true damage and goes back to 0."
+            name: "Decay", desc: "Vel'Koz's mark on an enemy: +1 per skill beam that hits; at 3 it spends exactly 3 and blows up for true damage. Lost when the target dies."
         },
     },
 }
@@ -130,13 +130,13 @@ export const KEYWORDS_V3_NEW: Record<string, Keyword> = {
     tri_bomb: {
         vi: "Bom",
         en: "Bomb",
-        descVi: "Bom của Tristana trên địch (tối đa 4 Nạp). Đòn đánh của Tristana +1 Nạp; đủ 4 Nạp hoặc tới cuối lượt địch kế thì nổ theo số Nạp. Nổ hạ được địch thì lá E về tay.",
-        descEn: "Tristana's Bomb on an enemy (max 4 Charges). Tristana's attacks add 1 Charge; at 4 Charges or at the end of the enemy's next turn it explodes per Charge. A kill returns the E card to hand.",
+        descVi: "Bom của Tristana trên địch. Đòn thật của Tristana +1 Nạp; đủ 4 Nạp hoặc tới cuối lượt địch kế thì nổ theo số Nạp, kể cả khi Tristana đã chết. Chính vụ nổ hạ thật địch thì lấy 1 lá E từ bộ (thiếu mới tạo).",
+        descEn: "Tristana's Bomb on an enemy. Tristana's real attack hits add 1 Charge; at 4 Charges or at the end of the next enemy turn it explodes per Charge, even if Tristana has died. If the explosion itself truly takes down the enemy, take 1 E from the deck (created only if none is left).",
     },
     decay: {
         vi: "Phân Rã",
         en: "Decay",
-        descVi: "Dấu của Vel'Koz trên địch: mỗi chiêu của Vel'Koz trúng +1; đủ 3 thì nổ sát thương chuẩn (có % máu tối đa của nó) và về 0.",
-        descEn: "Vel'Koz's mark on an enemy: +1 per Vel'Koz skill hit; at 3 it blows up for true damage (including a % of its max HP) and goes back to 0.",
+        descVi: "Dấu của Vel'Koz trên địch: mỗi tia chiêu của Vel'Koz trúng +1; đủ 3 thì tiêu đúng 3 và nổ sát thương chuẩn (có % máu tối đa của nó). Mục tiêu chết thì mất dấu.",
+        descEn: "Vel'Koz's mark on an enemy: +1 per Vel'Koz skill beam that hits; at 3 it spends exactly 3 and blows up for true damage (including a % of its max HP). Lost when the target dies.",
     },
 }

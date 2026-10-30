@@ -10,7 +10,7 @@ import {
     cg
 } from "@starci/shared"
 import {
-    applyToDisplay, setDisplayLag, snapDisplay, useCard
+    finishPresentation, getCard, setDisplayLag, startPresentation, subscribePresentations, type PresentationBatch
 } from "../store"
 import {
     CardFace, HeroFace
@@ -19,10 +19,13 @@ import {
     reducedMotion
 } from "./helpers"
 import {
+    bindGameOverlayClip
+} from "../vfx/gameClip"
+import {
     memoHandRects, runBatch, type Fx, type SpriteSpec
 } from "./plan"
 import {
-    holdCards, releaseAll, releaseCard
+    holdCards, releaseAll
 } from "./pending"
 import {
     landImpacts, queueImpacts
@@ -32,14 +35,15 @@ import "./anim.css"
 type GameEvent = cg.GameEvent
 type Sprite = SpriteSpec & { id: number }
 
-const MAX_QUEUE = 4
+const BETWEEN_ACTIONS_MS = 180
 
 /** uid các lá vào tay trong lô (rút, trả về tay, tạo vào tay, trộm) */
 function arrivingUids(batch: GameEvent[]): string[] {
     const out: string[] = []
+    const owner = getCard().view?.you ?? "A"
     for (const e of batch) {
-        if (e.t === "draw" || e.t === "drawAuto" || e.t === "returnToHand" || e.t === "steal") out.push(e.card.uid)
-        else if (e.t === "create" && e.zone === "hand") out.push(e.card.uid)
+        if ((e.t === "draw" || e.t === "drawAuto" || e.t === "returnToHand" || e.t === "prize") && e.side === owner) out.push(e.card.uid)
+        else if (e.t === "create" && e.zone === "hand" && e.side === owner) out.push(e.card.uid)
     }
     return out
 }
@@ -90,22 +94,30 @@ function SpriteView({ sp }: { sp: Sprite }) {
 }
 
 export function AnimLayer() {
-    const { tick, lastEvents } = useCard()
+    const layer = useRef<HTMLDivElement>(null)
     const [sprites,
         setSprites] = useState<Sprite[]>([])
     const waiting = useRef(new Map<number, (el: HTMLElement) => void>())
-    const queue = useRef<GameEvent[][]>([])
+    const queue = useRef<PresentationBatch[]>([])
     const running = useRef(false)
     const alive = useRef(true)
+    const epoch = useRef(0)
     const seq = useRef(0)
-    const lastTick = useRef(tick)
     const speed = useRef(1)
+
+    useEffect(() => layer.current ? bindGameOverlayClip(layer.current) : undefined,
+        [])
 
     useEffect(() => {
         alive.current = true
         setDisplayLag(!reducedMotion())
         return () => {
             alive.current = false
+            epoch.current++
+            running.current = false
+            queue.current = []
+            for (const resolve of waiting.current.values()) resolve(document.createElement("div"))
+            waiting.current.clear()
             releaseAll()
             setDisplayLag(false)
         }
@@ -113,6 +125,7 @@ export function AnimLayer() {
     [])
 
     const spawn = useCallback((spec: SpriteSpec) => new Promise<HTMLElement>((resolve) => {
+        if (!alive.current) { resolve(document.createElement("div")); return }
         const id = ++seq.current
         waiting.current.set(id,
             resolve)
@@ -135,55 +148,55 @@ export function AnimLayer() {
     const pump = useCallback(async () => {
         if (running.current) return
         running.current = true
-        while (queue.current.length && alive.current) {
-            if (queue.current.length > MAX_QUEUE) {
-                queue.current.splice(0,
-                    queue.current.length - MAX_QUEUE)
-                    .forEach((b) => {
-                        arrivingUids(b).forEach(releaseCard)
-                        landImpacts(b)
-                        applyToDisplay(b)
-                    })
+        const generation = epoch.current
+        try {
+            while (queue.current.length && alive.current && generation === epoch.current) {
+                speed.current = 1
+                const item = queue.current.shift()!
+                const batch = item.events
+                startPresentation(item)
+                try {
+                    if (!reducedMotion()) await runBatch(batch,
+                        {
+                            ...fx.current, active: () => alive.current && generation === epoch.current
+                        },
+                        () => alive.current && generation === epoch.current)
+                } catch (error) {
+                    console.warn("Animation batch failed; continuing presentation",
+                        error)
+                } finally {
+                    if (generation === epoch.current) {
+                        setSprites([])
+                        landImpacts(batch)
+                        finishPresentation(item)
+                    }
+                }
+                if (generation !== epoch.current) break
+                if (queue.current.length) await new Promise<void>((resolve) => window.setTimeout(resolve,
+                    BETWEEN_ACTIONS_MS))
             }
-            speed.current = queue.current.length > 3 ? .6 : 1 // chỉ tua nhẹ khi dồn quá nhiều, còn lại chạy đủ nhịp
-            const batch = queue.current.shift()!
-            if (!reducedMotion()) {
-                await runBatch(batch,
-                    fx.current,
-                    () => alive.current)
-                setSprites([])
+        } finally {
+            if (generation === epoch.current) {
+                running.current = false
+                releaseAll()
             }
-            landImpacts(batch) // phần chưa trúng trong hoạt ảnh (hoặc tắt hoạt ảnh) thì hiện ngay
-            applyToDisplay(batch) // sự kiện còn sót của lô hiện nốt; sự kiện lạ chờ tới snapDisplay
         }
-        running.current = false
-        releaseAll()
-        snapDisplay() // hết hàng đợi: hiển thị = trạng thái thật
+
     },
     [])
 
-    useEffect(() => {
-        if (tick === lastTick.current) return
-        lastTick.current = tick
-        if (!lastEvents.length) return
-        if (reducedMotion()) {
-            queueImpacts(lastEvents)
-            landImpacts(lastEvents)
-            snapDisplay()
-            return
-        }
-        queueImpacts(lastEvents)
-        memoHandRects(lastEvents)
-        holdCards(arrivingUids(lastEvents))
-        queue.current.push(lastEvents)
+    useEffect(() => subscribePresentations((item) => {
+        const batch = item.events
+        queueImpacts(batch)
+        memoHandRects(batch)
+        holdCards(arrivingUids(batch))
+        queue.current.push(item)
         void pump()
-    },
-    [tick,
-        lastEvents,
-        pump])
+    }),
+    [pump])
 
     return (
-        <div className="an-layer" aria-hidden="true">
+        <div ref={layer} className="an-layer" aria-hidden="true">
             {sprites.map((sp) => (
                 <div
                     key={sp.id}

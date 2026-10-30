@@ -5,23 +5,32 @@ import {
     cg, getItem
 } from "@starci/shared"
 import {
-    applyToDisplay, gameOf, getCard
+    applyToDisplay, gameOf, getCard, prepareCardArrival
 } from "../store"
 import {
-    CARD_W, boardCenter, deckPt, fadeOut, gravePt, handPt, handRect, laneRect, lunge, meSide, place, ptOf, pulse, rectOf, run, shake, sleep, unitEl, unitPt, unitRect, type Pt, type Side
+    flushSync
+} from "react-dom"
+import {
+    CARD_W, boardCenter, deckPt, fadeOut, gravePt, handPt, handRect, laneRect, lunge, meSide, opponentCardRect, place, ptOf, pulse, rectOf, run, shake, sleep, unitEl, unitPt, unitRect, type Pt, type Side
 } from "./helpers"
 import {
     skillIcon
 } from "./CardFace"
 import {
-    styleFor, vfxImpact, vfxMeta, vfxReady, vfxTravel
+    effectStylesFor, styleFor, styleSequenceFor, vfxCardHook, vfxCast, vfxEpoch, vfxImpact, vfxMeta, vfxMushroom, vfxReady, vfxTeamMana, vfxTravel
 } from "../vfx/dispatch"
 import {
-    releaseCard
+    releaseCard, reserveHiddenArrival
 } from "./pending"
 import {
     landImpacts
 } from "./impacts"
+import {
+    effectBatches, movementTracks, runActionVfxSequence, runConcurrentTargets, runVisualSequence
+} from "../vfx/sequence"
+import type {
+    EffectEvent
+} from "../vfx/semanticVfx"
 
 type GameEvent = cg.GameEvent
 type Card = cg.Card
@@ -48,11 +57,18 @@ export type SpriteSpec =
     /** Chữ nổi ngắn (Bị huỷ, Hoá Băng, Nâng cấp) */
     | { kind: "text"; text: string; tint: "cancel" | "ice" | "gold" }
 
+const pendingEffects = new Set<Promise<unknown>>()
+function track(effect: Promise<unknown>) {
+    const settled = effect.catch(() => undefined).finally(() => pendingEffects.delete(settled))
+    pendingEffects.add(settled)
+}
+
 export interface Fx {
     spawn(spec: SpriteSpec): Promise<HTMLElement>;
     drop(el: HTMLElement): void;
     /** Co thời gian theo tốc độ (nhanh hơn khi hàng đợi dài) */
     t(ms: number): number;
+    active?(): boolean;
 }
 
 type Step = () => Promise<void>
@@ -75,6 +91,7 @@ const NEUTRAL = new Set(["log",
     "chainEnd",
     "marker",
     "manaChange",
+    "teamManaChange",
     "attackCount",
     "move",
     "reveal",
@@ -158,12 +175,21 @@ const heroOf = (unit?: string): string | undefined => (unit ? getCard().view?.un
 /** Lá đánh (play) hoặc đòn lẻ (play = null) cùng các hiệu ứng theo sau */
 function playGroup(fx: Fx, play: PlayEv | null, effects: GameEvent[], span: GameEvent[]): Step {
     return async () => {
+        const visualEpoch = vfxEpoch()
         const me = myside()
         let caster = play?.args?.actor
         const hits: Hit[] = []
         const kills = new Set<string>()
+        const primaryDamage = effects.find((e): e is Extract<GameEvent, { t: "damage" }> => e.t === "damage" && (e.tag === "attack" || e.tag === "skill"))
+        const reflected = primaryDamage ? effects.filter((e): e is Extract<GameEvent, { t: "damage" }> => e.t === "damage" && e.kind === "true" && e.tag === "effect" && e.src === primaryDamage.target && e.target === primaryDamage.src) : []
+        const reflectionAt = reflected.length ? span.indexOf(reflected[0]) : -1
+        const firstEffects = reflected.length ? effects.slice(0,
+            effects.indexOf(reflected[0])) : effects
+        const firstSpan = reflectionAt >= 0 ? span.slice(0,
+            reflectionAt) : span
+        const fizzledJump = play?.card.id === "khazix_e" && !span.some(e => e.t === "move" || e.t === "status" || e.t === "damage")
         let equip: EquipEv | undefined
-        for (const e of effects) {
+        for (const e of firstEffects) {
             if (e.t === "cast") caster = caster ?? e.unit
             if (e.t === "attack") caster = caster ?? e.attacker
         }
@@ -180,7 +206,8 @@ function playGroup(fx: Fx, play: PlayEv | null, effects: GameEvent[], span: Game
                 from: from ?? caster, to, tint, miss, crit
             })
         }
-        for (const e of effects) {
+        for (const e of effects) if (e.t === "kill") kills.add(e.target)
+        for (const e of firstEffects) {
             if (e.t === "cast" && e.target) add(e.target,
                 "physical",
                 e.unit)
@@ -203,6 +230,15 @@ function playGroup(fx: Fx, play: PlayEv | null, effects: GameEvent[], span: Game
             else if (e.t === "kill") kills.add(e.target)
             else if (e.t === "equip") equip = e
         }
+        if (play?.card.id === "renata_e") {
+            const beneficiary = getCard().view?.chain?.links.at(-1)?.trigger.target
+            if (beneficiary) {
+                hits.length = 0
+                add(beneficiary,
+                    "gold",
+                    caster)
+            }
+        }
         if (play && !equip) {
             const a = play.args
             const named = [...(a?.target ? [a.target] : []),
@@ -222,6 +258,7 @@ function playGroup(fx: Fx, play: PlayEv | null, effects: GameEvent[], span: Game
         let card: HTMLElement | undefined
         let showPt = center
         let showScale = 1
+        if (play?.reaction && play.side !== me) flushSync(() => applyToDisplay([play]))
         // Quick (phản ứng) hiện trong sân khấu Chuỗi (chain/ChainStage), không khoe lá lần nữa
         if (play && !play.reaction) {
             chainDepth = play.reaction ? Math.min(chainDepth + 1,
@@ -233,16 +270,44 @@ function playGroup(fx: Fx, play: PlayEv | null, effects: GameEvent[], span: Game
             card = await fx.spawn({
                 kind: "show", card: play.card, name, banner: `${banner} · ${name}`, desc: descOf(play.card)
             })
-            const hr = mine ? rectOf(`[data-hand-uid="${play.card.uid}"]`) : null
+            const hr = mine ? rectOf(`[data-hand-uid="${play.card.uid}"]`) : opponentCardRect(play.side)
             const start = hr ? ptOf(hr) : handPt(play.side,
                 me)
+            // The physical card leaves the opponent fan before it is revealed.
+            if (!mine) flushSync(() => applyToDisplay([play]))
             showScale = Math.max(.5,
                 Math.min(1,
                     (window.innerHeight - 150) / (SHOW_W * 1.4 + 90)))
             showPt = {
                 x: center.x + chainDepth * 34, y: center.y - 28 + chainDepth * 22
             }
-            await run(card,
+            if (!mine) {
+                const back = await fx.spawn({
+                    kind: "flip", face: play.card, name
+                })
+                await Promise.all([fly(back,
+                    start,
+                    showPt,
+                    hr ? hr.width / FLIP_W : .3,
+                    SHOW_W / FLIP_W * showScale,
+                    1,
+                    1,
+                    fx.t(460)),
+                back.firstElementChild ? run(back.firstElementChild,
+                    [{
+                        transform: "rotateY(0deg)"
+                    },
+                    {
+                        transform: "rotateY(180deg)"
+                    }],
+                    fx.t(460)) : Promise.resolve()])
+                card.style.transform = place(card,
+                    showPt,
+                    showScale)
+                card.style.opacity = "1"
+                back.style.visibility = "hidden"
+                fx.drop(back)
+            } else await run(card,
                 [{
                     transform: place(card,
                         start,
@@ -256,6 +321,20 @@ function playGroup(fx: Fx, play: PlayEv | null, effects: GameEvent[], span: Game
                 fx.t(460),
                 "cubic-bezier(.18,.9,.3,1.3)")
             await sleep(fx.t(mine ? 1100 : 1000))
+        }
+
+        // Opening a reaction window only reveals the card; it must not attack before resolution.
+        if (fizzledJump || !effects.length && !span.some(e => e.t === "teamManaChange")) {
+            if (card) { await fly(card,
+                showPt,
+                showPt,
+                showScale,
+                showScale * .9,
+                1,
+                0,
+                fx.t(180)); fx.drop(card) }
+            if (play?.reaction && span.some((e) => e.t === "chainAdd")) await sleep(fx.t(650))
+            return
         }
 
         // ---- nhịp 2: tướng lao tới + lá thu nhỏ bay tới đích rồi mờ dần (lá đồ thì bay tới tướng nhận)
@@ -294,17 +373,79 @@ function playGroup(fx: Fx, play: PlayEv | null, effects: GameEvent[], span: Game
         await Promise.all(tasks)
         if (card) fx.drop(card)
 
+        if (casterPt && vfxReady()) await vfxCast(styleFor(play?.card,
+            hits[0]?.tint ?? "gold",
+            false,
+            heroOf(caster)),
+        casterPt)
+
+        // Kéo/đẩy đến đường mới trước khi đòn gây sát thương tới đích.
+        const moves = span.filter((e): e is Extract<GameEvent, { t: "move" }> => e.t === "move")
+        for (const move of moves) {
+            if (fx.active && !fx.active()) return
+            if (play?.card.id === "darius_e" && casterPt && vfxReady()) await vfxTravel(styleFor(play.card,
+                "physical",
+                false,
+                heroOf(caster)),
+            casterPt,
+            unitPt(move.unit))
+            const animations: Animation[] = []
+            try {
+                await Promise.all(movementTracks(move,
+                    play?.card.id === "khazix_e" ? "jump" : "swap").map(async track => {
+                    const el = unitEl(track.unit), old = unitRect(track.unit)
+                    const destination = laneRect(track.unit,
+                        track.to,
+                        me)
+                    if (!el || !old || !destination) return
+                    const to = ptOf(destination), from = ptOf(old), dx = to.x - from.x, dy = to.y - from.y
+                    const duration = fx.t(620)
+                    const animation = el.animate([
+                        {
+                            transform: "translate(0, 0)"
+                        },
+                        {
+                            transform: `translate(${dx * .5}px, ${dy * .5 + track.arc}px)`, offset: .5
+                        },
+                        {
+                            transform: `translate(${dx}px, ${dy}px)`
+                        }
+                    ],
+                    {
+                        duration, easing: "cubic-bezier(.2,.65,.3,1)", fill: "forwards"
+                    })
+                    animations.push(animation)
+                    await Promise.race([animation.finished.catch(() => {}),
+                        sleep(duration + 250)])
+                }))
+                if (!fx.active || fx.active()) flushSync(() => applyToDisplay([move]))
+            } finally {
+                // React now owns the new lanes; remove the temporary offsets.
+                for (const animation of animations) animation.cancel()
+            }
+            if (play?.card.id === "khazix_e" && vfxReady() && visualEpoch === vfxEpoch()) await vfxMeta("groundSlam",
+                unitPt(move.unit),
+                0x9b72cb)
+        }
+
         // ---- nhịp 3: đạn bay tới từng mục tiêu
         const icon = skillIcon(play?.card)
         const flights = hits.filter((h) => h.to !== (h.from ?? caster)).map(async (h, i) => {
-            await sleep(fx.t(i * 45))
+            if (!play && firstEffects.some(e => e.t === "damage" && e.target === h.to && e.tag === "dot")) return
+            const grouped = firstSpan.some(e => (e.t === "damage" || e.t === "heal" || e.t === "shield" || e.t === "status") && e.target === h.to && e.visualGroup)
+            await sleep(fx.t(grouped ? 0 : i * 45))
             if (vfxReady()) {
-                await vfxTravel(styleFor(play?.card,
+                const styles = styleSequenceFor(play?.card,
                     h.tint,
                     h.crit,
-                    heroOf(h.from ?? caster)),
-                h.from ? unitPt(h.from) : (casterPt ?? center),
-                unitPt(h.to))
+                    heroOf(h.from ?? caster))
+                for (const style of styles.slice(0,
+                    1)) {
+                    if (play?.card.id === "darius_e") style.travel = "heavyStrike"
+                    await vfxTravel(style,
+                        h.from ? unitPt(h.from) : (casterPt ?? center),
+                        unitPt(h.to))
+                }
                 return
             }
             const orb = await fx.spawn({
@@ -326,25 +467,77 @@ function playGroup(fx: Fx, play: PlayEv | null, effects: GameEvent[], span: Game
 
         // ---- nhịp 4: trúng đích (nổ + rung / nhấp nháy xanh khi hồi máu, khiên)
         const impacts: Promise<void>[] = []
-        for (const h of hits) {
-            if (h.miss) continue
-            impacts.push(vfxReady() ? vfxImpact(styleFor(play?.card,
-                h.tint,
-                h.crit,
-                heroOf(h.from ?? caster)),
-            unitPt(h.to)) : burst(fx,
-                unitPt(h.to),
-                h.tint,
-                1))
-            const el = unitEl(h.to)
-            if (h.tint === "heal" || h.tint === "shield") {
-                impacts.push(pulse(el,
-                    fx.t(300),
-                    1.07))
-            } else if (h.tint !== "gold") {
-                impacts.push(shake(el,
-                    fx.t(260)))
+        // 1 action -> N effect cues. Never deduplicate by target: damage, stun,
+        // shield and healing on the same champion each retain their own beat.
+        let effectCursor = 0
+        const active = () => (!fx.active || fx.active()) && visualEpoch === vfxEpoch()
+        const presentEffect = async (event: EffectEvent, land: () => void) => {
+            const at = unitPt(event.target)
+            const source = heroOf(event.src ?? caster)
+            const tint: Tint = event.t === "damage" ? event.kind : event.t === "status" ? "gold" : event.t
+            const styles = effectStylesFor(event,
+                play?.card,
+                source)
+            const explicit = (event as { visuals?: string[] }).visuals !== undefined
+            const render = async (style: typeof styles[number]) => {
+                if (vfxReady()) await vfxImpact(style,
+                    at)
+                else if (event.t !== "status") await burst(fx,
+                    at,
+                    tint,
+                    1)
             }
+            const visuals = !explicit && event.t === "damage" && event.tag !== "dot" && (!play || play.card.id === "basic")
+                ? runActionVfxSequence(styles,
+                    style => vfxReady() && event.src ? vfxTravel(style,
+                        unitPt(event.src),
+                        at) : Promise.resolve(),
+                    render,
+                    land,
+                    active,
+                    true)
+                : runVisualSequence(styles,
+                    render,
+                    land,
+                    active)
+            await Promise.all([visuals,
+                event.t === "damage" ? shake(unitEl(event.target),
+                    fx.t(260)) : event.t === "heal" || event.t === "shield" ? pulse(unitEl(event.target),
+                    fx.t(300),
+                    1.07) : Promise.resolve()])
+        }
+        const batches = new Map(effectBatches(firstSpan).map(batch => [batch.start,
+            batch]))
+        for (let index = 0; index < firstSpan.length; index++) {
+            if (fx.active && !fx.active()) return
+            const event = firstSpan[index]
+            if (event.t === "teamManaChange") {
+                applyToDisplay(firstSpan.slice(effectCursor,
+                    index).filter(x => x.t !== "kill"))
+                await teamManaStep(fx,
+                    event)()
+                effectCursor = index + 1
+                continue
+            }
+            const batch = batches.get(index)
+            if (!batch) continue
+            const land = () => {
+                flushSync(() => {
+                    landImpacts(batch.events)
+                    applyToDisplay(firstSpan.slice(effectCursor,
+                        batch.end).filter(x => x.t !== "kill"))
+                })
+                effectCursor = batch.end
+            }
+            if (batch.group) await runConcurrentTargets(batch.events,
+                receipt => receipt.target,
+                receipt => presentEffect(receipt,
+                    () => {}),
+                land,
+                active)
+            else await presentEffect(batch.events[0],
+                land)
+            index = batch.end - 1
         }
         if (equip) {
             const items = unitEl(equip.unit)?.querySelector(".bd-items") ?? null
@@ -357,7 +550,8 @@ function playGroup(fx: Fx, play: PlayEv | null, effects: GameEvent[], span: Game
                 fx.t(380),
                 1.3))
         }
-        if (!hits.length && !equip && casterPt) {
+        if (!hits.length && !equip && casterPt && !["teemo_q",
+            "teemo_r"].includes(play?.card.id ?? "")) {
             impacts.push(vfxReady() ? vfxImpact(styleFor(play?.card,
                 "gold",
                 false,
@@ -367,22 +561,36 @@ function playGroup(fx: Fx, play: PlayEv | null, effects: GameEvent[], span: Game
                 "gold",
                 .9))
         }
-        landImpacts(effects) // số nổi đúng lúc trúng
         // máu/khiên/trạng thái/đồ trên sân đổi đúng lúc trúng (tướng chết thì đợi mờ xong mới thành lá chết)
-        applyToDisplay(span.filter((x) => x.t !== "kill"))
+        applyToDisplay(firstSpan.filter((x) => x.t !== "kill"))
         await Promise.all(impacts)
-        for (const k of kills) {
-            if (vfxReady()) void vfxMeta("death",
-                unitPt(k))
+        if (reflected.length && primaryDamage?.src) {
+            const style = {
+                travel: "reflectReturn", impact: "trueHit", color: 0xb78ad4, color2: 0xd9f2c8, intensity: 1, crit: false
+            }
+            const at = unitPt(primaryDamage.src)
+            if (vfxReady()) await vfxTravel(style,
+                unitPt(primaryDamage.target),
+                at)
+            const after = span.slice(reflectionAt)
+            landImpacts(after)
+            applyToDisplay(after.filter((x) => x.t !== "kill"))
+            if (vfxReady()) await vfxImpact(style,
+                at)
+        }
+        await Promise.all([...kills].map(async (k) => {
+            const effect = vfxReady() ? vfxMeta("death",
+                unitPt(k)) : Promise.resolve()
             fadeOut(unitEl(k),
                 fx.t(400))
-        }
-        if (kills.size) await sleep(fx.t(400))
+            await Promise.all([effect,
+                sleep(fx.t(400))])
+        }))
         applyToDisplay(span.filter((x) => x.t === "kill"))
     }
 }
 
-interface DrawItem { side: Side; card?: Card; from?: Side; by?: string }
+interface DrawItem { side: Side; card?: Card; from?: Side; by?: string; event: GameEvent; stolen?: Extract<GameEvent, { t: "steal" }> }
 
 /**
  * Vị trí lá trên tay ngay khi lô sự kiện tới (lúc đó tay còn nguyên); lô chạy sau có thể tới khi state mới đã bỏ lá.
@@ -433,11 +641,11 @@ function burnStep(fx: Fx, list: { side: Side; card: Card }[]): Step {
                 1,
                 fx.t(380),
                 "cubic-bezier(.2,.8,.3,1)")
-            void (vfxReady() ? vfxMeta("drawSpark",
+            track((vfxReady() ? vfxMeta("drawSpark",
                 mid) : burst(fx,
                 mid,
                 "physical",
-                .8))
+                .8)))
             await sleep(fx.t(420))
             await fly(el,
                 mid,
@@ -501,104 +709,123 @@ function expireStep(fx: Fx, list: { side: Side; card: Card }[]): Step {
 
 /**
  * Gọi tướng úp: các lá tướng của CẢ HAI bên nằm úp trên đường rồi lật cùng lúc (không ai thấy trước ai).
- * Sau lật, tướng thật đã nằm trên sân nên lá mờ dần.
+ * The card on the battlefield itself turns over; no duplicate portrait underneath.
  */
 function revealStep(fx: Fx, list: { unit: string; lane: number }[], evs: GameEvent[]): Step {
     return async () => {
-        const view = getCard().view
-        const me = myside()
-        const items = await Promise.all(list.map(async (s) => {
-            const hero = view?.units[s.unit]?.hero ?? s.unit.split(":")[1] ?? s.unit
-            const r = unitRect(s.unit) ?? laneRect(s.unit,
+        // Render the actual battlefield card, then turn that same card over. Never crossfade
+        // a differently sized portrait on top of an already visible champion.
+        flushSync(() => applyToDisplay(evs))
+        const targets = list.map((s) => {
+            const unit = unitEl(s.unit)
+            const r = unit?.getBoundingClientRect() ?? laneRect(s.unit,
                 s.lane,
-                me)
-            const to = r ? ptOf(r) : boardCenter()
-            const el = await fx.spawn({
-                kind: "heroflip", hero, name: cg.getHero(hero)?.name ?? hero
-            })
+                myside())
+            const visibility = unit?.style.visibility ?? ""
+            if (unit) unit.style.visibility = "hidden"
             return {
-                el, to, k: r ? Math.max(.5,
-                    r.width / FLIP_W) : .8
+                unit, visibility, to: r ? ptOf(r) : boardCenter(), width: r?.width ?? 110, height: r?.height ?? 180
             }
-        }))
-        // 1) úp xuống đường
-        await Promise.all(items.map((x) => fly(x.el,
-            {
-                x: x.to.x, y: x.to.y - 110
-            },
-            x.to,
-            x.k * 1.5,
-            x.k,
-            0,
-            1,
-            fx.t(300),
-            "cubic-bezier(.5,0,.9,.6)")))
-        await sleep(fx.t(450))
-        applyToDisplay(evs) // tướng thật hiện dưới lá đang lật
-        // 2) lật cùng lúc
-        await Promise.all(items.map((x) => {
-            const inner = x.el.firstElementChild
-            const turn = inner ? run(inner,
-                [{
-                    transform: "rotateY(0deg)"
-                },
+        })
+        const sprites: HTMLElement[] = []
+        try {
+            const items = await Promise.all(targets.map(async (x) => {
+                const el = await fx.spawn({
+                    kind: "back"
+                })
+                sprites.push(el)
+                el.dataset.revealUnit = x.unit?.dataset.unitId ?? ""
+                el.style.width = `${x.width}px`
+                el.style.height = `${x.height}px`
+                el.style.aspectRatio = "auto"
+                return {
+                    ...x, el
+                }
+            }))
+            await Promise.all(items.map((x) => fly(x.el,
                 {
-                    transform: "rotateY(180deg)"
-                }],
-                fx.t(460),
-                "ease-in-out") : Promise.resolve()
-            const pop = run(x.el,
-                [{
-                    transform: place(x.el,
-                        x.to,
-                        x.k), opacity: 1
+                    x: x.to.x, y: x.to.y - 28
                 },
-                {
-                    transform: place(x.el,
-                        x.to,
-                        x.k * 1.25), opacity: 1, offset: .5
-                },
-                {
-                    transform: place(x.el,
-                        x.to,
-                        x.k), opacity: 1
-                }],
-                fx.t(460),
-                "ease-in-out")
-            void (vfxReady() ? vfxMeta("summon",
-                x.to) : burst(fx,
                 x.to,
-                "gold",
-                1.4))
-            return Promise.all([turn,
-                pop])
-        }))
-        await sleep(fx.t(300))
-        await Promise.all(items.map((x) => run(x.el,
-            [{
-                transform: place(x.el,
-                    x.to,
-                    x.k), opacity: 1
-            },
-            {
-                transform: place(x.el,
-                    x.to,
-                    x.k), opacity: 0
-            }],
-            fx.t(280),
-            "ease-out")))
-        items.forEach((x) => fx.drop(x.el))
+                1.06,
+                1,
+                0,
+                1,
+                fx.t(260))))
+            await sleep(fx.t(200))
+            // Blind picks on both sides reveal together; no player learns an opponent pick early.
+            await Promise.all(items.map(async (x) => {
+                await run(x.el,
+                    [{
+                        transform: `${place(x.el,
+                            x.to)} perspective(900px) rotateY(0deg)`, opacity: 1
+                    },
+                    {
+                        transform: `${place(x.el,
+                            x.to)} perspective(900px) rotateY(90deg)`, opacity: 1
+                    }],
+                    fx.t(220),
+                    "ease-in")
+                // React removes sprites on its next commit; hide the back synchronously
+                // so it cannot overlap the real face during that handoff frame.
+                x.el.style.visibility = "hidden"
+                fx.drop(x.el)
+                if (x.unit) {
+                    x.unit.style.visibility = x.visibility
+                    track(vfxReady() ? vfxMeta("summon",
+                        x.to) : burst(fx,
+                        x.to,
+                        "gold"))
+                    await run(x.unit,
+                        [{
+                            transform: "perspective(900px) rotateY(-90deg)", opacity: 1
+                        },
+                        {
+                            transform: "perspective(900px) rotateY(0deg)", opacity: 1
+                        }],
+                        fx.t(240),
+                        "ease-out",
+                        "none")
+                }
+            }))
+            await sleep(fx.t(140))
+        } finally {
+            targets.forEach((x) => { if (x.unit) x.unit.style.visibility = x.visibility })
+            sprites.forEach((el) => fx.drop(el))
+        }
     }
 }
 
 /** Bề rộng nền của lá úp bay (px) */
 const FLIP_W = 150
 
+async function reserveArrival(fx: Fx, side: Side, card: Card) {
+    const existing = Array.from(document.querySelectorAll<HTMLElement>(".hd-slot[data-hand-uid]"))
+        .map((el) => ({
+            el, left: el.getBoundingClientRect().left
+        }))
+    flushSync(() => prepareCardArrival(side,
+        card))
+    await Promise.all(existing.map(({ el, left }) => {
+        const dx = left - el.getBoundingClientRect().left
+        return Math.abs(dx) > .5 ? run(el,
+            [{
+                transform: `translateX(${dx}px)`
+            },
+            {
+                transform: "translateX(0)"
+            }],
+            fx.t(180),
+            "ease-out",
+            "none") : Promise.resolve()
+    }))
+}
+
 /**
  * Lá úp bay từ `a` ra giữa, phóng to, lật (rotateY 180°) lộ mặt rồi thu nhỏ vào `to`.
  * Không có `face` thì giữ úp và bay thẳng về `to`.
  */
-async function flipFly(fx: Fx, a: Pt, mid: Pt, to: Pt, toScale: number, face: Card | undefined, delay: number, s0 = .4) {
+async function flipFly(fx: Fx, a: Pt, mid: Pt, to: Pt, toScale: number, face: Card | undefined, delay: number, s0 = .4, onLand?: () => void) {
     await sleep(fx.t(delay))
     const el = await fx.spawn({
         kind: "flip", face, name: face ? nameOf(face) : undefined
@@ -613,6 +840,7 @@ async function flipFly(fx: Fx, a: Pt, mid: Pt, to: Pt, toScale: number, face: Ca
             0,
             fx.t(460),
             "cubic-bezier(.2,.8,.3,1)")
+        onLand?.()
         fx.drop(el)
         return
     }
@@ -662,9 +890,11 @@ async function flipFly(fx: Fx, a: Pt, mid: Pt, to: Pt, toScale: number, face: Ca
         1.4,
         toScale,
         1,
-        0,
+        1,
         fx.t(340),
         "ease-in")
+    onLand?.()
+    await sleep(fx.t(50))
     fx.drop(el)
 }
 
@@ -672,42 +902,206 @@ function drawsStep(fx: Fx, list: DrawItem[]): Step {
     return async () => {
         const me = myside()
         const center = boardCenter()
-        await Promise.all(list.map(async (d, i) => {
+        for (const d of list) {
+            if (fx.active?.() === false) return
             const mine = d.side === me
-            const a = d.from ? handPt(d.from,
-                me) : deckPt(d.side,
+            const hiddenArrival = !mine && d.event.t !== "drawAuto" && d.event.t !== "steal"
+            if (hiddenArrival) flushSync(() => reserveHiddenArrival(d.side,
+                1))
+            if (hiddenArrival) await sleep(fx.t(180))
+            if (d.card && d.event.t !== "drawAuto" && d.event.t !== "steal") {
+                await reserveArrival(fx,
+                    d.side,
+                    d.card)
+            }
+            if (fx.active?.() === false) return
+            let a = d.from ? handPt(d.from,
+                me) : d.event.t === "create" ? center : deckPt(d.side,
                 me)
-            const hr = mine && d.card ? rectOf(`[data-hand-uid="${d.card.uid}"]`) : null
-            const to = hr ? ptOf(hr) : handPt(d.side,
+            let hook: ReturnType<typeof vfxCardHook> | undefined
+            if (d.stolen) {
+                // A common stolen card keeps its UID. Its newly reserved destination
+                // must never be mistaken for the source in the opponent's hand.
+                const ownedSource = d.from === me ? rectOf(`[data-hand-uid="${d.stolen.card.uid}"] .cv`) : null
+                const source = ownedSource ?? rectOf(`[data-chain-card-uid="${d.stolen.card.uid}"]`) ?? (d.from ? opponentCardRect(d.from) : null)
+                if (source) a = ptOf(source)
+                const thief = Object.values(getCard().view?.units ?? {
+                }).find((u) => u.side === d.side && u.hero === "blitzcrank" && u.status === "board")
+                const catcher = thief ? unitPt(thief.id) : center
+                if (thief) {
+                    hook = vfxCardHook(catcher,
+                        a)
+                    await hook.reached
+                }
+                if (fx.active?.() === false) { await hook?.release(); return }
+                flushSync(() => applyToDisplay([d.stolen!]))
+                if (d.card && d.card.uid !== d.stolen.card.uid) {
+                    const original = await fx.spawn({
+                        kind: "card", card: d.stolen.card, name: nameOf(d.stolen.card)
+                    })
+                    original.dataset.stolenUid = d.stolen.card.uid
+                    original.style.transform = place(original,
+                        a,
+                        .5)
+                    if (hook) await tetheredFlight(hook,
+                        original,
+                        a,
+                        catcher,
+                        .5,
+                        1,
+                        fx.t(440))
+                    else await fly(original,
+                        a,
+                        catcher,
+                        .5,
+                        1,
+                        1,
+                        1,
+                        fx.t(440))
+                    await hook?.release()
+                    hook = undefined
+                    await Promise.all([fadeOut(original,
+                        fx.t(160)),
+                    burst(fx,
+                        catcher,
+                        "gold")])
+                    fx.drop(original)
+                    a = catcher
+                }
+            }
+            const hr = mine && d.card ? rectOf(`[data-hand-uid="${d.card.uid}"] .cv`) : hiddenArrival ? opponentCardRect(d.side,
+                true) : null
+            const scale = hr ? hr.width / FLIP_W : mine ? .4 : .22
+            const to = d.event.t === "steal" ? gravePt(d.card?.side ?? d.from ?? d.side,
+                me) : hr ? ptOf(hr) : handPt(d.side,
                 me)
+            if (hr && !mine) to.y = hr.bottom - FLIP_W * 1.4 * scale / 2
             // Trợ thủ ra sân lấy Q/E từ bộ: chớp sáng tướng nguồn
             if (d.by) {
-                void pulse(unitEl(d.by),
+                track(pulse(unitEl(d.by),
                     fx.t(520),
-                    1.1)
-                void burst(fx,
+                    1.1))
+                track(burst(fx,
                     unitPt(d.by),
                     "gold",
-                    .9)
-            }
-            const mid = {
-                x: center.x + (i - (list.length - 1) / 2) * 70, y: center.y
+                    .9))
             }
             // trộm bài: cả hai bên đều biết lá bị lấy nên lật mặt cho cả hai; rút thường chỉ chủ lá thấy mặt
             const seen = d.card && !(d.card as { hidden?: boolean }).hidden && (mine || d.from !== undefined)
-            await flipFly(fx,
+            const el = await fx.spawn({
+                kind: "flip", face: seen ? d.card : undefined, name: seen && d.card ? nameOf(d.card) : undefined
+            })
+            if (d.card) el.dataset.arrivalUid = d.card.uid
+            // Keep the flight and the actual hand card the same shape at touchdown.
+            if (hr && mine) el.style.height = `${hr.height / scale}px`
+            el.style.transform = place(el,
                 a,
-                mid,
+                .32)
+            const arc = {
+                x: a.x + (to.x - a.x) * .54, y: Math.min(a.y,
+                    to.y) - 46
+            }
+            const turn = seen && el.firstElementChild ? run(el.firstElementChild,
+                [{
+                    transform: "rotateY(0deg)"
+                },
+                {
+                    transform: "rotateY(0deg)", offset: .22
+                },
+                {
+                    transform: "rotateY(180deg)", offset: .76
+                },
+                {
+                    transform: "rotateY(180deg)"
+                }],
+                fx.t(620),
+                "ease-in-out") : Promise.resolve()
+            const motion = hook ? tetheredFlight(hook,
+                el,
+                a,
                 to,
-                hr ? hr.width / FLIP_W : mine ? .4 : .3,
-                seen ? d.card : undefined,
-                i * 150,
-                d.from !== undefined ? .3 : .4)
-            if (d.card) releaseCard(d.card.uid)
-            if (vfxReady()) void vfxMeta("drawSpark",
-                to)
-        }))
+                .32,
+                scale,
+                fx.t(620),
+                arc) : run(el,
+                [{
+                    transform: place(el,
+                        a,
+                        .32,
+                        8), opacity: .9
+                },
+                {
+                    transform: place(el,
+                        arc,
+                        Math.max(scale,
+                            .7),
+                        -4), opacity: 1, offset: .45
+                },
+                {
+                    transform: place(el,
+                        to,
+                        scale), opacity: 1
+                }],
+                fx.t(620),
+                "cubic-bezier(.2,.55,.3,1)")
+            await Promise.all([turn,
+                motion])
+            flushSync(() => {
+                if (d.stolen) applyToDisplay([d.stolen])
+                applyToDisplay([d.event])
+                if (d.card) releaseCard(d.card.uid)
+                if (hiddenArrival) reserveHiddenArrival(d.side,
+                    -1)
+            })
+            await hook?.release()
+            await sleep(32)
+            el.style.visibility = "hidden"
+            fx.drop(el)
+            if (vfxReady()) track(vfxMeta("drawSpark",
+                to))
+            await sleep(fx.t(100))
+        }
     }
+}
+
+function cardAnchor(el: HTMLElement): Pt {
+    const r = el.getBoundingClientRect()
+    return {
+        x: r.x + r.width / 2, y: r.y + r.height / 2
+    }
+}
+
+/** DOM card and Pixi claw share a frame update, avoiding a trailing-frame cable. */
+async function tetheredFlight(hook: ReturnType<typeof vfxCardHook>, el: HTMLElement, from: Pt, to: Pt, startScale: number, endScale: number, ms: number, control?: Pt) {
+    const started = performance.now()
+    const bend = control ?? {
+        x: (from.x + to.x) / 2, y: (from.y + to.y) / 2
+    }
+    let finish = () => {}
+    const arrived = new Promise<void>((resolve) => { finish = resolve })
+    hook.follow(() => {
+        const raw = Math.min(1,
+            (performance.now() - started) / Math.max(1,
+                ms))
+        const t = raw * raw * (3 - 2 * raw)
+        const pt = {
+            x: (1 - t) ** 2 * from.x + 2 * (1 - t) * t * bend.x + t * t * to.x,
+            y: (1 - t) ** 2 * from.y + 2 * (1 - t) * t * bend.y + t * t * to.y
+        }
+        el.style.transform = place(el,
+            pt,
+            startScale + (endScale - startScale) * t + Math.sin(Math.PI * t) * .15,
+            Math.sin(Math.PI * t) * -5)
+        el.style.opacity = "1"
+        if (raw >= 1) finish()
+        return cardAnchor(el)
+    })
+    await Promise.race([arrived,
+        hook.ended])
+    el.style.transform = place(el,
+        to,
+        endScale)
+    hook.follow(() => cardAnchor(el))
 }
 
 /** Xáo bộ bài: vài lá úp chia hai nửa rồi trộn xen kẽ ngay tại số đếm bộ bài */
@@ -715,8 +1109,8 @@ function shuffleStep(fx: Fx, side: Side): Step {
     return async () => {
         const c = deckPt(side,
             myside())
-        if (vfxReady()) void vfxMeta("shuffle",
-            c)
+        if (vfxReady()) track(vfxMeta("shuffle",
+            c))
         const els = await Promise.all([0,
             1,
             2,
@@ -768,16 +1162,20 @@ function shuffleStep(fx: Fx, side: Side): Step {
 }
 
 /** Lá thưởng úp lật mặt (cùng kiểu lật với rút bài) rồi bay về tay */
-function prizeStep(fx: Fx, side: Side, card: Card): Step {
+function prizeStep(fx: Fx, ev: Extract<GameEvent, { t: "prize" }>): Step {
     return async () => {
+        const { side, card } = ev
         const me = myside()
         const minis = document.querySelectorAll(`[data-cg-prizes="${side}"] .bd-mini:not(.gone)`)
         const a = minis.length ? ptOf(minis[0].getBoundingClientRect()) : deckPt(side,
             me)
         const mine = side === me
-        if (vfxReady()) void vfxMeta("prizeFlip",
-            a)
-        const hr = mine ? rectOf(`[data-hand-uid="${card.uid}"]`) : null
+        if (vfxReady()) track(vfxMeta("prizeFlip",
+            a))
+        await reserveArrival(fx,
+            side,
+            card)
+        const hr = mine ? rectOf(`[data-hand-uid="${card.uid}"] .cv`) : null
         await flipFly(fx,
             a,
             boardCenter(),
@@ -786,7 +1184,11 @@ function prizeStep(fx: Fx, side: Side, card: Card): Step {
             hr ? hr.width / FLIP_W : .4,
             mine ? card : undefined,
             0,
-            .3)
+            .3,
+            () => flushSync(() => {
+                applyToDisplay([ev])
+                releaseCard(card.uid)
+            }))
     }
 }
 
@@ -841,60 +1243,11 @@ function upgradeStep(fx: Fx, unit: string): Step {
 
 /** Triệu hồi / hồi sinh: lá tướng rơi xuống đường kèm chớp sáng */
 function summonStep(fx: Fx, unit: string, lane: number, ev: GameEvent): Step {
-    return async () => {
-        const view = getCard().view
-        const hero = view?.units[unit]?.hero ?? unit.split(":")[1] ?? unit
-        const r = unitRect(unit) ?? laneRect(unit,
-            lane,
-            myside())
-        const to = r ? ptOf(r) : boardCenter()
-        const el = await fx.spawn({
-            kind: "hero", hero, name: cg.getHero(hero)?.name ?? hero
-        })
-        const s = r ? Math.max(.5,
-            r.width / CARD_W) : .9
-        await fly(el,
-            {
-                x: to.x, y: to.y - 130
-            },
-            to,
-            s * 1.6,
-            s,
-            0,
-            1,
-            fx.t(260),
-            "cubic-bezier(.5,0,.9,.6)")
-        applyToDisplay([ev]) // tướng hiện trên sân đúng lúc lá chạm đường
-        const b = vfxReady() ? vfxMeta("summon",
-            to) : burst(fx,
-            to,
-            "gold",
-            1.5)
-        await run(el,
-            [{
-                transform: place(el,
-                    to,
-                    s),
-                opacity: 1
-            },
-            {
-                transform: place(el,
-                    to,
-                    s * 1.08),
-                opacity: .8,
-                offset: .3
-            },
-            {
-                transform: place(el,
-                    to,
-                    s),
-                opacity: 0
-            }],
-            fx.t(300),
-            "ease-out")
-        fx.drop(el)
-        await b
-    }
+    return revealStep(fx,
+        [{
+            unit, lane
+        }],
+        [ev])
 }
 
 /** Ghép đồ: 2 mảnh + vàng gộp lại thành lá đồ, rồi bay tới tướng (hoặc về tay) */
@@ -946,11 +1299,11 @@ function craftStep(fx: Fx, ev: CraftEv): Step {
         const card = await fx.spawn({
             kind: "card", card: itemCard, name: nameOf(itemCard)
         })
-        void (vfxReady() ? vfxMeta("forge",
+        track((vfxReady() ? vfxMeta("forge",
             center) : burst(fx,
             center,
             "gold",
-            1.6))
+            1.6)))
         await fly(card,
             center,
             center,
@@ -1001,20 +1354,71 @@ function craftStep(fx: Fx, ev: CraftEv): Step {
 function drawLike(x: GameEvent): DrawItem | null {
     if (x.t === "draw" || x.t === "drawAuto" || x.t === "returnToHand") {
         return {
-            side: x.side, card: x.card, by: x.t === "draw" && x.reason === "support" ? x.by : undefined
+            side: x.side, card: x.card, by: x.t === "draw" && x.reason === "support" ? x.by : undefined, event: x
         }
     }
     if (x.t === "create" && x.zone === "hand") {
         return {
-            side: x.side, card: x.card
+            side: x.side, card: x.card, event: x
         }
     }
     if (x.t === "steal") {
         return {
-            side: x.to, card: x.card, from: x.from
+            side: x.to, card: x.card, from: x.from, event: x, stolen: x
         }
     }
     return null
+}
+
+/** Mana receipt and blue resource cue share one beat, before the skill is cast. */
+function teamManaStep(fx: Fx, event: Extract<GameEvent, { t: "teamManaChange" }>): Step {
+    return async () => {
+        if (fx.active && !fx.active()) return
+        const hud = rectOf(`[data-team-mana="${event.side}"]`)
+        const pool = hud ? ptOf(hud) : handPt(event.side,
+            myside())
+        const actor = event.unit ? unitPt(event.unit) : pool
+        const from = event.delta < 0 ? pool : actor, to = event.delta < 0 ? actor : pool
+        const land = () => { if (!fx.active || fx.active()) applyToDisplay([event]) }
+        if (event.delta && vfxReady()) await vfxTeamMana(from,
+            to,
+            event.delta,
+            land)
+        else land()
+    }
+}
+
+/** Trap receipts never enter either hand. HP lands when the mushroom reaches its victim. */
+function mushroomStep(fx: Fx, event: Extract<GameEvent, { t: "mushroom" }>, span: GameEvent[]): Step {
+    return async () => {
+        const deck = deckPt(event.side,
+            myside())
+        if (event.phase === "plant") {
+            const creates = span.filter((x): x is Extract<GameEvent, { t: "create" }> => x.t === "create")
+            for (let n = 0; n < event.count; n++) {
+                if (fx.active && !fx.active()) return
+                if (vfxReady()) await vfxMushroom("plant",
+                    unitPt(event.source),
+                    deck)
+                else await sleep(fx.t(620))
+                if (creates[n]) applyToDisplay([creates[n]])
+            }
+            applyToDisplay(span.filter(x => x.t !== "create"))
+        } else {
+            const at = event.target ? unitPt(event.target) : deck
+            const effect = vfxReady() ? vfxMushroom("burst",
+                deck,
+                at) : Promise.resolve()
+            await sleep(fx.t(480))
+            if (fx.active && !fx.active()) return
+            landImpacts(span)
+            applyToDisplay(span.filter(x => x.t !== "kill"))
+            await effect
+            for (const e of span) if (e.t === "kill") await fadeOut(unitEl(e.target),
+                fx.t(300))
+            applyToDisplay(span.filter(x => x.t === "kill"))
+        }
+    }
 }
 
 /** Một bước hoạt ảnh kèm khoảng sự kiện [start, end) nó phụ trách */
@@ -1043,11 +1447,62 @@ export function buildPlan(events: GameEvent[], fx: Fx): PlanItem[] {
             i++
             continue
         }
+        if (e.t === "teamManaChange") {
+            steps.push(teamManaStep(fx,
+                e))
+            i++
+            continue
+        }
+        // drawAuto is a triggered trap, not a card arriving in the hand. The public
+        // mushroom event works for both players even when the private card is masked.
+        if (e.t === "drawAuto" && events[i + 1]?.t === "mushroom") {
+            steps.push(async () => { applyToDisplay([e]) })
+            i++
+            continue
+        }
+        if (e.t === "mushroom") {
+            let j = i + 1
+            while (j < events.length) {
+                const x = events[j]
+                if (e.phase === "plant" ? x.t === "create" && x.zone === "deck" || x.t === "shuffle" : EFFECT.has(x.t) || NEUTRAL.has(x.t)) j++
+                else break
+            }
+            steps.push(mushroomStep(fx,
+                e,
+                events.slice(i,
+                    j)))
+            i = j
+            continue
+        }
+        if (e.t === "chainResolve") {
+            const eff: GameEvent[] = []
+            let j = i + 1
+            while (j < events.length) {
+                const x = events[j]
+                if (x.t === "chainResolve") break
+                if (x.t === "attack" && (e.card?.id === "renata_r" || eff.some((previous) => previous.t === "attack"))) break
+                if (EFFECT.has(x.t)) eff.push(x)
+                else if (!NEUTRAL.has(x.t)) break
+                j++
+            }
+            const played: PlayEv | null = e.card ? {
+                t: "play", side: e.side, card: e.card, reaction: true
+            } : null
+            steps.push(eff.length ? playGroup(fx,
+                played,
+                eff,
+                events.slice(i,
+                    j)) : () => sleep(fx.t(650)))
+            i = j
+            continue
+        }
         if (e.t === "play" || EFFECT.has(e.t)) {
             const eff: GameEvent[] = []
             let j = e.t === "play" ? i + 1 : i
             while (j < events.length) {
                 const x = events[j]
+                if (x.t === "chainResolve") break
+                if (x.t === "attack" && (e.t === "play" && e.card.id === "renata_r" || eff.some((previous) => previous.t === "attack"))) break
                 if (EFFECT.has(x.t)) eff.push(x)
                 else if (!NEUTRAL.has(x.t)) break
                 j++
@@ -1060,11 +1515,30 @@ export function buildPlan(events: GameEvent[], fx: Fx): PlanItem[] {
             i = j
             continue
         }
+        if (e.t === "steal") {
+            let j = i + 1
+            while (j < events.length && ["status",
+                "statusEnd",
+                "manaChange",
+                "stack",
+                "log"].includes(events[j].t)) j++
+            const receipt = events[j]
+            const gained = receipt ? drawLike(receipt) : null
+            if (gained && gained.side === e.to && (receipt.t === "create" || receipt.t === "draw")) {
+                steps.push(drawsStep(fx,
+                    [{
+                        ...gained, from: e.from, stolen: e
+                    }]))
+                i = j + 1
+                continue
+            }
+        }
         const d0 = drawLike(e)
         if (d0) {
             const list = [d0]
             let j = i + 1
             while (j < events.length) {
+                if (events[j].t === "steal") break
                 const d = drawLike(events[j])
                 if (!d) break
                 list.push(d)
@@ -1095,13 +1569,13 @@ export function buildPlan(events: GameEvent[], fx: Fx): PlanItem[] {
         if (e.t === "chainCancel") {
             const cancelled = e
             steps.push(textStep(fx,
-                cg.getCardLang() === "en" ? "Cancelled" : "Bị huỷ",
+                cg.getCardLang() === "en" ? `Link ${cancelled.n} · Cancelled` : `Mắt xích ${cancelled.n} · Vô hiệu`,
                 "cancel",
                 () => {
-                    const r = rectOf(".cs-stage") ?? null
+                    const r = rectOf(`[data-chain-link="${cancelled.n}"]`) ?? null
                     const p = r ? ptOf(r) : boardCenter()
                     return {
-                        x: p.x + (cancelled.n - 1) * 24, y: p.y
+                        x: p.x, y: p.y
                     }
                 }))
         } else if (e.t === "cardFrozen" || e.t === "cardThawed") {
@@ -1159,8 +1633,7 @@ export function buildPlan(events: GameEvent[], fx: Fx): PlanItem[] {
                 e.side))
         } else if (e.t === "prize") {
             steps.push(prizeStep(fx,
-                e.side,
-                e.card))
+                e))
         } else if (e.t === "summon" || e.t === "respawn") {
             steps.push(summonStep(fx,
                 e.unit,
@@ -1194,6 +1667,11 @@ export async function runBatch(events: GameEvent[], fx: Fx, alive: () => boolean
         // sự kiện không có bước riêng nằm trước bước này (hồi mana đầu lượt...) hiện ngay trước bước
         applyToDisplay(events.slice(cursor,
             p.start))
+        if (events[p.start]?.t === "chainResolve" || events[p.start]?.t === "chainCancel") applyToDisplay(events.slice(p.start,
+            p.start + 1))
+        const first = events[p.start]
+        if (first?.t === "play" && first.reaction) applyToDisplay(events.slice(p.start,
+            p.end).filter((e) => e.t === "chainAdd" || e.t === "chainWindow"))
         try {
             await p.step()
         } catch {
@@ -1201,7 +1679,9 @@ export async function runBatch(events: GameEvent[], fx: Fx, alive: () => boolean
         }
         applyToDisplay(events.slice(p.start,
             p.end))
+        await Promise.all([...pendingEffects])
         cursor = p.end
     }
+    await Promise.all([...pendingEffects])
     applyToDisplay(events.slice(cursor))
 }

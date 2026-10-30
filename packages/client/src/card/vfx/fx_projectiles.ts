@@ -374,9 +374,17 @@ type Step = (t: number, dt: number, ms: number) => void
 /** Chạy một timeline bằng app.ticker, tự dọn root khi xong */
 function run(ctx: VfxCtx, root: Container, durMs: number, step: Step): Promise<void> {
     return new Promise<void>((resolve) => {
+        if (ctx.layer.destroyed) { root.destroy({
+            children: true
+        }); resolve(); return }
         ctx.layer.addChild(root)
         let el = 0
+        let done = false
         const finish = (): void => {
+            if (done) return
+            done = true
+            root.off("destroyed",
+                finish)
             ctx.app.ticker.remove(tick)
             if (!root.destroyed) {
                 root.destroy({
@@ -406,6 +414,8 @@ function run(ctx: VfxCtx, root: Container, durMs: number, step: Step): Promise<v
                 finish()
             }
         }
+        root.once("destroyed",
+            finish)
         ctx.app.ticker.add(tick)
     })
 }

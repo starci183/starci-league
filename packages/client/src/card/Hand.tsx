@@ -6,11 +6,8 @@ import {
     cg
 } from "@starci/shared"
 import {
-    actionsForHandCard, attacksOf, cardActions, cardSig, cardlessOptions, freeAttackOptions, gameOf, manaCostOf, useCard, type CardView
+    actionsForHandCard, attacksOf, cardActions, cardSig, cardlessOptions, gameOf, manaCostOf, targetsOf, useCard, type CardView
 } from "./store"
-import {
-    RichText
-} from "./RichText"
 import {
     CraftDialog
 } from "./hand/CraftDialog"
@@ -19,7 +16,13 @@ import {
 } from "./anim/pending"
 
 type Action = cg.Action
-type Side = cg.Side
+import {
+    inspectionActions
+} from "./ui/inspection"
+import {
+    GameIcon
+} from "./ui/GameIcon"
+
 type Card = cg.Card
 type PlayArgs = cg.PlayArgs
 
@@ -150,11 +153,11 @@ interface CardData {
     reserve: boolean;
     /** Lá tạm của hiệu ứng tướng: tan biến cuối lượt nếu chưa dùng */
     temp: boolean;
-    /** Mana lá chiêu Pháp sư tốn (undefined = không phải lá chiêu Pháp sư) */
+    /** Mana đội mà lá chiêu tiêu; undefined nếu lá không dùng mana. */
     cost?: number;
-    /** Mana hiện có của Pháp sư chủ lá */
+    /** Quỹ mana hiện có của đội chủ lá. */
     mana: number;
-    /** Pháp sư không đủ mana để đánh lá này */
+    /** Đội không đủ mana để đánh lá này. */
     lackMana: boolean;
     options: Action[];
     chainable: boolean;
@@ -185,7 +188,7 @@ function buildData(view: CardView, g: cg.Game, legal: Action[], hand: Card[]): C
         const lbl = TYPE_LABEL[info.type] ?? TYPE_LABEL.support
         const cost = manaCostOf(g,
             card)
-        const mana = unit?.mana ?? 0
+        const mana = g.teamManaOf(unit?.side ?? card.side ?? view.you ?? "A")
         return {
             card, name: info.name, desc: info.desc, type: info.type, typeLabel: L(lbl[0],
                 lbl[1]),
@@ -238,12 +241,15 @@ const PICK_LABEL: Record<string, [string, string]> = {
 /** Thông báo lá bị đốt khi tay đầy */
 interface BurnToast { k: number; text: string }
 let burnSeq = 0
-/** Tiền tố nguồn chọn mục tiêu của nút Đánh nhanh (để không lẫn với đòn miễn phí cùng tướng) */
+/** Tiền tố nguồn chọn mục tiêu của đòn không cần lá của Đấu sĩ */
 const QUICK_PREFIX = "quick:"
+const VOW_PREFIX = "vow:"
 
 // ---------------------------------------------------------------- Hand
 export function Hand() {
     const s = useCard()
+    const incoming = useSyncExternalStore(subscribePending,
+        pendingSnapshot)
     const { view, legal, targeting, error } = s
     const [chooser,
         setChooser] = useState<Chooser | null>(null)
@@ -460,10 +466,11 @@ export function Hand() {
     }
 
     // ---- hành động toàn cục
-    const summons = legal.filter((a): a is Extract<Action, { t: "summon" }> => a.t === "summon")
-    const attacks = legal.filter((a): a is Extract<Action, { t: "attack" }> => a.t === "attack" && !a.cardless)
     const quickHits = legal.filter((a): a is Extract<Action, { t: "attack" }> => a.t === "attack" && !!a.cardless)
     const upgrades = dedupe(legal.filter((a) => a.t === "upgrade")) as Extract<Action, { t: "upgrade" }>[]
+    // Lời Thề Hiệp Sĩ: mỗi người đeo 1 nút "đổi bảo hộ"; bấm rồi chọn đồng minh trên bàn
+    const vows = legal.filter((a) => a.t === "vow") as Extract<Action, { t: "vow" }>[]
+    const vowers = [...new Set(vows.map((a) => a.unit))]
     // bỏ bài xuống mộ (miễn phí): chỉ khi engine cho phép lá đang chọn (lá đóng băng vẫn bỏ được)
     const discardAct = picked ? legal.find((a): a is Extract<Action, { t: "discard" }> => a.t === "discard" && a.uid === picked) : undefined
     const pickedCard = discardAct ? hand.find((c) => c.uid === discardAct.uid) : undefined
@@ -473,19 +480,14 @@ export function Hand() {
     const { used: atkUsed, limit: atkLimit } = attacksOf(view,
         me)
     const atkOut = atkUsed >= atkLimit
-    const handOf = (h: string) => hand.filter((c) => c.kind === "skill" && c.hero === h).length
     // bước gọi tướng đầu lượt: nút lớn là "Rút bài" (gọi xong hoặc bỏ qua thì rút), sau đó mới là "Kết thúc lượt"
     const drawAct = legal.find((a) => (a.t as string) === "draw")
     // gọi tướng úp (phase "blind"): cả hai bên cùng chọn, nút lớn là "Chốt" rồi chờ đối thủ
     const blind = view.phase === "blind" ? view.blind : undefined
     const readyAct = legal.find((a) => a.t === "ready")
-    const myPicks = blind?.picks[me] ?? []
     const iReady = !!blind?.ready[me]
-    const foe: Side = me === "A" ? "B" : "A"
     const endAct = legal.find((a) => a.t === "end") ?? drawAct ?? readyAct
     const canEnd = !!endAct
-    const summonHeroes = [...new Set(summons.map((a) => a.hero))]
-    const attackers = [...new Set(attacks.map((a) => a.actor))]
     const chain = view.phase === "chain"
     const endLabel = readyAct ? L("Chốt gọi tướng",
         "Lock in summons") : blind ? (iReady ? L("Đã chốt, chờ đối thủ…",
@@ -501,7 +503,13 @@ export function Hand() {
     const confirms = targeting && targeting.options.length > 1 && targeting.options.length <= 8
         && targeting.options.every((a) => (argsOf(a).targets?.length ?? 0) > 0)
         ? targeting.options : []
+    // Cùng mục tiêu nhưng khác mức chi (Nami E 20/30 mana, Lux R 20..bể, Teemo R số Nấm): hiện nút chọn mức
+    const levels = targeting && targeting.options.length > 1 && !confirms.length
+        && targeting.options.every((a) => argsOf(a).manaSpent !== undefined || argsOf(a).amount !== undefined)
+        && new Set(targeting.options.map((a) => JSON.stringify(targetsOf(a)))).size === 1
+        ? [...targeting.options].sort((a, b) => (argsOf(a).manaSpent ?? argsOf(a).amount ?? 0) - (argsOf(b).manaSpent ?? argsOf(b).amount ?? 0)) : []
     const srcId = src ? src.replace(QUICK_PREFIX,
+        "").replace(VOW_PREFIX,
         "") : ""
     const srcName = src ? (cardName(srcId) ?? (view.units[srcId] ? unitName(srcId) : (cg.getHero(srcId)?.name ?? ""))) : ""
 
@@ -525,6 +533,8 @@ export function Hand() {
 
     return (
         <section className={`cg-hand${myMove ? " mine" : ""}${chain ? " chain" : ""}`}>
+            {s.presenting ? <div className="hd-queue-status" role="status">{L("Đang giải quyết hành động…",
+                "Resolving action…")}</div> : null}
             {error ? (
                 <div className="hd-toast" role="alert">
                     <span>{error}</span>
@@ -541,6 +551,13 @@ export function Hand() {
                     <b>{L("Chọn mục tiêu…",
                         "Choose a target…")}</b>
                     {srcName ? <span>{srcName}</span> : null}
+                    {levels.map((a, i) => (
+                        <button key={`lv${i}`} className="hd-chip" onClick={() => cardActions.act(a)}>
+                            {argsOf(a).manaSpent !== undefined ? L(`Chi ${argsOf(a).manaSpent} mana`,
+                                `Spend ${argsOf(a).manaSpent} mana`) : L(`Số lượng: ${argsOf(a).amount}`,
+                                `Amount: ${argsOf(a).amount}`)}
+                        </button>
+                    ))}
                     {confirms.map((a, i) => (
                         <button key={i} className="hd-chip" onClick={() => cardActions.act(a)}>
                             {L("Xong: ",
@@ -603,14 +620,14 @@ export function Hand() {
             <div className="hd-left">
                 <div className="hd-count">
                     <b>{L("Tay",
-                        "Hand")} {hand.filter((c) => !c.temp).length}/{handMax}
-                    {hand.some((c) => c.temp) ? <i className="hd-tmpcount"> (+{hand.filter((c) => c.temp).length} {L("tạm",
+                        "Hand")} {hand.filter((c) => !c.temp && !incoming.has(c.uid)).length}/{handMax}
+                    {hand.some((c) => c.temp && !incoming.has(c.uid)) ? <i className="hd-tmpcount"> (+{hand.filter((c) => c.temp && !incoming.has(c.uid)).length} {L("tạm",
                         "temp")})</i> : null}</b>
                     <span>{L("Bộ bài",
                         "Deck")} {view.players[me].deckCount}</span>
                     <span className={`hd-atk${atkOut ? " out" : ""}`}
-                        title={L("Đánh thường mỗi lượt: lá Đánh thường và đòn không cần lá của Đấu sĩ. Đòn miễn phí từ chiêu không tính.",
-                            "Basic attacks per turn: Basic Attack cards and the Fighter's cardless attack. Free attacks from skills do not count.")}>
+                        title={L("Đánh thường mỗi lượt: lá Đánh thường và đòn không cần lá của Đấu sĩ.",
+                            "Basic attacks per turn: Basic Attack cards and the Fighter's cardless attack.")}>
                         {L("Đánh",
                             "Attacks")} {atkUsed}/{atkLimit}
                     </span>
@@ -623,51 +640,6 @@ export function Hand() {
             </div>
 
             <div className="hd-actions">
-                {blind ? (
-                    <div className="hd-group hd-blind">
-                        <label>{L("Gọi tướng úp · cả hai cùng lúc",
-                            "Blind summon · both at once")}</label>
-                        <div className="hd-row">
-                            {myPicks.map((p, i) => (
-                                <span key={i} className="hd-pick" title={cg.getHero(p.hero)?.name ?? p.hero}>
-                                    <img src={heroPortrait(p.hero)} alt="" />
-                                    <b>{cg.getHero(p.hero)?.name ?? p.hero}</b>
-                                    <i>{L("đường",
-                                        "lane")} {p.lane + 1}</i>
-                                </span>
-                            ))}
-                            {!myPicks.length ? <span className="hd-note">{L("Chưa chọn tướng nào",
-                                "No champion picked yet")}</span> : null}
-                        </div>
-                        <div className="hd-note">
-                            {L(`Hai bên gọi cùng số tướng (tối đa ${blind.cap}). `,
-                                `Both sides summon the same number (max ${blind.cap}). `)}
-                            {blind.ready[foe] ? L("Đối thủ đã chốt.",
-                                "Opponent is locked in.") : L("Đối thủ đang chọn…",
-                                "Opponent is choosing…")}
-                        </div>
-                    </div>
-                ) : null}
-                {summonHeroes.length ? (
-                    <div className="hd-group">
-                        <label>{blind ? L("Chọn tướng gọi úp",
-                            "Pick a champion") : L("Triệu hồi",
-                            "Summon")}</label>
-                        <div className="hd-row">
-                            {summonHeroes.map((h) => (
-                                <button key={h} className={`hd-hero sm${src === h ? " sel" : ""}`} title={`${cg.getHero(h)?.name ?? h} · ${handOf(h)} ${L("lá trên tay",
-                                    "cards in hand")}`}
-                                onClick={() => { cardActions.cancelTargeting(); cardActions.beginTargeting(h,
-                                    summons.filter((a) => a.hero === h)) }}>
-                                    <img src={heroPortrait(h)} alt="" />
-                                    <span>{cg.getHero(h)?.name ?? h}</span>
-                                    <em className={handOf(h) ? "has" : ""}>{handOf(h)} {L("lá trên tay",
-                                        "in hand")}</em>
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-                ) : null}
                 {upgrades.length ? (
                     <div className="hd-group">
                         <label>{L("Nâng cấp",
@@ -685,6 +657,22 @@ export function Hand() {
                                     </button>
                                 )
                             })}
+                        </div>
+                    </div>
+                ) : null}
+                {vowers.length ? (
+                    <div className="hd-group">
+                        <label>{L("Lời Thề Hiệp Sĩ · đổi đồng minh bảo hộ (1 lần/lượt)",
+                            "Knight's Vow · switch protected ally (once per turn)")}</label>
+                        <div className="hd-row">
+                            {vowers.map((u) => (
+                                <button key={u} className={`hd-btn up${src === VOW_PREFIX + u ? " sel" : ""}`} title={unitName(u)}
+                                    onClick={() => { cardActions.cancelTargeting(); cardActions.beginTargeting(VOW_PREFIX + u,
+                                        vows.filter((a) => a.unit === u)) }}>
+                                    {L("Đổi bảo hộ",
+                                        "Switch ally")} · {unitName(u)}
+                                </button>
+                            ))}
                         </div>
                     </div>
                 ) : null}
@@ -707,27 +695,10 @@ export function Hand() {
                         </div>
                     </div>
                 ) : null}
-                {attackers.length ? (
-                    <div className="hd-group">
-                        <label>{L("Đánh miễn phí",
-                            "Free attack")}</label>
-                        <div className="hd-row">
-                            {attackers.map((u) => (
-                                <button key={u} className={`hd-hero atk${src === u ? " sel" : ""}`} title={unitName(u)}
-                                    onClick={() => { cardActions.cancelTargeting(); cardActions.beginTargeting(u,
-                                        freeAttackOptions(legal,
-                                            u)) }}>
-                                    <img src={view.units[u] ? heroPortrait(view.units[u].hero) : ""} alt="" />
-                                    <span>{unitName(u)}</span>
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-                ) : null}
                 <div className="hd-bottom">
-                    <button className="hd-btn blue" onClick={() => setCraftOpen(true)}>{L("Ghép đồ",
+                    <button className="hd-btn blue" onClick={() => setCraftOpen(true)}><GameIcon name="anvil" />{L("Ghép đồ",
                         "Craft")}</button>
-                    <button className="hd-end" disabled={!canEnd} onClick={() => endAct && cardActions.act(endAct)}>{endLabel}</button>
+                    <button className="hd-end" disabled={!canEnd} onClick={() => endAct && cardActions.act(endAct)}><GameIcon name="arrow" />{endLabel}</button>
                 </div>
             </div>
 
@@ -738,6 +709,10 @@ export function Hand() {
 
 // ---------------------------------------------------------------- một lá trên tay
 function HandCard({ d, chain, selected, onClick }: { d: CardData; chain: boolean; selected: boolean; onClick: () => void }) {
+    const inspectCard = () => inspectionActions.card(d.card,
+        {
+            source: chain && d.chainable ? "reaction" : "hand"
+        })
     const playable = d.options.length > 0
     const cls = ["hd-face",
         d.type,
@@ -756,11 +731,11 @@ function HandCard({ d, chain, selected, onClick }: { d: CardData; chain: boolean
         pendingSnapshot).has(d.card.uid)
     return (
         <div className={arriving ? "hd-slot arriving" : "hd-slot"} data-hand-uid={d.card.uid}>
-            <div className={cls.filter(Boolean).join(" ")} onClick={onClick} role="button" aria-disabled={!playable}>
+            <div className={cls.filter(Boolean).join(" ")} onMouseEnter={inspectCard} onFocus={inspectCard} tabIndex={0} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClick() } }} onClick={() => { inspectCard(); onClick() }} role="button" aria-disabled={!playable}>
                 <Framed card={d.card} name={d.name} />
                 {tag ? <span className="hd-q hd-qtag">{tag}</span> : null}
-                {d.cost !== undefined ? <span className={`hd-gem${d.lackMana ? " lack" : ""}`} title={L("Mana cần để tung chiêu",
-                    "Mana needed to cast")}>{d.cost}</span> : null}
+                {d.cost !== undefined ? <span className={`hd-gem${d.lackMana ? " lack" : ""}`} title={L(`Tốn ${d.cost} mana đội · đang có ${d.mana}`,
+                    `Costs ${d.cost} team mana · ${d.mana} available`)}>{d.cost}</span> : null}
                 {d.frozen ? <div className="hd-ice"><span>{L("Bị Hoá Băng",
                     "Frozen")}</span></div> : null}
                 {d.temp ? <span className="hd-tmp">{L("Tạm",
@@ -770,33 +745,7 @@ function HandCard({ d, chain, selected, onClick }: { d: CardData; chain: boolean
                 {d.reserve ? <div className="hd-dead rsv">{L("Chưa gọi",
                     "Not summoned")}</div> : null}
             </div>
-            <div className={`hd-zoom ${d.type}`}>
-                <div className="hd-zcard">
-                    <Framed card={d.card} name={d.name} />
-                </div>
-                <div className="hd-ztags">
-                    <span>{d.typeLabel}</span>
-                    {d.quick ? <span className="hd-q">{tag}</span> : null}
-                    {d.dead ? <span className="bad">{L("Tướng đã chết",
-                        "Champion dead")}</span> : null}
-                    {d.reserve ? <span className="dim">{L("Tướng chưa ra sân",
-                        "Champion not on board")}</span> : null}
-                    {d.cost !== undefined ? <span className="mana">{L("Tốn",
-                        "Cost")} {d.cost} mana</span> : null}
-                    {d.temp ? <span className="tmp">{L("Tạm",
-                        "Temp")}</span> : null}
-                </div>
-                <div className="hd-zdesc"><RichText text={d.desc} /></div>
-                {d.temp ? <div className="hd-zstate tmp">{L("Lá tạm: biến mất cuối lượt nếu không dùng",
-                    "Temporary card: vanishes at end of turn if unused")}</div> : null}
-                {d.frozen ? <div className="hd-zstate ice">{L("Bị Hoá Băng: không đánh được cho tới khi tan băng",
-                    "Frozen: cannot be played until thawed")}</div> : null}
-                {d.lackMana ? <div className="hd-zstate bad">{L(`Thiếu mana (cần ${d.cost}, còn ${d.mana})`,
-                    `Not enough mana (need ${d.cost}, have ${d.mana})`)}</div> : null}
-                <div className={`hd-zstate${playable ? " ok" : ""}`}>{playable ? L("Bấm để đánh",
-                    "Click to play") : L("Chưa đánh được",
-                    "Not playable now")}</div>
-            </div>
+
         </div>
     )
 }

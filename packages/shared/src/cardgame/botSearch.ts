@@ -40,6 +40,10 @@ export interface SearchConfig {
 export const HARD_SEARCH: SearchConfig = {
     width: 4, maxDepth: 10, maxApplies: 900, maxChildren: 40, replyTop: 0, leafRank: true
 }
+/** Mức "expert" cho mô phỏng cân bằng: beam rộng hơn và chấm lại các kế hoạch tốt nhất sau lượt đáp trả của đối thủ */
+export const EXPERT_SEARCH: SearchConfig = {
+    width: 6, maxDepth: 12, maxApplies: 2500, maxChildren: 60, replyTop: 3, leafRank: true
+}
 
 interface Step {
     /** dấu vân tay state (phần nhìn thấy) ngay trước hành động */
@@ -66,7 +70,7 @@ function isLiveQuick(s: GameState, c: Card): boolean {
     const u = s.units[`${c.side}:${c.hero}`]
     if (!def?.quick || !u || u.status !== "board") return false
     const g = new Game(s)
-    return !g.isMage(u) || g.manaOf(u) >= g.manaCost(u,
+    return g.manaOf(u) >= g.manaCost(u,
         def,
         c)
 }
@@ -205,7 +209,7 @@ export function candidateActions(s: GameState, side: Side): Action[] {
             })
     }
     for (const g of groups.values()) out.push(g.a)
-    // tách riêng đòn không cần lá (cardless) và đòn miễn phí: khoá sameAction đã gồm trường cardless
+    // Đòn không cần lá của Đấu sĩ được nhận diện bằng trường cardless
     return out
 }
 
@@ -427,7 +431,8 @@ function blindDecision(real: GameState, side: Side): Action {
             try {
                 let s = applyAction(view,
                     a).state
-                for (let i = 0; i < 6 && s.phase === "blind"; i++) {
+                // bàn đầy: mỗi phe xếp đủ 5 tướng (tối đa ~10 bước blind + chốt)
+                for (let i = 0; i < 14 && s.phase === "blind"; i++) {
                     const mover = actorsOf(s)[0]
                     if (!mover) break
                     s = applyAction(s,
