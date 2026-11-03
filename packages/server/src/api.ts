@@ -138,12 +138,24 @@ function deckCards(v: unknown): string[] {
 }
 
 async function profile(uid: string) {
-    const { rows } = await pool().query<{ id: string; email: string; name: string }>(
-        "select u.id, u.email, p.display_name as name from users u join profiles p on p.id = u.id where u.id = $1",
+    const { rows } = await pool().query<{ id: string; email: string; name: string; rating: number; wins: number; losses: number; created_at: string }>(
+        "select u.id, u.email, p.display_name as name, p.rating, p.wins, p.losses, u.created_at from users u join profiles p on p.id = u.id where u.id = $1",
         [uid])
     if (!rows[0]) throw new HttpError(401,
         "Tài khoản không còn tồn tại, hãy đăng nhập lại")
     return rows[0]
+}
+
+/** Bảng xếp hạng: 20 người điểm cao nhất, kèm hạng của người hỏi */
+async function leaderboard(uid: string) {
+    const top = await pool().query<{ id: string; name: string; rating: number; wins: number; losses: number }>(
+        "select id, display_name as name, rating, wins, losses from profiles where wins + losses > 0 order by rating desc, wins desc limit 20")
+    const mine = await pool().query<{ rank: string }>(
+        "select count(*) + 1 as rank from profiles where rating > (select rating from profiles where id = $1)",
+        [uid])
+    return {
+        top: top.rows, rank: Number(mine.rows[0]?.rank ?? 0)
+    }
 }
 
 async function register(body: Record<string, unknown>) {
@@ -275,6 +287,8 @@ async function route(req: IncomingMessage, path: string): Promise<[number, unkno
         await login(await readJson(req))]
     if (m === "GET" && path === "/api/me") return [200,
         await profile(userOf(req))]
+    if (m === "GET" && path === "/api/leaderboard") return [200,
+        await leaderboard(userOf(req))]
     if (path === "/api/decks") {
         const uid = userOf(req)
         if (m === "GET") return [200,

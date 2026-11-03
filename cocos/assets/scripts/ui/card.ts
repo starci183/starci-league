@@ -18,7 +18,7 @@ import {
 } from "./kit"
 
 /** Mã tranh: "spell:heal" -> art/cards/spell_heal, "item:kiem_dai" -> art/cards/item_kiem_dai */
-export const cardArt = (id: string) => `art/cards/${id.replace(":",
+export const cardArt = (id: string) => id.startsWith("item:") ? `art/items/${id.slice(5)}` : `art/cards/${id.replace(":",
     "_")}`
 
 export interface CardView { node: Node; setCount(n: number): void }

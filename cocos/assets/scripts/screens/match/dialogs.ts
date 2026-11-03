@@ -55,7 +55,7 @@ function modal(root: Node, w: number, h: number, title: string, subtitle = ""): 
         0,
         h / 2 - 56,
         {
-            font: "titleMedium", size: 48, width: w - 120, upper: false
+            font: "textMedium", bold: true, size: 48, width: w - 120, upper: false
         })
     rule(p,
         w - 300,
@@ -117,7 +117,7 @@ export function modeDialog(root: Node, hero: string, options: { mode: string; ac
             50,
             160,
             {
-                font: "titleMedium", size: 32, width: colW - 150, upper: false
+                font: "textMedium", bold: true, size: 32, width: colW - 150, upper: false
             })
         const tag = new Frame(f.node,
             140,
@@ -239,7 +239,7 @@ export function stealDialog(root: Node, view: CardView, options: cg.Action[], on
             -(W - 70) / 2 + 190,
             0,
             {
-                font: "titleMedium", size: 28, width: 200, align: "left", upper: false
+                font: "textMedium", bold: true, size: 28, width: 200, align: "left", upper: false
             })
         slot(row.node,
             "skills",
@@ -395,7 +395,7 @@ export function craftDialog(root: Node, view: CardView, crafts: cg.Action[], onP
             0,
             265,
             {
-                font: "titleMedium", size: 32, width: 300, upper: false
+                font: "textMedium", bold: true, size: 32, width: 300, upper: false
             })
         if (!picked) {
             text(detailBody,
@@ -422,7 +422,7 @@ export function craftDialog(root: Node, view: CardView, crafts: cg.Action[], onP
             0,
             80,
             {
-                font: "titleMedium", size: 32, width: 310, upper: false
+                font: "textMedium", bold: true, size: 32, width: 310, upper: false
             })
         text(detailBody,
             info?.stats ?? "",
@@ -443,7 +443,7 @@ export function craftDialog(root: Node, view: CardView, crafts: cg.Action[], onP
             0,
             -62,
             {
-                font: "titleMedium", size: 26, width: 300, upper: false
+                font: "textMedium", bold: true, size: 26, width: 300, upper: false
             })
         ;[picked.a,
             picked.b].forEach((c, i) => {

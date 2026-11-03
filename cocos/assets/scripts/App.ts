@@ -2,7 +2,7 @@
 // Nạp font, dựng nền menu chung (bg/menu, bản đồ chỉ dùng cho sân đấu), giữ phiên đăng nhập và kho lá, chuyển màn.
 // Màn trận (ghép, cấm/chọn, đấu, kết quả) chuyển theo trạng thái phòng đấu ở net/game.ts.
 import {
-    _decorator, Component, Graphics, Node, ResolutionPolicy, view
+    _decorator, Color, Component, Graphics, Node, ResolutionPolicy, Tween, UIOpacity, Vec3, tween, view
 } from "cc"
 import {
     C, STAGE, withAlpha
@@ -13,6 +13,7 @@ import {
 import {
     gameActions, getGame, onGame, type Stage
 } from "./net/game"
+import "./vfx/sylas"
 import {
     image, loadFonts
 } from "./ui/assets"
@@ -46,6 +47,12 @@ import {
 import {
     buildVfxGallery
 } from "./screens/VfxGalleryScreen"
+import {
+    buildHeroGallery
+} from "./screens/HeroGalleryScreen"
+import {
+    settings
+} from "./net/settings"
 import type {
     MatchMode, Nav
 } from "./screens/nav"
@@ -117,6 +124,14 @@ export class App extends Component implements Nav {
         this.matchScreen = match
         this.matchVeil.active = match === "match"
         this.dispose = build(this.screen) ?? null
+        // Màn mới hiện dần
+        const op = this.screen.getComponent(UIOpacity) ?? this.screen.addComponent(UIOpacity)
+        Tween.stopAllByTarget(op)
+        op.opacity = 0
+        tween(op).to(0.25,
+            {
+                opacity: 255
+            }).start()
     }
 
     showAuth(message = "") {
@@ -131,6 +146,12 @@ export class App extends Component implements Nav {
 
     showDecks(message = "") {
         this.swap((r) => { void buildDeckList(r, this, message) })
+    }
+
+    showHeroes(hero?: string) {
+        this.swap((r) => buildHeroGallery(r,
+            this,
+            hero))
     }
 
     showBuilder(deck: DeckRow | null) {
@@ -157,6 +178,7 @@ export class App extends Component implements Nav {
             bot: mode.kind === "bot" ? mode.level : undefined,
             roomId: mode.kind === "join" ? mode.roomId : undefined,
             create: mode.kind === "create",
+            ranked: mode.kind === "ranked",
         })
     }
 
@@ -200,6 +222,82 @@ export class App extends Component implements Nav {
         this.showAuth()
     }
 
+    /** Hạt sáng lơ lửng chậm trên nền menu cho màn hình có sức sống (xanh ngọc và vàng) */
+    private motes(parent: Node) {
+        if (!settings().motes) return
+        const layer = box("Motes",
+            parent,
+            STAGE.w,
+            STAGE.h)
+        for (let i = 0; i < 34; i++) {
+            const r = 1.5 + Math.random() * 2.6
+            const n = box("Mote",
+                layer,
+                r * 4,
+                r * 4,
+                (Math.random() - 0.5) * STAGE.w,
+                (Math.random() - 0.5) * STAGE.h)
+            const g = n.addComponent(Graphics)
+            const warm = Math.random() < 0.35
+            g.fillColor = warm ? new Color(240,
+                200,
+                120,
+                70) : new Color(60,
+                220,
+                210,
+                70)
+            g.circle(0,
+                0,
+                r * 1.8)
+            g.fill()
+            g.fillColor = warm ? new Color(255,
+                235,
+                190,
+                220) : new Color(170,
+                255,
+                250,
+                220)
+            g.circle(0,
+                0,
+                r)
+            g.fill()
+            const dur = 6 + Math.random() * 8
+            const dx = (Math.random() - 0.5) * 120, dy = 30 + Math.random() * 70
+            tween(n).by(dur,
+                {
+                    position: new Vec3(dx,
+                        dy,
+                        0)
+                },
+                {
+                    easing: "sineInOut"
+                }).by(dur,
+                {
+                    position: new Vec3(-dx,
+                        -dy,
+                        0)
+                },
+                {
+                    easing: "sineInOut"
+                }).union().repeatForever().start()
+            const op = n.addComponent(UIOpacity)
+            op.opacity = 60 + Math.random() * 120
+            tween(op).to(2 + Math.random() * 3,
+                {
+                    opacity: 255
+                },
+                {
+                    easing: "sineInOut"
+                }).to(2 + Math.random() * 3,
+                {
+                    opacity: 40
+                },
+                {
+                    easing: "sineInOut"
+                }).union().repeatForever().start()
+        }
+    }
+
     /** Nền: màu than, tranh nền menu chung, lớp tối nhẹ; trong trận phủ thêm nền tối để bàn đấu nổi lên */
     private backdrop() {
         const root = box("Backdrop",
@@ -231,6 +329,7 @@ export class App extends Component implements Nav {
             STAGE.w,
             STAGE.h)
         shade.fill()
+        this.motes(root)
         this.matchVeil = box("MatchVeil",
             root,
             STAGE.w,

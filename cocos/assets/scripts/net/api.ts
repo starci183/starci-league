@@ -9,7 +9,9 @@ import {
 
 const SESSION_KEY = "sc.session"
 
-export interface User { id: string; email: string; name: string }
+export interface User { id: string; email: string; name: string; rating?: number; wins?: number; losses?: number; created_at?: string }
+export interface LeaderRow { id: string; name: string; rating: number; wins: number; losses: number }
+export interface Leaderboard { top: LeaderRow[]; rank: number }
 export interface Session { token: string; user: User }
 export interface DeckRow { id: string; name: string; cards: string[]; is_active: boolean }
 export interface PoolCard { id: string; group: string; max: number; name: string; desc: string }
@@ -81,6 +83,17 @@ export const signUp = async (email: string, password: string, displayName: strin
     }))
 
 export const cardCatalog = () => call<CardCatalog>("/cards")
+
+/** Hồ sơ mới nhất (điểm xếp hạng, thắng, thua) */
+export const myProfile = (s: Session) => call<User>("/me",
+    {
+        token: s.token
+    })
+
+export const leaderboard = (s: Session) => call<Leaderboard>("/leaderboard",
+    {
+        token: s.token
+    })
 
 export const listDecks = (s: Session) => call<DeckRow[]>("/decks",
     {

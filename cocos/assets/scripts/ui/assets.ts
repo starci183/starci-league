@@ -2,8 +2,11 @@
 import {
     ImageAsset, Node, Sprite, SpriteFrame, TTFFont, UITransform, resources
 } from "cc"
+import {
+    loadSkin
+} from "./skin"
 
-export type FontRole = "title" | "titleMedium" | "text" | "textMedium" | "number"
+export type FontRole = "title" | "titleMedium" | "text" | "textMedium" | "number" | "italic"
 
 const FONT_FILES: Record<FontRole, string> = {
     title: "fonts/AlegreyaSC-Bold",
@@ -12,6 +15,7 @@ const FONT_FILES: Record<FontRole, string> = {
     text: "fonts/Alegreya-Variable",
     textMedium: "fonts/Alegreya-Variable",
     number: "fonts/AlegreyaSC-Bold",
+    italic: "fonts/Alegreya-Italic-Variable",
 }
 
 const fonts: Partial<Record<FontRole, TTFFont>> = {
@@ -21,14 +25,15 @@ export const fontOf = (role: FontRole): TTFFont | null => fonts[role] ?? null
 
 /** Nạp cả bộ font; font nào lỗi thì nhãn dùng font hệ thống */
 export function loadFonts(): Promise<void> {
-    return Promise.all((Object.keys(FONT_FILES) as FontRole[]).map((role) => new Promise<void>((resolve) => {
+    return Promise.all([loadSkin(),
+        ...(Object.keys(FONT_FILES) as FontRole[]).map((role) => new Promise<void>((resolve) => {
         resources.load(FONT_FILES[role],
             TTFFont,
             (err, font) => {
                 if (!err) fonts[role] = font
                 resolve()
             })
-    }))).then(() => undefined)
+    }))]).then(() => undefined)
 }
 
 const frames = new Map<string, Promise<SpriteFrame | null>>()

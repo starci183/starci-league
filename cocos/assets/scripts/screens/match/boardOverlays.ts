@@ -83,7 +83,7 @@ export function renderBlindPicks(layer: Node, view: CardView) {
             x,
             y + 58,
             {
-                font: "titleMedium", size: 20, width: CELL_W, upper: false, color: C.textMuted
+                font: "textMedium", bold: true, size: 20, width: CELL_W, upper: false, color: C.textMuted
             })
         const s = slot(layer,
             "heroes",
@@ -223,7 +223,7 @@ export function renderLaneLocks(layer: Node, view: CardView) {
                 x,
                 y - 28,
                 {
-                    font: "titleMedium", size: 18, width: CELL_W - 10, upper: false, color: C.goldLight
+                    font: "textMedium", bold: true, size: 18, width: CELL_W - 10, upper: false, color: C.goldLight
                 })
         }
     }

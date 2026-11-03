@@ -36,7 +36,7 @@ export function cardGroup(card: cg.Card): "skill" | "basic" | "spell" | "gold" |
 /** Đường tranh của lá: lá trong bộ dùng tranh đã duyệt; đồ huyền thoại và chiêu là ô ảnh vuông thầy tự thêm */
 export function cardArtPath(card: cg.Card): string {
     if (card.id === "legend" && card.item) return `art/items/${card.item}`
-    if (card.id === "item" && card.item) return `art/cards/item_${card.item}`
+    if (card.id === "item" && card.item) return `art/items/${card.item}`
     if (card.hero && card.kind !== "support") {
         const key = cg.skillOfCard(card)?.key ?? card.id
         return `art/skills/${card.hero}_${String(key).toLowerCase()}`
@@ -55,6 +55,8 @@ export interface MatchCardOpts {
     /** Lá đối thủ úp: vẽ lưng bài */
     back?: boolean;
     onPick?: () => void;
+    /** Nhãn nhỏ dưới lá (ví dụ "Quick play") */
+    badge?: string;
     /** Rê chuột vào / ra khỏi lá (để mở khung phóng to) */
     onHover?: (on: boolean) => void;
 }
@@ -131,6 +133,36 @@ export function matchCard(parent: Node, view: CardView, card: cg.Card, w: number
         artW,
         artH)
     well.fill()
+    // Chưa có ảnh: vòng sáng + chữ cái (phím Q/E/R với lá chiêu) cho lá không trống rỗng; ảnh đè lên khi có
+    const glow = box("Glow",
+        lift,
+        artW,
+        artH,
+        0,
+        artY).addComponent(Graphics)
+    for (const [k, a] of [[0.46,
+        18],
+    [0.34,
+        26],
+    [0.22,
+        36]] as const) {
+        glow.fillColor = withAlpha(tone.edge,
+            a)
+        glow.circle(0,
+            0,
+            artH * k)
+        glow.fill()
+    }
+    const glyph = group === "skill" ? String(cg.skillOfCard(card)?.key ?? "") : info.name.slice(0,
+        1).toUpperCase()
+    if (glyph) text(lift,
+        glyph,
+        0,
+        artY,
+        {
+            font: "title", size: Math.round(artH * 0.55), width: artW, height: artH, color: withAlpha(tone.edge,
+                120)
+        })
     image(lift,
         cardArtPath(card),
         artW,
@@ -220,6 +252,23 @@ export function matchCard(parent: Node, view: CardView, card: cg.Card, w: number
             h / 2 - 14,
             {
                 font: "title", size: 20, width: 26, height: 26, color: C.goldLight
+            })
+    }
+    if (o.badge) {
+        const rib = new Frame(lift,
+            Math.round(w * 0.74),
+            20,
+            0,
+            -h / 2 - 11,
+            {
+                fill: C.tealDeep, stroke: C.teal, inner: null, chamfer: 6, sheen: false, line: 2
+            })
+        text(rib.node,
+            o.badge,
+            0,
+            0,
+            {
+                font: "textMedium", bold: true, size: 14, width: w, height: 20, color: C.goldLight
             })
     }
     if (o.dim) setOpacity(lift,

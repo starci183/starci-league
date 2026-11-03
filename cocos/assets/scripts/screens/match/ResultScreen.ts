@@ -57,7 +57,7 @@ export function buildResult(root: Node, onLobby: () => void, onAgain: () => void
         at(0,
             290).y,
         {
-            font: "titleMedium", size: 32, width: 900, upper: false
+            font: "textMedium", bold: true, size: 32, width: 900, upper: false
         })
 
     const team = (side: "A" | "B", cx: number, label: string, enemy: boolean) => {
@@ -81,7 +81,7 @@ export function buildResult(root: Node, onLobby: () => void, onAgain: () => void
             0,
             0,
             {
-                font: "titleMedium", size: 32, width: 280, height: 46, upper: false
+                font: "textMedium", bold: true, size: 32, width: 280, height: 46, upper: false
             })
         const heroes = v?.players[side].heroes ?? []
         for (let i = 0; i < 5; i++) {
@@ -134,7 +134,7 @@ export function buildResult(root: Node, onLobby: () => void, onAgain: () => void
         0,
         112,
         {
-            font: "titleMedium", size: 36, width: 500, upper: false
+            font: "textMedium", bold: true, size: 36, width: 500, upper: false
         })
     rule(stats,
         420,
@@ -177,14 +177,14 @@ export function buildResult(root: Node, onLobby: () => void, onAgain: () => void
         -200,
         56,
         {
-            font: "titleMedium", size: 26, width: 160, upper: false, color: C.teal
+            font: "textMedium", bold: true, size: 26, width: 160, upper: false, color: C.teal
         })
     text(stats,
         "Đối thủ",
         200,
         56,
         {
-            font: "titleMedium", size: 26, width: 160, upper: false, color: C.enemy
+            font: "textMedium", bold: true, size: 26, width: 160, upper: false, color: C.enemy
         })
     rows.forEach(([k, a, b], i) => {
         const y = 20 - i * 34
@@ -224,7 +224,7 @@ export function buildResult(root: Node, onLobby: () => void, onAgain: () => void
         0,
         112,
         {
-            font: "titleMedium", size: 36, width: 400, upper: false
+            font: "textMedium", bold: true, size: 36, width: 400, upper: false
         })
     rule(result,
         320,
@@ -245,7 +245,7 @@ export function buildResult(root: Node, onLobby: () => void, onAgain: () => void
         0,
         0,
         {
-            font: "titleMedium", size: 30, width: 350, upper: false
+            font: "textMedium", bold: true, size: 30, width: 350, upper: false
         })
     const r2 = new Frame(result,
         370,

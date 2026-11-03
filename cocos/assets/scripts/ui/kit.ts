@@ -1,7 +1,7 @@
 // Bộ thành phần giao diện dựng bằng code, bóc từ mockup docs/mockups/cocos/: khung vát góc vàng kim có ngọc, nút, ô nhập,
 // nhãn. Mỗi lớp vẽ là một node Graphics riêng, vì một node chỉ giữ được một renderer.
 import {
-    Color, EditBox, Graphics, Label, Node, UIOpacity, UITransform
+    Color, EditBox, Graphics, Label, Node, Sprite, UIOpacity, UITransform
 } from "cc"
 import {
     C, FONT, withAlpha
@@ -9,6 +9,9 @@ import {
 import {
     fontOf, type FontRole
 } from "./assets"
+import {
+    paintSkin, skinMissing, skinReady, skinRequest
+} from "./skin"
 
 /** Node có kích thước, đặt vào cha ở (x, y) tính từ tâm cha */
 export function box(name: string, parent: Node | null, w: number, h: number, x = 0, y = 0): Node {
@@ -42,14 +45,40 @@ export interface TextOpts {
     height?: number;
     wrap?: boolean;
     upper?: boolean;
+    /** Chữ đậm giả: vẽ thêm một lớp lệch 0.9 px (font biến thiên không chọn được độ đậm) */
+    bold?: boolean;
+}
+
+/**
+ * BẢNG TYPOGRAPHY (thầy chốt): 5 cỡ nhỏ gọn, mọi `size` được kéo về cỡ gần nhất.
+ *   34 Tiêu đề màn      · AlegreyaSC Bold, IN HOA
+ *   22 Đề mục / nút     · AlegreyaSC Bold, IN HOA (nút, tên panel, tab)
+ *   18 Thân             · Alegreya thường (nội dung, tên tướng, tên chiêu, số liệu)
+ *   14 Chữ phụ          · Alegreya NGHIÊNG (mô tả, gợi ý, chú thích, chữ xám, "Chưa chọn")
+ *   12 Vi mô            · Alegreya NGHIÊNG (chi tiết trên lá bài)
+ * Đậm chỉ dùng cho tiêu đề, đề mục, nút và con số; nghiêng chỉ dùng cho chữ phụ và vi mô. Thân luôn thường.
+ */
+export const TYPE_SCALE = [12,
+    14,
+    18,
+    22,
+    34] as const
+export function snapSize(size: number): number {
+    let best: number = TYPE_SCALE[0]
+    for (const t of TYPE_SCALE) if (Math.abs(t - size) < Math.abs(best - size)) best = t
+    return best
 }
 
 /** Nhãn chữ thật. Font title / titleMedium tự in hoa. */
 export function text(parent: Node, value: string, x = 0, y = 0, o: TextOpts = {
 }): Label {
-    const size = o.size ?? 22
-    const role = o.font ?? "text"
-    const isTitle = role === "title" || role === "titleMedium"
+    // `bold` không còn vẽ lớp chữ thứ hai lệch 0.9 px (gây bóng chữ / "echo"): chữ chỉ vẽ một lần
+    const size = snapSize(o.size ?? 18)
+    let role: FontRole = o.font === "titleMedium" ? "text" : o.font ?? "text"
+    // Nghiêng cho chữ phụ / vi mô (cỡ <= 14) và chữ xám; đậm (SC Bold) cho title, number
+    if ((role === "text" || role === "textMedium") && (size <= 14 || o.color === C.textMuted || o.color === C.disabledText)) role = "italic"
+
+    const isTitle = (o.font ?? "text") === "title" || o.font === "titleMedium"
     const n = box("Text",
         parent,
         o.width ?? 400,
@@ -87,6 +116,14 @@ export interface FrameStyle {
     inner?: Color | null;
     glow?: Color | null;
     chamfer?: number;
+    /** Mảnh skin vẽ sẵn (resources/skin/<tên>.png) thay cho viền tự vẽ; thiếu file thì tự quay về viền tự vẽ */
+    skin?: string;
+    /** Khung skin vẽ rộng ra ngoài ô bao nhiêu px mỗi phía (viền vẽ sẵn dày hơn viền tự vẽ nên cần chừa chỗ cho chữ) */
+    skinBleed?: number;
+    /** Dải sáng mép trên + vignette đáy (mặc định bật cho khung ≥ 50 px) */
+    sheen?: boolean;
+    /** Độ mạnh dải sáng (1 = khung thường; nút chính dùng ~2.4 cho vẻ phát sáng) */
+    sheenStrength?: number;
     /** Ngọc hình thoi ở giữa cạnh trên / dưới */
     gems?: "none" | "top" | "both";
     /** Cỡ ngọc; mặc định tự theo cỡ khung (7–14) */
@@ -143,6 +180,10 @@ export function drawGem(g: Graphics, x: number, y: number, r: number, core: Colo
 export class Frame {
     readonly node: Node
     private readonly layers: Record<"glow" | "fill" | "outer" | "inner" | "gems", Graphics>
+    private readonly skinNode: Node
+    private readonly gemNodes: Node[]
+    private lastStyle: FrameStyle = {
+    }
 
     constructor(parent: Node, w: number, h: number, x = 0, y = 0, style: FrameStyle = {
     }) {
@@ -159,75 +200,112 @@ export class Frame {
         this.layers = {
             glow: layer("Glow"), fill: layer("Fill"), outer: layer("Outer"), inner: layer("Inner"), gems: layer("Gems")
         }
+        this.skinNode = box("Skin",
+            this.node,
+            w,
+            h)
+        this.gemNodes = [box("GemTop",
+            this.node,
+            1,
+            1),
+        box("GemBottom",
+            this.node,
+            1,
+            1)]
         this.draw(style)
     }
 
     draw(s: FrameStyle) {
+        this.lastStyle = s
         const { w, h } = sizeOf(this.node)
-        const ch = s.chamfer ?? 12
+        // Skin vẽ sẵn: có ảnh thì dùng, chưa có thì xin nạp (xong vẽ lại một lần), không có file thì giữ viền tự vẽ
+        // MỘT bộ viền cho cả game, theo mẫu viền bàn đấu: vạch vàng mảnh + vạch trong mờ + ngọc ngọc nhỏ ở bốn góc vát.
+        // Skin vẽ sẵn (resources/skin) đã tắt để mọi khung cùng một kiểu.
+        const skinned = false
+        if (!skinned) this.skinNode.active = false
+        // Kiểu viền D (thầy chốt): khung vuông, một vạch vàng 1 px mờ + thanh góc vàng; không góc vát, không ngọc
+        const ch = 0
         const { glow, fill, outer, inner, gems } = this.layers
         for (const g of [glow,
             fill,
             outer,
             inner,
             gems]) g.clear()
-        if (s.glow) {
-            for (const [width, alpha] of [[14,
-                28],
-            [8,
-                55]]) {
-                glow.lineWidth = width
-                glow.strokeColor = withAlpha(s.glow,
-                    alpha)
-                chamferPath(glow,
-                    w,
-                    h,
-                    -2,
-                    ch + 1)
-                glow.stroke()
-            }
-        }
+        // Không quầng sáng / blur ở bất kỳ khung nào (thầy chốt): trạng thái chọn thể hiện bằng màu vạch viền
         if (s.fill !== null) {
+            // Nền một màu phẳng, không gradient, không texture
             fill.fillColor = s.fill ?? withAlpha(C.panel,
-                232)
+                246)
             chamferPath(fill,
                 w,
                 h,
                 0,
                 ch)
             fill.fill()
+            // Chiều sâu: dải sáng xanh ngọc mờ dần từ mép trên và vignette tối ở đáy (chỉ trong vùng giữa hai góc vát)
+            if (false) {
+                const top = h / 2 - ch, span = Math.min(h * (s.sheenStrength ? 0.55 : 0.4),
+                    130), bands = 10
+                for (let i = 0; i < bands; i++) {
+                    fill.fillColor = new Color(60,
+                        190,
+                        200,
+                        Math.min(255,
+                            Math.round(34 * (s.sheenStrength ?? 1) * (1 - i / bands) ** 2)))
+                    fill.rect(-w / 2 + 1,
+                        top - (i + 1) * span / bands,
+                        w - 2,
+                        span / bands + 0.5)
+                    fill.fill()
+                }
+                const bottom = -h / 2 + ch, vspan = Math.min(h * 0.3,
+                    90)
+                for (let i = 0; i < 6; i++) {
+                    fill.fillColor = new Color(0,
+                        4,
+                        10,
+                        Math.round(70 * (1 - i / 6) ** 2))
+                    fill.rect(-w / 2 + 1,
+                        bottom + i * vspan / 6,
+                        w - 2,
+                        vspan / 6 + 0.5)
+                    fill.fill()
+                }
+            }
         }
-        outer.lineWidth = s.line ?? 2
-        outer.strokeColor = s.stroke ?? C.gold
-        chamferPath(outer,
-            w,
-            h,
-            1,
-            ch)
+        const small0 = Math.min(w,
+            h)
+        const edge = s.stroke ?? C.gold
+        outer.lineWidth = 1
+        outer.strokeColor = withAlpha(edge,
+            90)
+        outer.rect(-w / 2 + 0.5,
+            -h / 2 + 0.5,
+            w - 1,
+            h - 1)
         outer.stroke()
-        if (s.inner !== null) {
-            inner.lineWidth = 1
-            inner.strokeColor = s.inner ?? C.goldDark
-            chamferPath(inner,
-                w,
-                h,
-                6,
-                Math.max(2,
-                    ch - 4))
-            inner.stroke()
+        // Thanh góc: dài 16 (khung lớn) / 11 (vừa) / 7 (nút, ô nhỏ), dày 3 / 2; khung quá thấp (hàng, nhãn) chỉ còn vạch mờ
+        if (small0 >= 44) {
+            const len = small0 >= 110 ? 16 : small0 >= 56 ? 11 : 7
+            const th = small0 >= 56 ? 3 : 2
+            gems.fillColor = edge
+            for (const sx of [-1,
+                1]) for (const sy of [-1,
+                1]) {
+                const x0 = sx < 0 ? -w / 2 : w / 2 - len, y0 = sy < 0 ? -h / 2 : h / 2 - th
+                gems.rect(x0,
+                    y0,
+                    len,
+                    th)
+                const x1 = sx < 0 ? -w / 2 : w / 2 - th, y1 = sy < 0 ? -h / 2 : h / 2 - len
+                gems.rect(x1,
+                    y1,
+                    th,
+                    len)
+            }
+            gems.fill()
         }
-        const gemSize = s.gemSize ?? Math.min(14,
-            Math.max(7,
-                Math.round(Math.min(w,
-                    h) / 22)))
-        if (s.gems === "top" || s.gems === "both") drawGem(gems,
-            0,
-            h / 2,
-            gemSize)
-        if (s.gems === "both") drawGem(gems,
-            0,
-            -h / 2,
-            gemSize)
+        this.gemNodes.forEach((n) => { n.active = false })
     }
 }
 
@@ -265,7 +343,7 @@ export function panel(parent: Node, w: number, h: number, x = 0, y = 0, gems: Fr
         x,
         y,
         {
-            chamfer: 18, gems, line: 4, inner: C.gold, glow: C.goldDark, gemSize: 20
+            chamfer: 18, gems, line: 4, inner: C.gold, glow: C.goldDark, gemSize: 20, skin: "panel-soft", skinBleed: 6
         }).node
 }
 
@@ -280,6 +358,7 @@ export class Button {
     private readonly frame: Frame
     private readonly label: Label
     private readonly underline: Graphics
+    private readonly underSprite: Node
     private hover = false
     private pressed = false
     private enabled = true
@@ -293,6 +372,12 @@ export class Button {
             y)
         this.node = this.frame.node
         this.node.name = `Button ${caption}`
+        this.underSprite = box("UnderSkin",
+            this.node,
+            w,
+            22,
+            0,
+            -h / 2)
         this.underline = box("Underline",
             this.node,
             w,
@@ -339,32 +424,54 @@ export class Button {
                     0), inner: null
             })
             this.label.color = this.selected ? C.goldLight : active ? C.text : C.textMuted
-            this.underline.fillColor = this.selected ? C.teal : withAlpha(C.goldDark,
-                active ? 255 : 120)
-            this.underline.rect(-w / 2,
-                -1,
-                w,
-                this.selected ? 4 : 1)
-            this.underline.fill()
+            // Gạch chân tab: mảnh skin (vạch ngọc hai mũi nhọn) khi tab đang chọn, có ảnh; không thì tự vẽ
+            const { h: th } = sizeOf(this.node)
+            this.underSprite.active = false
+            if (this.selected && skinReady("tab-underline")) {
+                this.underSprite.getComponent(UITransform)?.setContentSize(w,
+                    22)
+                const sp = this.underSprite.getComponent(Sprite) ?? this.underSprite.addComponent(Sprite)
+                sp.type = Sprite.Type.SLICED
+                sp.sizeMode = Sprite.SizeMode.CUSTOM
+                sp.spriteFrame = skinReady("tab-underline")
+                this.underSprite.setPosition(0,
+                    -th / 2 + 4)
+                this.underSprite.active = true
+            } else {
+                if (this.selected && !skinMissing("tab-underline")) void skinRequest("tab-underline").then(() => { if (this.node.isValid) this.paint() })
+                this.underline.fillColor = this.selected ? C.teal : withAlpha(C.goldDark,
+                    active ? 255 : 120)
+                this.underline.rect(-w / 2,
+                    -1,
+                    w,
+                    this.selected ? 4 : 1)
+                this.underline.fill()
+            }
             return
         }
         if (!this.enabled) {
             this.frame.draw({
-                fill: C.disabled, stroke: C.disabledText, inner: null, chamfer: 8
+                fill: C.disabled, stroke: C.disabledText, inner: null, chamfer: 8, skin: sizeOf(this.node).h >= 56 ? "btn-disabled" : sizeOf(this.node).h >= 34 ? "btn-pill" : undefined
             })
             this.label.color = C.disabledText
             return
         }
         const primary = this.kind === "primary", danger = this.kind === "danger"
         const on = this.selected || active
+        const { h: bh } = sizeOf(this.node)
+        // Skin nút vẽ sẵn: nút cao dùng khung dài, nút thấp dùng viên thuốc (biên nhỏ), quá thấp thì giữ bản tự vẽ
+        const skin = bh < 34 ? undefined : bh < 56 ? "btn-pill" : primary ? (active ? "btn-primary-hover" : "btn-primary") : danger ? "btn-danger" : (active ? "btn-gold-hover" : "btn-gold")
         this.frame.draw({
-            fill: this.pressed ? C.bg : primary ? (active ? C.tealMid : C.tealDeep) : this.kind === "ghost" ? null : withAlpha(C.panelRaised,
+            fill: this.pressed ? C.bg : primary ? (active ? C.tealDark : C.tealDeep) : this.kind === "ghost" ? null : withAlpha(C.panelRaised,
                 235),
             stroke: on && !primary ? C.teal : primary ? C.gold : danger ? C.danger : C.gold,
-            line: primary ? 3 : 2,
-            inner: primary ? C.teal : this.kind === "ghost" ? null : C.goldDark,
-            glow: primary ? C.teal : on ? C.teal : null,
+            line: 2,
+            inner: this.kind === "ghost" ? null : C.goldDark,
+            // Nút chính chỉ khác nền ngọc đậm: không quầng sáng, không dải sáng; glow nhẹ chỉ khi rê chuột / đang chọn
+            glow: on && !primary ? C.teal : null,
             chamfer: 10,
+            sheen: primary ? false : undefined,
+            skin,
         })
         this.label.color = primary || on ? C.goldLight : danger ? C.danger : C.goldLight
     }
@@ -400,7 +507,7 @@ export class TextField {
             0,
             {
                 fill: withAlpha(C.bg,
-                    235), inner: null, chamfer: 6
+                    235), inner: null, chamfer: 6, skin: "field"
             })
         // Dựng EditBox khi node còn tách khỏi cây: gắn vào scene trước thì EditBox tự sinh nhãn mặc định "label"
         // EditBox canh chữ ở mép trên vùng nhập, nên vùng nhập chỉ cao bằng một dòng để chữ nằm giữa ô
@@ -472,7 +579,7 @@ export class TextField {
     private focus(on: boolean) {
         this.frame.draw({
             fill: withAlpha(C.bg,
-                235), inner: null, chamfer: 6, stroke: on ? C.teal : C.gold, glow: on ? C.teal : null
+                235), inner: null, chamfer: 6, stroke: on ? C.teal : C.gold, glow: on ? C.teal : null, skin: on ? "field-focus" : "field"
         })
     }
 }
@@ -551,6 +658,7 @@ export class Notice {
             stroke: ok ? C.teal : C.danger,
             inner: null,
             chamfer: 6,
+            skin: ok ? "notice-ok" : "notice-error",
         })
     }
 }

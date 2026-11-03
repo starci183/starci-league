@@ -11,7 +11,8 @@ type Side = cg.Side
 
 /** Client Colyseus bản Cocos (plugin vendor/colyseus.js gắn vào globalThis) */
 interface ColyseusRoom {
-    id: string;
+    /** Mã phòng (colyseus.js 0.16); `id` không có trên bản client này */
+    roomId: string;
     sessionId: string;
     send(type: string, payload?: unknown): void;
     onMessage(type: string, cb: (payload: never) => void): void;
@@ -74,7 +75,7 @@ export interface CardView {
 }
 
 export type Stage = "idle" | "connecting" | "waiting" | "draft" | "playing" | "ended" | "error"
-export interface JoinOptions { name: string; token?: string; bot?: "easy" | "hard"; roomId?: string; create?: boolean; deck?: string[] }
+export interface JoinOptions { name: string; token?: string; bot?: "easy" | "hard"; roomId?: string; create?: boolean; ranked?: boolean; deck?: string[] }
 
 export interface GameSnapshot {
     stage: Stage;
@@ -121,7 +122,7 @@ export function onGameEvents(l: (events: cg.GameEvent[], view: CardView | null) 
 function wire(r: ColyseusRoom) {
     room = r
     set({
-        roomId: r.id
+        roomId: r.roomId
     })
     r.onMessage("cg:waiting",
         () => set({
@@ -179,8 +180,14 @@ export const gameActions = {
         })
         try {
             const client = new Colyseus.Client(WS_BASE)
+            // dàn xếp đội, bài rút và thế cờ qua URL (giống bản web): server chỉ nhận khi chạy với CARD_RIG=1
+            const url = typeof location === "undefined" ? new URLSearchParams() : new URLSearchParams(location.search)
+            const stage = url.get("stage")
             const base = {
-                name: o.name, token: o.token, deck: o.deck
+                name: o.name, token: o.token, deck: o.deck,
+                team: url.get("team")?.split(",").filter(Boolean),
+                rig: url.get("rig")?.split(",").filter(Boolean),
+                stage: stage ? JSON.parse(stage) as unknown : undefined,
             }
             const r = o.bot
                 ? await client.create("card",
@@ -196,7 +203,9 @@ export const gameActions = {
                                 ...base, private: true
                             })
                         : await client.joinOrCreate("card",
-                            base)
+                            o.ranked ? {
+                                ...base, ranked: true
+                            } : base)
             wire(r)
         } catch (e) {
             set({

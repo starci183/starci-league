@@ -5,7 +5,7 @@ import type {
 } from "../net/api"
 
 /** Chế độ vào trận chọn ở sảnh */
-export type MatchMode = { kind: "quick" } | { kind: "bot"; level: "easy" | "hard" } | { kind: "create" } | { kind: "join"; roomId: string }
+export type MatchMode = { kind: "quick" } | { kind: "ranked" } | { kind: "bot"; level: "easy" | "hard" } | { kind: "create" } | { kind: "join"; roomId: string }
 
 export interface Nav {
     session: Session | null;
@@ -13,6 +13,8 @@ export interface Nav {
     showAuth(message?: string): void;
     showLobby(message?: string): void;
     showDecks(message?: string): void;
+    /** Thư viện tướng: chọn tướng, xem chiêu và xem thử hiệu ứng trên sân; `hero` mở sẵn tướng đó */
+    showHeroes(hero?: string): void;
     /** Mở màn xếp bộ: bộ có sẵn, hoặc null để tạo bộ mới từ bộ mặc định */
     showBuilder(deck: DeckRow | null): void;
     /** Vào trận theo chế độ đã chọn (mang bộ đang dùng) */

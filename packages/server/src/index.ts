@@ -75,8 +75,9 @@ const server = new Server({
 })
 server.define("duel",
     DuelRoom)
+// ranked tách phòng xếp hạng khỏi phòng đấu nhanh: joinOrCreate chỉ ghép những phòng cùng cờ
 server.define("card",
-    CardRoom)
+    CardRoom).filterBy(["ranked"])
 migrate()
     .then(() => server.listen(port))
     .then(() => console.log(`StarCi League server: ws://localhost:${port}`))

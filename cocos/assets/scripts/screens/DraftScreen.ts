@@ -50,7 +50,7 @@ export function buildDraft(root: Node, nav: Nav, deckName: string): () => void {
         at(0,
             127).y,
         {
-            font: "titleMedium", size: 76, width: 900, upper: false
+            font: "textMedium", bold: true, size: 76, width: 900, upper: false
         })
     rule(root,
         700,
@@ -82,7 +82,7 @@ export function buildDraft(root: Node, nav: Nav, deckName: string): () => void {
         0,
         0,
         {
-            font: "titleMedium", size: 32, width: 500, height: 52, upper: false
+            font: "textMedium", bold: true, size: 32, width: 500, height: 52, upper: false
         })
 
     const grid = panel(root,
@@ -108,7 +108,7 @@ export function buildDraft(root: Node, nav: Nav, deckName: string): () => void {
         0,
         222,
         {
-            font: "titleMedium", size: 36, width: 320, upper: false
+            font: "textMedium", bold: true, size: 36, width: 320, upper: false
         })
     const mineBody = box("Body",
         mine,
@@ -126,7 +126,7 @@ export function buildDraft(root: Node, nav: Nav, deckName: string): () => void {
         0,
         76,
         {
-            font: "titleMedium", size: 32, width: 300, upper: false
+            font: "textMedium", bold: true, size: 32, width: 300, upper: false
         })
     const myBansBody = box("Body",
         myBans,
@@ -145,7 +145,7 @@ export function buildDraft(root: Node, nav: Nav, deckName: string): () => void {
         0,
         232,
         {
-            font: "titleMedium", size: 36, width: 320, upper: false
+            font: "textMedium", bold: true, size: 36, width: 320, upper: false
         })
     const foeBody = box("Body",
         foe,
@@ -163,7 +163,7 @@ export function buildDraft(root: Node, nav: Nav, deckName: string): () => void {
         0,
         70,
         {
-            font: "titleMedium", size: 30, width: 340, upper: false
+            font: "textMedium", bold: true, size: 30, width: 340, upper: false
         })
     const scoutText = text(scout,
         "",
@@ -481,7 +481,7 @@ export function buildDraft(root: Node, nav: Nav, deckName: string): () => void {
         0,
         38,
         {
-            font: "titleMedium", size: 28, width: TIP.w - 24, height: 36, upper: false
+            font: "textMedium", bold: true, size: 28, width: TIP.w - 24, height: 36, upper: false
         })
     const tipRole = text(tip,
         "",

@@ -44,7 +44,7 @@ export function renderItemsTab(parent: Node, view: CardView, unit: cg.Unit, top:
         const t = cg.itemText(id, "vi")
         slot(parent, "items", id, 52, -W / 2 + 36, y)
         text(parent, t?.name ?? id, 30, y + 13, {
-            font: "titleMedium", size: 20, width: 220, align: "left", upper: false
+            font: "textMedium", bold: true, size: 20, width: 220, align: "left", upper: false
         })
         text(parent, t?.stats ?? "", 30, y - 13, {
             size: 15, width: 220, align: "left", color: C.textMuted
@@ -62,7 +62,7 @@ export function renderEffectsTab(parent: Node, view: CardView, unit: cg.Unit, to
     fx.slice(0, 6).forEach((e, i) => {
         const y = top - 32 - i * ROW
         text(parent, e.name, -W / 2 + 100, y + 14, {
-            font: "titleMedium", size: 19, width: 190, align: "left", upper: false, color: e.good ? C.teal : C.danger
+            font: "textMedium", bold: true, size: 19, width: 190, align: "left", upper: false, color: e.good ? C.teal : C.danger
         })
         text(parent, e.turns ? `Còn ${e.turns} vòng` : "Liên tục", W / 2 - 56, y + 14, {
             size: 15, width: 100, align: "right", color: C.textMuted

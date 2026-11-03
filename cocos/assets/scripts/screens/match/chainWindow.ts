@@ -57,7 +57,7 @@ export class ReactionWindow {
             0,
             h / 2 - 36,
             {
-                font: "titleMedium", size: 28, width: w - 25, upper: false
+                font: "textMedium", bold: true, size: 28, width: w - 25, upper: false
             })
         if (clock) this.buildClock(f.node, o.seconds as number, -w / 2 + 90, -18)
         new Button(f.node,
@@ -204,7 +204,7 @@ export function renderChainLinks(parent: Node, view: CardView, top: number): voi
             left + textW / 2,
             nameY,
             {
-                font: "titleMedium", size: nameSize, width: textW, align: "left", upper: false
+                font: "textMedium", bold: true, size: nameSize, width: textW, align: "left", upper: false
             })
         nameLabel.color = first ? C.goldLight : C.gold
         text(f.node,

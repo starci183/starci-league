@@ -167,7 +167,7 @@ export function buildMatchmaking(root: Node, nav: Nav, mode: MatchMode, deckName
         0,
         70,
         {
-            font: "titleMedium", size: 38, width: 360, upper: false
+            font: "textMedium", bold: true, size: 38, width: 360, upper: false
         })
     rule(lost.node,
         300,

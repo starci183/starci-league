@@ -11,7 +11,7 @@ export const C = {
     /** Nền màn, gần đen */
     bg: hex("#010a13"),
     /** Nền panel (vẽ hơi trong để thấy nền menu ở rìa) */
-    panel: hex("#050d18"),
+    panel: hex("#081627"),
     /** Nền panel nổi (hàng, ô, nút) */
     panelRaised: hex("#0a1626"),
     /** Khung vàng kim chính */

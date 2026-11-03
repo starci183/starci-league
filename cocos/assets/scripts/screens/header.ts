@@ -33,13 +33,14 @@ export function header(root: Node, nav: Nav, title: string, logout = true, top =
         at(235,
             0).x,
         0)
-    image(bar,
-        "art/logo/wordmark",
-        170,
-        64,
-        at(362,
+    text(bar,
+        "StarCi League",
+        at(440,
             0).x,
-        0)
+        0,
+        {
+            font: "title", size: 30, width: 240, align: "left"
+        })
     const divider = box("Divider",
         bar,
         2,

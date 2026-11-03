@@ -69,7 +69,7 @@ function modal(root: Node, w: number, h: number, title: string, subtitle = ""): 
         0,
         h / 2 - 56,
         {
-            font: "titleMedium", size: 48, width: w - 120, upper: false
+            font: "textMedium", bold: true, size: 48, width: w - 120, upper: false
         })
     rule(p,
         w - 300,
@@ -164,7 +164,7 @@ export function peekDialog(root: Node, view: CardView, options: cg.Action[], onP
                 x,
                 -ch / 2 - 30,
                 {
-                    font: "titleMedium", size: 28, width: cw, upper: false, color: on ? C.teal : C.goldLight
+                    font: "textMedium", bold: true, size: 28, width: cw, upper: false, color: on ? C.teal : C.goldLight
                 })
         })
     }
@@ -223,7 +223,7 @@ export function discardDialog(root: Node, view: CardView, options: cg.Action[], 
         0,
         -H / 2 + 130,
         {
-            font: "titleMedium", size: 30, width: 600, upper: false, color: C.goldLight
+            font: "textMedium", bold: true, size: 30, width: 600, upper: false, color: C.goldLight
         })
     const match = () => options.find((a) => sameSet(discardOf(a),
         sel))
@@ -280,7 +280,7 @@ export function discardDialog(root: Node, view: CardView, options: cg.Action[], 
                 x,
                 y - ch / 2 - 4,
                 {
-                    font: "titleMedium", size: 26, width: cw, upper: false, color: C.danger
+                    font: "textMedium", bold: true, size: 26, width: cw, upper: false, color: C.danger
                 })
         })
         counter.string = `Đã chọn ${sel.length}/${max} lá`
@@ -523,7 +523,7 @@ export function colorDialog(root: Node, options: cg.Action[], onPick: Pick) {
             0,
             -ch / 2 + 70,
             {
-                font: "titleMedium", size: 44, width: cw - 30, upper: false, color: info.color
+                font: "textMedium", bold: true, size: 44, width: cw - 30, upper: false, color: info.color
             })
         f.node.on(Node.EventType.TOUCH_END,
             () => { chosen = k; paint() })

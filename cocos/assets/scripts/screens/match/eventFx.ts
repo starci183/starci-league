@@ -308,14 +308,16 @@ export async function drawFly(layer: Node, from: Pt, to: Pt): Promise<void> {
 
 /** Dải lớn giữa màn: trượt vào, giữ 0.8s, mờ đi */
 export async function bigBanner(layer: Node, title: string, sub?: string): Promise<void> {
-    const w = 900
-    const h = sub ? 190 : 140
+    // Dải gọn đặt sát mép trên bàn (trên hàng tướng địch) để không che cửa sổ phản ứng ở giữa bàn
+    const w = 640
+    const h = sub ? 104 : 80
+    const baseY = 372
     const holder = box("Banner",
         layer,
         w,
         h,
         -260,
-        60)
+        baseY)
     const op = holder.addComponent(UIOpacity)
     op.opacity = 0
     new Frame(holder,
@@ -325,46 +327,46 @@ export async function bigBanner(layer: Node, title: string, sub?: string): Promi
         0,
         {
             fill: withAlpha(C.panel,
-                238), stroke: C.gold, inner: C.goldDark, glow: C.teal, chamfer: 22, gems: "both", gemSize: 14
+                238), stroke: C.gold, inner: C.goldDark, glow: C.teal, chamfer: 16, gems: "both", gemSize: 12
         })
     text(holder,
         title,
         0,
-        sub ? 28 : 0,
+        sub ? 16 : 0,
         {
-            font: "title", size: 64, width: w - 80, height: 90, color: C.goldLight
+            font: "title", size: sub ? 42 : 46, width: w - 60, height: 58, color: C.goldLight
         })
     if (sub) {
         text(holder,
             sub,
             0,
-            -44,
+            -26,
             {
-                font: "textMedium", size: 26, width: w - 80, color: C.text
+                font: "textMedium", size: 22, width: w - 60, height: 28, color: C.text
             })
     }
     await Promise.all([run(holder,
-        0.3,
+        0.25,
         {
-            position: new Vec3(0,
-                60,
+            position: new Vec3(-33,
+                baseY,
                 0)
         }),
     fade(op,
-        0.25,
+        0.2,
         255)])
     await wait(holder,
-        0.8)
+        0.6)
     await Promise.all([run(holder,
-        0.3,
+        0.25,
         {
-            position: new Vec3(220,
-                60,
+            position: new Vec3(200,
+                baseY,
                 0)
         },
         "sineIn"),
     fade(op,
-        0.3,
+        0.25,
         0)])
     holder.destroy()
 }
@@ -430,9 +432,8 @@ export async function presentEvent(layer: Node, root: Node, e: cg.GameEvent, pos
                 e.side === ctx.you ? "Lượt của bạn" : "Lượt đối thủ",
                 `Vòng ${e.round}`)
         case "chainWindow":
-            return bigBanner(layer,
-                e.priority === ctx.you ? "Bạn nối chuỗi" : "Đối thủ nối chuỗi",
-                `Chuỗi ${e.length} lá`)
+            // Cửa sổ phản ứng ở giữa bàn đã báo chuỗi: không phủ thêm dải chữ lên nó
+            return
         default:
             return
     }

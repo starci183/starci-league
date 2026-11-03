@@ -12,6 +12,9 @@ import {
     actionsForHandCard, gameActions, gameOf, getGame, heroName, onGame, onGameEvents, targetsOf, type CardView
 } from "../../net/game"
 import {
+    settings
+} from "../../net/settings"
+import {
     cg
 } from "../../shared"
 import {
@@ -21,7 +24,7 @@ import {
     Button, Frame, box, clear, drawGem, panel, rule, text
 } from "../../ui/kit"
 import {
-    matchCard
+    cardBack, matchCard
 } from "../../ui/matchCard"
 import {
     skillArt, slot
@@ -94,7 +97,10 @@ const ROLE: Record<string, string> = {
     fighter: "Đấu sĩ", tank: "Đỡ đòn", assassin: "Sát thủ", marksman: "Xạ thủ", mage: "Pháp sư", support: "Hỗ trợ"
 }
 
-interface Targeting { options: cg.Action[]; source: string; title: string }
+interface Targeting { options: cg.Action[]; source: string; title: string; step?: "actor" | "target" }
+
+/** Tướng thực hiện của một hành động đánh (đòn đánh thường, đòn không cần lá, lá có args.actor) */
+const actorOfAction = (a: cg.Action): string | undefined => a.t === "attack" ? a.actor : a.t === "play" || a.t === "chain" ? a.args?.actor : undefined
 
 export function buildMatch(root: Node, nav: Nav): () => void {
     // ---- khung tĩnh ----
@@ -135,12 +141,20 @@ export function buildMatch(root: Node, nav: Nav): () => void {
         BOARD.h,
         BOARD.x,
         BOARD.y)
-    void frameOf("bg/board").then((f) => {
+    void frameOf("bg/board-flat").then((f) => {
         if (!f || !boardNode.isValid) return
         const s = boardNode.addComponent(Sprite)
         s.sizeMode = Sprite.SizeMode.CUSTOM
         s.spriteFrame = f
     })
+    new Frame(boardNode,
+        BOARD.w,
+        BOARD.h,
+        0,
+        0,
+        {
+            fill: null, stroke: C.gold
+        })
     const units = box("Units",
         boardNode,
         BOARD.w,
@@ -210,6 +224,8 @@ export function buildMatch(root: Node, nav: Nav): () => void {
     const cardPos = new Map<string, Pt>()
 
     let selectedUnit: string | null = null
+    /** Tướng phe mình vừa ra chiêu / đánh gần nhất: cột chi tiết ưu tiên hiện tướng này khi chưa chọn tay */
+    let lastActor: string | null = null
     let targeting: Targeting | null = null
     let inspectorTab: "items" | "skills" | "effects" = "skills"
     let message = ""
@@ -313,16 +329,20 @@ export function buildMatch(root: Node, nav: Nav): () => void {
         })
         if (!withTarget.length) return resolve(options,
             hero)
+        // Lá cần chọn người đánh trước (đòn đánh thường: nhiều tướng có thể đánh) rồi mới chọn mục tiêu
+        const actors = [...new Set(options.map(actorOfAction).filter((x): x is string => !!x))]
+        const step = actors.length > 1 ? "actor" : "target"
         targeting = {
-            options, source, title
+            options, source, title: step === "actor" ? "Chọn tướng thực hiện" : title, step
         }
         startAim(options,
-            source)
+            source,
+            step)
         render()
     }
 
     /** Đường ngắm từ lá / tướng nguồn tới chuột; hút vào mục tiêu hợp lệ gần nhất trong 70px */
-    function startAim(options: cg.Action[], source: string) {
+    function startAim(options: cg.Action[], source: string, step: "actor" | "target" = "target") {
         const v = view()
         if (!v) return
         endAim()
@@ -333,6 +353,12 @@ export function buildMatch(root: Node, nav: Nav): () => void {
         const points: Pt[] = []
         const you = v.you ?? "A"
         for (const a of options) {
+            if (step === "actor") {
+                const actor = actorOfAction(a)
+                if (actor) points.push(posOf(v,
+                    actor))
+                continue
+            }
             const t = targetsOf(a)
             t.units.forEach((u) => points.push(posOf(v,
                 u)))
@@ -352,6 +378,18 @@ export function buildMatch(root: Node, nav: Nav): () => void {
 
     function pickTarget(unitId: string | null, lane: number | null, side: Side | null) {
         if (!targeting) return
+        if (targeting.step === "actor") {
+            const sub = unitId ? targeting.options.filter((a) => actorOfAction(a) === unitId) : []
+            if (!unitId || !sub.length) return
+            targeting = {
+                options: sub, source: targeting.source, title: "Chọn mục tiêu hợp lệ", step: "target"
+            }
+            selectedUnit = unitId
+            startAim(sub,
+                unitId)
+            render()
+            return
+        }
         const opts = targeting.options.filter((a) => {
             const t = targetsOf(a)
             if (unitId && t.units.includes(unitId)) return true
@@ -371,6 +409,8 @@ export function buildMatch(root: Node, nav: Nav): () => void {
     function onHandCard(card: cg.Card) {
         const v = view()
         if (!v) return
+        // bấm lá chiêu thì cột chi tiết chuyển sang tướng của lá đó
+        if (card.hero && v.units[`${v.you ?? "A"}:${card.hero}`]) selectedUnit = `${v.you ?? "A"}:${card.hero}`
         const mine = v.players[v.you ?? "A"].hand ?? []
         const discards = legal().filter((a) => a.t === "discard")
         if (discards.length && discards.length === legal().length) {
@@ -384,7 +424,7 @@ export function buildMatch(root: Node, nav: Nav): () => void {
             mine,
             card)
         if (!opts.length) {
-            message = "Lá này chưa đánh được lúc này"
+            message = card.id === "basic" && v.step !== "battle" ? "Đánh thường chỉ dùng ở bước Battle: bấm Bước tiếp" : "Lá này chưa đánh được lúc này"
             return render()
         }
         if (opts.every((a) => (a.t === "play" || a.t === "chain") && a.args?.pick?.startsWith("steal:"))) return stealDialog(overlay,
@@ -481,40 +521,73 @@ export function buildMatch(root: Node, nav: Nav): () => void {
             const mana = v.teamMana?.[side] ?? 0
             const bar = box("Mana",
                 top,
-                190,
-                14,
+                196,
+                16,
                 left ? at(541,
                     0).x : at(1399,
                     0).x,
-                -24).addComponent(Graphics)
-            bar.fillColor = withAlpha(C.bg,
-                230)
-            bar.rect(-95,
-                -7,
-                190,
-                14)
+                -25).addComponent(Graphics)
+            bar.fillColor = C.goldDark
+            bar.rect(-98,
+                -8,
+                196,
+                16)
             bar.fill()
+            bar.fillColor = C.bg
+            bar.rect(-96,
+                -6,
+                192,
+                12)
+            bar.fill()
+            const fillW = 192 * Math.min(1,
+                mana / teamMax)
             bar.fillColor = C.tealDark
-            bar.rect(-95,
-                -7,
-                190 * Math.min(1,
-                    mana / teamMax),
-                14)
+            bar.rect(-96,
+                -6,
+                fillW,
+                12)
+            bar.fill()
+            bar.fillColor = withAlpha(C.goldLight,
+                70)
+            bar.rect(-96,
+                1,
+                fillW,
+                4)
             bar.fill()
             text(top,
-                `MANA ${side === you ? "ĐỘI BẠN" : "ĐỘI ĐỊCH"} · ${mana}/${teamMax}`,
-                left ? at(541,
-                    0).x : at(1399,
+                `Mana ${mana}/${teamMax}`,
+                left ? at(600,
+                    0).x : at(1336,
                     0).x,
-                -24,
+                -2,
                 {
-                    size: 13, width: 190, height: 16, color: C.goldLight
+                    font: "number", size: 15, width: 100, height: 18, color: C.goldLight, align: left ? "right" : "left"
                 })
         }
         sideBlock(them,
             true)
         sideBlock(you,
             false)
+        const foeHand = v.players[them].handCount
+        const fan = Math.min(foeHand,
+            6)
+        for (let i = 0; i < fan; i++) {
+            const back = cardBack(top,
+                34,
+                48,
+                at(930,
+                    0).x + (i - (fan - 1) / 2) * 15,
+                41)
+            back.angle = (fan - 1) / 2 * 4 - i * 4
+        }
+        text(top,
+            `Tay đối thủ · ${foeHand} lá`,
+            at(1055,
+                0).x,
+            44,
+            {
+                size: 14, width: 160, height: 18, color: C.textMuted
+            })
         STEPS.forEach(([step, label], i) => {
             const on = v.step === step && v.phase !== "blind"
             const x = at(699 + i * 85.2,
@@ -524,7 +597,7 @@ export function buildMatch(root: Node, nav: Nav): () => void {
                 x,
                 2,
                 {
-                    font: "titleMedium", size: 19, width: 82, upper: false, color: on ? C.goldLight : C.textMuted
+                    font: "textMedium", bold: true, size: 19, width: 82, upper: false, color: on ? C.goldLight : C.textMuted
                 })
             const u = box("Underline",
                 top,
@@ -546,7 +619,7 @@ export function buildMatch(root: Node, nav: Nav): () => void {
                 0).x,
             -37,
             {
-                font: "titleMedium", size: 26, width: 140, upper: false
+                font: "textMedium", bold: true, size: 26, width: 140, upper: false
             })
         const chip = new Frame(top,
             180,
@@ -570,7 +643,7 @@ export function buildMatch(root: Node, nav: Nav): () => void {
     function renderInspector(v: CardView) {
         clear(inspector)
         const you = v.you ?? "A"
-        const id = selectedUnit && v.units[selectedUnit] ? selectedUnit : v.lanes[you].find((x) => !!x) ?? `${you}:${v.players[you].heroes[0]}`
+        const id = selectedUnit && v.units[selectedUnit] ? selectedUnit : lastActor && v.units[lastActor] ? lastActor : v.lanes[you].find((x) => !!x) ?? `${you}:${v.players[you].heroes[0]}`
         const u = v.units[id]
         if (!u) return
         const g = gameOf(v)
@@ -739,7 +812,7 @@ export function buildMatch(root: Node, nav: Nav): () => void {
         }
         text(inspector,
             inspectorTab === "skills" ? "Kỹ năng" : inspectorTab === "items" ? "Đồ đã đeo" : "Hiệu ứng",
-            -70,
+            -48,
             rel(0,
                 385).y,
             {
@@ -770,7 +843,7 @@ export function buildMatch(root: Node, nav: Nav): () => void {
                 30,
                 y + 11,
                 {
-                    font: "titleMedium", size: 22, width: 200, align: "left", upper: false
+                    font: "textMedium", bold: true, size: 22, width: 200, align: "left", upper: false
                 })
             text(inspector,
                 row.sub,
@@ -785,7 +858,7 @@ export function buildMatch(root: Node, nav: Nav): () => void {
     function renderBoard(v: CardView) {
         clear(units)
         const you = v.you ?? "A"
-        const tg = targeting ? targetable(targeting.options) : null
+        const tg = targeting ? targetable(targeting) : null
         for (const side of [you,
             other(you)] as Side[]) {
             const mineSide = side === you
@@ -798,7 +871,7 @@ export function buildMatch(root: Node, nav: Nav): () => void {
                     92,
                     24,
                     x,
-                    y - 93,
+                    y - 116,
                     {
                         fill: withAlpha(C.bg,
                             220), stroke: C.goldDark, inner: null, chamfer: 6
@@ -850,7 +923,8 @@ export function buildMatch(root: Node, nav: Nav): () => void {
                 mineSide ? -10 : 10,
                 null,
                 side,
-                tg?.units.has(extra) ?? false)
+                tg?.units.has(extra) ?? false,
+                84)
         }
     }
 
@@ -866,9 +940,14 @@ export function buildMatch(root: Node, nav: Nav): () => void {
             v)
     }
 
-    function targetable(options: cg.Action[]) {
+    function targetable(tg: Targeting) {
         const unitsSet = new Set<string>(), lanes = new Set<number>()
-        for (const a of options) {
+        for (const a of tg.options) {
+            if (tg.step === "actor") {
+                const actor = actorOfAction(a)
+                if (actor) unitsSet.add(actor)
+                continue
+            }
             const t = targetsOf(a)
             t.units.forEach((u) => unitsSet.add(u))
             t.lanes.forEach((l) => lanes.add(l))
@@ -878,7 +957,8 @@ export function buildMatch(root: Node, nav: Nav): () => void {
         }
     }
 
-    function drawUnit(v: CardView, id: string, x: number, y: number, lane: number | null, side: Side, hit: boolean) {
+    function drawUnit(v: CardView, id: string, x: number, y: number, lane: number | null, side: Side, hit: boolean, S = 124) {
+        const half = S / 2
         const u = v.units[id]
         if (!u) return
         const you = v.you ?? "A"
@@ -887,14 +967,34 @@ export function buildMatch(root: Node, nav: Nav): () => void {
         text(units,
             u.token ? u.token.name : heroName(u.hero),
             x,
-            y + 58,
+            y + half + 14,
             {
-                font: "titleMedium", size: 20, width: 150, upper: false
+                font: "textMedium", bold: true, size: 18, width: 170, upper: false
             })
+        const ground = box("Ground",
+            units,
+            170,
+            40,
+            x,
+            y - half + 2).addComponent(Graphics)
+        ground.fillColor = withAlpha(side === you ? C.teal : C.enemy,
+            hit || isSel ? 90 : 48)
+        ground.ellipse(0,
+            0,
+            S * 0.62,
+            13)
+        ground.fill()
+        ground.fillColor = withAlpha(side === you ? C.teal : C.enemy,
+            30)
+        ground.ellipse(0,
+            0,
+            S * 0.78,
+            17)
+        ground.fill()
         const s = slot(units,
             "heroes",
             u.token ? "" : u.hero,
-            86,
+            S,
             x,
             y,
             {
@@ -903,37 +1003,50 @@ export function buildMatch(root: Node, nav: Nav): () => void {
         text(units,
             dead ? "" : `${u.hp} / ${u.maxHp}`,
             x,
-            y - 51,
+            y - half - 10,
             {
-                font: "number", size: 17, width: 140, color: C.goldLight
+                font: "number", size: 18, width: 160, color: C.goldLight
             })
         const bar = box("Hp",
             units,
-            100,
-            7,
+            112,
+            12,
             x,
-            y - 64).addComponent(Graphics)
-        bar.fillColor = withAlpha(C.bg,
-            240)
-        bar.rect(-50,
-            -3.5,
-            100,
-            7)
+            y - half - 26).addComponent(Graphics)
+        bar.fillColor = C.goldDark
+        bar.rect(-56,
+            -6,
+            112,
+            12)
         bar.fill()
+        bar.fillColor = C.bg
+        bar.rect(-54,
+            -4,
+            108,
+            8)
+        bar.fill()
+        const hpW = 108 * Math.max(0,
+            u.hp / Math.max(1,
+                u.maxHp))
         bar.fillColor = side === you ? C.teal : C.enemy
-        bar.rect(-50,
-            -3.5,
-            100 * Math.max(0,
-                u.hp / Math.max(1,
-                    u.maxHp)),
-            7)
+        bar.rect(-54,
+            -4,
+            hpW,
+            8)
+        bar.fill()
+        bar.fillColor = withAlpha(C.goldLight,
+            90)
+        bar.rect(-54,
+            0,
+            hpW,
+            3)
         bar.fill()
         if (u.shield > 0) {
             bar.fillColor = withAlpha(C.goldLight,
-                200)
-            bar.rect(-50,
-                1.5,
-                100 * Math.min(1,
+                230)
+            bar.rect(-54,
+                -5,
+                108 * Math.min(1,
                     u.shield / Math.max(1,
                         u.maxHp)),
                 2)
@@ -1007,7 +1120,7 @@ export function buildMatch(root: Node, nav: Nav): () => void {
         const rel = (y: number) => 537 - y
         text(chainBox,
             "Chuỗi kỹ năng hiện tại",
-            0,
+            10,
             rel(55),
             {
                 font: "title", size: 22, width: 290, align: "left"
@@ -1017,7 +1130,7 @@ export function buildMatch(root: Node, nav: Nav): () => void {
             rel(75))
         text(chainBox,
             "Nhật ký trận",
-            -55,
+            -30,
             rel(434),
             {
                 font: "title", size: 24, width: 200, align: "left"
@@ -1034,7 +1147,7 @@ export function buildMatch(root: Node, nav: Nav): () => void {
         const reserve = v.players[you].heroes.filter((h) => v.units[`${you}:${h}`]?.status === "reserve")
         text(chainBox,
             "Đội dự bị",
-            -60,
+            -35,
             rel(566),
             {
                 font: "title", size: 24, width: 180, align: "left"
@@ -1067,7 +1180,7 @@ export function buildMatch(root: Node, nav: Nav): () => void {
                 x,
                 y - 48,
                 {
-                    font: "titleMedium", size: 15, width: 92, upper: false
+                    font: "textMedium", bold: true, size: 15, width: 92, upper: false
                 })
             text(chainBox,
                 can ? "Gọi được" : "Chưa gọi",
@@ -1147,7 +1260,7 @@ export function buildMatch(root: Node, nav: Nav): () => void {
             -557,
             66,
             {
-                font: "titleMedium", size: 22, width: 120, align: "left", upper: false, color: C.goldLight
+                font: "textMedium", bold: true, size: 22, width: 120, align: "left", upper: false, color: C.goldLight
             })
         text(hand,
             `Bộ bài ${v.players[you].deckCount}`,
@@ -1161,7 +1274,7 @@ export function buildMatch(root: Node, nav: Nav): () => void {
         const sigUsable = (c: cg.Card) => actionsForHandCard(legal(),
             cards,
             c).length > 0 || usable.has(c.uid)
-        const w = 118, h = 168
+        const w = 130, h = 186
         const step = Math.min(128,
             820 / Math.max(1,
                 cards.length))
@@ -1182,6 +1295,7 @@ export function buildMatch(root: Node, nav: Nav): () => void {
                     usable: sigUsable(c),
                     selected: targeting?.source === c.uid,
                     dim: !sigUsable(c) && v.toMove === you,
+                    badge: cg.skillOfCard(c)?.quick && sigUsable(c) ? "Quick play" : undefined,
                     onPick: () => { zoom.hide(); onHandCard(c) },
                     onHover: (on) => (on && !targeting ? zoom.show(v,
                         c,
@@ -1255,7 +1369,7 @@ export function buildMatch(root: Node, nav: Nav): () => void {
             0,
             0,
             {
-                font: "titleMedium", size: 24, width: 330, height: 40, upper: false
+                font: "textMedium", bold: true, size: 24, width: 330, height: 40, upper: false
             })
     }
 
@@ -1335,22 +1449,39 @@ export function buildMatch(root: Node, nav: Nav): () => void {
             vfxQueue = vfxQueue.then(async () => {
                 if (!vfxLayer.isValid) return
                 const cur = lastView ?? v
+                if (e.t === "cast" || e.t === "attack") {
+                    const actorId = e.t === "cast" ? e.unit : e.attacker
+                    if (cur.units[actorId]?.side === (cur.you ?? "A")) {
+                        lastActor = actorId
+                        if (!targeting) selectedUnit = actorId
+                        render()
+                    }
+                }
                 if (e.t === "cast") {
                     const u = cur.units[e.unit]
                     if (!u) return
-                    await playSkill(vfxLayer,
+                    // Q của Sylas không chọn mục tiêu: địch đối diện và hai đường kề (đường giữa là điểm gần Sylas nhất)
+                    const lane = cur.lanes[u.side].indexOf(e.unit)
+                    const foeSide = u.side === "A" ? "B" : "A"
+                    const wide = u.hero === "sylas" && e.skill === "Q" && lane >= 0
+                    const targets = wide
+                        ? [lane - 1, lane, lane + 1].filter((l) => l >= 0 && l <= 4).map((l) => ({
+                            x: BOARD.x + LANE_X[l], y: BOARD.y + (foeSide === (cur.you ?? "A") ? ROW_Y.mine : ROW_Y.foe)
+                        }))
+                        : e.target ? [posOf(cur,
+                            e.target)] : []
+                    if (settings().vfx) await playSkill(vfxLayer,
                         skillKey(u.hero,
                             e.skill),
                         styleOf(u.hero,
                             e.skill),
                         posOf(cur,
                             e.unit),
-                        e.target ? [posOf(cur,
-                            e.target)] : [])
+                        targets)
                 } else if (e.t === "attack") {
                     const u = cur.units[e.attacker]
                     if (!u) return
-                    await playSkill(vfxLayer,
+                    if (settings().vfx) await playSkill(vfxLayer,
                         `basic_${u.hero}`,
                         {
                             ...styleOf(u.hero,
@@ -1363,7 +1494,7 @@ export function buildMatch(root: Node, nav: Nav): () => void {
                 } else if (e.t === "play" && e.card.kind === "support" && e.card.id.startsWith("spell") && e.args?.target) {
                     const spell = e.card.id.replace(/^spell[_:]/,
                         "")
-                    await playSkill(vfxLayer,
+                    if (settings().vfx) await playSkill(vfxLayer,
                         `spell_${spell}`,
                         spellStyle(spell),
                         {
@@ -1390,6 +1521,14 @@ export function buildMatch(root: Node, nav: Nav): () => void {
         }
     }
 
+    // Móc gỡ lỗi cho kiểm thử tự động: trạng thái giao diện (đang chọn mục tiêu, tướng đang xem)
+    const dbg = (globalThis as unknown as { starciDebug?: Record<string, unknown> }).starciDebug
+    if (dbg) dbg.ui = () => ({
+        targeting: targeting ? {
+            source: targeting.source, options: targeting.options.length
+        } : null,
+        selectedUnit,
+    })
     const offState = onGame(() => render())
     const offEvents = onGameEvents(playEvents)
     render()
@@ -1413,14 +1552,18 @@ function describeEvent(e: cg.GameEvent): string | null {
     case "roundStart": return `Vòng ${e.round} bắt đầu`
     case "turnStart": return `Lượt của ${e.side === "A" ? "phe A" : "phe B"}`
     case "summon": return `${hero(e.unit)} ra sân đường ${e.lane + 1}`
-    case "cast": return `${hero(e.unit)} dùng chiêu ${e.skill}`
+    case "cast": {
+        const sk = cg.getHero((e.unit.split(":")[1] ?? ""))?.skills[e.skill as "Q" | "E" | "R"]
+        return `${hero(e.unit)} dùng ${sk?.name ? sk.name : `chiêu ${e.skill}`}`
+    }
     case "attack": return `${hero(e.attacker)} đánh ${hero(e.target)}`
     case "kill": return `${hero(e.target)} bị hạ gục`
     case "craft": return `Ghép xong món đồ`
     case "chainAdd": return `Nối chuỗi mắt xích ${e.n}`
     case "chainEnd": return `Giải xong chuỗi ${e.length} mắt xích`
     case "lives": return `Phe ${e.side} còn ${e.lives} mạng`
-    case "log": return e.text
+    case "log": return e.text.replace(/steal:([a-z]+):([QER])/g,
+        (_m, h: string, k: string) => `chiêu ${k} của ${heroName(h)}`)
     default: return null
     }
 }
