@@ -43,6 +43,17 @@ export async function buildDeckList(root: Node, nav: Nav, message = "") {
     header(root,
         nav,
         "Bộ bài")
+    new Button(root,
+        "‹  Sảnh đấu",
+        240,
+        60,
+        at(250,
+            0).x,
+        at(0,
+            1005).y,
+        () => nav.showLobby(),
+        "gold",
+        28)
     text(root,
         "Bộ bài của bạn",
         0,

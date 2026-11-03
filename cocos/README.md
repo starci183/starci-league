@@ -1,6 +1,8 @@
 # StarCi League · client Cocos Creator
 
-Client Cocos Creator 3.8.8 cho các màn ngoài trận: **đăng nhập / đăng ký**, **danh sách bộ bài**, **xếp bộ bài**.
+Client Cocos Creator 3.8.8: đăng nhập / đăng ký, danh sách bộ bài, xếp bộ bài, sảnh đấu, ghép trận, cấm / chọn tướng,
+màn trận (bàn 10 ô, tay bài, chuỗi, hộp thoại) và kết thúc trận. VFX: mỗi chiêu một ô hiệu ứng (`vfx/registry.ts`), tạm
+thời là một hạt; mở link Preview kèm `?vfx` để xem thử từng chiêu.
 Giao diện theo DNA đã chốt ([docs/UI_DNA.md](../docs/UI_DNA.md)), dựng hoàn toàn bằng code trong `assets/scripts/`
 (không prefab), nên chữ là chữ thật và đổi màu chỉ cần sửa [`dna/theme.ts`](assets/scripts/dna/theme.ts).
 
@@ -8,6 +10,10 @@ Dữ liệu đi qua API của server (`packages/server/src/api.ts`, PostgreSQL),
 
 ## Chạy lần đầu
 
+0. Ở gốc repo chạy `node scripts/sync-cocos.mjs`: chép luật và dữ liệu dùng chung (`packages/shared`), client Colyseus
+   và bảng màu VFX theo chiêu vào `cocos/assets/scripts/` (các thư mục này không commit). Chạy lại mỗi khi `shared` đổi.
+   Màn trận dùng luật V2 của `shared` (bước lượt `TurnStep`, hành động `ability` / `step`, `mode` khi gọi tướng): cần
+   bản `packages/shared` có các phần này, nếu không typecheck sẽ báo thiếu.
 1. Bật database và server ở gốc repo:
 
    ```bash
@@ -30,6 +36,20 @@ Dữ liệu đi qua API của server (`packages/server/src/api.ts`, PostgreSQL),
 | `assets/scripts/net/api.ts` | gọi API bằng XMLHttpRequest, giữ phiên ở `sys.localStorage` |
 | `assets/scripts/net/config.ts` | địa chỉ API và nơi lấy tranh |
 | `assets/scripts/screens/*` | 3 màn: đăng nhập, danh sách bộ bài, xếp bộ bài |
+
+## Ảnh tướng, đồ và chiêu (thầy tự thêm)
+
+Mọi ô chân dung tướng, ô món đồ và ô chiêu đều **vuông**. Code nạp ảnh theo mã, thiếu ảnh thì ô hiện khung trống giữ chỗ.
+Thả file PNG hoặc JPG vuông vào đúng thư mục, tên file là mã (chữ thường, không dấu, như mã trong `packages/shared`):
+
+| loại | thư mục | ví dụ | cỡ nên dùng |
+|---|---|---|---|
+| tướng | `assets/resources/art/heroes/` | `jinx.png`, `jayce.png`, `sylas.png` | vuông, từ 380×380 |
+| món đồ, mảnh đồ | `assets/resources/art/items/` | `kiem_dai.png` | vuông, từ 128×128 |
+| chiêu, tuyệt chiêu | `assets/resources/art/skills/` | `jinx_q.png`, `sylas_r.png` | vuông, từ 128×128 |
+| tranh lá trong bộ | `assets/resources/art/cards/` | `spell_heal.png` | vuông, 512×512 |
+
+Bản web có sẵn ảnh vuông ở `packages/client/public/heroes-square/`, `items/`, `card_skills/` để chép sang.
 
 ## Chưa có
 
