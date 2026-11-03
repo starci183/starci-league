@@ -12,6 +12,9 @@
     "@colyseus/schema": "3.0.76",
     "@colyseus/ws-transport": "0.16.5",
     "@starci/shared": "*",
-    "@supabase/supabase-js": "^2.118.0"
+    "pg": "^8.23.1"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.23.1"
   }
 }

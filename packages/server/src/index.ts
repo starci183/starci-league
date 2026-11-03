@@ -14,6 +14,12 @@ import {
 import {
     CardRoom
 } from "./CardRoom"
+import {
+    handleApi
+} from "./api"
+import {
+    migrate
+} from "./db"
 
 interface PhaseState {
     phase?: string
@@ -36,6 +42,8 @@ async function countActiveHumanRooms(): Promise<number> {
 
 const port = Number(process.env.PORT ?? 2567)
 const httpServer = createServer((req, res) => {
+    if (handleApi(req,
+        res)) return
     if (req.method === "GET" && req.url?.split("?")[0] === "/__host/rooms") {
         countActiveHumanRooms().then((active) => {
             res.writeHead(200,
@@ -69,4 +77,6 @@ server.define("duel",
     DuelRoom)
 server.define("card",
     CardRoom)
-server.listen(port).then(() => console.log(`StarCi League server: ws://localhost:${port}`))
+migrate()
+    .then(() => server.listen(port))
+    .then(() => console.log(`StarCi League server: ws://localhost:${port}`))

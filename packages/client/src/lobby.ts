@@ -1,9 +1,9 @@
-// Ngoài trận: đăng nhập (Supabase Auth) → Sảnh (đấu nhanh, phòng riêng, vào bằng mã) → Xây bộ bài kiểu DuelingBook.
-// Bộ bài đọc/ghi thẳng từ client, được RLS trên Supabase bảo vệ (mỗi người chỉ thấy bộ của mình).
+// Ngoài trận: đăng nhập (API server, PostgreSQL) → Sảnh (đấu nhanh, phòng riêng, vào bằng mã) → Xây bộ bài kiểu DuelingBook.
+// Bộ bài đọc/ghi qua API của server; server lọc theo người dùng trong token (mỗi người chỉ thấy bộ của mình).
 // Mọi chữ qua t() (i18n), không dùng icon; khung panel dùng 9-slice chung (nine.ts).
 import {
-    createClient, type Session
-} from "@supabase/supabase-js"
+    activateDeck, createDeck, deleteDeck, listDecks, restoreSession, signIn, signOut, signUp, updateDeck, type Session
+} from "./account"
 import {
     LANGS, Lang, getLang, t,
 } from "@starci/shared"
@@ -12,9 +12,6 @@ import {
     type DeckCardGroup, type DeckCardId,
 } from "./card/deckStore"
 import "./lobby.css"
-
-const supabase = createClient(import.meta.env.VITE_SUPABASE_URL,
-    import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY)
 
 /** Cách vào phòng: đấu nhanh (ghép ngẫu nhiên), tạo phòng riêng (có mã), vào phòng bằng mã */
 export type JoinMode = { kind: "quick" } | { kind: "create" } | { kind: "join"; roomId: string } | { kind: "bot"; level: "easy" | "hard" }
@@ -51,22 +48,19 @@ export function showLobby(): Promise<Entry> {
     return new Promise((resolve) => {
         finish = (e) => { Object.assign(entry,
             e); root().remove(); resolve(e) }
-        supabase.auth.getSession().then(async ({ data }) => (data.session ? homeView(await meOf(data.session)) : loginView()))
+        restoreSession().then((session) => (session ? homeView(meOf(session)) : loginView()))
     })
 }
 
-async function meOf(session: Session): Promise<Me> {
-    const { data } = await supabase.from("profiles").select("display_name").eq("id",
-        session.user.id).maybeSingle()
+function meOf(session: Session): Me {
     return {
-        session, name: data?.display_name ?? session.user.email ?? t("player")
+        session, name: session.user.name || session.user.email || t("player")
     }
 }
 
 async function play(me: Me, mode: JoinMode) {
-    const { data } = await supabase.auth.getSession() // token mới nhất (có thể đã tự làm mới)
     finish({
-        token: data.session?.access_token, name: me.name, mode
+        token: me.session?.token, name: me.name, mode
     })
 }
 
@@ -98,22 +92,16 @@ function loginView(mode: "in" | "up" = "in", msg = "") {
       ev.preventDefault()
       const f = new FormData(ev.target as HTMLFormElement)
       const email = String(f.get("email")), password = String(f.get("password"))
-      const res = mode === "in"
-          ? await supabase.auth.signInWithPassword({
-              email, password
-          })
-          : await supabase.auth.signUp({
-              email, password, options: {
-                  data: {
-                      display_name: String(f.get("name"))
-                  }
-              }
-          })
-      if (res.error) return loginView(mode,
-          res.error.message)
-      if (!res.data.session) return loginView("in",
-          t("login.check_email"))
-      homeView(await meOf(res.data.session))
+      try {
+          const session = mode === "in" ? await signIn(email,
+              password) : await signUp(email,
+              password,
+              String(f.get("name")))
+          homeView(meOf(session))
+      } catch (e) {
+          loginView(mode,
+              (e as Error).message)
+      }
   }
 }
 
@@ -171,11 +159,10 @@ function tile(id: DeckCardId, attrs = "", n = 0) {
 }
 
 /** Các bộ thẻ bài của người chơi (chỉ bộ có mọi lá bắt đầu bằng "cg:") */
-async function loadCgDecks(uid: string): Promise<CgDeck[]> {
-    const { data } = await supabase.from("decks").select("id, name, cards, is_active").eq("owner_id",
-        uid).order("created_at")
+async function loadCgDecks(session: Session): Promise<CgDeck[]> {
+    const data = await listDecks(session).catch(() => [])
     const out: CgDeck[] = []
-    for (const d of (data ?? []) as { id: string; name: string; cards: string[]; is_active: boolean }[]) {
+    for (const d of data) {
         const cards = fromDb(d.cards ?? [])
         if (cards) out.push({
             id: d.id, name: d.name, cards, is_active: d.is_active
@@ -187,7 +174,7 @@ async function loadCgDecks(uid: string): Promise<CgDeck[]> {
 async function homeView(me: Me, msg = "") {
     let active: DeckCardId[] = loadLocalDeck() ?? DEFAULT_DECK
     if (me.session) {
-        const decks = await loadCgDecks(me.session.user.id)
+        const decks = await loadCgDecks(me.session)
         active = decks.find((d) => d.is_active)?.cards ?? DEFAULT_DECK
     }
     if (deckError(active)) active = DEFAULT_DECK
@@ -230,7 +217,7 @@ async function homeView(me: Me, msg = "") {
     </div>`
     wireLang()
     const $ = <T extends HTMLElement>(s: string) => root().querySelector<T>(s)!
-    $("#lb-out").onclick = async () => { if (me.session) await supabase.auth.signOut(); loginView() }
+    $("#lb-out").onclick = () => { signOut(); loginView() }
     $("#lb-deck").onclick = () => cardDeckBuilder(me)
     $("#lb-cg-quick").onclick = () => play(me,
         {
@@ -260,8 +247,9 @@ async function homeView(me: Me, msg = "") {
 
 async function cardDeckBuilder(me: Me) {
     root().innerHTML = `<div class="lb-center"><p class="lb-hint">${D.loading}</p></div>`
-    const uid = me.session?.user.id ?? null
-    let decks: CgDeck[] = uid ? await loadCgDecks(uid) : []
+    const session = me.session
+    const uid = session?.user.id ?? null
+    let decks: CgDeck[] = session ? await loadCgDecks(session) : []
     let dirty = false
     if (!decks.length) {
         decks = [{
@@ -297,42 +285,35 @@ async function cardDeckBuilder(me: Me) {
     const save = async (): Promise<boolean> => {
         const d = deck(), err = deckError(d.cards)
         if (err) { say(err); return false }
-        if (!uid) {
+        if (!session) {
             if (!saveLocalDeck(d.cards)) { say(D.saveFail); return false }
             dirty = false; say(D.saved,
                 true)
             return true
         }
-        const body = {
-            name: d.name, cards: toDb(d.cards), updated_at: new Date().toISOString()
-        }
-        const res = d.id
-            ? await supabase.from("decks").update(body).eq("id",
-                d.id).select("id").single()
-            : await supabase.from("decks").insert({
-                ...body, owner_id: uid, is_active: !decks.some((x) => x.id && x.is_active)
-            }).select("id, is_active").single()
-        if (res.error) { say(D.saveFail + res.error.message); return false }
-        d.id = res.data.id
-        if ("is_active" in res.data) d.is_active = !!res.data.is_active
+        try {
+            const row = d.id
+                ? await updateDeck(session,
+                    d.id,
+                    {
+                        name: d.name, cards: toDb(d.cards)
+                    })
+                : await createDeck(session,
+                    d.name,
+                    toDb(d.cards))
+            d.id = row.id
+            d.is_active = row.is_active
+        } catch (e) { say(D.saveFail + (e as Error).message); return false }
         dirty = false; say(D.saved,
             true)
         return true
     }
     /** Chọn bộ đang xem làm bộ dùng khi vào trận */
     const activate = async () => {
-        if (!uid) return
+        if (!session) return
         if ((dirty || !deck().id) && !await save()) return
-        await supabase.from("decks").update({
-            is_active: false
-        }).eq("owner_id",
-            uid).eq("is_active",
-            true)
-        const { error } = await supabase.from("decks").update({
-            is_active: true
-        }).eq("id",
-            deck().id!)
-        if (error) return say(error.message)
+        try { await activateDeck(session,
+            deck().id!) } catch (e) { return say((e as Error).message) }
         decks.forEach((d) => (d.is_active = d === deck()))
         say(D.activated,
             true)
@@ -432,9 +413,9 @@ async function cardDeckBuilder(me: Me) {
         }
         $("#db-del").onclick = async () => {
             if (!deck().id || !confirm(D.delConfirm)) return
-            const { error } = await supabase.from("decks").delete().eq("id",
-                deck().id!)
-            if (error) return say(error.message)
+            if (!session) return
+            try { await deleteDeck(session,
+                deck().id!) } catch (e) { return say((e as Error).message) }
             decks.splice(cur,
                 1); cur = 0; dirty = false; say(D.deleted,
                 true)
