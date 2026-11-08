@@ -27,6 +27,8 @@ export interface SimHit {
     tag?: string;
     /** Loại sát thương (physical, magic, true) để tô màu số */
     dmgKind?: string;
+    /** Phát này chí mạng */
+    crit?: boolean;
     /** Đơn vị liền trước trong chuỗi nảy (Nami Q); thiếu là xuất phát từ tướng dùng chiêu */
     via?: { side: "A" | "B"; lane: number };
     phase: number;
@@ -181,7 +183,7 @@ function simulateInner(o: SimOptions): SimResult {
         if ((e.t === "damage" && e.amount > 0) || e.t === "heal" || e.t === "shield") {
             const at = where(e.target)
             if (at) hits.push({
-                kind: e.t, ...at, amount: e.amount, tag: e.t === "damage" ? e.tag : undefined, dmgKind: e.t === "damage" ? e.kind : undefined, via: e.t === "shield" ? undefined : where(e.via), phase
+                kind: e.t, ...at, amount: e.amount, tag: e.t === "damage" ? e.tag : undefined, dmgKind: e.t === "damage" ? e.kind : undefined, crit: e.t === "damage" ? !!e.crit : undefined, via: e.t === "shield" ? undefined : where(e.via), phase
             })
         }
         if (e.t === "damage" && e.target.startsWith("B:")) damage.push({

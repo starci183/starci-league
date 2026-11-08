@@ -225,12 +225,12 @@ Mana `q0`, `e0`, `r0`. `summonModes` `minigun` / `rocket`; súng lưu ở stack 
 - **E Lựu Đạn Ma Hỏa!:** Quick. 1 địch `e1 + e2·AD`, Mù `e3 + e4·AD`. Khi địch đánh đúng 1 tướng mình; mục tiêu là kẻ đánh.
 - **R Tên Lửa Đạn Đạo Siêu Khủng Khiếp!:** 1 địch bất kỳ đường `r1 + r2·AD + r3`% Máu đã mất, 2 đường kề nhận `r4`%. Hạ: Phấn Khích (nhận Điên như một đòn trúng, chắc chắn).
 
-### Miss Fortune · diện rộng
-Mana `q0`, `e0`, `r0`.
-- **Nội tại Song Súng:** Mỗi đòn nảy sang 1 địch khác, `p1`% sát thương.
-- **Q Bắn Nảy:** 1 địch `q1 + q2·AD`, có thể chí mạng, nảy 2 địch khác `q3`%.
-- **E Mưa Đạn:** Mọi địch `e1 + e2·AD`; `e3` đơn vị chịu thêm `e4`% từ phe bạn.
-- **R Đạn Tử Thần:** `r1 + r2·Tốc Đánh` loạt (phần lẻ theo X.Y), mỗi loạt mọi địch `r3 + r4·AD`, có thể chí mạng.
+### Miss Fortune · xạ thủ dồn sát thương bằng chiêu
+Mana `q0`, `e0`, `r0`. "AxB" = A mục tiêu × B phát. Đánh thường bình thường, không nảy.
+- **Nội tại Tay Súng May Mắn:** Mọi phát đạn của Q, E, R có thể chí mạng theo Chí mạng của Miss Fortune; mỗi phát tung riêng, hệ số chí mạng như đòn đánh.
+- **Q Bắn Hạ (1x1):** 1 địch, 1 phát `q1 + q2·AD`.
+- **E Mưa Đạn (3x3):** Tâm và 2 đường kề, mỗi tướng `e3` phát `e1 + e2·AD` (bắn theo đợt: mỗi đợt một phát vào mỗi ô).
+- **R Đạn Tử Thần (5x5):** `r3` loạt, mỗi loạt mọi tướng địch trên sân 1 phát `r1 + r2·AD`.
 
 ## Đấu sĩ
 

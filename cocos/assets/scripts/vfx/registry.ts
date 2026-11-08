@@ -28,7 +28,7 @@ export interface VfxCtx {
     hops?: Hop[];
 }
 /** Một cú trúng: từ đâu tới đâu, loại gì (hồi máu, khiên, sát thương) */
-export interface Hop { from: Pt; to: Pt; kind: "heal" | "shield" | "damage" }
+export interface Hop { from: Pt; to: Pt; kind: "heal" | "shield" | "damage"; crit?: boolean }
 export type SkillEffect = (ctx: VfxCtx) => Promise<void>
 
 /** Khoá của một chiêu: "<tướng>_<p|q|e|r>", "spell_<phép>", "basic_<tướng>" */

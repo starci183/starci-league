@@ -30,6 +30,9 @@ import {
     hasCustom
 } from "../vfx/keys"
 import {
+    mfWaves
+} from "../vfx/missfortune"
+import {
     namiGroups, namiPrimary
 } from "../vfx/nami"
 import {
@@ -483,6 +486,12 @@ export function buildHeroGallery(root: Node, nav: Nav, start?: string): () => vo
             note.string = "E: khe rách cắt ngang 3 đường, cả 3 nhận như nhau rồi nổ ngay theo % máu đã mất"
             const beats = riftBeats(now)
             await playSkill(fx, keyOf(k), style, from, targets, { onBeat: (i) => { for (const d of beats[i] ?? []) showHit(d) } })
+        } else if (hero.id === "missfortune" && (k === "q" || k === "e" || k === "r")) {
+            // Miss Fortune: mỗi phát đi đúng tướng engine báo, có cờ chí mạng; số bật theo đợt (E) / loạt (R)
+            const list = sim.hits.filter((h) => h.phase === 0 && h.kind === "damage" && h.side === "B" && h.tag === "skill").map((h) => ({ ...h, target: `B:${h.lane}` }))
+            const groups = mfWaves(list)
+            const hops = list.map((h) => ({ from, to: foePos(h.lane), kind: "damage" as const, crit: h.crit }))
+            await playSkill(fx, keyOf(k), style, from, hops.map((h) => h.to), { hops, onBeat: (i) => { for (const h of groups[i] ?? []) showSimHit(h) } })
         } else if (hero.id === "nami" && (k === "q" || k === "e" || k === "r")) {
             // Nami: VFX đi đúng các chặng engine báo (via), mỗi nhịp hiện số của chặng đó (hồi máu, khiên, sát thương)
             const groups = namiGroups(k.toUpperCase(), sim.hits.filter((h) => h.phase === 0))

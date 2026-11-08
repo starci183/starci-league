@@ -33,6 +33,9 @@ import {
     skillArt, slot
 } from "../../ui/slot"
 import {
+    mfWaves
+} from "../../vfx/missfortune"
+import {
     namiGroups, namiPrimary
 } from "../../vfx/nami"
 import {
@@ -1517,7 +1520,18 @@ export function buildMatch(root: Node, nav: Nav): () => void {
                         x.target),
                     x.t === "damage" ? `-${x.amount}` : x.t === "heal" ? `+${x.amount}` : `+${x.amount} khiên`,
                     x.t === "damage" ? undefined : x.t === "heal" ? C.teal : C.goldLight)
-                    const targets = namiSkill && namiHops.length ? namiHops.map((h) => h.to) : swapQ ? [posOf(cur,
+                    // Miss Fortune Q/E/R: mỗi phát đúng tướng engine báo, kèm chí mạng; số bật theo đợt / loạt (chí mạng màu vàng)
+                    const mfSkill = u.hero === "missfortune" && (e.skill === "Q" || e.skill === "E" || e.skill === "R")
+                    const mfEv = mfSkill ? (nextCast < 0 ? rest : rest.slice(0,
+                        nextCast)).filter((x): x is Extract<cg.GameEvent, { t: "damage" }> => x.t === "damage" && x.src === e.unit && x.tag === "skill") : []
+                    for (const x of mfEv) beatShown.add(x)
+                    const mfG = mfWaves(mfEv)
+                    const mfHops = mfEv.map((x) => ({
+                        from: posOf(cur,
+                            e.unit), to: posOf(cur,
+                            x.target), kind: "damage" as const, crit: !!x.crit
+                    }))
+                    const targets = mfSkill && mfHops.length ? mfHops.map((h) => h.to) : namiSkill && namiHops.length ? namiHops.map((h) => h.to) : swapQ ? [posOf(cur,
                         e.target!),
                     ...(foeOfAlly ? [posOf(cur,
                         foeOfAlly)] : [])] : multi ? ids.map((id) => posOf(cur,
@@ -1534,6 +1548,14 @@ export function buildMatch(root: Node, nav: Nav): () => void {
                         targets,
                         swapQ ? {
                             allyHero: cur.units[e.target!]?.hero
+                        } : mfSkill ? {
+                            hops: mfHops,
+                            onBeat: (i) => {
+                                for (const x of mfG[i] ?? []) floatNumber(posOf(lastView ?? cur,
+                                    x.target),
+                                `-${x.amount}`,
+                                x.crit ? C.goldLight : undefined)
+                            }
                         } : namiSkill ? {
                             hops: namiHops,
                             onBeat: (i) => { for (const h of namiG[i] ?? []) floatHit(h.ev) }

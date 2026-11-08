@@ -1,256 +1,275 @@
-// VFX Miss Fortune trên Cocos, theo thiết kế bản web (fx_missfortune.ts): chất liệu THUỐC SÚNG. Vệt đạn nóng đỏ cam, đạn gang bọc
-// lửa như icon Q và R, tia lửa kim loại, khói súng, trái tim lửa của Love Tap như icon nội tại. Hai khẩu súng hai bên người.
-// Ô: basic_missfortune, missfortune_q, missfortune_e, missfortune_r, missfortune_p.
+// VFX Miss Fortune trên Cocos theo docs/VFX_RULES.md: THUỐC SÚNG. Hai khẩu súng lục hai bên người, chớp nòng vàng trắng,
+// vệt đạn nóng mảnh (lõi trắng, quầng vàng cam), tia lửa kim loại văng NGƯỢC hướng bắn, khói súng xám bay lên tan dần,
+// bụi đất bắn khi đạn ghim xuống đất. Phát chí mạng: vệt dày và sáng hơn, chớp nòng to, nổ sao vàng ở chỗ trúng.
+// Ô: basic_missfortune, missfortune_q (1x1), missfortune_e (3x3: mưa đạn trút xuống 3 ô theo 3 đợt), missfortune_r (5x5:
+// 5 loạt quạt đạn vào mọi tướng), missfortune_p (đồng xu may mắn tung lên). Mục tiêu và chí mạng lấy từ ctx.hops (engine).
 import {
     Node
 } from "cc"
 import {
-    angleOf, dist, ease, mix, over, rand, type Pt
+    angleOf, burst, dist, ease, emit, lerp, mix, over, rand, wait, type Pt
 } from "./particles"
 import {
-    registerSkillVfx
+    registerSkillVfx, type Hop, type VfxCtx
 } from "./registry"
 import {
-    burst, carry, DOWN, emit, firstFoe, flash, foeRow, offset, power, ring, smoke, sparks, star, stream, targetsOf, TAU, UP, wait
-} from "./g3_helpers"
+    TAU, UP, canvas, col, polar, polyline
+} from "./shape"
 
-const HOT = 0xfff1b8
-const AMBER = 0xffc05a
-const ORANGE = 0xf58a36
-const RED = 0xe0301e
-const CRIMSON = 0x9a1020
-const HEART = 0xef4664
-const IRON = 0x2a1a22
-const SOOT = [0x2a2020, 0x3a2c28, 0x1e1616]
-const HAZE = 0x827567
+const WHITE = 0xfffbef
+const FLASH = 0xfff2c0
+const BRASS = 0xffd27a
+const EMBER = 0xff9a3c
+const CRIMSON = 0xd8283f
+const SMOKE = [0x8a8580, 0x6d6964, 0xa8a29a]
+const DIRT = [0x5a4636, 0x7a6048, 0x3e3026]
+const SPARK = [WHITE, BRASS, EMBER]
+/** Trọng lực (px/s², y hướng lên nên âm là rơi) */
+const FALL = -700
 
-/** Hai khẩu súng hai bên người, vuông góc hướng bắn */
-const guns = (at: Pt, dir: number): Pt[] => [offset(offset(at, dir + UP, 26), dir, 26), offset(offset(at, dir - UP, 26), dir, 26)]
-
-/** Chớp đầu nòng hình sao, tia lửa theo hướng bắn, khói súng */
-function muzzle(layer: Node, at: Pt, dir: number, s = 1) {
-    star(layer, at, 18 * s, [HOT, AMBER], 0.12, dir + 0.785)
-    void burst(layer, at, Math.round(6 * s), {
-        color: [HOT, AMBER, ORANGE], kind: "blade", life: [0.08, 0.16], size: [16 * s, 8], alpha: 1, speed: [200, 380], angle: [dir - 0.35, dir + 0.35],
-        drag: 3, align: true, stretch: 2.2
-    })
-    void smoke(layer, offset(at, dir, 14), 2, SOOT, 22 * s, [0.4, 0.6], 6)
-}
-
-/** Vệt đạn: đầu thon sáng, thân đỏ cam kéo dài; xong khi chạm */
-const tracer = (layer: Node, a: Pt, b: Pt, secs: number, w = 1) => carry(layer, (t) => mix(a, b, t), secs, (p, _t, dir) => {
-    emit(layer, p, {
-        color: [HOT, AMBER], kind: "blade", life: [0.05, 0.07], size: [18 * w, 16 * w], alpha: 1, rotation: dir, stretch: 3.2
-    })
-    emit(layer, offset(p, dir, -18 * w), {
-        color: [ORANGE, RED], kind: "blade", life: [0.08, 0.14], size: [16 * w, 6], alpha: 0.85, rotation: dir, stretch: 4
-    })
-})
-
-/** Đạn gang bọc lửa (icon Q/R): viên sắt tối, quầng lửa, đuôi lửa dày */
-const ironShot = (layer: Node, path: (t: number) => Pt, secs: number, r: number, easing = ease.linear) => carry(layer, path, secs, (p, _t, dir) => {
-    emit(layer, p, {
-        color: [ORANGE, AMBER], kind: "glow", life: [0.06, 0.09], size: [r * 3.6, r * 2.6], alpha: 0.85
-    })
-    emit(layer, p, {
-        color: [IRON], kind: "dot", additive: false, life: [0.04, 0.05], size: [r * 2, r * 2], alpha: 1
-    })
-    emit(layer, offset(p, 2.3, r * 0.45), {
-        color: [0xd8c8ff], kind: "glow", life: [0.04, 0.05], size: [r * 0.8, r * 0.8], alpha: 0.7
-    })
-    for (let i = 0; i < 2; i++) emit(layer, offset(p, dir, -r), {
-        color: [ORANGE, RED, AMBER], kind: "blade", life: [0.12, 0.24], size: [r * 1.8, r * 0.6], alpha: 0.9, rotation: dir + rand(-0.2, 0.2), stretch: 2.6,
-        speed: [30, 100], angle: [dir + Math.PI - 0.3, dir + Math.PI + 0.3]
-    })
-}, easing)
-
-/** Cú trúng của đạn nặng: tia lửa toả, lưỡi lửa, khói */
-function heavyHit(layer: Node, at: Pt, dir: number, s: number) {
-    flash(layer, at, HOT, 110 * s, 0.18)
-    flash(layer, at, ORANGE, 180 * s, 0.35, 0.6)
-    void sparks(layer, at, Math.round(14 * s), [HOT, AMBER, ORANGE], [220, 560], {
-        angle: [dir - 1, dir + 1], gravity: -300
-    })
-    void burst(layer, at, Math.round(10 * s), {
-        color: [ORANGE, RED, AMBER], kind: "glow", life: [0.25, 0.45], size: [40 * s, 12], alpha: 0.9, speed: [40, 180], drag: 2
-    })
-    void smoke(layer, at, Math.round(3 * s), SOOT, 40 * s)
-}
-
-/** Trái tim lửa Love Tap: viền tim bằng hạt sáng, lõi đỏ sẫm, lửa liếm phía trên */
-function heart(layer: Node, at: Pt, size: number, life: number) {
-    flash(layer, at, CRIMSON, size * 2.4, life, 0.6, false)
-    const n = 26
-    for (let i = 0; i < n; i++) {
-        const t = i / n * TAU
-        // đường cong trái tim cổ điển
-        const x = 16 * Math.sin(t) ** 3
-        const y = 13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t)
-        const p = {
-            x: at.x + x * size / 16, y: at.y + y * size / 16
-        }
-        emit(layer, p, {
-            color: [AMBER, HOT, ORANGE], kind: "glow", life: [life, life], size: [size * 0.32, size * 0.24], alpha: 1, speed: [10, 30], angle: [UP, UP]
-        })
-    }
-    void burst(layer, offset(at, UP, size * 0.8), 10, {
-        color: [ORANGE, AMBER, RED], kind: "glow", life: [0.3, 0.5], size: [size * 0.5, size * 0.15], alpha: 0.9, speed: [60, 140], angle: [UP - 0.5, UP + 0.5],
-        gravity: 120, spread: size * 0.6
-    })
-}
-
-/** Đánh thường: một khẩu chĩa tới, chớp sao vàng trắng, vệt đạn hổ phách, toé cam */
-registerSkillVfx("basic_missfortune", async (ctx) => {
-    const to = firstFoe(ctx)
-    const dir = angleOf(ctx.from, to)
-    const g = guns(ctx.from, dir)[Math.random() < 0.5 ? 0 : 1]
-    muzzle(ctx.layer, g, dir, 0.8)
-    await tracer(ctx.layer, g, to, Math.min(0.2, 0.08 + dist(g, to) / 4000))
-    flash(ctx.layer, to, AMBER, 70, 0.16)
-    void sparks(ctx.layer, to, 7, [AMBER, ORANGE, HOT], [140, 320], {
-        angle: [dir - 0.8, dir + 0.8]
-    })
-    await wait(ctx.layer, 0.25)
-})
+const power = (ctx: VfxCtx) => ctx.style.intensity ?? 1
 
 /**
- * Q Bắn Nảy: hai nòng hút nóng đỏ rồi cùng nổ, đạn gang bọc lửa lao vào mục tiêu chính (có thể chí mạng: quầng trắng vàng), rồi
- * văng tiếp không dừng sang 2 tướng địch khác, mỗi cú trúng toé tia lửa.
+ * Chia các phát của một lần dùng chiêu thành đợt (loạt): mở đợt mới khi một mục tiêu bị trúng lần nữa. Dùng chung cho màn
+ * trận và Thư viện tướng; nhịp i = đợt i (Q 1 đợt, E 3 đợt, R 5 loạt).
  */
+export function mfWaves<T extends { target?: string; to?: Pt }>(list: T[]): T[][] {
+    const out: T[][] = []
+    let seen = new Set<string>()
+    for (const h of list) {
+        const key = h.target ?? `${Math.round(h.to?.x ?? 0)},${Math.round(h.to?.y ?? 0)}`
+        if (!out.length || seen.has(key)) { out.push([]); seen = new Set() }
+        seen.add(key)
+        out[out.length - 1].push(h)
+    }
+    return out
+}
+
+/** Hai nòng súng hai bên người Miss Fortune; `side` -1 trái, +1 phải */
+const muzzle = (from: Pt, side: number, to: Pt): Pt => {
+    const d = angleOf(from, to)
+    return { x: from.x + Math.cos(d) * 18 + Math.cos(d + UP) * 13 * side, y: from.y + Math.sin(d) * 18 + Math.sin(d + UP) * 13 * side }
+}
+
+/** Chớp nòng: loé vàng trắng, vài tia sáng ngắn hướng về trước, khói súng nhỏ */
+function flash(layer: Node, at: Pt, dir: number, big: number) {
+    emit(layer, at, { color: [FLASH], kind: "glow", life: [0.07, 0.09], size: [26 * big, 10 * big], alpha: 1 })
+    emit(layer, at, { color: [BRASS], kind: "glow", life: [0.1, 0.12], size: [44 * big, 16 * big], alpha: 0.55 })
+    void burst(layer, at, Math.round(5 * big), {
+        color: [WHITE, FLASH], kind: "blade", life: [0.05, 0.09], size: [16 * big, 4], alpha: 1, speed: [60, 160],
+        angle: [dir - 0.35, dir + 0.35], align: true, stretch: 2.4, drag: 3
+    })
+    void burst(layer, at, Math.round(4 * big), {
+        color: SMOKE, kind: "glow", additive: false, life: [0.4, 0.8], size: [8, 22 * big], alpha: 0.35, speed: [10, 40],
+        angle: [UP - 0.8, UP + 0.8], drag: 1.5, spread: 4
+    })
+}
+
+/**
+ * Vệt đạn a -> b: đầu đạn sáng bay rất nhanh, kéo theo vệt mảnh (lõi trắng, quầng vàng cam) mờ dần. Xong khi đạn tới đích;
+ * vệt tắt chạy nền. `crit` thì vệt dày và sáng hơn.
+ */
+async function tracer(layer: Node, a: Pt, b: Pt, secs: number, crit: boolean) {
+    const c = canvas(layer)
+    const w = crit ? 1.9 : 1.3
+    let head = a
+    await over(layer, secs, (t) => {
+        head = mix(a, b, ease.in(t))
+        const tail = mix(a, b, Math.max(0, ease.in(t) - 0.5))
+        c.g.clear()
+        polyline(c.g, [tail, head], 4.5 * w, col(EMBER, 0.35))
+        polyline(c.g, [tail, head], 1.2 * w, col(WHITE, 1))
+        c.g.fillColor = col(FLASH, 1)
+        c.g.circle(head.x, head.y, 1.6 * w)
+        c.g.fill()
+    })
+    void over(layer, 0.2, (t) => {
+        const tail = mix(a, b, lerp(0.5, 1, t))
+        c.g.clear()
+        polyline(c.g, [tail, b], 3 * w * (1 - t), col(EMBER, 0.25 * (1 - t)))
+        polyline(c.g, [tail, b], 0.9 * w, col(WHITE, 0.8 * (1 - t)))
+    }).then(c.done)
+}
+
+/** Đạn trúng tướng: tia lửa kim loại văng ngược hướng bắn, khói nhỏ; chí mạng thêm sao vàng nổ và vòng sóng mảnh */
+function hit(layer: Node, at: Pt, from: Pt, crit: boolean, k: number) {
+    const back = angleOf(at, from)
+    const jitter = { x: at.x + rand(-14, 14), y: at.y + rand(-12, 12) }
+    void burst(layer, jitter, Math.round((crit ? 22 : 13) * k), {
+        color: SPARK, kind: "blade", life: [0.12, 0.28], size: [16 * k, 2], alpha: 1, speed: [180, 480],
+        angle: [back - 0.9, back + 0.9], drag: 2.4, align: true, stretch: 2.2, gravity: FALL * 0.4
+    })
+    void burst(layer, jitter, Math.round(6 * k), {
+        color: [BRASS, EMBER], kind: "dot", life: [0.2, 0.45], size: [2.4, 0.8], alpha: 1, speed: [60, 200],
+        angle: [back - 1.2, back + 1.2], gravity: FALL
+    })
+    emit(layer, jitter, { color: [FLASH], kind: "glow", life: [0.08, 0.1], size: [18 * k, 46 * k], alpha: 0.8 })
+    void burst(layer, jitter, 2, {
+        color: SMOKE, kind: "glow", additive: false, life: [0.4, 0.7], size: [6, 18], alpha: 0.3, speed: [10, 30], angle: [UP - 0.6, UP + 0.6]
+    })
+    if (!crit) return
+    // chí mạng: sao vàng bốn cánh nổ ra, vòng sóng mảnh
+    const c = canvas(layer)
+    void over(layer, 0.26, (t) => {
+        const r = lerp(8, 34, ease.out(t)) * k
+        c.g.clear()
+        for (let i = 0; i < 4; i++) {
+            const a = i * TAU / 4 + 0.4
+            polyline(c.g, [polar(jitter, a, r * 0.2), polar(jitter, a, r)], 1.4 * (1 - t) + 0.4, col(FLASH, 1 - t))
+        }
+        c.g.lineWidth = 1
+        c.g.strokeColor = col(BRASS, 0.8 * (1 - t))
+        c.g.circle(jitter.x, jitter.y, r * 0.9)
+        c.g.stroke()
+    }).then(c.done)
+    emit(layer, jitter, { color: [BRASS], kind: "glow", life: [0.16, 0.16], size: [30 * k, 90 * k], alpha: 0.6 })
+}
+
+/** Đạn ghim xuống đất (đạn lạc): chớp nhỏ, đất vụn bắn lên rồi rơi, bụi đất bốc nhẹ, lỗ đạn sẫm mờ dần */
+function dirt(layer: Node, at: Pt) {
+    void burst(layer, at, 9, {
+        color: DIRT, kind: "dot", additive: false, life: [0.25, 0.55], size: [3, 1], alpha: 0.95, speed: [50, 170],
+        angle: [UP - 0.7, UP + 0.7], gravity: FALL
+    })
+    void burst(layer, at, 3, {
+        color: [0x8a7560, 0x6e5c4a], kind: "glow", additive: false, life: [0.4, 0.7], size: [6, 20], alpha: 0.35, speed: [8, 30],
+        angle: [UP - 0.5, UP + 0.5]
+    })
+    emit(layer, at, { color: [FLASH], kind: "glow", life: [0.06, 0.08], size: [8, 18], alpha: 0.9 })
+    const c = canvas(layer, false)
+    void over(layer, 0.7, (t) => {
+        c.g.clear()
+        c.g.fillColor = col(0x1a120c, 0.5 * (1 - t))
+        c.g.ellipse(at.x, at.y, 2.6, 1.4)
+        c.g.fill()
+    }).then(c.done)
+}
+
+/** Các phát của chiêu: lấy từ engine (ctx.hops); thiếu thì dựng tạm mỗi đích một phát (chỉ cho màn ?vfx) */
+const shotsOf = (ctx: VfxCtx): Hop[] => ctx.hops?.length ? ctx.hops : (ctx.to.length ? ctx.to : [polar(ctx.from, UP, 300)]).map((to) => ({ from: ctx.from, to, kind: "damage" as const }))
+
+// ---------- Đánh thường ----------
+
+/** Đánh thường: một khẩu bắn 1 phát, vệt đạn mảnh, trúng là tia lửa nhỏ. Xong đúng lúc trúng */
+registerSkillVfx("basic_missfortune", async (ctx) => {
+    const k = power(ctx)
+    await Promise.all((ctx.to.length ? ctx.to : [polar(ctx.from, UP, 300)]).map(async (to) => {
+        const m = muzzle(ctx.from, 1, to)
+        flash(ctx.layer, m, angleOf(m, to), 0.7)
+        await tracer(ctx.layer, m, to, Math.min(0.1, 0.04 + dist(m, to) / 9000), false)
+        ctx.onBeat?.(0)
+        hit(ctx.layer, to, m, false, 0.7 * k)
+    }))
+})
+
+// ---------- Q Bắn Hạ (1x1) ----------
+
+/** Q: hai súng chụm, chớp nòng to, một viên đạn nặng (vệt dày) tới mục tiêu; trúng là tia lửa dày, khói; chí mạng có sao nổ */
 registerSkillVfx("missfortune_q", async (ctx) => {
     const k = power(ctx)
-    const to = firstFoe(ctx)
-    const dir = angleOf(ctx.from, to)
-    const g = guns(ctx.from, dir)
-    for (const m of g) flash(ctx.layer, m, RED, 60, 0.3, 0.8)
-    await stream(ctx.layer, () => g[Math.random() < 0.5 ? 0 : 1], 0.2, 80, {
-        color: [ORANGE, AMBER], kind: "dot", life: [0.1, 0.18], size: [6, 2], alpha: 1, speed: [40, 100], angle: [dir - 0.3, dir + 0.3]
+    const s = shotsOf(ctx)[0]
+    const crit = !!s.crit
+    // ngắm: một vạch mảnh đỏ chạy tới mục tiêu rồi tắt
+    const aim = canvas(ctx.layer)
+    await over(ctx.layer, 0.12, (t) => {
+        aim.g.clear()
+        polyline(aim.g, [ctx.from, mix(ctx.from, s.to, ease.out(t))], 0.8, col(CRIMSON, 0.7 * (1 - t * 0.5)))
     })
-    for (const m of g) muzzle(ctx.layer, m, dir, 1.3)
-    const mid = mix(g[0], g[1], 0.5)
-    await ironShot(ctx.layer, (t) => mix(mid, to, t), Math.min(0.32, 0.14 + dist(mid, to) / 3000), 12 * k, ease.in)
-    heavyHit(ctx.layer, to, dir, 1.2 * k)
-    star(ctx.layer, to, 40, [HOT, AMBER], 0.22, 0.3)
-    // nảy sang hai địch khác: ưu tiên mục tiêu thật, thiếu thì lấy ô gần trong hàng
-    const pool = (ctx.to.length > 1 ? ctx.to.slice(1) : foeRow(ctx).filter((p) => dist(p, to) > 40))
-        .sort((a, b) => dist(to, a) - dist(to, b)).slice(0, 2)
-    let prev = to
-    for (const p of pool) {
-        await ironShot(ctx.layer, (t) => mix(prev, p, t), 0.18, 9 * k)
-        heavyHit(ctx.layer, p, angleOf(prev, p), 0.8)
-        prev = p
-    }
-    await wait(ctx.layer, 0.35)
+    aim.done()
+    const ml = muzzle(ctx.from, -1, s.to), mr = muzzle(ctx.from, 1, s.to)
+    flash(ctx.layer, ml, angleOf(ml, s.to), crit ? 1.4 : 1.1)
+    flash(ctx.layer, mr, angleOf(mr, s.to), crit ? 1.4 : 1.1)
+    await tracer(ctx.layer, mix(ml, mr, 0.5), s.to, Math.min(0.12, 0.05 + dist(ctx.from, s.to) / 8000), true)
+    ctx.onBeat?.(0)
+    hit(ctx.layer, s.to, ctx.from, crit, 1.3 * k)
 })
 
+// ---------- E Mưa Đạn (3x3) ----------
+
 /**
- * E Mưa Đạn (mọi tướng địch, dễ tổn thương): Miss Fortune chĩa hai súng lên trời xả đạn bay khỏi màn, màn đỏ cam phủ lên hàng địch,
- * rồi mưa vệt đạn vàng đỏ trút xuống khắp hàng; mỗi tướng một quầng lửa, tia lửa, bụi đất xám nâu, rồi cháy âm ỉ (chịu thêm sát thương).
+ * E: Miss Fortune bắn chỉ thiên, đạn trút xuống 3 ô theo từng đợt. Mỗi đợt: một loạt vệt đạn xiên từ trên rơi xuống (đạn
+ * trúng tướng và đạn lạc ghim đất quanh lá), bụi đất bắn; đợt i là nhịp i, số của đợt đó bật đúng lúc loạt chạm.
  */
 registerSkillVfx("missfortune_e", async (ctx) => {
     const k = power(ctx)
-    const row = foeRow(ctx)
-    const g = guns(ctx.from, UP)
-    // bắn lên trời
-    await over(ctx.layer, 0.32, () => {
-        const m = g[Math.random() < 0.5 ? 0 : 1]
-        emit(ctx.layer, m, {
-            color: [AMBER, HOT, ORANGE], kind: "blade", life: [0.25, 0.3], size: [16, 14], alpha: 1, speed: [1400, 1600], angle: [UP - 0.12, UP + 0.12], align: true, stretch: 3.4
-        })
-        if (Math.random() < 0.4) muzzle(ctx.layer, m, UP, 0.6)
-    })
-    // màn đỏ cam phủ hàng địch
-    for (const p of row) flash(ctx.layer, p, RED, 240 * k, 1.2, 0.3)
-    await wait(ctx.layer, 0.15)
-    // mưa đạn: vệt rơi chéo, viên đầu chạm là sát thương
-    const fall = DOWN + 0.18
-    const rain = stream(ctx.layer, () => {
-        const p = row[Math.floor(Math.random() * row.length)]
-        return offset({
-            x: p.x + rand(-90, 90), y: p.y + rand(-50, 50)
-        }, fall, -240)
-    }, 0.75, 170, {
-        color: [AMBER, ORANGE, RED, HOT], kind: "blade", life: [0.22, 0.24], size: [16, 12], alpha: 1, speed: [1050, 1050], angle: [fall, fall], align: true, stretch: 3.6
-    })
-    await wait(ctx.layer, 0.22)
-    for (const p of row) {
-        heavyHit(ctx.layer, p, UP, 0.9)
-        void burst(ctx.layer, p, 8, {
-            color: [HAZE, 0x9a8a78], kind: "glow", additive: false, life: [0.5, 0.8], size: [30, 60], alpha: 0.4, speed: [20, 70], angle: [UP - 1, UP + 1], spread: 60
-        })
-        // cháy âm ỉ: than đỏ bốc lên
-        void stream(ctx.layer, () => ({
-            x: p.x + rand(-60, 60), y: p.y - 40
-        }), 0.9, 25, {
-            color: [RED, ORANGE], kind: "dot", life: [0.5, 0.8], size: [7, 2], alpha: 0.9, speed: [40, 90], angle: [UP - 0.3, UP + 0.3]
-        })
+    const waves = mfWaves(shotsOf(ctx))
+    const rowY = waves.flat().reduce((s, h) => s + h.to.y, 0) / Math.max(1, waves.flat().length)
+    const down = rowY >= ctx.from.y ? 1 : -1
+    // bắn chỉ thiên: hai chớp nòng hướng lên
+    const sky = { x: ctx.from.x, y: ctx.from.y + 200 }
+    flash(ctx.layer, muzzle(ctx.from, -1, sky), UP, 1)
+    flash(ctx.layer, muzzle(ctx.from, 1, sky), UP, 1)
+    await wait(ctx.layer, 0.14)
+    for (let w = 0; w < waves.length; w++) {
+        const wave = waves[w]
+        // mỗi ô: 1 viên trúng tướng + 3 viên lạc ghim đất quanh lá, rơi xiên từ phía trên hàng địch
+        const falls: Promise<void>[] = []
+        for (const h of wave) {
+            const slant = rand(-0.25, 0.25)
+            const drop = (to: Pt, real: boolean) => {
+                const from = { x: to.x - Math.sin(slant) * 110 * down - 26, y: to.y + 110 * down }
+                return wait(ctx.layer, rand(0, 0.06)).then(() => tracer(ctx.layer, from, to, 0.08, real && !!h.crit)).then(() => {
+                    if (real) hit(ctx.layer, to, from, !!h.crit, 0.9 * k)
+                    else dirt(ctx.layer, to)
+                })
+            }
+            falls.push(drop(h.to, true))
+            for (let j = 0; j < 6; j++) falls.push(drop({ x: h.to.x + rand(-60, 60), y: h.to.y + rand(-55, 35) }, false))
+        }
+        // nhịp đợt w: lúc viên trúng tướng đầu tiên của đợt chạm (đợi viên chậm nhất trong đợt cho chắc số không lệch hình)
+        await Promise.all(falls)
+        ctx.onBeat?.(w)
+        await wait(ctx.layer, 0.08)
     }
-    await rain
-    await wait(ctx.layer, 0.5)
 })
 
+// ---------- R Đạn Tử Thần (5x5) ----------
+
 /**
- * R Đạn Tử Thần: đứng vững, hai nòng nóng đỏ, lửa cuộn về súng; rồi nhiều loạt đạn gang bọc lửa toả quạt khắp hàng địch (đúng
- * nhiều loạt như engine), vài vệt lọt khe bay vượt hàng; mỗi loạt mỗi địch một chùm tia lửa.
+ * R: đứng yên xả 5 loạt. Mỗi loạt hai súng luân phiên chớp nòng, một vệt đạn tới mỗi tướng địch (đúng tướng engine báo)
+ * kèm vài viên lạc ghim đất giữa hàng; loạt i là nhịp i, số của cả loạt bật đúng lúc loạt chạm.
  */
 registerSkillVfx("missfortune_r", async (ctx) => {
     const k = power(ctx)
-    const row = foeRow(ctx)
-    const mid = mix(row[0], row[row.length - 1], 0.5)
-    const dir = angleOf(ctx.from, mid)
-    const g = guns(ctx.from, dir)
-    // tụ: lửa cuộn về hai nòng
-    for (const m of g) flash(ctx.layer, m, RED, 100, 0.5, 0.8)
-    await stream(ctx.layer, () => {
-        const m = g[Math.random() < 0.5 ? 0 : 1]
-        return offset(m, rand(0, TAU), 60)
-    }, 0.35, 120, {
-        color: [ORANGE, RED, AMBER], kind: "glow", life: [0.12, 0.2], size: [16, 6], alpha: 0.9
-    })
-    const waves = 3
-    for (let w = 0; w < waves; w++) {
-        for (const m of g) muzzle(ctx.layer, m, dir, 1.2)
-        const shots = row.map((p) => {
-            const q = {
-                x: p.x + rand(-30, 30), y: p.y + rand(-20, 20)
-            }
-            const m = g[w % 2]
-            return ironShot(ctx.layer, (t) => mix(m, q, t), 0.22, 8 * k).then(() => heavyHit(ctx.layer, q, angleOf(m, q), 0.45))
-        })
-        // vệt lọt khe bay vượt hàng
-        for (let i = 0; i < 2; i++) {
-            const m = g[i % 2]
-            const a = dir + rand(-0.7, 0.7)
-            void tracer(ctx.layer, m, offset(m, a, 700), 0.3, 0.8)
+    const waves = mfWaves(shotsOf(ctx))
+    for (let w = 0; w < waves.length; w++) {
+        const side = w % 2 ? 1 : -1
+        const wave = waves[w]
+        const mid = wave.reduce((s, h) => ({ x: s.x + h.to.x / wave.length, y: s.y + h.to.y / wave.length }), { x: 0, y: 0 })
+        const m = muzzle(ctx.from, side, mid)
+        flash(ctx.layer, m, angleOf(m, mid), 1.2)
+        const shots = wave.map((h) => tracer(ctx.layer, m, h.to, Math.min(0.11, 0.05 + dist(m, h.to) / 9000), !!h.crit).then(() => hit(ctx.layer, h.to, m, !!h.crit, k)))
+        for (let j = 0; j < 8; j++) {
+            const stray = { x: lerp(mid.x - 260, mid.x + 260, Math.random()), y: mid.y + rand(-70, -20) * Math.sign(mid.y - ctx.from.y || 1) }
+            shots.push(tracer(ctx.layer, m, stray, 0.09, false).then(() => dirt(ctx.layer, stray)))
         }
         await Promise.all(shots)
+        ctx.onBeat?.(w)
         await wait(ctx.layer, 0.1)
     }
-    await wait(ctx.layer, 0.3)
 })
 
-/**
- * Nội tại Song Súng (Love Tap): viên đạn văng từ mục tiêu sang một tướng địch khác, vệt vàng hồng; trái tim lửa bung ra ở địch bị
- * nảy.
- */
+// ---------- Nội tại Tay Súng May Mắn ----------
+
+/** P: một đồng xu vàng tung lên từ tay Miss Fortune, xoay lật, loé sáng ở đỉnh rồi rơi lại tay; hai nòng súng loé nhẹ */
 registerSkillVfx("missfortune_p", async (ctx) => {
-    const list = targetsOf(ctx)
-    const src = list[0]
-    const dst = list[1] ?? (dist(ctx.from, src) > 40 ? foeRow(ctx).filter((p) => dist(p, src) > 40).sort((a, b) => dist(src, a) - dist(src, b))[0] : undefined)
-    let at = src
-    if (dst) {
-        await carry(ctx.layer, (t) => mix(src, dst, t), 0.22, (p, _t, d) => {
-            emit(ctx.layer, p, {
-                color: [AMBER, HOT], kind: "blade", life: [0.06, 0.08], size: [16, 14], alpha: 1, rotation: d, stretch: 3
-            })
-            emit(ctx.layer, p, {
-                color: [HEART, 0xffa0b8], kind: "dot", life: [0.25, 0.4], size: [7, 2], alpha: 1, speed: [10, 40]
-            })
-        })
-        at = dst
-    }
-    flash(ctx.layer, at, ORANGE, 100, 0.2)
-    ring(ctx.layer, at, HEART, 30, 150, 0.3, 0.7)
-    heart(ctx.layer, offset(at, UP, 60), 26, 0.7)
-    await wait(ctx.layer, 0.7)
+    const c = canvas(ctx.layer)
+    const base = { x: ctx.from.x + 14, y: ctx.from.y + 10 }
+    await over(ctx.layer, 0.7, (t) => {
+        const y = base.y + Math.sin(t * Math.PI) * 90
+        const flip = Math.abs(Math.cos(t * 14))
+        c.g.clear()
+        c.g.fillColor = col(BRASS, 1)
+        c.g.ellipse(base.x, y, 7, 7 * flip + 0.6)
+        c.g.fill()
+        c.g.lineWidth = 1
+        c.g.strokeColor = col(WHITE, 0.9)
+        c.g.ellipse(base.x, y, 7, 7 * flip + 0.6)
+        c.g.stroke()
+        if (Math.abs(t - 0.5) < 0.04) emit(ctx.layer, { x: base.x, y }, { color: [FLASH], kind: "glow", life: [0.18, 0.18], size: [20, 70], alpha: 0.9 })
+        if (Math.random() < 0.4) emit(ctx.layer, { x: base.x, y }, { color: [BRASS, WHITE], kind: "dot", life: [0.2, 0.35], size: [2.5, 1], alpha: 1, speed: [5, 25] })
+    })
+    c.done()
+    for (const side of [-1, 1]) flash(ctx.layer, muzzle(ctx.from, side, { x: ctx.from.x, y: ctx.from.y + 100 }), UP, 0.6)
+    await wait(ctx.layer, 0.15)
 })

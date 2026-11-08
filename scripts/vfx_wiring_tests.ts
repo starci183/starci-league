@@ -238,7 +238,7 @@ test("Mọi tướng có block: Khiên của chính tướng đó đỡ đòn th
                 "r").block)
     })
 
-test("via: Nami Q và Miss Fortune đi từ bước nảy trước, nguồn của bước N là đích của bước N-1",
+test("via: Nami Q đi từ bước nảy trước, nguồn của bước N là đích của bước N-1",
     () => {
         const s = mk({
             A: {
@@ -284,33 +284,6 @@ test("via: Nami Q và Miss Fortune đi từ bước nảy trước, nguồn củ
                 `bước nảy phải bắt đầu từ ${via}`)
             seen.add((hop.e as { target: string }).target)
         }
-        // Miss Fortune nội tại: đòn đánh nảy sang địch khác
-        const t = mk({
-            A: {
-                missfortune: 2
-            }, B: {
-                jinx: 2, garen: 1, lux: 3
-            }
-        })
-        const bounced = cast(t,
-            "A",
-            sup(t,
-                "basic"),
-            {
-                actor: "A:missfortune", target: "B:jinx"
-            })
-        const mf = sets(t,
-            bounced.ev).find((x) => x.e.t === "damage" && x.e.via)
-        assert.ok(mf,
-            "nội tại nảy phát sự kiện damage có via")
-        assert.equal(mf.set.cues[0].name,
-            map.skillVfx("missfortune",
-                "p").travel)
-        assert.equal(mf.set.cues[0].kind,
-            "lead")
-        assert.equal(mf.set.impact?.name,
-            map.skillVfx("missfortune",
-                "p").impact)
     })
 
 test("ability: Tristana kích nổ chạy ngòi cháy tới Bom, cú nổ mang số Bom; Gangplank Úp Lá không lộ lá",

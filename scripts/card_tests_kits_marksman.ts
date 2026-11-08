@@ -2444,92 +2444,7 @@ test("R: hạ gục kích Phấn Khích (nhận Điên p2 + p2b·Tốc Đánh, c
 
 // ======================================================================
 G("Miss Fortune")
-test("nội tại: mỗi đòn nảy sang 1 địch khác với p1% sát thương, event có via",
-    () => {
-        const s = mk({
-            A: {
-                missfortune: 2
-            }, B: {
-                braum: 2, zed: 1
-            }
-        })
-        for (const h of ["garen",
-            "viktor",
-            "soraka",
-            "teemo"]) { const x = s.units[`B:${h}`]; if (x && x.status === "board") x.status = "dead" }
-        const r = basic(s,
-            "A",
-            "A:missfortune",
-            "B:braum")
-        const d = dmgEvents(r.ev).filter((e) => e.via === "B:braum")
-        assert.equal(d.length,
-            1)
-        assert.equal(d[0].target,
-            "B:zed")
-        const raw = gm(s).atk(u(s,
-            "A",
-            "missfortune"))
-        assert.equal(d[0].amount,
-            mit(raw * pm.p1 / 100,
-                armor(r.s,
-                    "B",
-                    "zed")))
-    })
-test("nội tại: không có địch khác thì không nảy",
-    () => {
-        const s = mk({
-            A: {
-                missfortune: 2
-            }, B: {
-                braum: 2
-            }
-        })
-        const r = basic(s,
-            "A",
-            "A:missfortune",
-            "B:braum")
-        assert.equal(dmgEvents(r.ev).filter((e) => e.via).length,
-            0)
-    })
-test("nội tại: đòn chí mạng nảy cũng mang chí mạng",
-    () => {
-        const s = mk({
-            A: {
-                missfortune: 2
-            }, B: {
-                braum: 2, zed: 1
-            }
-        })
-        for (const h of ["garen",
-            "viktor",
-            "soraka",
-            "teemo"]) { const x = s.units[`B:${h}`]; if (x && x.status === "board") x.status = "dead" }
-        gm(s).status(u(s,
-            "A",
-            "missfortune"),
-        "alwaysCrit",
-        5,
-        {
-            v: 1
-        })
-        const r = basic(s,
-            "A",
-            "A:missfortune",
-            "B:braum")
-        const b = dmgEvents(r.ev).find((e) => e.via === "B:braum")!
-        assert.ok(b.crit)
-        const st = gm(s).stats(u(s,
-            "A",
-            "missfortune"))
-        assert.equal(b.amount,
-            mit(gm(s).atk(u(s,
-                "A",
-                "missfortune")) * pm.p1 / 100 * (cg.RULES.critBase + st.critDmg),
-            armor(r.s,
-                "B",
-                "zed")))
-    })
-test("Q: 1 địch q1 + q2·AD, nảy 2 địch khác q3%, via nối bước trước",
+test("Q 1x1: 1 địch đúng 1 phát q1 + q2·AD, không lan sang ai",
     () => {
         const s = mk({
             A: {
@@ -2551,37 +2466,29 @@ test("Q: 1 địch q1 + q2·AD, nảy 2 địch khác q3%, via nối bước tr�
             {
                 target: "B:braum"
             })
-        assert.equal(dmgOn(r.ev,
-            "B:braum"),
-        mit(raw,
-            armor(r.s,
-                "B",
-                "braum")))
-        const bounces = dmgEvents(r.ev).filter((e) => e.via)
-        assert.equal(bounces.length,
-            2)
-        assert.equal(bounces[0].via,
+        const hits = dmgEvents(r.ev)
+        assert.equal(hits.length,
+            1)
+        assert.equal(hits[0].target,
             "B:braum")
-        assert.equal(bounces[1].via,
-            bounces[0].target)
-        assert.notEqual(bounces[0].target,
-            bounces[1].target)
-        for (const e of bounces) assert.equal(e.amount,
-            mit(raw * pm.q3 / 100,
+        assert.equal(hits[0].amount,
+            mit(raw,
                 armor(r.s,
                     "B",
-                    e.target.slice(2))))
+                    "braum")))
+        assert.equal(hits[0].tag,
+            "skill")
         assert.equal(mana(r.s,
             "A"),
         200 - pm.q0)
     })
-test("Q: chí mạng nhân hệ số chí mạng cho cả phát chính lẫn nảy",
+test("Q: chí mạng nhân hệ số chí mạng như đòn đánh",
     () => {
         const s = mk({
             A: {
                 missfortune: 2
             }, B: {
-                braum: 2, zed: 1
+                braum: 2
             }
         })
         gm(s).status(u(s,
@@ -2607,15 +2514,17 @@ test("Q: chí mạng nhân hệ số chí mạng cho cả phát chính lẫn n�
             {
                 target: "B:braum"
             })
-        assert.equal(dmgOn(r.ev,
-            "B:braum"),
-        mit(raw,
-            armor(r.s,
-                "B",
-                "braum")))
-        assert.ok(dmgEvents(r.ev).every((e) => e.crit))
+        const hits = dmgEvents(r.ev)
+        assert.equal(hits.length,
+            1)
+        assert.ok(hits[0].crit)
+        assert.equal(hits[0].amount,
+            mit(raw,
+                armor(r.s,
+                    "B",
+                    "braum")))
     })
-test("Q: không chí mạng khi không có Chí mạng",
+test("Q: không có Chí mạng thì không chí mạng",
     () => {
         const s = mk({
             A: {
@@ -2635,13 +2544,13 @@ test("Q: không chí mạng khi không có Chí mạng",
             })
         assert.ok(dmgEvents(r.ev).every((e) => !e.crit))
     })
-test("E: mọi địch nhận e1 + e2·AD; trong e3 đơn vị chịu thêm e4% từ phe bạn",
+test("E 3x3: tâm và 2 đường kề mỗi tướng trúng e3 phát e1 + e2·AD; đường xa không dính",
     () => {
         const s = mk({
             A: {
                 missfortune: 2
             }, B: {
-                braum: 2, zed: 1
+                garen: 1, braum: 2, zed: 3, leona: 4
             }
         })
         const raw = fval(s,
@@ -2653,65 +2562,38 @@ test("E: mọi địch nhận e1 + e2·AD; trong e3 đơn vị chịu thêm e4% 
             card(s,
                 "A",
                 "missfortune",
-                "E"))
-        for (const h of ["braum",
-            "zed"]) {
-            assert.equal(dmgOn(r.ev,
-                `B:${h}`),
-            mit(raw,
-                armor(r.s,
-                    "B",
-                    h)))
-            const st = u(r.s,
-                "B",
-                h).statuses.mf_exposed
-            assert.equal(st.until,
-                untilOf(r.s,
-                    u(r.s,
-                        "A",
-                        "missfortune"),
-                    pm.e3))
-            assert.equal(st.v,
-                pm.e4)
-        }
-        // phe bạn gây thêm e4%; phe địch lên đồng minh không đổi
-        const g = gm(r.s), b = u(r.s,
-                "B",
-                "braum"), h0 = b.hp
-        g.damage(u(r.s,
-            "A",
-            "missfortune"),
-        b,
-        100,
-        "true",
-        {
-            tag: "effect"
-        })
-        assert.equal(h0 - b.hp,
-            Math.round(100 * (1 + pm.e4 / 100)))
-        const a = u(r.s,
-                "A",
-                "missfortune"), a0 = a.hp
-        g.damage(b,
-            a,
-            100,
-            "true",
+                "E"),
             {
-                tag: "effect"
+                target: "B:braum"
             })
-        assert.equal(a0 - a.hp,
-            100)
+        for (const h of ["garen",
+            "braum",
+            "zed"]) {
+            const hits = dmgEvents(r.ev).filter((e) => e.target === `B:${h}`)
+            assert.equal(hits.length,
+                pm.e3,
+                `${h} trúng e3 phát`)
+            for (const e of hits) assert.equal(e.amount,
+                mit(raw,
+                    armor(r.s,
+                        "B",
+                        h)))
+        }
+        assert.equal(dmgOn(r.ev,
+            "B:leona"),
+        0,
+        "đường thứ 4 không dính")
         assert.equal(mana(r.s,
             "A"),
         200 - pm.e0)
     })
-test("E: hiệu ứng hết hạn sau e3 đơn vị",
+test("E: tâm ở mép sân chỉ có 1 đường kề",
     () => {
         const s = mk({
             A: {
                 missfortune: 2
             }, B: {
-                braum: 2
+                garen: 0, braum: 1, zed: 2
             }
         })
         const r = cast(s,
@@ -2719,119 +2601,119 @@ test("E: hiệu ứng hết hạn sau e3 đơn vị",
             card(s,
                 "A",
                 "missfortune",
-                "E"))
-        const until = u(r.s,
-            "B",
-            "braum").statuses.mf_exposed.until
-        let st = r.s
-        for (let i = 0; i < 12 && st.turnNo <= until; i++) {
-            assert.ok(u(st,
-                "B",
-                "braum").statuses.mf_exposed,
-            `còn ở lượt ${st.turnNo}`)
-            st = endTurn(st).s
-        }
-        assert.ok(!u(st,
-            "B",
-            "braum").statuses.mf_exposed)
+                "E"),
+            {
+                target: "B:garen"
+            })
+        assert.equal(dmgEvents(r.ev).filter((e) => e.target === "B:garen").length,
+            pm.e3)
+        assert.equal(dmgEvents(r.ev).filter((e) => e.target === "B:braum").length,
+            pm.e3)
+        assert.equal(dmgOn(r.ev,
+            "B:zed"),
+        0)
     })
-test("R: r1 + r2·Tốc Đánh loạt, mỗi loạt mọi địch r3 + r4·AD, có thể chí mạng",
+test("R 5x5: r3 loạt, mỗi loạt mọi tướng địch trúng 1 phát r1 + r2·AD",
     () => {
         const s = mk({
             A: {
                 missfortune: 2
             }, B: {
-                braum: 2, zed: 1, garen: 3
+                garen: 0, braum: 1, zed: 2, leona: 3, ornn: 4
             }
         })
-        const g = gm(s), m = u(s,
+        for (const h of ["garen",
+            "braum",
+            "zed",
+            "leona",
+            "ornn"]) u(s,
+            "B",
+            h).maxHp = u(s,
+            "B",
+            h).hp = 9000
+        const raw = fval(s,
             "A",
-            "missfortune")
-        const w = g.f(m,
-                km.x("r1 + r2·Tốc Đánh")), raw = g.f(m,
-                km.x("r3 + r4·AD"))
+            "missfortune",
+            km.x("r1 + r2·AD"))
         const r = cast(s,
             "A",
             card(s,
                 "A",
                 "missfortune",
-                "R"))
-        const hits = dmgEvents(r.ev).filter((e) => e.target === "B:braum")
-        assert.ok(hits.length === Math.floor(w) || hits.length === Math.ceil(w),
-            `${hits.length} loạt vs ${w}`)
-        for (const h of hits) assert.equal(h.amount,
-            mit(raw,
-                armor(r.s,
-                    "B",
-                    "braum")))
-        for (const t of ["zed",
-            "garen"]) assert.equal(dmgEvents(r.ev).filter((e) => e.target === `B:${t}`).length,
-            hits.length)
+                "R"),
+            {
+            })
+        for (const h of ["garen",
+            "braum",
+            "zed",
+            "leona",
+            "ornn"]) {
+            const hits = dmgEvents(r.ev).filter((e) => e.target === `B:${h}`)
+            assert.equal(hits.length,
+                pm.r3,
+                `${h} trúng r3 phát`)
+            for (const e of hits) assert.equal(e.amount,
+                mit(raw,
+                    armor(r.s,
+                        "B",
+                        h)))
+        }
         assert.equal(mana(r.s,
             "A"),
         200 - pm.r0)
     })
-test("R: chí mạng từng phát nhân hệ số chí mạng",
+test("nội tại: mỗi phát đạn tung chí mạng riêng (50% Chí mạng: có phát chí mạng, có phát không)",
     () => {
         const s = mk({
             A: {
                 missfortune: 2
             }, B: {
-                braum: 2, zed: 1
+                garen: 0, braum: 1, zed: 2, leona: 3, ornn: 4
             }
         })
-        const g = gm(s), m = u(s,
+        for (const h of ["garen",
+            "braum",
+            "zed",
+            "leona",
+            "ornn"]) u(s,
+            "B",
+            h).maxHp = u(s,
+            "B",
+            h).hp = 9000
+        u(s,
             "A",
-            "missfortune")
-        g.status(m,
-            "alwaysCrit",
-            5,
-            {
-                v: 1
-            })
-        const raw = g.f(m,
-            km.x("r3 + r4·AD")) * (cg.RULES.critBase + g.stats(m).critDmg)
+            "missfortune").items = ["vo_cuc_kiem"]
         const r = cast(s,
             "A",
             card(s,
                 "A",
                 "missfortune",
-                "R"))
-        const hits = dmgEvents(r.ev).filter((e) => e.target === "B:zed")
-        assert.ok(hits.length > 0 && hits.every((h) => h.crit && h.amount === mit(raw,
-            armor(r.s,
-                "B",
-                "zed"))))
+                "R"),
+            {
+            })
+        const hits = dmgEvents(r.ev).filter((e) => e.src === "A:missfortune" && e.tag === "skill")
+        assert.equal(hits.length,
+            5 * pm.r3)
+        assert.ok(hits.some((e) => e.crit) && hits.some((e) => !e.crit),
+            "chí mạng tung riêng từng phát")
     })
-test("R: Tốc Đánh cao hơn cho thêm loạt",
+test("đánh thường không còn nảy sang địch khác",
     () => {
         const s = mk({
             A: {
-                missfortune: 2
+                braum: 2, zed: 1
             }, B: {
-                braum: 2
+                missfortune: 2
             }
         })
-        const g = gm(s), m = u(s,
-            "A",
-            "missfortune")
-        g.status(m,
-            "attack_speed",
-            5,
-            {
-                v: 300
-            })
-        const w = g.f(m,
-            km.x("r1 + r2·Tốc Đánh"))
-        const hits = dmgEvents(cast(s,
-            "A",
-            card(s,
-                "A",
-                "missfortune",
-                "R")).ev).filter((e) => e.target === "B:braum").length
-        assert.ok(hits === Math.floor(w) || hits === Math.ceil(w),
-            `${hits} loạt vs ${w}`)
-        assert.ok(w > pm.r1 + pm.r2 * 100)
+        const r = attackOpen(s,
+            "B:missfortune",
+            "A:braum")
+        assert.ok(dmgOn(r.ev,
+            "A:braum") > 0)
+        assert.equal(dmgOn(r.ev,
+            "A:zed"),
+        0)
     })
 
 // ======================================================================
@@ -2870,8 +2752,7 @@ test("trạng thái, bộ đếm, từ khoá mới đều có chữ VI/EN; tên 
     () => {
         for (const id of ["ashe_q",
             "tri_q",
-            "kog_e",
-            "mf_exposed"]) assert.ok(cg.STATUS_V2[id]?.vi.name && cg.STATUS_V2[id]?.en.name,
+            "kog_e"]) assert.ok(cg.STATUS_V2[id]?.vi.name && cg.STATUS_V2[id]?.en.name,
             id)
         for (const id of ["frost",
             "tri_bomb",

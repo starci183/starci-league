@@ -1,4 +1,4 @@
-// Chữ trạng thái, bộ đếm và từ khoá của nhóm Xạ thủ (Ashe, Teemo, Tristana, Kog'Maw, Jinx, Miss Fortune).
+// Chữ trạng thái, bộ đếm và từ khoá của nhóm Xạ thủ (Ashe, Teemo, Tristana, Kog'Maw, Jinx).
 // Gộp vào STATUS_V2 / STACK_V2 (i18n_en.ts) và KEYWORDS (keywords/index.ts) SAU các bảng cũ để ghi đè cùng id. Số lấy từ balance/heroes/*.json.
 import type {
     Keyword
@@ -7,7 +7,7 @@ import {
     kit
 } from "../balance"
 
-const ashe = kit("ashe").p, tri = kit("tristana").p, kog = kit("kogmaw").p, jinx = kit("jinx").p, mf = kit("missfortune").p
+const ashe = kit("ashe").p, tri = kit("tristana").p, kog = kit("kogmaw").p, jinx = kit("jinx").p
 const r = (x: number) => Math.round(x * 1000) / 1000
 
 type Txt = { name: string; desc: string }
@@ -37,14 +37,6 @@ export const STATUS_KITS_MARKSMAN: Record<string, Bi> = {
         },
         en: {
             name: "Magic Range", desc: `Kog'Maw gains ${kog.e2}% attack speed, his attacks reach every lane, and each hit deals ${kog.e3}% of the target's max HP extra.`
-        },
-    },
-    mf_exposed: {
-        vi: {
-            name: "Phơi Bày", desc: `Mưa Đạn của Miss Fortune: chịu thêm ${mf.e4}% sát thương từ phe Miss Fortune trong ${mf.e3} đơn vị.`
-        },
-        en: {
-            name: "Exposed", desc: `Miss Fortune's Make It Rain: takes ${mf.e4}% more damage from Miss Fortune's team for ${mf.e3} units.`
         },
     },
 }
