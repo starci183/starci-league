@@ -1111,46 +1111,53 @@ registerSkillVfx("velkoz_p",
 // ---------- Đánh thường ----------
 
 /**
- * Đánh thường: mắt loé một tam giác nhỏ xoay, một xung tia ngắn vụt từ mắt tới mục tiêu để lại vệt mảnh tắt dần; trúng thì
- * loé nhỏ và hai tam giác ngược chiều nở ra rồi tan. Khác Q (cầu plasma) để nhìn là biết đòn thường.
+ * Đánh thường: tia laser mảnh bắn THẲNG từ con mắt tới mục tiêu chỉ định, gần như tức thì. Mắt loé tam giác nhỏ, tia vươn
+ * tới trong 0,05 s, đứng đốt một chút (rung, lõi trắng nhấp nháy), đầu tia bắn tia lửa ngược. Promise xong ngay lúc tia
+ * chạm (luật VFX: số bật đúng lúc chạm); phần tia tắt và tam giác nở ra chạy nền.
  */
 registerSkillVfx("basic_velkoz", async (ctx) => {
     const targets = ctx.to.length ? ctx.to : [polar(ctx.from, UP, 300)]
     await Promise.all(targets.map(async (to) => {
         const c = canvas(ctx.layer)
-        const len = dist(ctx.from, to)
-        emit(ctx.layer, ctx.from, { color: [PINK], kind: "glow", life: [0.16, 0.16], size: [30, 80], alpha: 0.9 })
-        await over(ctx.layer, 0.09, (t) => {
+        const eye = ctx.from
+        const back = angleOf(to, eye)
+        emit(ctx.layer, eye, { color: [PINK], kind: "glow", life: [0.2, 0.2], size: [30, 80], alpha: 0.9 })
+        // mắt loé: tam giác nhỏ co lại
+        await over(ctx.layer, 0.08, (t) => {
             c.g.clear()
-            c.g.lineWidth = 2.5
+            c.g.lineWidth = 2.2
             c.g.strokeColor = col(PINK, 1 - t * 0.3)
-            tri(c.g, ctx.from, lerp(28, 12, t), t * 4 + UP)
+            tri(c.g, eye, lerp(24, 10, t), t * 4 + UP)
             c.g.stroke()
         })
-        const secs = Math.min(0.2, 0.08 + len / 5000)
-        await over(ctx.layer, secs, (t) => {
-            const head = ease.in(t)
-            const tail = Math.max(0, head - 0.25)
-            const h = mix(ctx.from, to, head)
+        // tia vươn thẳng tới mục tiêu
+        await over(ctx.layer, 0.05, (t) => {
             c.g.clear()
-            strip(c.g, ctx.from, h, 5, col(VIOLET, 0.5))
-            softBeam(c.g, mix(ctx.from, to, tail), h, 0.45, 1)
-            emit(ctx.layer, h, { color: [MAGENTA, CORE], kind: "glow", life: [0.06, 0.08], size: [44, 24], alpha: 0.8 })
+            softBeam(c.g, eye, mix(eye, to, ease.out(t)), 0.26, 1)
         })
-        plasmaHit(ctx.layer, to, 0.75, ctx.from)
-        await over(ctx.layer, 0.24, (t) => {
-            const r = ease.out(t)
-            c.g.clear()
-            strip(c.g, ctx.from, to, 3 * (1 - t), col(VIOLET, 0.4 * (1 - t)))
-            c.g.lineWidth = 3 * (1 - t) + 0.6
-            c.g.strokeColor = col(PINK, 1 - t)
-            tri(c.g, to, lerp(20, 66, r), UP + t * 1.5)
-            c.g.stroke()
-            c.g.strokeColor = col(CORE, (1 - t) * 0.85)
-            tri(c.g, to, lerp(12, 42, r), -UP - t * 1.5)
-            c.g.stroke()
-        })
-        c.done()
+        // chạm: loé nhỏ, tia lửa bắn ngược, tam giác nở ra; tia đứng đốt rồi tắt (chạy nền)
+        plasmaHit(ctx.layer, to, 0.6, eye)
+        void (async () => {
+            await over(ctx.layer, 0.22, (t) => {
+                const on = t < 0.55 ? 1 : 1 - (t - 0.55) / 0.45
+                const flick = 0.85 + Math.sin(t * 90) * 0.15
+                const r = ease.out(t)
+                c.g.clear()
+                softBeam(c.g, eye, to, 0.26 * on * flick, on)
+                c.g.lineWidth = 2.6 * (1 - t) + 0.5
+                c.g.strokeColor = col(PINK, 1 - t)
+                tri(c.g, to, lerp(14, 52, r), UP + t * 1.5)
+                c.g.stroke()
+                c.g.strokeColor = col(CORE, (1 - t) * 0.85)
+                tri(c.g, to, lerp(8, 32, r), -UP - t * 1.5)
+                c.g.stroke()
+                if (on > 0.3) emit(ctx.layer, to, {
+                    color: [CORE, PINK], kind: "blade", life: [0.08, 0.18], size: [16, 3], alpha: 1, speed: [180, 420],
+                    angle: [back - 0.9, back + 0.9], drag: 2.4, align: true, stretch: 2.4
+                })
+                emit(ctx.layer, eye, { color: [CORE, PINK], kind: "glow", life: [0.05, 0.07], size: [36, 26], alpha: 0.7 * on })
+            })
+            c.done()
+        })()
     }))
-    await wait(ctx.layer, 0.15)
 })
