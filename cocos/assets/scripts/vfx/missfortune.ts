@@ -195,11 +195,20 @@ registerSkillVfx("missfortune_e", async (ctx) => {
     const waves = mfWaves(shotsOf(ctx))
     const rowY = waves.flat().reduce((s, h) => s + h.to.y, 0) / Math.max(1, waves.flat().length)
     const down = rowY >= ctx.from.y ? 1 : -1
-    // bắn chỉ thiên: hai chớp nòng hướng lên
-    const sky = { x: ctx.from.x, y: ctx.from.y + 200 }
-    flash(ctx.layer, muzzle(ctx.from, -1, sky), UP, 1)
-    flash(ctx.layer, muzzle(ctx.from, 1, sky), UP, 1)
-    await wait(ctx.layer, 0.14)
+    // bắn lên trời: hai súng chĩa thẳng lên, một chùm vệt đạn vút lên rồi mất hút; khựng một nhịp rồi đạn mới trút xuống
+    const sky = { x: ctx.from.x, y: ctx.from.y + 200 * down }
+    const ups: Promise<void>[] = []
+    for (let i = 0; i < 10; i++) {
+        const side = i % 2 ? 1 : -1
+        const m = muzzle(ctx.from, side, sky)
+        const top = { x: m.x + rand(-34, 34), y: m.y + down * rand(170, 230) }
+        ups.push(wait(ctx.layer, i * 0.03).then(() => {
+            flash(ctx.layer, m, down > 0 ? UP : -UP, 1.1)
+            return tracer(ctx.layer, m, top, 0.12, true)
+        }).then(() => { emit(ctx.layer, top, { color: [FLASH], kind: "dot", life: [0.1, 0.16], size: [3, 1], alpha: 1 }) }))
+    }
+    await Promise.all(ups)
+    await wait(ctx.layer, 0.16)
     for (let w = 0; w < waves.length; w++) {
         const wave = waves[w]
         // mỗi ô: 1 viên trúng tướng + 3 viên lạc ghim đất quanh lá, rơi xiên từ phía trên hàng địch
@@ -225,28 +234,50 @@ registerSkillVfx("missfortune_e", async (ctx) => {
 
 // ---------- R Đạn Tử Thần (5x5) ----------
 
+/** Thời gian một lượt quét của R (mỗi lượt quét chứa một loạt phát thật = một nhịp) */
+const SWEEP = 0.3
+
 /**
- * R: đứng yên xả 5 loạt. Mỗi loạt hai súng luân phiên chớp nòng, một vệt đạn tới mỗi tướng địch (đúng tướng engine báo)
- * kèm vài viên lạc ghim đất giữa hàng; loạt i là nhịp i, số của cả loạt bật đúng lúc loạt chạm.
+ * R: XẢ ĐẠN. Hai súng thay nhau nhả đạn liên tục, dày đặc, dòng đạn quét qua quét lại cả hàng địch (đạn lạc ghim đất,
+ * tia lửa). Trong dòng xả, mỗi lượt quét có một loạt phát thật tới đúng từng tướng engine báo; loạt i chạm là nhịp i.
  */
 registerSkillVfx("missfortune_r", async (ctx) => {
     const k = power(ctx)
     const waves = mfWaves(shotsOf(ctx))
-    for (let w = 0; w < waves.length; w++) {
-        const side = w % 2 ? 1 : -1
-        const wave = waves[w]
-        const mid = wave.reduce((s, h) => ({ x: s.x + h.to.x / wave.length, y: s.y + h.to.y / wave.length }), { x: 0, y: 0 })
-        const m = muzzle(ctx.from, side, mid)
-        flash(ctx.layer, m, angleOf(m, mid), 1.2)
-        const shots = wave.map((h) => tracer(ctx.layer, m, h.to, Math.min(0.11, 0.05 + dist(m, h.to) / 9000), !!h.crit).then(() => hit(ctx.layer, h.to, m, !!h.crit, k)))
-        for (let j = 0; j < 8; j++) {
-            const stray = { x: lerp(mid.x - 260, mid.x + 260, Math.random()), y: mid.y + rand(-70, -20) * Math.sign(mid.y - ctx.from.y || 1) }
-            shots.push(tracer(ctx.layer, m, stray, 0.09, false).then(() => dirt(ctx.layer, stray)))
+    const all = waves.flat()
+    if (!all.length) return
+    const xs = all.map((h) => h.to.x)
+    const rowY = all.reduce((s, h) => s + h.to.y, 0) / all.length
+    const toward = Math.sign(rowY - ctx.from.y) || 1
+    const left = Math.min(...xs) - 60, right = Math.max(...xs) + 60
+    const total = waves.length * SWEEP + 0.15
+    let gun = 1
+    // dòng xả: mỗi khung 2 viên, điểm rơi quét qua lại dọc hàng địch
+    const spray = over(ctx.layer, total, (t) => {
+        const el = t * total
+        const x = left + (right - left) * (0.5 - 0.5 * Math.cos(el / SWEEP * Math.PI))
+        for (let i = 0; i < 2; i++) {
+            gun = -gun
+            const to = { x: x + rand(-50, 50), y: rowY + toward * rand(-60, 10) }
+            const m = muzzle(ctx.from, gun, to)
+            emit(ctx.layer, m, { color: [FLASH, BRASS], kind: "glow", life: [0.04, 0.06], size: [18, 8], alpha: 0.9 })
+            void tracer(ctx.layer, m, to, 0.06 + Math.random() * 0.03, false).then(() => { if (Math.random() < 0.6) dirt(ctx.layer, to) })
         }
-        await Promise.all(shots)
+        if (Math.random() < 0.25) void burst(ctx.layer, muzzle(ctx.from, gun, { x, y: rowY }), 1, {
+            color: SMOKE, kind: "glow", additive: false, life: [0.4, 0.7], size: [8, 22], alpha: 0.3, speed: [10, 30], angle: [UP - 0.6, UP + 0.6]
+        })
+    })
+    // các loạt thật nằm trong dòng xả: mỗi lượt quét một loạt, chạm là nhịp số
+    for (let w = 0; w < waves.length; w++) {
+        await wait(ctx.layer, SWEEP * 0.55)
+        await Promise.all(waves[w].map((h, i) => {
+            const m = muzzle(ctx.from, i % 2 ? 1 : -1, h.to)
+            return tracer(ctx.layer, m, h.to, Math.min(0.09, 0.04 + dist(m, h.to) / 9000), !!h.crit).then(() => hit(ctx.layer, h.to, m, !!h.crit, k))
+        }))
         ctx.onBeat?.(w)
-        await wait(ctx.layer, 0.1)
+        await wait(ctx.layer, Math.max(0, SWEEP * 0.45 - 0.09))
     }
+    await spray
 })
 
 // ---------- Nội tại Tay Súng May Mắn ----------
