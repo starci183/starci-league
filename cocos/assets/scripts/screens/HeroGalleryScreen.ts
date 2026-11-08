@@ -30,10 +30,13 @@ import {
     hasCustom
 } from "../vfx/keys"
 import {
+    namiGroups, namiPrimary
+} from "../vfx/nami"
+import {
     rayBeats, riftBeats
 } from "../vfx/velkoz"
 import {
-    simulate, type SimDamage
+    simulate, type SimDamage, type SimHit
 } from "../vfx/sim"
 import {
     swapUnits
@@ -255,6 +258,13 @@ export function buildHeroGallery(root: Node, nav: Nav, start?: string): () => vo
         drawHp(l)
         pop(foePos(l), dmg, color)
     }
+    const popText = (at: { x: number; y: number }, label: string, color: Color) => {
+        const n = box("Pop", fx, 240, 60, at.x, at.y)
+        text(n, label, 0, 0, { font: "number", size: 30, width: 240, color })
+        const op = n.addComponent(UIOpacity)
+        tween(n).to(0.9, { position: new Vec3(at.x, at.y + 70, 0) }, { easing: "quadOut" }).call(() => n.destroy()).start()
+        tween(op).delay(0.5).to(0.4, { opacity: 0 }).start()
+    }
     const heal = (value: number) => {
         selfHp = Math.min(selfMax, selfHp + value)
         drawSelf()
@@ -440,6 +450,18 @@ export function buildHeroGallery(root: Node, nav: Nav, start?: string): () => vo
             drawBoard()
         }
         const showHit = (d: SimDamage) => dealt(d.lane, d.amount, KIND_COLOR[d.kind] ?? C.goldLight)
+        let selfHealShown = false
+        /** Hiện số của một cú trong sim.hits: sát thương lên địch, hồi máu hoặc khiên lên đồng minh (tướng đang xem thì cập nhật thanh máu) */
+        const showSimHit = (h: SimHit) => {
+            if (h.amount <= 0) return
+            if (h.kind === "damage") {
+                if (h.side === "B") dealt(h.lane, h.amount, KIND_COLOR[h.dmgKind ?? ""] ?? C.goldLight)
+                return
+            }
+            if (h.side !== "A") return
+            if (h.kind === "heal" && allyOrder[h.lane] === hero.id) { heal(h.amount); return }
+            popText({ x: LANE_X[h.lane], y: ROW.mine }, `+${h.amount}${h.kind === "shield" ? " khiên" : ""}`, h.kind === "shield" ? C.goldLight : C.teal)
+        }
 
         if (hero.id === "velkoz" && k === "r") {
             // R: mỗi tia báo nhịp đúng lúc chạm (onBeat), số của tia đó bật ngay lúc ấy
@@ -461,6 +483,13 @@ export function buildHeroGallery(root: Node, nav: Nav, start?: string): () => vo
             note.string = "E: khe rách cắt ngang 3 đường, cả 3 nhận như nhau rồi nổ ngay theo % máu đã mất"
             const beats = riftBeats(now)
             await playSkill(fx, keyOf(k), style, from, targets, { onBeat: (i) => { for (const d of beats[i] ?? []) showHit(d) } })
+        } else if (hero.id === "nami" && (k === "q" || k === "e" || k === "r")) {
+            // Nami: VFX đi đúng các chặng engine báo (via), mỗi nhịp hiện số của chặng đó (hồi máu, khiên, sát thương)
+            const groups = namiGroups(k.toUpperCase(), sim.hits.filter((h) => h.phase === 0))
+            const at = (p: { side: "A" | "B"; lane: number }) => p.side === "A" ? { x: LANE_X[p.lane], y: ROW.mine } : foePos(p.lane)
+            const hops = namiPrimary(k.toUpperCase(), groups).map((h) => ({ from: h.via ? at(h.via) : from, to: at(h), kind: h.kind }))
+            await playSkill(fx, keyOf(k), style, from, hops.map((h) => h.to), { hops, onBeat: (i) => { for (const h of groups[i] ?? []) showSimHit(h) } })
+            selfHealShown = true
         } else if (later.length) {
             // Chiêu có nhịp cuối lượt (Vel'Koz E): nhịp đầu nổ giữa chừng, nhịp hai khi hiệu ứng rách toạc lần hai
             note.string = hero.id === "velkoz" ? "E: khe nứt cắt ngang 3 đường, nổ ngay; cuối lượt nổ thêm một lần" : "Chiêu có sát thương kéo dài: gây đòn ngay, cuối lượt gây thêm"
@@ -487,7 +516,7 @@ export function buildHeroGallery(root: Node, nav: Nav, start?: string): () => vo
         }
         if (!alive) return
         const healed = sim.heals.reduce((n, h) => n + h.amount, 0)
-        if (healed > 0) heal(healed)
+        if (healed > 0 && !selfHealShown) heal(healed)
         // Giữ số sát thương một lúc rồi trả sân về như cũ
         await sleep(1.3)
         if (!alive) return

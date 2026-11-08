@@ -41,6 +41,11 @@ một nẻo, hoặc số sát thương bật lệch lúc hình chạm. Cách án
   trắng và hình tam giác.
 - Đánh thường luôn có hiệu ứng riêng, khác các chiêu. Nhìn là biết đó là đòn thường hay Q.
 - Chiêu đổi chỗ, hồi máu, khiên, khống chế phải nhìn ra đúng loại: hồi máu không dùng màu hay hình của sát thương.
+- VFX chỉ vẽ cho **chiêu**. Trạng thái kéo dài như Dễ Tổn Thương, Phước Lành, cộng chỉ số dùng **icon hiệu ứng** trên lá,
+  không vẽ VFX riêng. Khống chế (Choáng, Câm Lặng...) dùng **VFX khống chế chung** cho mọi tướng (Choáng: `stunStars`),
+  không tự chế hình riêng cho từng tướng.
+- Chiêu có nhiều chặng (nảy, hồi rồi đánh) phải đi đúng đường engine báo qua `ctx.hops` (nguồn `via` của từng cú),
+  không tự chọn ngẫu nhiên.
 
 ## 5. Hợp lý, chân thực, sáng tạo
 

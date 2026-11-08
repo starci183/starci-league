@@ -24,7 +24,11 @@ export interface VfxCtx {
     allyHero?: string;
     /** Báo nhịp trúng thứ i (0, 1...) đúng lúc hình ảnh chạm; bên gọi hiện số sát thương theo nhịp này */
     onBeat?: (i: number) => void;
+    /** Đường đi thật của từng cú theo thứ tự engine (nguồn `via` -> đích); có thì VFX đi đúng các chặng này, nhịp i = cú i */
+    hops?: Hop[];
 }
+/** Một cú trúng: từ đâu tới đâu, loại gì (hồi máu, khiên, sát thương) */
+export interface Hop { from: Pt; to: Pt; kind: "heal" | "shield" | "damage" }
 export type SkillEffect = (ctx: VfxCtx) => Promise<void>
 
 /** Khoá của một chiêu: "<tướng>_<p|q|e|r>", "spell_<phép>", "basic_<tướng>" */
@@ -134,7 +138,7 @@ export function styleOf(hero: string, key: string): SkillVfx {
 export const spellStyle = (spell: string): SkillVfx => spellVfx(spell)
 
 /** Phát hiệu ứng của chiêu `key` từ `from` tới `to` */
-export function playSkill(layer: Node, key: string, style: SkillVfx, from: Pt, to: Pt[], extra: { allyHero?: string; onBeat?: (i: number) => void } = {
+export function playSkill(layer: Node, key: string, style: SkillVfx, from: Pt, to: Pt[], extra: { allyHero?: string; onBeat?: (i: number) => void; hops?: Hop[] } = {
 }): Promise<void> {
     return effectOf(key)({
         layer, from, to, style, ...extra

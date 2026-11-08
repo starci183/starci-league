@@ -18,6 +18,19 @@ export interface SimDamage {
     phase: number;
 }
 export interface SimHeal { target: string; amount: number; phase: number }
+/** Một cú trúng theo đúng thứ tự engine: hồi máu, khiên hay sát thương, lên bên nào đường nào, xuất phát từ đâu (`via`) */
+export interface SimHit {
+    kind: "heal" | "shield" | "damage";
+    side: "A" | "B";
+    lane: number;
+    amount: number;
+    tag?: string;
+    /** Loại sát thương (physical, magic, true) để tô màu số */
+    dmgKind?: string;
+    /** Đơn vị liền trước trong chuỗi nảy (Nami Q); thiếu là xuất phát từ tướng dùng chiêu */
+    via?: { side: "A" | "B"; lane: number };
+    phase: number;
+}
 /** Một lần đổi chỗ trong lúc đánh chiêu: `unit` (tướng chủ động) đi từ đường `from` sang `to`, `with` là người bị đổi */
 export interface SimMove { unit: string; from: number; to: number; with?: string }
 export interface SimOptions {
@@ -41,13 +54,15 @@ export interface SimResult {
     damage: SimDamage[];
     heals: SimHeal[];
     moves: SimMove[];
+    /** Mọi cú hồi máu, khiên, sát thương theo thứ tự engine */
+    hits: SimHit[];
     /** Tướng được đánh lần cuối lượt (có sự kiện phase 1) */
     endTurn: boolean;
 }
 
 function simulateInner(o: SimOptions): SimResult {
     const empty: SimResult = {
-        ok: false, damage: [], heals: [], moves: [], endTurn: false
+        ok: false, damage: [], heals: [], moves: [], hits: [], endTurn: false
     }
     cg.RULES.skillLimits = false
     const teamA = [o.hero, ...o.mates].slice(0, 5)
@@ -154,9 +169,21 @@ function simulateInner(o: SimOptions): SimResult {
     const damage: SimDamage[] = []
     const heals: SimHeal[] = []
     const moves: SimMove[] = []
+    const hits: SimHit[] = []
+    const where = (id?: string) => {
+        const u = id ? s.units[id] : undefined
+        return u ? { side: (id!.startsWith("A:") ? "A" : "B") as "A" | "B", lane: u.lane } : undefined
+    }
     for (const {
         ev, phase
     } of events) for (const e of ev) {
+        // hồi máu 0 (đồng minh đầy máu) vẫn giữ: chặng nảy vẫn đi qua, chỉ không hiện số
+        if ((e.t === "damage" && e.amount > 0) || e.t === "heal" || e.t === "shield") {
+            const at = where(e.target)
+            if (at) hits.push({
+                kind: e.t, ...at, amount: e.amount, tag: e.t === "damage" ? e.tag : undefined, dmgKind: e.t === "damage" ? e.kind : undefined, via: e.t === "shield" ? undefined : where(e.via), phase
+            })
+        }
         if (e.t === "damage" && e.target.startsWith("B:")) damage.push({
             target: e.target, lane: s.units[e.target]?.lane ?? -1, side: "B", amount: e.amount, kind: e.kind, tag: e.tag, phase
         })
@@ -168,7 +195,7 @@ function simulateInner(o: SimOptions): SimResult {
         })
     }
     return {
-        ok: true, damage, heals, moves, endTurn
+        ok: true, damage, heals, moves, hits, endTurn
     }
 }
 
@@ -179,7 +206,7 @@ export function simulate(o: SimOptions): SimResult {
     } catch (e) {
         console.log("[gal] simerr", o.hero, o.key, (e as Error).message)
         return {
-            ok: false, damage: [], heals: [], moves: [], endTurn: false
+            ok: false, damage: [], heals: [], moves: [], hits: [], endTurn: false
         }
     }
 }

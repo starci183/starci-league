@@ -33,6 +33,9 @@ import {
     skillArt, slot
 } from "../../ui/slot"
 import {
+    namiGroups, namiPrimary
+} from "../../vfx/nami"
+import {
     rayBeats, riftBeats
 } from "../../vfx/velkoz"
 import {
@@ -1491,7 +1494,30 @@ export function buildMatch(root: Node, nav: Nav): () => void {
                         nextCast)).filter((x): x is Extract<cg.GameEvent, { t: "damage" }> => x.t === "damage" && x.src === e.unit) : []
                     const beats = raysR ? rayBeats(riftDmg) : riftBeats(riftDmg)
                     for (const d of riftDmg) beatShown.add(d)
-                    const targets = swapQ ? [posOf(cur,
+                    // Nami Q/E/R: VFX đi đúng các chặng engine báo (via) và hiện số hồi máu / khiên / sát thương theo từng nhịp
+                    type HitEv = Extract<cg.GameEvent, { t: "damage" | "heal" | "shield" }>
+                    const namiSkill = u.hero === "nami" && (e.skill === "Q" || e.skill === "E" || e.skill === "R")
+                    const namiEv = namiSkill ? (nextCast < 0 ? rest : rest.slice(0,
+                        nextCast)).filter((x): x is HitEv => (x.t === "damage" || x.t === "heal" || x.t === "shield") && x.src === e.unit && (x.t !== "damage" || x.amount > 0)) : []
+                    for (const x of namiEv) beatShown.add(x)
+                    const namiG = namiGroups(e.skill,
+                        namiEv.map((x) => ({
+                            kind: x.t, tag: x.t === "damage" ? x.tag : undefined, ev: x
+                        })))
+                    const namiHops = namiPrimary(e.skill,
+                        namiG).map((h) => {
+                        const x = h.ev
+                        return {
+                            from: posOf(cur,
+                                (x.t !== "shield" && x.via) || e.unit), to: posOf(cur,
+                                x.target), kind: x.t
+                        }
+                    })
+                    const floatHit = (x: HitEv) => x.amount > 0 && floatNumber(posOf(lastView ?? cur,
+                        x.target),
+                    x.t === "damage" ? `-${x.amount}` : x.t === "heal" ? `+${x.amount}` : `+${x.amount} khiên`,
+                    x.t === "damage" ? undefined : x.t === "heal" ? C.teal : C.goldLight)
+                    const targets = namiSkill && namiHops.length ? namiHops.map((h) => h.to) : swapQ ? [posOf(cur,
                         e.target!),
                     ...(foeOfAlly ? [posOf(cur,
                         foeOfAlly)] : [])] : multi ? ids.map((id) => posOf(cur,
@@ -1508,6 +1534,9 @@ export function buildMatch(root: Node, nav: Nav): () => void {
                         targets,
                         swapQ ? {
                             allyHero: cur.units[e.target!]?.hero
+                        } : namiSkill ? {
+                            hops: namiHops,
+                            onBeat: (i) => { for (const h of namiG[i] ?? []) floatHit(h.ev) }
                         } : riftE || raysR ? {
                             onBeat: (i) => {
                                 for (const d of beats[i] ?? []) floatNumber(posOf(lastView ?? cur,
@@ -1560,15 +1589,34 @@ export function buildMatch(root: Node, nav: Nav): () => void {
                             e.args.target)])
                 } else if (e.t === "damage") {
                     if (beatShown.has(e)) return
+                    // Phước Lành của Nami được tiêu: giọt vàng bay từ tướng mang tới địch, số bật lúc giọt vỡ
+                    if (e.visuals?.includes("nami_bless") && e.src && settings().vfx) {
+                        await playSkill(vfxLayer,
+                            "nami_bless",
+                            styleOf("nami",
+                                "e"),
+                            posOf(cur,
+                                e.src),
+                            [posOf(cur,
+                                e.target)],
+                            {
+                                onBeat: () => floatNumber(posOf(lastView ?? cur,
+                                    e.target),
+                                `-${e.amount}`)
+                            })
+                        return
+                    }
                     floatNumber(posOf(cur,
                         e.target),
                     `-${e.amount}`)
                 } else if (e.t === "heal") {
+                    if (beatShown.has(e)) return
                     floatNumber(posOf(cur,
                         e.target),
                     `+${e.amount}`,
                     C.teal)
                 } else if (e.t === "shield") {
+                    if (beatShown.has(e)) return
                     floatNumber(posOf(cur,
                         e.target),
                     `+${e.amount} khiên`,

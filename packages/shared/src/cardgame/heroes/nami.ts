@@ -110,7 +110,7 @@ export default defineHero({
                     F_BLESS),
                 g.hero(src).damage,
                 {
-                    tag: "effect"
+                    tag: "effect", visuals: ["nami_bless"] // chỉ để trình diễn: client vẽ giọt Phước Lành bay theo đòn
                 })
         },
     },
