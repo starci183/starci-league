@@ -91,6 +91,32 @@ async function tracer(layer: Node, a: Pt, b: Pt, secs: number, crit: boolean) {
     }).then(c.done)
 }
 
+/**
+ * Viên đạn tròn bay a -> b: hòn đạn kim loại nóng (lõi trắng vàng, viền đồng thau, quầng cam nhỏ), chỉ để lại một vệt mờ rất
+ * ngắn ngay sau lưng do chuyển động, không phải tia laser. Xong khi viên đạn chạm đích. `crit` thì viên to và sáng hơn.
+ */
+async function bullet(layer: Node, a: Pt, b: Pt, secs: number, crit: boolean, size = 1) {
+    const c = canvas(layer)
+    const r = (crit ? 6 : 4.6) * size
+    const dir = angleOf(a, b)
+    await over(layer, secs, (t) => {
+        const p = mix(a, b, t)
+        const smear = { x: p.x - Math.cos(dir) * r * 3, y: p.y - Math.sin(dir) * r * 3 }
+        c.g.clear()
+        polyline(c.g, [smear, p], r * 1.2, col(EMBER, 0.22))
+        c.g.fillColor = col(EMBER, 0.35)
+        c.g.circle(p.x, p.y, r * 1.9)
+        c.g.fill()
+        c.g.fillColor = col(BRASS, 1)
+        c.g.circle(p.x, p.y, r)
+        c.g.fill()
+        c.g.fillColor = col(WHITE, 1)
+        c.g.circle(p.x - r * 0.25, p.y + r * 0.25, r * 0.45)
+        c.g.fill()
+    })
+    c.done()
+}
+
 /** Đạn trúng tướng: tia lửa kim loại văng ngược hướng bắn, khói nhỏ; chí mạng thêm sao vàng nổ và vòng sóng mảnh */
 function hit(layer: Node, at: Pt, from: Pt, crit: boolean, k: number) {
     const back = angleOf(at, from)
@@ -150,21 +176,20 @@ const shotsOf = (ctx: VfxCtx): Hop[] => ctx.hops?.length ? ctx.hops : (ctx.to.le
 
 // ---------- Đánh thường ----------
 
-/** Đánh thường: một khẩu bắn 1 phát, vệt đạn mảnh, trúng là tia lửa nhỏ. Xong đúng lúc trúng */
+/** Đánh thường: một viên đạn tròn nhỏ bay từ tâm tới mục tiêu, trúng là tia lửa nhỏ. Xong đúng lúc trúng */
 registerSkillVfx("basic_missfortune", async (ctx) => {
     const k = power(ctx)
     await Promise.all((ctx.to.length ? ctx.to : [polar(ctx.from, UP, 300)]).map(async (to) => {
-        const m = muzzle(ctx.from, 1, to)
-        flash(ctx.layer, m, angleOf(m, to), 0.7)
-        await tracer(ctx.layer, m, to, Math.min(0.1, 0.04 + dist(m, to) / 9000), false)
+        flash(ctx.layer, ctx.from, angleOf(ctx.from, to), 0.7)
+        await bullet(ctx.layer, ctx.from, to, Math.min(0.18, 0.08 + dist(ctx.from, to) / 4000), false, 0.85)
         ctx.onBeat?.(0)
-        hit(ctx.layer, to, m, false, 0.7 * k)
+        hit(ctx.layer, to, ctx.from, false, 0.7 * k)
     }))
 })
 
 // ---------- Q Bắn Hạ (1x1) ----------
 
-/** Q: hai súng chụm, chớp nòng to, một viên đạn nặng (vệt dày) tới mục tiêu; trúng là tia lửa dày, khói; chí mạng có sao nổ */
+/** Q: vạch ngắm, chớp nòng to ở tâm, một viên đạn tròn nặng bay tới mục tiêu; trúng là tia lửa dày, khói; chí mạng có sao nổ */
 registerSkillVfx("missfortune_q", async (ctx) => {
     const k = power(ctx)
     const s = shotsOf(ctx)[0]
@@ -176,10 +201,8 @@ registerSkillVfx("missfortune_q", async (ctx) => {
         polyline(aim.g, [ctx.from, mix(ctx.from, s.to, ease.out(t))], 0.8, col(CRIMSON, 0.7 * (1 - t * 0.5)))
     })
     aim.done()
-    const ml = muzzle(ctx.from, -1, s.to), mr = muzzle(ctx.from, 1, s.to)
-    flash(ctx.layer, ml, angleOf(ml, s.to), crit ? 1.4 : 1.1)
-    flash(ctx.layer, mr, angleOf(mr, s.to), crit ? 1.4 : 1.1)
-    await tracer(ctx.layer, mix(ml, mr, 0.5), s.to, Math.min(0.12, 0.05 + dist(ctx.from, s.to) / 8000), true)
+    flash(ctx.layer, ctx.from, angleOf(ctx.from, s.to), crit ? 1.6 : 1.3)
+    await bullet(ctx.layer, ctx.from, s.to, Math.min(0.2, 0.09 + dist(ctx.from, s.to) / 3600), crit, 1.35)
     ctx.onBeat?.(0)
     hit(ctx.layer, s.to, ctx.from, crit, 1.3 * k)
 })
@@ -187,7 +210,7 @@ registerSkillVfx("missfortune_q", async (ctx) => {
 // ---------- E Mưa Đạn (3x3) ----------
 
 /**
- * E: Miss Fortune bắn chỉ thiên, đạn trút xuống 3 ô theo từng đợt. Mỗi đợt: một loạt vệt đạn xiên từ trên rơi xuống (đạn
+ * E: Miss Fortune bắn chỉ thiên từ tâm, đạn tròn trút THẲNG ĐỨNG xuống 3 ô theo từng đợt. Mỗi đợt: một loạt đạn rơi (đạn
  * trúng tướng và đạn lạc ghim đất quanh lá), bụi đất bắn; đợt i là nhịp i, số của đợt đó bật đúng lúc loạt chạm.
  */
 registerSkillVfx("missfortune_e", async (ctx) => {
@@ -195,29 +218,28 @@ registerSkillVfx("missfortune_e", async (ctx) => {
     const waves = mfWaves(shotsOf(ctx))
     const rowY = waves.flat().reduce((s, h) => s + h.to.y, 0) / Math.max(1, waves.flat().length)
     const down = rowY >= ctx.from.y ? 1 : -1
-    // bắn lên trời: hai súng chĩa thẳng lên, một chùm vệt đạn vút lên rồi mất hút; khựng một nhịp rồi đạn mới trút xuống
+    // bắn lên trời từ tâm: một chùm đạn tròn vút lên rồi mất hút; khựng một nhịp rồi đạn mới trút xuống
     const sky = { x: ctx.from.x, y: ctx.from.y + 200 * down }
     const ups: Promise<void>[] = []
     for (let i = 0; i < 10; i++) {
-        const side = i % 2 ? 1 : -1
-        const m = muzzle(ctx.from, side, sky)
-        const top = { x: m.x + rand(-34, 34), y: m.y + down * rand(170, 230) }
+        const m = ctx.from
+        const top = { x: m.x + rand(-30, 30), y: m.y + down * rand(170, 230) }
         ups.push(wait(ctx.layer, i * 0.03).then(() => {
             flash(ctx.layer, m, down > 0 ? UP : -UP, 1.1)
-            return tracer(ctx.layer, m, top, 0.12, true)
+            return bullet(ctx.layer, m, top, 0.16, false)
         }).then(() => { emit(ctx.layer, top, { color: [FLASH], kind: "dot", life: [0.1, 0.16], size: [3, 1], alpha: 1 }) }))
     }
     await Promise.all(ups)
     await wait(ctx.layer, 0.16)
     for (let w = 0; w < waves.length; w++) {
         const wave = waves[w]
-        // mỗi ô: 1 viên trúng tướng + 3 viên lạc ghim đất quanh lá, rơi xiên từ phía trên hàng địch
+        // mỗi ô: 1 viên trúng tướng + 6 viên lạc ghim đất quanh lá, rơi thẳng đứng từ phía trên
         const falls: Promise<void>[] = []
         for (const h of wave) {
-            const slant = rand(-0.25, 0.25)
+            // đạn rơi THẲNG ĐỨNG từ trên xuống
             const drop = (to: Pt, real: boolean) => {
-                const from = { x: to.x - Math.sin(slant) * 110 * down - 26, y: to.y + 110 * down }
-                return wait(ctx.layer, rand(0, 0.06)).then(() => tracer(ctx.layer, from, to, 0.08, real && !!h.crit)).then(() => {
+                const from = { x: to.x, y: to.y + 120 * down }
+                return wait(ctx.layer, rand(0, 0.06)).then(() => bullet(ctx.layer, from, to, 0.12, real && !!h.crit)).then(() => {
                     if (real) hit(ctx.layer, to, from, !!h.crit, 0.9 * k)
                     else dirt(ctx.layer, to)
                 })
