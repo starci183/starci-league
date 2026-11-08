@@ -267,7 +267,15 @@ export function buildHeroGallery(root: Node, nav: Nav, start?: string): () => vo
      * Chọn mục tiêu như đánh thật: vệt ngắm cong xanh ngọc từ tướng đang xem bám theo chuột, các tướng địch hợp lệ sáng viền,
      * rê vào một tướng thì vệt khoá lại, bấm để chọn; Huỷ thì thôi (trả null).
      */
+    // Móc dev: window.__heroPlay(chiêu, đường) phát chiêu và tự chọn mục tiêu ở đường đó, để Playwright chụp trên sân thật
+    let autoLane: number | null = null
     const pickTarget = (prompt: string, side: "foe" | "ally" = "foe") => new Promise<number | null>((resolve) => {
+        if (autoLane !== null) {
+            const t = autoLane
+            autoLane = null
+            resolve(t)
+            return
+        }
         note.string = prompt
         const aim = new AimLine(aimLayer)
         const myLane = allyOrder.indexOf(hero.id)
@@ -481,6 +489,12 @@ export function buildHeroGallery(root: Node, nav: Nav, start?: string): () => vo
     }
 
     new Button(root, "Về sảnh", 220, 52, -800, -470, () => { if (!busy) nav.showLobby() }, "ghost", 22)
+    ;(globalThis as unknown as { __heroPlay?: (k: SkillSlot, lane?: number) => Promise<void> }).__heroPlay = async (k, lane = 2) => {
+        if (busy || !alive) return
+        autoLane = lane
+        await play(k)
+        autoLane = null
+    }
     drawGrid()
     drawBoard()
     drawInfo()

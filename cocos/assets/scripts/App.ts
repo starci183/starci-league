@@ -99,6 +99,9 @@ export class App extends Component implements Nav {
             return this.swap((r) => buildVfxGallery(r,
                 () => { this.matchVeil.active = false; void this.start() }))
         }
+        // ?heroes=<mã tướng>: mở thẳng Thư viện tướng (không cần đăng nhập, mô phỏng chạy bằng engine trong máy)
+        const heroParam = typeof location !== "undefined" ? new URLSearchParams(location.search).get("heroes") : null
+        if (heroParam !== null) return this.showHeroes(heroParam || undefined)
         text(this.screen,
             "Đang kết nối…",
             0,

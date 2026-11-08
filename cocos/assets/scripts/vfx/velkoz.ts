@@ -671,7 +671,7 @@ function crackTip(pts: Pt[], u: number): Pt {
 /** Vòng ký hiệu trên đất ở chân mục tiêu: vòng dẹt, hai tam giác ngược chiều quay, sáng dần trong `secs` */
 function groundSigil(layer: Node, at: Pt, r: number, secs: number) {
     const foot = {
-        x: at.x, y: at.y - r * 0.35
+        x: at.x, y: at.y - r * 0.1
     }
     const dark = canvas(layer,
         false)
@@ -683,7 +683,7 @@ function groundSigil(layer: Node, at: Pt, r: number, secs: number) {
                 t * 3)
             dark.g.clear()
             dark.g.fillColor = col(ABYSS,
-                0.55 * a)
+                0.32 * a)
             dark.g.ellipse(foot.x,
                 foot.y,
                 r * 1.05,
@@ -729,33 +729,33 @@ function groundSigil(layer: Node, at: Pt, r: number, secs: number) {
 /** Cột Hư Không phụt thẳng lên từ chân mục tiêu: cột thon sáng rồi tắt, mảnh tam giác bị hất tung, sóng dẹt toả ra */
 async function voidEruption(layer: Node, at: Pt, k: number) {
     const foot = {
-        x: at.x, y: at.y - 60 * k
+        x: at.x, y: at.y - 40 * k
     }
-    const h = 300 * k
+    const h = 120 * k
     const c = canvas(layer)
     emit(layer,
         foot,
         {
             color: [CORE], kind: "glow", life: [0.2,
-                0.2], size: [80 * k,
-                220 * k], alpha: 1
+                0.2], size: [60 * k,
+                150 * k], alpha: 1
         })
     void burst(layer,
         foot,
         1,
         {
             color: [MAGENTA], kind: "ring", life: [0.35,
-                0.35], size: [40,
-                320 * k], alpha: 0.85
+                0.35], size: [30,
+                200 * k], alpha: 0.85
         })
     void triBurst(layer,
         foot,
         Math.round(16 * k),
-        [380,
-            820],
+        [240,
+            520],
         [UP - 0.6,
             UP + 0.6],
-        22 * k)
+        16 * k)
     void burst(layer,
         foot,
         Math.round(14 * k),
@@ -763,9 +763,9 @@ async function voidEruption(layer: Node, at: Pt, k: number) {
             color: [CORE,
                 PINK,
                 MAGENTA], kind: "blade", life: [0.2,
-                0.42], size: [70 * k,
-                12], alpha: 1, speed: [500,
-                1100], angle: [UP - 0.18,
+                0.42], size: [44 * k,
+                12], alpha: 1, speed: [300,
+                650], angle: [UP - 0.18,
                 UP + 0.18], drag: 1.8, align: true, stretch: 3.2, spread: 30 * k
         })
     void decayDust(layer,
@@ -785,12 +785,12 @@ async function voidEruption(layer: Node, at: Pt, k: number) {
             softBeam(c.g,
                 foot,
                 top,
-                k * fade,
+                0.55 * k * fade,
                 fade)
             helix(c.g,
                 foot,
                 top,
-                30 * k * fade,
+                16 * k * fade,
                 t * 30,
                 fade)
             // sóng dẹt trên đất
@@ -799,11 +799,11 @@ async function voidEruption(layer: Node, at: Pt, k: number) {
                 0.8 * fade)
             c.g.ellipse(foot.x,
                 foot.y,
-                lerp(40,
-                    190,
+                lerp(30,
+                    120,
                     ease.out(t)) * k,
-                lerp(14,
-                    60,
+                lerp(10,
+                    38,
                     ease.out(t)) * k)
             c.g.stroke()
         })
@@ -896,8 +896,8 @@ registerSkillVfx("velkoz_e",
             })
         await Promise.all(victims.map((v) => groundSigil(ctx.layer,
             v,
-            95 * k,
-            0.34)))
+            70 * k,
+            0.2)))
         for (const v of victims) void voidEruption(ctx.layer,
             v,
             k)
@@ -919,7 +919,7 @@ registerSkillVfx("velkoz_e",
             })
         await Promise.all(victims.map((v) => groundSigil(ctx.layer,
             v,
-            105 * k,
+            78 * k,
             0.22)))
         for (const v of victims) void voidEruption(ctx.layer,
             v,
@@ -1030,7 +1030,7 @@ registerSkillVfx("velkoz_r",
                 softBeam(c.g,
                     eye,
                     tip,
-                    k * on * flick,
+                    0.5 * k * on * flick,
                     on)
                 const dir = angleOf(eye,
                     tip)
@@ -1038,7 +1038,7 @@ registerSkillVfx("velkoz_r",
                 helix(c.g,
                     eye,
                     tip,
-                    26 * k * on,
+                    14 * k * on,
                     el * 38,
                     on)
                 // vòng sóng chạy dọc tia: chữ V nhọn chỉ về phía mục tiêu
@@ -1053,7 +1053,7 @@ registerSkillVfx("velkoz_r",
                     const p = mix(eye,
                         tip,
                         pulses[i])
-                    const r = 46 * k * on * (1 - pulses[i] * 0.35)
+                    const r = 26 * k * on * (1 - pulses[i] * 0.35)
                     const a = on * (1 - pulses[i] * 0.7)
                     for (const [w, cc, aa] of [[9, MAGENTA, 0.45], [4, PINK, 0.9], [1.6, CORE, 1]] as const) {
                         c.g.lineWidth = w
@@ -1074,16 +1074,16 @@ registerSkillVfx("velkoz_r",
                     {
                         color: [CORE,
                             PINK], kind: "glow", life: [0.06,
-                            0.08], size: [90 * k,
-                            70 * k], alpha: 0.7 * on
+                            0.08], size: [60 * k,
+                            44 * k], alpha: 0.7 * on
                     })
                 emit(ctx.layer,
                     tip,
                     {
                         color: [MAGENTA,
                             CORE], kind: "glow", life: [0.06,
-                            0.1], size: [100 * k,
-                            70 * k], alpha: 0.8 * on
+                            0.1], size: [64 * k,
+                            44 * k], alpha: 0.8 * on
                     })
                 const back = dir + Math.PI
                 for (let i = 0; i < 2; i++) emit(ctx.layer,
