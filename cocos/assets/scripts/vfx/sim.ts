@@ -91,8 +91,15 @@ function simulateInner(o: SimOptions): SimResult {
 
     let act: cg.Action | undefined
     if (o.key === "basic") {
+        // Đòn không cần lá chỉ có ở Đấu sĩ; tướng khác đánh thường bằng lá Đánh (support "basic") như người chơi thật
         act = cg.legalActions(s,
             "A").find((a) => a.t === "attack" && a.actor === `A:${o.hero}` && (!targetId || a.target === targetId))
+        if (!act) {
+            const card = new cg.Game(s).supportCard("basic")
+            s.players.A.hand.push(card)
+            act = cg.legalActions(s,
+                "A").find((a) => a.t === "play" && a.uid === card.uid && a.args?.actor === `A:${o.hero}` && (!targetId || a.args?.target === targetId))
+        }
     } else {
         const card = new cg.Game(s).skillCard(o.hero,
             "A",

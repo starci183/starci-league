@@ -30,6 +30,9 @@ import {
     hasCustom
 } from "../vfx/keys"
 import {
+    rayBeats, riftBeats
+} from "../vfx/velkoz"
+import {
     simulate, type SimDamage
 } from "../vfx/sim"
 import {
@@ -439,12 +442,10 @@ export function buildHeroGallery(root: Node, nav: Nav, start?: string): () => vo
         const showHit = (d: SimDamage) => dealt(d.lane, d.amount, KIND_COLOR[d.kind] ?? C.goldLight)
 
         if (hero.id === "velkoz" && k === "r") {
-            // 10 tia ngẫu nhiên: số nhảy theo từng tia
+            // R: mỗi tia báo nhịp đúng lúc chạm (onBeat), số của tia đó bật ngay lúc ấy
             note.string = `R: bắn ngẫu nhiên tổng ${skillHits.length} tia, mỗi tia vào một tướng địch bất kỳ`
-            const fxp = playSkill(fx, keyOf(k), style, from, targets)
-            await sleep(0.6)
-            for (const d of now) { showHit(d); if (d.tag === "skill") await sleep(0.15) }
-            await fxp
+            const beats = rayBeats(now)
+            await playSkill(fx, keyOf(k), style, from, targets, { onBeat: (i) => { for (const d of beats[i] ?? []) showHit(d) } })
         } else if (isSteal) {
             const victim = cg.getHero(steal!)!
             await playSkill(fx, keyOf(k), style, from, targets)
@@ -455,6 +456,11 @@ export function buildHeroGallery(root: Node, nav: Nav, start?: string): () => vo
             await playSkill(fx, skillKey(victim.id, "r"), styleOf(victim.id, "r"), from, hitLanes.length ? hitLanes : [foePos(2)])
             if (!alive) return
             for (const d of now) showHit(d)
+        } else if (hero.id === "velkoz" && k === "e") {
+            // E: cú khe mở và cú nổ hiện số đúng nhịp VFX báo (onBeat), không hẹn giờ đoán
+            note.string = "E: khe rách cắt ngang 3 đường, gây sát thương rồi nổ ngay theo % máu đã mất"
+            const beats = riftBeats(now)
+            await playSkill(fx, keyOf(k), style, from, targets, { onBeat: (i) => { for (const d of beats[i] ?? []) showHit(d) } })
         } else if (later.length) {
             // Chiêu có nhịp cuối lượt (Vel'Koz E): nhịp đầu nổ giữa chừng, nhịp hai khi hiệu ứng rách toạc lần hai
             note.string = hero.id === "velkoz" ? "E: khe nứt cắt ngang 3 đường, nổ ngay; cuối lượt nổ thêm một lần" : "Chiêu có sát thương kéo dài: gây đòn ngay, cuối lượt gây thêm"

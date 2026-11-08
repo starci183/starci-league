@@ -1,0 +1,64 @@
+# Luật VFX chung cho mọi tướng (Cocos)
+
+Áp dụng cho mọi hiệu ứng trong `cocos/assets/scripts/vfx/<tướng>.ts`, gồm cả chiêu P/Q/E/R, đánh thường và phép bổ trợ.
+Mục tiêu: nhìn hiệu ứng là biết engine vừa làm gì. Không có hiệu ứng "giả", tức là hình ảnh nói một đằng mà luật làm
+một nẻo, hoặc số sát thương bật lệch lúc hình chạm. Cách ánh xạ sự kiện sang hiệu ứng xem thêm
+[VFX_ACTION_MAPPING.md](VFX_ACTION_MAPPING.md).
+
+## 1. Hình ảnh diễn đúng luật
+
+- Diễn đúng điều engine làm: đúng số mục tiêu, đúng đường, đúng thứ tự, đúng số nhịp. Chiêu đánh 3 đường thì hình phủ
+  đúng 3 ô; chiêu 10 tia thì đúng 10 tia, mỗi tia vào đúng tướng engine chọn.
+- Mục tiêu lấy từ sự kiện của engine (các sự kiện `damage`, `heal`, `move` ngay sau lá `cast`), không tự bịa, không chọn
+  ngẫu nhiên trong VFX khi engine đã chọn.
+- Không vẽ trúng tướng không mất máu, không vẽ nhịp engine không có, không bỏ nhịp engine có.
+- Đổi luật chiêu thì đổi VFX trong cùng commit. Câu chữ trên màn Thư viện tướng cũng đổi theo.
+- Hiệu ứng chỉ để trình diễn: không đọc hay sửa trạng thái trận, không quyết định sát thương.
+
+## 2. Số sát thương bật đúng lúc hình chạm
+
+- Mỗi cú trúng gọi `ctx.onBeat(i)` đúng khung hình nó chạm (i = 0, 1, 2...). Màn trận và Thư viện hiện số của nhịp i
+  ngay trong callback đó.
+- Cấm hẹn giờ đoán (`sleep(0.6)` rồi mới hiện số) để "khớp" với hiệu ứng. Đổi nhịp VFX là số lệch ngay.
+- Chia sự kiện sát thương thành nhịp bằng một hàm thuần đặt cạnh VFX (ví dụ `riftBeats`, `rayBeats` trong `velkoz.ts`),
+  dùng chung cho màn trận và Thư viện, để hai nơi không lệch nhau.
+- Chiêu một nhịp không cần `onBeat` nhưng promise phải xong ngay lúc chạm: phần tan, khói, bụi chạy nền (`void`), không
+  giữ hàng sự kiện.
+- Phần đuôi sau nhịp cuối không giữ hàng quá 0,3 giây.
+
+## 3. Đúng cỡ sân thật
+
+- Kiểm trên Thư viện tướng, nơi có sân 5 đường như trận thật và mục tiêu lấy từ engine. Màn `?vfx` chỉ để thử nhanh,
+  không đủ để duyệt.
+- Lá tướng trên sân khoảng 110 px, các đường cách nhau khoảng 130 px. Hiệu ứng không che chân dung quá 0,3 giây, không
+  đè thanh máu hay số sát thương, không vượt khung bàn hay đè chữ hướng dẫn phía trên.
+- Tia, cột, khe nằm gọn trong ô của mục tiêu. Cái gì dày hơn nửa lá là quá dày.
+- Toạ độ Cocos có y hướng lên. Nguồn là tướng dùng chiêu, đích là vị trí engine báo.
+
+## 4. Mỗi tướng một phong cách, mỗi chiêu nhận ra được
+
+- Mỗi tướng có bảng màu và ngôn ngữ hình khối riêng, lấy cảm hứng từ chất tướng. Ví dụ Vel'Koz dùng plasma tím hồng lõi
+  trắng và hình tam giác.
+- Đánh thường luôn có hiệu ứng riêng, khác các chiêu. Nhìn là biết đó là đòn thường hay Q.
+- Chiêu đổi chỗ, hồi máu, khiên, khống chế phải nhìn ra đúng loại: hồi máu không dùng màu hay hình của sát thương.
+
+## 5. Nhịp hình
+
+- Mỗi cú gồm: tụ (≤ 0,25 s), bay (≤ 0,35 s), chạm (loé, mảnh, rung nhẹ), dư âm (chạy nền).
+- Cả chiêu tối đa khoảng 1,5 s; chiêu nhiều tia tối đa khoảng 2,5 s.
+- Rung màn hình chỉ cho cú nặng; cú nhẹ không rung.
+
+## 6. Kỹ thuật
+
+- Hạt dùng `particles.ts` (tối đa 1500 hạt sống). Hình khối vẽ bằng `Graphics` mỗi khung hình và phải gọi `done()` khi
+  xong, không để node rò.
+- Viền và đường sáng mảnh (1 đến 3 px lõi, quầng ≤ 8 px), mềm bằng nhiều lớp chồng mờ dần, không dùng một nét dày cứng.
+- Không tải ảnh hay âm thanh từ ngoài trong VFX.
+
+## 7. Kiểm trước khi xong
+
+1. Mở preview `http://localhost:7456/?scene=5133e233-b17b-433a-82a9-b545d7f555cc&heroes=<mã tướng>` (Creator đang mở).
+2. Phát từng ô (Nội tại, Q, E, R, Đánh thường). Hoặc tự động: `window.__heroPlay("q", 2)` (chiêu, đường mục tiêu).
+3. Chụp ở tốc độ thật. Đặt `window.__vfxScale = 0.2` chỉ để soi hình, không dùng để duyệt nhịp số.
+4. Kiểm lại từng mục trên: số bật đúng lúc chạm, không che, không vượt bàn, đúng số mục tiêu.
+5. Nếu sửa luật: `npm test`, rồi `node scripts/sync-cocos.mjs` để Cocos nhận bản engine mới.

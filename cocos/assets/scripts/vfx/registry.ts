@@ -22,6 +22,8 @@ export interface VfxCtx {
     style: SkillVfx;
     /** Mã tướng đồng minh bị đổi chỗ (Sylas Q), để vẽ bóng tướng trượt qua nhau */
     allyHero?: string;
+    /** Báo nhịp trúng thứ i (0, 1...) đúng lúc hình ảnh chạm; bên gọi hiện số sát thương theo nhịp này */
+    onBeat?: (i: number) => void;
 }
 export type SkillEffect = (ctx: VfxCtx) => Promise<void>
 
@@ -132,7 +134,7 @@ export function styleOf(hero: string, key: string): SkillVfx {
 export const spellStyle = (spell: string): SkillVfx => spellVfx(spell)
 
 /** Phát hiệu ứng của chiêu `key` từ `from` tới `to` */
-export function playSkill(layer: Node, key: string, style: SkillVfx, from: Pt, to: Pt[], extra: { allyHero?: string } = {
+export function playSkill(layer: Node, key: string, style: SkillVfx, from: Pt, to: Pt[], extra: { allyHero?: string; onBeat?: (i: number) => void } = {
 }): Promise<void> {
     return effectOf(key)({
         layer, from, to, style, ...extra

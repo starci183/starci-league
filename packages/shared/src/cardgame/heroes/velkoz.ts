@@ -23,6 +23,7 @@ const F_Q = k.x("q1 + q2·AP"), EN_Q = k.xe("q1 + q2·AP")
 const F_Q2 = k.x("q3 + q4·AP"), EN_Q2 = k.xe("q3 + q4·AP")
 const F_E = k.x("e1 + e2·AP"), EN_E = k.xe("e1 + e2·AP")
 const F_E2 = k.x("e3 + e4·AP"), EN_E2 = k.xe("e3 + e4·AP")
+const F_E3 = k.x("e5% máu đã mất mục tiêu"), EN_E3 = k.xe("e5% máu đã mất mục tiêu")
 const F_R = k.x("r2 + r3·AP + r4% máu đã mất mục tiêu"), EN_R = k.xe("r2 + r3·AP + r4% máu đã mất mục tiêu")
 
 /** +1 Phân Rã lên t; đủ p1 thì tiêu đúng p1 và nổ sát thương chuẩn (không chí mạng, không tự sinh dấu) */
@@ -75,7 +76,7 @@ export default defineHero({
     id: "velkoz", name: "Vel'Koz", role: "mage", damage: "magic", ...k.base,
     carrierStacks: [DECAY],
     bot: k.bot,
-    desc: "Phân rã: mỗi tia chiêu trúng là một Phân Rã, đủ số thì nổ sát thương chuẩn. Sát thủ ngẫu nhiên: mục tiêu chọn chỉ bị chạm nhẹ, đòn nặng rơi vào các địch ngẫu nhiên hoặc đường kề. Q tách 2 tia, E cắt ngang 3 đường và đánh hai nhịp, R bắn ngẫu nhiên nhiều tia.",
+    desc: "Phân rã: mỗi tia chiêu trúng là một Phân Rã, đủ số thì nổ sát thương chuẩn. Sát thủ ngẫu nhiên: mục tiêu chọn chỉ bị chạm nhẹ, đòn nặng rơi vào các địch ngẫu nhiên hoặc đường kề. Q tách 2 tia, E cắt ngang 3 đường rồi nổ ngay, R bắn ngẫu nhiên nhiều tia.",
     passive: {
         name: "Phân Rã",
         desc: `Mỗi tia chiêu trúng tướng địch cho nó 1 Phân Rã; đủ ${p.p1} thì tiêu ${p.p1} và nổ {${F_DECAY}} sát thương chuẩn. Tướng mang Phân Rã chết thì mất một nửa.`,
@@ -106,34 +107,30 @@ export default defineHero({
         },
         E: {
             key: "E", name: "Khe Nứt Hư Không", target: "enemy", mana: p.e0,
-            desc: `Chọn 1 tướng địch làm tâm: khe nứt cắt ngang qua tâm và 2 đường kề. Tâm nhận {${F_E}} sát thương phép (nhẹ), mỗi đường kề nhận {${F_E2}} (nặng); cuối lượt hiện tại, ai còn sống nhận lại một lần nữa.`,
+            desc: `Chọn 1 tướng địch làm tâm: khe nứt cắt ngang qua tâm và 2 đường kề. Tâm nhận {${F_E}} sát thương phép (nhẹ), mỗi đường kề nhận {${F_E2}} (nặng); rồi khe nổ ngay: ai còn đứng nhận thêm {${F_E3}} sát thương phép.`,
             resolve(c) {
                 const t = c.target!
                 const foe = t.side
                 const raw = c.f(F_E), rawSide = c.f(F_E2)
                 // 3 đường: tâm nhận nhẹ, hai đường kề nhận nặng (bỏ ô trống, bỏ vật triệu hồi)
+                const hitUnits: Unit[] = []
                 for (const lane of [t.lane - 1,
                     t.lane,
                     t.lane + 1]) {
                     const u = lane >= 0 && lane <= 4 ? c.g.at(foe,
                         lane) : undefined
                     if (!u || u.token || !c.g.targetable(u)) continue
-                    const dmg = lane === t.lane ? raw : rawSide
                     ray(c.g,
                         c.self,
                         u,
-                        dmg)
-                    if (u.status === "board") c.g.delay(c.self,
-                        "rift",
-                        "turnEnd",
-                        c.g.s.active,
-                        {
-                            target: u.id, base: dmg, life: u.deaths
-                        },
-                        {
-                            surviveOwnerDeath: true // nhịp hai đã cam kết vẫn bắn khi Vel'Koz đã ngã
-                        })
+                        lane === t.lane ? raw : rawSide)
+                    hitUnits.push(u)
                 }
+                // khe nổ ngay: ai còn đứng nhận thêm theo % máu đã mất (tính sau cú đầu), mỗi cú nổ cũng là một tia
+                for (const u of hitUnits) if (u.status === "board") hit(c.g,
+                    c.self,
+                    u,
+                    F_E3)
             },
         },
         R: {
@@ -161,19 +158,8 @@ export default defineHero({
             },
         },
     },
-    hooks: {
-        onDelayed(g, me, d) {
-            if (d.key !== "rift") return
-            const t = g.unit(String(d.data?.target ?? ""))
-            if (!t || t.status !== "board" || t.deaths !== Number(d.data?.life ?? t.deaths)) return
-            ray(g,
-                me,
-                t,
-                Number(d.data?.base ?? 0))
-        },
-    },
     en: {
-        desc: "Disintegration: every skill beam that hits is one Decay, enough of it unravels the target in true damage. A random-kill burster: the chosen target is only grazed, the heavy hits land on random enemies or adjacent lanes. Q splits 2 beams, E cuts across 3 lanes and hits twice, R fires random beams.",
+        desc: "Disintegration: every skill beam that hits is one Decay, enough of it unravels the target in true damage. A random-kill burster: the chosen target is only grazed, the heavy hits land on random enemies or adjacent lanes. Q splits 2 beams, E cuts across 3 lanes and bursts at once, R fires random beams.",
         passive: {
             name: "Organic Deconstruction",
             desc: `Each skill beam that hits an enemy champion gives it 1 Decay; at ${p.p1} it spends ${p.p1} and blows up for {${EN_DECAY}} true damage. A Decay bearer that dies loses half of it.`,
@@ -185,7 +171,7 @@ export default defineHero({
             },
             E: {
                 name: "Void Rift",
-                desc: `Choose 1 enemy champion as the centre: a rift cuts across it and the 2 adjacent lanes. The centre takes {${EN_E}} magic damage (light), each adjacent lane {${EN_E2}} (heavy); at the end of the current turn, survivors take it once more.`,
+                desc: `Choose 1 enemy champion as the centre: a rift cuts across it and the 2 adjacent lanes. The centre takes {${EN_E}} magic damage (light), each adjacent lane {${EN_E2}} (heavy); then the rift bursts at once: everyone still standing takes {${EN_E3}} more magic damage.`,
             },
             R: {
                 name: "Life Form Disintegration Ray",

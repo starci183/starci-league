@@ -110,7 +110,7 @@ Tham số: `balance/heroes/twistedfate.json`.
 Tham số: `balance/heroes/velkoz.json`.
 - **Nội tại Phân Rã** `p1..p4`: Mỗi tia trúng cho 1 Phân Rã, đủ `p1`: nổ `p2 + p3·AP + p4`% Máu tối đa chuẩn. Tướng mang chết mất một nửa.
 - **Q Phân Hạch Plasma** `q0`: 1 địch `q1 + q2·AP`; sau đó tách sang 1 địch ngẫu nhiên `q3 + q4·AP`.
-- **E Khe Nứt Hư Không** `e0`: 1 địch `e1 + e2·AP`, cuối lượt còn sống nhận lại lần nữa.
+- **E Khe Nứt Hư Không** `e0..e5`: khe cắt ngang tâm `e1 + e2·AP` (nhẹ) và 2 đường kề `e3 + e4·AP` (nặng), rồi nổ ngay: ai còn đứng nhận thêm `e5`% Máu đã mất (tính sau cú đầu).
 - **R Tia Phân Rã Sự Sống** `r0`: 1 địch `r1` tia, mỗi tia `r2 + r3·AP + r4`% Máu đã mất.
 
 ### Rumble · phế liệu (tướng mới)
@@ -127,7 +127,7 @@ Tham số: `balance/heroes/sylas.json`. Cờ `keepCC` (1): Chiêu Đoạt giữ 
 - **E Thợ Săn Vua** `e0`: Quick. Chọn 1 địch; `e1 + e2·AP` phép, Sylas hồi `e3 + e4·AP` cộng `e5`% Máu đã mất. Khi địch nhắm đúng Sylas; mục tiêu là kẻ đó.
 - **R Đoạt Chiêu** `r0`: Chọn 1 địch trên sân, đoạt R của tướng đó (cờ `stealOnlyR`) và tung ngay, nhắm đúng tướng đó nếu được, không lên tay (cờ `stealToHand` tắt). Phải đủ mana cả `r0` lẫn mana gốc. Sylas dùng như chiêu của mình, trả mana gốc của lá đó, mọi hệ số AD đổi thành AP theo `p4` (2 AP = 1 AD, cùng tỉ lệ Rumble), giữ nguyên khống chế (`keepCC` = 1), giữ Quick nếu lá gốc là Quick, tồn tại tới hết lượt đối phương, dùng xong biến mất. Hệ số Máu, Giáp của lá gốc giữ nguyên chữ, tính theo Sylas.
 - **Không hiện trong lựa chọn:** chiêu có `canPlay`/`options` rỗng với Sylas lúc đó (Katarina R, Darius R khi chưa có Chảy Máu, Teemo R, Azir Q, R khi phe Sylas chưa có Lính trên sân) và danh sách `OWNER_BOUND` trong `heroes/sylas.ts`: Ashe Q, Kog'Maw E, Tristana Q, Tristana E, Vayne R, Jinx Q, Kha'Zix R, Gangplank E, Gangplank R, Sylas R (trận gương).
-- **Mất phần phụ nhưng vẫn đoạt được** (phần chính là sát thương, phần phụ nằm ở hook của chủ): Ahri R mất Say Mê, Zed Q mất đòn thêm, Brand mất Bỏng cháy đầu lượt nếu phe mình không có Brand, Braum Q mất Dấu Băng, Gangplank Q không tìm được lá E. Azir Q, E, R đoạt được: Sylas đặt Lính phe mình, Lính đâm theo đòn của Sylas, hết hạn và mất một nửa khi chết như Azir, Sylas không nhận Tốc Đánh theo Lính. Rumble R đoạt được: lá chọn Tái Chế và Lá Tái Chế về Sylas, theo luật Rumble (không khống chế). Zed R, Vel'Koz E nhịp sau vẫn bắn nhờ `DelayedEffect.hookHero`.
+- **Mất phần phụ nhưng vẫn đoạt được** (phần chính là sát thương, phần phụ nằm ở hook của chủ): Ahri R mất Say Mê, Zed Q mất đòn thêm, Brand mất Bỏng cháy đầu lượt nếu phe mình không có Brand, Braum Q mất Dấu Băng, Gangplank Q không tìm được lá E. Azir Q, E, R đoạt được: Sylas đặt Lính phe mình, Lính đâm theo đòn của Sylas, hết hạn và mất một nửa khi chết như Azir, Sylas không nhận Tốc Đánh theo Lính. Rumble R đoạt được: lá chọn Tái Chế và Lá Tái Chế về Sylas, theo luật Rumble (không khống chế). Zed R nhịp sau vẫn bắn nhờ `DelayedEffect.hookHero`; Vel'Koz E nổ ngay trong lúc dùng.
 
 ### Mel · ánh vàng (tướng mới)
 Tham số: `balance/heroes/mel.json`. Chói Lọi là carrier stack (`mel_glow`). Ngưỡng hạ đi qua `g.executeLethal`: không tính Khiên, Giáp nhưng vẫn qua cứu chết.

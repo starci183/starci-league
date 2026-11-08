@@ -3,6 +3,7 @@
 Client Cocos Creator 3.8.8: đăng nhập / đăng ký, danh sách bộ bài, xếp bộ bài, sảnh đấu, ghép trận, cấm / chọn tướng,
 màn trận (bàn 10 ô, tay bài, chuỗi, hộp thoại) và kết thúc trận. VFX: mỗi chiêu một ô hiệu ứng (`vfx/registry.ts`), tạm
 thời là một hạt; mở link Preview kèm `?vfx` để xem thử từng chiêu.
+Làm VFX cho tướng nào cũng theo [docs/VFX_RULES.md](../docs/VFX_RULES.md).
 Giao diện theo DNA đã chốt ([docs/UI_DNA.md](../docs/UI_DNA.md)), dựng hoàn toàn bằng code trong `assets/scripts/`
 (không prefab), nên chữ là chữ thật và đổi màu chỉ cần sửa [`dna/theme.ts`](assets/scripts/dna/theme.ts).
 

@@ -33,6 +33,9 @@ import {
     skillArt, slot
 } from "../../ui/slot"
 import {
+    rayBeats, riftBeats
+} from "../../vfx/velkoz"
+import {
     playSkill, skillKey, spellStyle, styleOf, type Pt
 } from "../../vfx/registry"
 import {
@@ -1440,6 +1443,8 @@ export function buildMatch(root: Node, nav: Nav): () => void {
                 x: railX, y: railY + 290
             },
         } as Record<Side, Pt>
+        // Sự kiện sát thương đã hiện số theo nhịp VFX (Vel'Koz E): bỏ qua khi tới lượt chúng trong hàng
+        const beatShown = new Set<cg.GameEvent>()
         for (const e of events) {
             // trình diễn chung (ra sân, hạ gục, rút bài, dải vòng / lượt / chuỗi) rồi tới hiệu ứng chiêu
             vfxQueue = vfxQueue.then(() => vfxLayer.isValid ? presentEvent(vfxLayer,
@@ -1478,6 +1483,14 @@ export function buildMatch(root: Node, nav: Nav): () => void {
                     const allyLane = swapQ ? cur.lanes[u.side].indexOf(e.target!) : -1
                     const foeOfAlly = swapQ && allyLane >= 0 ? cur.lanes[u.side === "A" ? "B" : "A"][allyLane] : undefined
                     if (swapQ) skipMoves++
+                    // Vel'Koz E: số sát thương bật đúng lúc khe mở (nhịp 0) và lúc khe nổ (nhịp 1), không chờ hiệu ứng chạy xong
+                    // Vel'Koz R: mỗi tia một nhịp, số của tia đó bật đúng lúc tia chạm
+                    const riftE = u.hero === "velkoz" && e.skill === "E"
+                    const raysR = u.hero === "velkoz" && e.skill === "R"
+                    const riftDmg = riftE || raysR ? (nextCast < 0 ? rest : rest.slice(0,
+                        nextCast)).filter((x): x is Extract<cg.GameEvent, { t: "damage" }> => x.t === "damage" && x.src === e.unit) : []
+                    const beats = raysR ? rayBeats(riftDmg) : riftBeats(riftDmg)
+                    for (const d of riftDmg) beatShown.add(d)
                     const targets = swapQ ? [posOf(cur,
                         e.target!),
                     ...(foeOfAlly ? [posOf(cur,
@@ -1495,6 +1508,12 @@ export function buildMatch(root: Node, nav: Nav): () => void {
                         targets,
                         swapQ ? {
                             allyHero: cur.units[e.target!]?.hero
+                        } : riftE || raysR ? {
+                            onBeat: (i) => {
+                                for (const d of beats[i] ?? []) floatNumber(posOf(lastView ?? cur,
+                                    d.target),
+                                `-${d.amount}`)
+                            }
                         } : {
                         })
                 } else if (e.t === "move") {
@@ -1540,6 +1559,7 @@ export function buildMatch(root: Node, nav: Nav): () => void {
                         [posOf(cur,
                             e.args.target)])
                 } else if (e.t === "damage") {
+                    if (beatShown.has(e)) return
                     floatNumber(posOf(cur,
                         e.target),
                     `-${e.amount}`)

@@ -997,7 +997,7 @@ test("Zed R: Dấu Ấn nổ cuối lượt dù hook nằm ở Zed, kể cả Sy
         "sát thương chuẩn cuối lượt")
         assert.ok(!e.s.players.A.grave.some((c) => c.id === "zed_r"))
     })
-test("Vel'Koz E: nhịp hai cuối lượt vẫn bắn với Sylas",
+test("Vel'Koz E: Sylas đoạt dùng thì khe nổ ngay, đánh hai cú",
     () => {
         const s0 = mk({
             A: {
@@ -1017,9 +1017,8 @@ test("Vel'Koz E: nhịp hai cuối lượt vẫn bắn với Sylas",
             {
                 target: "B:velkoz"
             })
-        const e = endTurn(r.s)
-        assert.ok(dmgOn(e.ev,
-            "B:velkoz") > 0)
+        assert.equal(r.ev.filter((e) => e.t === "damage" && e.target === "B:velkoz" && e.kind === "magic").length,
+            2)
     })
 test("Darius R: chỉ hiện khi địch có Chảy Máu; không hạ thì không về tay",
     () => {

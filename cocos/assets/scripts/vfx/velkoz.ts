@@ -8,7 +8,7 @@ import {
     Color, Graphics, Node, UITransform
 } from "cc"
 import {
-    angleOf, burst, dist, ease, emit, lerp, mix, over, rand, wait, type Pt
+    angleOf, burst, dist, ease, emit, lerp, mix, over, rand, stream, wait, type Pt
 } from "./particles"
 import {
     registerSkillVfx, type VfxCtx
@@ -605,335 +605,199 @@ registerSkillVfx("velkoz_q",
 
 // ---------- E Khe Nứt Hư Không ----------
 
-/** Đường nứt gãy khúc hình học từ a tới b: các đoạn thẳng lệch trái phải, `u` 0..1 là phần đã lan */
-function crackPath(a: Pt, b: Pt, seed: number): Pt[] {
-    const n = Math.max(4,
-        Math.round(dist(a,
-            b) / 70))
-    const d = angleOf(a,
-        b)
-    const nx = -Math.sin(d), ny = Math.cos(d)
-    const out: Pt[] = []
+/** Mép khe răng cưa: độ lệch cố định theo vị trí `g` dọc khe (0..1), mỗi khe một `seed` */
+const jag = (g: number, seed: number) => 1 + Math.sin(g * 31 + seed) * 0.28 + Math.sin(g * 83 + seed * 2.3) * 0.16
+
+/**
+ * Vẽ khe rách trên mặt đất từ a tới b (đường ngang): lòng tối ở `dark`, viền sáng ở `glow`.
+ * `reach` 0..1 là phần đã toạc tính từ giữa ra hai đầu, `open` 0..1 là độ mở, `bright` độ sáng viền (>1 khi sắp nổ).
+ */
+function drawRift(dark: Graphics, glow: Graphics, a: Pt, b: Pt, max: number, open: number, reach: number, bright: number, seed: number, time: number) {
+    dark.clear()
+    glow.clear()
+    if (reach <= 0.01 || open <= 0.01) return
+    const mid = mix(a, b, 0.5)
+    const pa = mix(mid, a, reach)
+    const pb = mix(mid, b, reach)
+    const n = 44
+    const top: Pt[] = [], bot: Pt[] = [], core: Pt[] = []
     for (let i = 0; i <= n; i++) {
-        const p = mix(a,
-            b,
-            i / n)
-        const side = i === 0 || i === n ? 0 : Math.sin(i * 2.3 + seed) * 18
-        out.push({
-            x: p.x + nx * side, y: p.y + ny * side
-        })
+        const u = i / n
+        const g = lerp(0.5 - reach / 2, 0.5 + reach / 2, u)
+        const h = max * open * Math.pow(Math.sin(Math.PI * u), 0.55)
+        const p = mix(pa, pb, u)
+        top.push({ x: p.x, y: p.y + h * jag(g, seed) })
+        bot.push({ x: p.x, y: p.y - h * jag(g, seed + 4) })
+        core.push({ x: p.x, y: p.y + Math.sin(g * 40 - time * 20) * h * 0.25 })
     }
-    return out
-}
-
-/** Vẽ phần `u` của đường gãy khúc: viền hồng, lõi trắng; mũi nứt có quầng loé */
-function drawCrack(g: Graphics, pts: Pt[], u: number, w: number, a: number) {
-    const total = (pts.length - 1) * u
-    for (let i = 0; i < pts.length - 1 && i < total; i++) {
-        const end = Math.min(1,
-            total - i)
-        const p1 = pts[i]
-        const p2 = mix(pts[i],
-            pts[i + 1],
-            end)
-        strip(g,
-            p1,
-            p2,
-            w * 2.4,
-            col(VIOLET,
-                a * 0.35))
-        strip(g,
-            p1,
-            p2,
-            w,
-            col(MAGENTA,
-                a * 0.9))
-        strip(g,
-            p1,
-            p2,
-            w * 0.35,
-            col(CORE,
-                a))
+    // lòng khe: Hư Không tối
+    dark.fillColor = col(ABYSS, 0.88)
+    dark.moveTo(top[0].x, top[0].y)
+    for (const p of top) dark.lineTo(p.x, p.y)
+    for (let i = bot.length - 1; i >= 0; i--) dark.lineTo(bot[i].x, bot[i].y)
+    dark.close()
+    dark.fill()
+    const line = (pts: Pt[], w: number, c: number, a: number) => {
+        glow.lineWidth = w
+        glow.strokeColor = col(c, a)
+        glow.moveTo(pts[0].x, pts[0].y)
+        for (const p of pts) glow.lineTo(p.x, p.y)
+        glow.stroke()
     }
-}
-
-/** Mũi nứt đang ở đâu trên đường gãy khúc */
-function crackTip(pts: Pt[], u: number): Pt {
-    const total = (pts.length - 1) * u
-    const i = Math.min(pts.length - 2,
-        Math.floor(total))
-    return mix(pts[i],
-        pts[i + 1],
-        Math.min(1,
-            total - i))
-}
-
-/** Vòng ký hiệu trên đất ở chân mục tiêu: vòng dẹt, hai tam giác ngược chiều quay, sáng dần trong `secs` */
-function groundSigil(layer: Node, at: Pt, r: number, secs: number) {
-    const foot = {
-        x: at.x, y: at.y - r * 0.1
+    // viền mảnh: quầng hẹp, viền hồng, chỉ trắng; dòng năng lượng tím lượn trong lòng khe
+    for (const edge of [top, bot]) {
+        line(edge, 7, MAGENTA, 0.18 * bright)
+        line(edge, 2.6, MAGENTA, 0.7 * bright)
+        line(edge, 1.1, bright > 1 ? CORE : PINK, Math.min(1, 0.95 * bright))
     }
-    const dark = canvas(layer,
-        false)
-    const c = canvas(layer)
-    return over(layer,
-        secs,
-        (t) => {
-            const a = Math.min(1,
-                t * 3)
-            dark.g.clear()
-            dark.g.fillColor = col(ABYSS,
-                0.32 * a)
-            dark.g.ellipse(foot.x,
-                foot.y,
-                r * 1.05,
-                r * 0.42)
-            dark.g.fill()
-            c.g.clear()
-            c.g.lineWidth = 3
-            c.g.strokeColor = col(MAGENTA,
-                0.8 * a)
-            c.g.ellipse(foot.x,
-                foot.y,
-                r,
-                r * 0.4)
-            c.g.stroke()
-            c.g.lineWidth = 2
-            c.g.strokeColor = col(PINK,
-                0.7 * a)
-            tri(c.g,
-                foot,
-                r * 0.85,
-                t * 3,
-                0.4)
-            c.g.stroke()
-            tri(c.g,
-                foot,
-                r * 0.85,
-                -t * 3 + Math.PI,
-                0.4)
-            c.g.stroke()
-            c.g.fillColor = col(VIOLET,
-                0.25 * a + 0.2 * Math.sin(t * 30) ** 2)
-            c.g.ellipse(foot.x,
-                foot.y,
-                r * 0.55,
-                r * 0.22)
-            c.g.fill()
-        }).then(() => {
-        dark.done()
-        c.done()
-    })
+    line(core, 2.4, VIOLET, 0.5 * bright)
+    line(core, 0.9, PINK, 0.75 * bright)
 }
 
-/** Cột Hư Không phụt thẳng lên từ chân mục tiêu: cột thon sáng rồi tắt, mảnh tam giác bị hất tung, sóng dẹt toả ra */
+/** Cột Hư Không phụt thẳng lên từ điểm `at` trên khe: cột thon sáng rồi tắt, mảnh tam giác bị hất tung */
 async function voidEruption(layer: Node, at: Pt, k: number) {
-    const foot = {
-        x: at.x, y: at.y - 40 * k
-    }
+    const foot = at
     const h = 120 * k
     const c = canvas(layer)
-    emit(layer,
-        foot,
-        {
-            color: [CORE], kind: "glow", life: [0.2,
-                0.2], size: [60 * k,
-                150 * k], alpha: 1
-        })
-    void burst(layer,
-        foot,
-        1,
-        {
-            color: [MAGENTA], kind: "ring", life: [0.35,
-                0.35], size: [30,
-                200 * k], alpha: 0.85
-        })
-    void triBurst(layer,
-        foot,
-        Math.round(16 * k),
-        [240,
-            520],
-        [UP - 0.6,
-            UP + 0.6],
-        16 * k)
-    void burst(layer,
-        foot,
-        Math.round(14 * k),
-        {
-            color: [CORE,
-                PINK,
-                MAGENTA], kind: "blade", life: [0.2,
-                0.42], size: [44 * k,
-                12], alpha: 1, speed: [300,
-                650], angle: [UP - 0.18,
-                UP + 0.18], drag: 1.8, align: true, stretch: 3.2, spread: 30 * k
-        })
-    void decayDust(layer,
-        at,
-        Math.round(40 * k),
-        50 * k)
-    await over(layer,
-        0.36,
-        (t) => {
-            const grow = ease.out(Math.min(1,
-                t * 2.2))
-            const fade = 1 - ease.in(t)
-            const top = {
-                x: foot.x, y: foot.y + h * grow
-            }
-            c.g.clear()
-            softBeam(c.g,
-                foot,
-                top,
-                0.55 * k * fade,
-                fade)
-            helix(c.g,
-                foot,
-                top,
-                16 * k * fade,
-                t * 30,
-                fade)
-            // sóng dẹt trên đất
-            c.g.lineWidth = 4 * fade
-            c.g.strokeColor = col(PINK,
-                0.8 * fade)
-            c.g.ellipse(foot.x,
-                foot.y,
-                lerp(30,
-                    120,
-                    ease.out(t)) * k,
-                lerp(10,
-                    38,
-                    ease.out(t)) * k)
-            c.g.stroke()
-        })
+    emit(layer, foot, { color: [CORE], kind: "glow", life: [0.2, 0.2], size: [60 * k, 150 * k], alpha: 1 })
+    void triBurst(layer, foot, Math.round(14 * k), [240, 520], [UP - 0.6, UP + 0.6], 16 * k)
+    void burst(layer, foot, Math.round(12 * k), {
+        color: [CORE, PINK, MAGENTA], kind: "blade", life: [0.2, 0.42], size: [44 * k, 12], alpha: 1, speed: [300, 650],
+        angle: [UP - 0.18, UP + 0.18], drag: 1.8, align: true, stretch: 3.2, spread: 26 * k
+    })
+    void decayDust(layer, foot, Math.round(36 * k), 40 * k)
+    await over(layer, 0.36, (t) => {
+        const grow = ease.out(Math.min(1, t * 2.2))
+        const fade = 1 - ease.in(t)
+        const top = { x: foot.x, y: foot.y + h * grow }
+        c.g.clear()
+        softBeam(c.g, foot, top, 0.55 * k * fade, fade)
+        helix(c.g, foot, top, 16 * k * fade, t * 30, fade)
+    })
     c.done()
 }
 
 /**
- * E: mắt tụ, vết nứt gãy khúc lan từ Vel'Koz tới tâm (to[0]) rồi toạc ngang qua mọi mục tiêu; dưới mỗi mục tiêu hiện vòng
- * ký hiệu rồi cột Hư Không phụt lên. Cuối lượt khe rách lại: ký hiệu sáng nhanh hơn, cột to hơn.
+ * Chia các sự kiện sát thương của một lần E thành hai nhịp: nhịp 0 là cú khe mở (mỗi mục tiêu một tia đầu), nhịp 1 là cú nổ
+ * (tia thứ hai vào cùng mục tiêu trở đi). Sát thương phụ (Phân Rã nổ, tag khác "skill") đi theo nhịp đang chạy.
  */
-registerSkillVfx("velkoz_e",
-    async (ctx) => {
-        const k = power(ctx)
-        const centre = ctx.to[0] ?? polar(ctx.from,
-            UP,
-            400)
-        const victims = ctx.to.length ? ctx.to : [centre]
-        const xs = victims.map((t) => t.x)
-        const left = {
-            x: Math.min(...xs) - 110, y: centre.y - 50
+/** Gom sát thương theo từng tia: mỗi cú tag "skill" mở một nhóm mới, sát thương phụ đi sau (Phân Rã nổ) theo nhóm đó. Nhóm i = nhịp i của R */
+export function rayBeats<T extends { tag?: string }>(list: T[]): T[][] {
+    const out: T[][] = []
+    for (const d of list) {
+        if (d.tag === "skill" || !out.length) out.push([])
+        out[out.length - 1].push(d)
+    }
+    return out
+}
+
+export function riftBeats<T extends { target: string; tag?: string }>(list: T[]): [T[], T[]] {
+    const seen = new Set<string>()
+    const open: T[] = [], blast: T[] = []
+    let second = false
+    for (const d of list) {
+        if (d.tag === "skill") {
+            if (seen.has(d.target)) second = true
+            seen.add(d.target)
         }
-        const right = {
-            x: Math.max(...xs) + 110, y: centre.y - 50
+        ;(second ? blast : open).push(d)
+    }
+    return [open, blast]
+}
+
+/**
+ * E (theo W Khe Nứt Hư Không gốc): mắt tụ, một tia plasma mảnh cắm xuống đất ở tướng bị nhắm (to[0]); mặt đất rách toạc
+ * thành một khe NGANG từ đó sang hai bên, phủ mọi mục tiêu (tâm và 2 ô kề). Khe mở hết là cú đầu (onBeat 0); khe thở một
+ * nhịp ngắn, hút hạt vào, sáng rực rồi NỔ NGAY dọc cả đường (cột Hư Không ở từng mục tiêu, onBeat 1) và khép lại.
+ */
+registerSkillVfx("velkoz_e", async (ctx) => {
+    const k = power(ctx)
+    const centre = ctx.to[0] ?? polar(ctx.from, UP, 400)
+    const victims = ctx.to.length ? ctx.to : [centre]
+    const xs = victims.map((t) => t.x)
+    const y = victims.reduce((s, v) => s + v.y, 0) / victims.length - 14
+    const a = { x: Math.min(...xs) - 78, y }
+    const b = { x: Math.max(...xs) + 78, y }
+    const hit = { x: centre.x, y }
+    const seed = rand(0, 10)
+    const MAX = 15 * k
+    await eyeCharge(ctx.layer, ctx.from, 0.16, 40 * k)
+    await plasmaBolt(ctx.layer, ctx.from, hit, 0.14, 8 * k)
+    emit(ctx.layer, hit, { color: [CORE], kind: "glow", life: [0.16, 0.16], size: [50, 140], alpha: 1 })
+    const dark = canvas(ctx.layer, false)
+    const glow = canvas(ctx.layer)
+    let time = 0
+    const span = b.x - a.x
+    const midX = (a.x + b.x) / 2
+    // khe lệch tâm (tướng ở mép sân) thì phải toạc nhanh hơn để phủ hết đoạn dài
+    const lead = Math.abs(hit.x - midX) / (span / 2)
+    /** Tia sáng nhỏ lấp lánh bám dọc hai mép khe */
+    const edgeSparks = (n: number, open: number) => {
+        for (let i = 0; i < n; i++) {
+            const x = rand(a.x + 16, b.x - 16)
+            const u = (x - a.x) / span
+            const h = MAX * open * Math.pow(Math.sin(Math.PI * u), 0.55)
+            const side = Math.random() < 0.5 ? 1 : -1
+            emit(ctx.layer, { x, y: y + side * h }, {
+                color: [CORE, PINK], kind: "dot", life: [0.14, 0.3], size: [4, 1], alpha: 1, speed: [10, 50],
+                angle: side > 0 ? [UP - 0.6, UP + 0.6] : [-UP - 0.6, -UP + 0.6]
+            })
         }
-        const hub = {
-            x: centre.x, y: centre.y - 50
-        }
-        const toHub = crackPath(ctx.from,
-            hub,
-            1)
-        const toL = crackPath(hub,
-            left,
-            2)
-        const toR = crackPath(hub,
-            right,
-            3)
-        await eyeCharge(ctx.layer,
-            ctx.from,
-            0.16,
-            40 * k)
-        const c = canvas(ctx.layer)
-        let fade = 1
-        let uHub = 0, uSide = 0
-        const draw = () => {
-            c.g.clear()
-            drawCrack(c.g,
-                toHub,
-                uHub,
-                8 * k,
-                fade)
-            drawCrack(c.g,
-                toL,
-                uSide,
-                9 * k,
-                fade)
-            drawCrack(c.g,
-                toR,
-                uSide,
-                9 * k,
-                fade)
-        }
-        const tipSparks = (pts: Pt[], u: number) => emit(ctx.layer,
-            crackTip(pts,
-                u),
-            {
-                color: [CORE,
-                    PINK], kind: "blade", life: [0.12,
-                    0.24], size: [20,
-                    5], alpha: 1, speed: [120,
-                    320], angle: [UP - 0.8,
-                    UP + 0.8], drag: 2, align: true, stretch: 2.4
-            })
-        await over(ctx.layer,
-            0.22,
-            (t) => {
-                uHub = ease.out(t)
-                draw()
-                tipSparks(toHub,
-                    uHub)
-            })
-        await over(ctx.layer,
-            0.24,
-            (t) => {
-                uSide = ease.out(t)
-                draw()
-                tipSparks(toL,
-                    uSide)
-                tipSparks(toR,
-                    uSide)
-            })
-        await Promise.all(victims.map((v) => groundSigil(ctx.layer,
-            v,
-            70 * k,
-            0.2)))
-        for (const v of victims) void voidEruption(ctx.layer,
-            v,
-            k)
-        // khe tắt dần trong lúc chờ cuối lượt
-        await over(ctx.layer,
-            0.5,
-            (t) => {
-                fade = 1 - t * 0.75
-                draw()
-            })
-        await wait(ctx.layer,
-            0.4)
-        // cuối lượt: khe sáng bừng lại, ký hiệu nhanh hơn, cột lớn hơn
-        await over(ctx.layer,
-            0.16,
-            (t) => {
-                fade = 0.25 + 0.75 * t
-                draw()
-            })
-        await Promise.all(victims.map((v) => groundSigil(ctx.layer,
-            v,
-            78 * k,
-            0.22)))
-        for (const v of victims) void voidEruption(ctx.layer,
-            v,
-            k * 1.3)
-        await over(ctx.layer,
-            0.45,
-            (t) => {
-                fade = 1 - t
-                draw()
-            })
-        c.done()
-        await wait(ctx.layer,
-            0.2)
+    }
+    // 1) toạc ra từ điểm cắm sang hai bên
+    await over(ctx.layer, 0.4, (t) => {
+        time += 1 / 60
+        const r = ease.out(t)
+        const reach = Math.min(1, r * (1 + lead))
+        drawRift(dark.g, glow.g, a, b, MAX, r, reach, 1.15, seed, time)
+        for (const s of [-1, 1]) emit(ctx.layer, { x: midX + s * (span / 2) * reach, y }, {
+            color: [CORE, PINK], kind: "blade", life: [0.1, 0.2], size: [14, 3], alpha: 1, speed: [100, 260],
+            angle: [UP - 0.7, UP + 0.7], drag: 2, align: true, stretch: 2.4
+        })
     })
+    // cú đầu: mỗi mục tiêu loé, mảnh bật lên nhẹ
+    ctx.onBeat?.(0)
+    for (const v of victims) {
+        const at = { x: v.x, y }
+        emit(ctx.layer, at, { color: [MAGENTA], kind: "glow", life: [0.22, 0.22], size: [50, 130], alpha: 0.75 })
+        void triBurst(ctx.layer, at, 5, [140, 300], [UP - 0.8, UP + 0.8], 12)
+        void decayDust(ctx.layer, at, 12, 26)
+    }
+    // 2) khe thở một nhịp ngắn, hút hạt vào lòng khe, sáng dần
+    await over(ctx.layer, 0.26, (t) => {
+        time += 1 / 60
+        drawRift(dark.g, glow.g, a, b, MAX, 0.9 + 0.1 * Math.sin(t * Math.PI * 4), 1, 0.8 + 0.5 * t, seed, time)
+        edgeSparks(2, 0.9)
+        const x = rand(a.x + 20, b.x - 20)
+        const side = Math.random() < 0.5 ? 1 : -1
+        const d = rand(30, 60)
+        emit(ctx.layer, { x, y: y + side * d }, {
+            color: [PINK, VIOLET, CORE], kind: "dot", life: [0.16, 0.2], size: [4, 1.2], alpha: 0.9,
+            speed: [d * 5, d * 5.5], angle: side > 0 ? [-UP - 0.12, -UP + 0.12] : [UP - 0.12, UP + 0.12]
+        })
+    })
+    // 3) phồng lên, viền trắng rực, rồi NỔ dọc cả đường
+    await over(ctx.layer, 0.1, (t) => {
+        time += 1 / 60
+        drawRift(dark.g, glow.g, a, b, MAX, 1 + 0.4 * t, 1, 1.3 + 0.7 * t, seed, time)
+    })
+    ctx.onBeat?.(1)
+    emit(ctx.layer, mix(a, b, 0.5), { color: [CORE], kind: "glow", life: [0.2, 0.2], size: [span * 0.5, span * 1.1], alpha: 0.45 })
+    void stream(ctx.layer, () => ({ x: rand(a.x + 10, b.x - 10), y }), 0.14, 240, {
+        color: [CORE, PINK, MAGENTA], kind: "blade", life: [0.16, 0.32], size: [26 * k, 6], alpha: 1, speed: [280, 600],
+        angle: [UP - 0.25, UP + 0.25], drag: 2, align: true, stretch: 2.8
+    })
+    for (const v of victims) void voidEruption(ctx.layer, { x: v.x, y }, k)
+    // 4) khe khép lại
+    await over(ctx.layer, 0.3, (t) => {
+        time += 1 / 60
+        drawRift(dark.g, glow.g, a, b, MAX, 1.4 * (1 - ease.in(t)), 1, 2 * (1 - t), seed, time)
+        if (t < 0.5) edgeSparks(3, 1.4 * (1 - t))
+    })
+    dark.done()
+    glow.done()
+    await wait(ctx.layer, 0.15)
+})
 
 // ---------- R Tia Phân Rã Sự Sống ----------
 
@@ -982,6 +846,7 @@ registerSkillVfx("velkoz_r",
                         inShot / RAY_SLIDE)))
                 if (idx !== hitIdx && inShot >= RAY_SLIDE * 0.8) {
                     hitIdx = idx
+                    ctx.onBeat?.(idx)
                     const at = aims[idx]
                     const back = angleOf(at,
                         eye)
@@ -1245,31 +1110,47 @@ registerSkillVfx("velkoz_p",
 
 // ---------- Đánh thường ----------
 
-/** Xung plasma nhỏ: giọt plasma ngắn từ mắt tới mục tiêu, loé nhỏ */
-registerSkillVfx("basic_velkoz",
-    async (ctx) => {
-        await Promise.all((ctx.to.length ? ctx.to : [polar(ctx.from,
-            UP,
-            300)]).map(async (to) => {
-            emit(ctx.layer,
-                ctx.from,
-                {
-                    color: [PINK], kind: "glow", life: [0.12,
-                        0.12], size: [30,
-                        70], alpha: 0.9
-                })
-            await plasmaBolt(ctx.layer,
-                ctx.from,
-                to,
-                Math.min(0.26,
-                    0.1 + dist(ctx.from,
-                        to) / 4000),
-                11)
-            plasmaHit(ctx.layer,
-                to,
-                0.55,
-                ctx.from)
-        }))
-        await wait(ctx.layer,
-            0.2)
-    })
+/**
+ * Đánh thường: mắt loé một tam giác nhỏ xoay, một xung tia ngắn vụt từ mắt tới mục tiêu để lại vệt mảnh tắt dần; trúng thì
+ * loé nhỏ và hai tam giác ngược chiều nở ra rồi tan. Khác Q (cầu plasma) để nhìn là biết đòn thường.
+ */
+registerSkillVfx("basic_velkoz", async (ctx) => {
+    const targets = ctx.to.length ? ctx.to : [polar(ctx.from, UP, 300)]
+    await Promise.all(targets.map(async (to) => {
+        const c = canvas(ctx.layer)
+        const len = dist(ctx.from, to)
+        emit(ctx.layer, ctx.from, { color: [PINK], kind: "glow", life: [0.16, 0.16], size: [30, 80], alpha: 0.9 })
+        await over(ctx.layer, 0.09, (t) => {
+            c.g.clear()
+            c.g.lineWidth = 2.5
+            c.g.strokeColor = col(PINK, 1 - t * 0.3)
+            tri(c.g, ctx.from, lerp(28, 12, t), t * 4 + UP)
+            c.g.stroke()
+        })
+        const secs = Math.min(0.2, 0.08 + len / 5000)
+        await over(ctx.layer, secs, (t) => {
+            const head = ease.in(t)
+            const tail = Math.max(0, head - 0.25)
+            const h = mix(ctx.from, to, head)
+            c.g.clear()
+            strip(c.g, ctx.from, h, 5, col(VIOLET, 0.5))
+            softBeam(c.g, mix(ctx.from, to, tail), h, 0.45, 1)
+            emit(ctx.layer, h, { color: [MAGENTA, CORE], kind: "glow", life: [0.06, 0.08], size: [44, 24], alpha: 0.8 })
+        })
+        plasmaHit(ctx.layer, to, 0.75, ctx.from)
+        await over(ctx.layer, 0.24, (t) => {
+            const r = ease.out(t)
+            c.g.clear()
+            strip(c.g, ctx.from, to, 3 * (1 - t), col(VIOLET, 0.4 * (1 - t)))
+            c.g.lineWidth = 3 * (1 - t) + 0.6
+            c.g.strokeColor = col(PINK, 1 - t)
+            tri(c.g, to, lerp(20, 66, r), UP + t * 1.5)
+            c.g.stroke()
+            c.g.strokeColor = col(CORE, (1 - t) * 0.85)
+            tri(c.g, to, lerp(12, 42, r), -UP - t * 1.5)
+            c.g.stroke()
+        })
+        c.done()
+    }))
+    await wait(ctx.layer, 0.15)
+})

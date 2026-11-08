@@ -1416,10 +1416,11 @@ test("nội tại: nổ gây p2 + p3·AP + p4% Máu tối đa mục tiêu sát t
                     "B",
                     "garen"))),
             1)
+        // cú đầu của E làm Phân Rã đủ ngưỡng và nổ về 0, cú nổ của khe cộng lại 1
         assert.equal(decayOf(r.s,
             "B",
             "garen"),
-        0)
+        1)
     })
 test("nội tại: tướng mang chết mất một nửa Phân Rã, Vel'Koz chết không đổi",
     () => {
@@ -1529,7 +1530,7 @@ test("Q: tia chính nhẹ, 2 tia phụ ngẫu nhiên nặng hơn, mỗi tia +1 P
             "garen"),
         1)
     })
-test("E: đánh ngay rồi cuối lượt nhận lại lần nữa nếu còn sống",
+test("E: đánh ngay rồi khe nổ ngay, thêm e5% máu đã mất (tính sau cú đầu); cuối lượt không đánh nữa",
     () => {
         let s = mk({
             A: {
@@ -1545,7 +1546,7 @@ test("E: đánh ngay rồi cuối lượt nhận lại lần nữa nếu còn s�
         const hp0 = u(s,
             "B",
             "garen").hp
-        s = cast(s,
+        const r = cast(s,
             "A",
             sk(s,
                 "A",
@@ -1553,7 +1554,12 @@ test("E: đánh ngay rồi cuối lượt nhận lại lần nữa nếu còn s�
                 "E"),
             {
                 target: "B:garen"
-            }).s
+            })
+        s = r.s
+        const hits = (r.ev.filter((e) => e.t === "damage" && e.target === "B:garen" && e.kind === "magic") as Extract<Ev[number], { t: "damage" }>[]).map((e) => e.amount)
+        assert.equal(hits.length,
+            2,
+            "cú đầu và cú nổ")
         const one = mit(val(s,
             "A",
             "velkoz",
@@ -1561,21 +1567,27 @@ test("E: đánh ngay rồi cuối lượt nhận lại lần nữa nếu còn s�
         mr(s,
             "B",
             "garen"))
+        near(hits[0],
+            one)
+        near(hits[1],
+            mit(Math.round(kk.p.e5 / 100 * hits[0]),
+                mr(s,
+                    "B",
+                    "garen")),
+            2)
         near(hp0 - u(s,
             "B",
             "garen").hp,
-        one)
-        const r = endTurn(s)
-        near(hp0 - u(r.s,
-            "B",
-            "garen").hp,
-        2 * one,
-        2)
-        assert.equal(decayOf(r.s,
+        hits[0] + hits[1])
+        assert.equal(decayOf(s,
             "B",
             "garen"),
         2,
-        "mỗi nhịp +1 Phân Rã")
+        "mỗi cú +1 Phân Rã")
+        assert.equal(dmgOn(endTurn(s).ev,
+            "B:garen"),
+        0,
+        "không còn nhịp cuối lượt")
     })
 test("E: khe nứt cắt ngang tâm (nhẹ) và 2 đường kề (nặng), đường xa không dính",
     () => {
@@ -1623,16 +1635,19 @@ test("E: khe nứt cắt ngang tâm (nhẹ) và 2 đường kề (nặng), đư�
         hpBefore.braum,
         "đường thứ 4 không dính")
     })
-test("E: mục tiêu chết trước cuối lượt thì không có nhịp hai",
+test("E: mục tiêu chết vì cú đầu thì không nổ thêm",
     () => {
-        let s = mk({
+        const s = mk({
             A: {
                 velkoz: 2
             }, B: {
                 garen: 2
             }
         })
-        s = cast(s,
+        u(s,
+            "B",
+            "garen").hp = 1
+        const r = cast(s,
             "A",
             sk(s,
                 "A",
@@ -1640,17 +1655,10 @@ test("E: mục tiêu chết trước cuối lượt thì không có nhịp hai",
                 "E"),
             {
                 target: "B:garen"
-            }).s
-        gm(s).kill(u(s,
-            "B",
-            "garen"),
-        u(s,
-            "A",
-            "velkoz"))
-        const r = endTurn(s)
-        assert.equal(dmgOn(r.ev,
-            "B:garen"),
-        0)
+            })
+        const hits = r.ev.filter((e) => e.t === "damage" && e.target === "B:garen" && e.kind === "magic")
+        assert.equal(hits.length,
+            1)
     })
 test("R: r1 tia ngẫu nhiên (chỉ 1 địch trên sân nên cả r1 tia vào nó), mỗi tia tính lại theo Máu đã mất",
     () => {
