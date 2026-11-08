@@ -14,6 +14,12 @@ import {
 import {
     CardRoom
 } from "./CardRoom"
+import {
+    handleApi
+} from "./api"
+import {
+    migrate
+} from "./db"
 
 interface PhaseState {
     phase?: string
@@ -36,6 +42,8 @@ async function countActiveHumanRooms(): Promise<number> {
 
 const port = Number(process.env.PORT ?? 2567)
 const httpServer = createServer((req, res) => {
+    if (handleApi(req,
+        res)) return
     if (req.method === "GET" && req.url?.split("?")[0] === "/__host/rooms") {
         countActiveHumanRooms().then((active) => {
             res.writeHead(200,
@@ -67,6 +75,9 @@ const server = new Server({
 })
 server.define("duel",
     DuelRoom)
+// ranked tách phòng xếp hạng khỏi phòng đấu nhanh: joinOrCreate chỉ ghép những phòng cùng cờ
 server.define("card",
-    CardRoom)
-server.listen(port).then(() => console.log(`StarCi League server: ws://localhost:${port}`))
+    CardRoom).filterBy(["ranked"])
+migrate()
+    .then(() => server.listen(port))
+    .then(() => console.log(`StarCi League server: ws://localhost:${port}`))

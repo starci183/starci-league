@@ -1,9 +1,9 @@
-// Ngoài trận: đăng nhập (Supabase Auth) → Sảnh (đấu nhanh, phòng riêng, vào bằng mã) → Xây bộ bài kiểu DuelingBook.
-// Bộ bài đọc/ghi thẳng từ client, được RLS trên Supabase bảo vệ (mỗi người chỉ thấy bộ của mình).
-// Mọi chữ qua t() (i18n), không dùng icon; khung panel dùng 9-slice chung (nine.ts).
+// Ngoài trận: đăng nhập (API server, PostgreSQL) → Sảnh (đấu nhanh, phòng riêng, vào bằng mã) → Xây bộ bài kiểu DuelingBook.
+// Bộ bài đọc/ghi qua API của server; server lọc theo người dùng trong token (mỗi người chỉ thấy bộ của mình).
+// Cùng DNA rừng/ngọc/vàng với bàn đấu; form, xác thực và bộ bài vẫn dùng dữ liệu thật.
 import {
-    createClient, type Session
-} from "@supabase/supabase-js"
+    activateDeck, createDeck, deleteDeck, listDecks, restoreSession, signIn, signOut, signUp, updateDeck, type Session
+} from "./account"
 import {
     LANGS, Lang, getLang, t,
 } from "@starci/shared"
@@ -12,9 +12,11 @@ import {
     type DeckCardGroup, type DeckCardId,
 } from "./card/deckStore"
 import "./lobby.css"
-
-const supabase = createClient(import.meta.env.VITE_SUPABASE_URL,
-    import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY)
+import "./card/ui/scroll-area.css"
+import {
+    mountHtmlArtFrames
+} from "./card/ui/artFrameHtml"
+import "./card/ui/game-card.css"
 
 /** Cách vào phòng: đấu nhanh (ghép ngẫu nhiên), tạo phòng riêng (có mã), vào phòng bằng mã */
 export type JoinMode = { kind: "quick" } | { kind: "create" } | { kind: "join"; roomId: string } | { kind: "bot"; level: "easy" | "hard" }
@@ -33,12 +35,154 @@ interface CgDeck { id: string | null; name: string; cards: DeckCardId[]; is_acti
 interface Me { session: Session | null; name: string }
 
 const root = () => document.getElementById("lobby")!
+const scrollCleanups: (() => void)[] = []
+const lobbyScale = () => Math.min(window.innerWidth / 1920,
+    window.innerHeight / 1080)
+function fitLobby() {
+    root()?.style.setProperty("--lobby-scale",
+        String(lobbyScale()))
+}
+function renderLobby(markup: string) {
+    scrollCleanups.splice(0).forEach((stop) => stop())
+    root().innerHTML = `<div class="lb-canvas">${markup.replace(/\bnine-(?:panel|header|tray|tooltip|slot)\b/g,
+        "")}</div>`
+    fitLobby()
+    scrollCleanups.push(mountHtmlArtFrames(root()))
+}
+
+/** Same DOM rail as the game, without replacing existing form/deck event handlers. */
+function skinLobbyScrolls() {
+    root().querySelectorAll<HTMLElement>(".lb-mini,.db-body > .lb-panel").forEach((area) => {
+        if (area.dataset.gameScroll) return
+        area.dataset.gameScroll = "true"
+        area.classList.add("game-scroll",
+            "lb-scroll")
+        const viewport = document.createElement("div"), content = document.createElement("div"), rail = document.createElement("div")
+        viewport.className = "game-scroll-viewport"; viewport.tabIndex = 0
+        content.className = "game-scroll-content"
+        while (area.firstChild) content.append(area.firstChild)
+        viewport.append(content)
+        rail.className = "game-scroll-rail"
+        rail.innerHTML = "<button type=\"button\" class=\"game-scroll-arrow up\" aria-label=\"Cuộn lên\"><i></i></button><div class=\"game-scroll-track\"><div class=\"game-scroll-thumb\" role=\"scrollbar\" aria-label=\"Cuộn nội dung\" aria-orientation=\"vertical\" tabindex=\"0\"><i></i></div></div><button type=\"button\" class=\"game-scroll-arrow down\" aria-label=\"Cuộn xuống\"><i></i></button>"
+        area.append(viewport,
+            rail)
+        // Preview commands stay anchored while its long rules scroll above them.
+        if (area.matches(".db-view")) {
+            const commands = content.querySelector(".db-actions")
+            if (commands) area.append(commands)
+        }
+        if (area.matches(".db-search")) {
+            const filters = content.querySelector(".lb-tabs")
+            if (filters) area.prepend(filters)
+        }
+        const track = rail.querySelector<HTMLElement>(".game-scroll-track")!, thumb = rail.querySelector<HTMLElement>(".game-scroll-thumb")!
+        const up = rail.querySelector<HTMLButtonElement>(".up")!, down = rail.querySelector<HTMLButtonElement>(".down")!
+        let max = 0, travel = 0, drag: { y: number; top: number } | null = null
+        const measure = () => {
+            max = Math.max(0,
+                viewport.scrollHeight - viewport.clientHeight)
+            const fraction = Math.min(1,
+                Math.max(36 / Math.max(1,
+                    track.clientHeight),
+                viewport.clientHeight / Math.max(1,
+                    viewport.scrollHeight)))
+            travel = track.clientHeight * (1 - fraction)
+            thumb.style.height = `${fraction * 100}%`; thumb.style.top = `${viewport.scrollTop / Math.max(1,
+                max) * (1 - fraction) * 100}%`
+            thumb.setAttribute("aria-valuemin",
+                "0"); thumb.setAttribute("aria-valuemax",
+                String(Math.round(max))); thumb.setAttribute("aria-valuenow",
+                String(Math.round(viewport.scrollTop)))
+            rail.classList.toggle("scrollable",
+                max > 1); rail.setAttribute("aria-hidden",
+                String(max <= 1))
+            thumb.tabIndex = max > 1 ? 0 : -1; up.tabIndex = down.tabIndex = max > 1 ? 0 : -1
+            up.disabled = viewport.scrollTop <= 0; down.disabled = viewport.scrollTop >= max - 1
+        }
+        viewport.onscroll = measure
+        up.onclick = () => viewport.scrollBy({
+            top: -100
+        }); down.onclick = () => viewport.scrollBy({
+            top: 100
+        })
+        thumb.onpointerdown = (e) => { e.preventDefault(); drag = {
+            y: e.clientY, top: viewport.scrollTop
+        }; thumb.setPointerCapture(e.pointerId) }
+        thumb.onpointermove = (e) => { if (drag) viewport.scrollTop = drag.top + (e.clientY - drag.y) / lobbyScale() / Math.max(1,
+            travel) * max }
+        thumb.onpointerup = (e) => { drag = null; thumb.releasePointerCapture(e.pointerId) }
+        thumb.onlostpointercapture = () => { drag = null }
+        track.onpointerdown = (e) => { if (e.target === track) viewport.scrollBy({
+            top: (e.clientY < thumb.getBoundingClientRect().top ? -1 : 1) * viewport.clientHeight * .85
+        }) }
+        thumb.onkeydown = (e) => {
+            const delta = {
+                ArrowDown: 40, ArrowUp: -40, PageDown: viewport.clientHeight * .85, PageUp: -viewport.clientHeight * .85, Home: -max, End: max
+            }[e.key]
+            if (delta !== undefined) { e.preventDefault(); viewport.scrollBy({
+                top: delta
+            }) }
+        }
+        const observer = new ResizeObserver(measure); observer.observe(viewport); observer.observe(content); observer.observe(track)
+        scrollCleanups.push(() => observer.disconnect())
+        measure()
+    })
+}
 const esc = (s: string) => s.replace(/[&<>"']/g,
     (c) => `&#${c.charCodeAt(0)};`)
+
+/** Shared local deck decisions. Resolves only after explicit confirm; Escape and backdrop cancel. */
+export function lobbyChoice(p: { title: string; description: string; confirm: string; value?: string; destructive?: boolean }): Promise<string | null> {
+    return new Promise((resolve) => {
+        const stage = root().querySelector<HTMLElement>(".lb-canvas")!
+        const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null
+        const underlay = [...stage.children].filter((el): el is HTMLElement => el instanceof HTMLElement)
+        const inert = underlay.map((el) => el.inert)
+        underlay.forEach((el) => { el.inert = true })
+        const veil = document.createElement("div")
+        veil.className = "lb-choice-veil"
+        veil.innerHTML = `<section class="lb-choice-dialog" data-html-art="panel" data-html-fit="false" role="dialog" aria-modal="true" aria-labelledby="lb-choice-title" tabindex="-1"><form class="lb-choice-content"><h2 id="lb-choice-title" data-html-art="title">${esc(p.title)}</h2><p>${esc(p.description)}</p>${p.value === undefined ? "" : `<label class="lb-choice-label">${isEn() ? "Deck name" : "Tên bộ bài"}<span class="lb-choice-input" data-html-art="name" data-html-fit="false"><input name="deckName" maxlength="32" required autocomplete="off" value="${esc(p.value)}"></span></label>`}<div class="lb-choice-actions"><button type="button" data-choice="cancel" data-html-art="name">${isEn() ? "Cancel" : "Huỷ"}</button><button type="submit" data-choice="confirm" data-html-art="name"${p.destructive ? " class=\"danger\"" : ""}>${esc(p.confirm)}</button></div></form></section>`
+        stage.append(veil)
+        const stopArt = mountHtmlArtFrames(veil)
+        const dialog = veil.querySelector<HTMLElement>("[role=dialog]")!
+        const input = veil.querySelector<HTMLInputElement>("input")
+        let done = false
+        const finishChoice = (value: string | null) => {
+            if (done) return
+            done = true; stopArt(); document.removeEventListener("keydown",
+                key,
+                true); veil.remove(); underlay.forEach((el, i) => { el.inert = inert[i] })
+            if (previous?.isConnected) previous.focus()
+            resolve(value)
+        }
+        const key = (event: KeyboardEvent) => {
+            if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); finishChoice(null) }
+            if (event.key !== "Tab") return
+            const controls = [...dialog.querySelectorAll<HTMLElement>("input,button:not(:disabled)")], first = controls[0], last = controls[controls.length - 1]
+            if (event.shiftKey && (document.activeElement === first || document.activeElement === dialog)) { event.preventDefault(); last?.focus() }
+            else if (!event.shiftKey && (document.activeElement === last || document.activeElement === dialog)) { event.preventDefault(); first?.focus() }
+        }
+        document.addEventListener("keydown",
+            key,
+            true)
+        veil.querySelector<HTMLFormElement>("form")!.onsubmit = (event) => {
+            event.preventDefault()
+            if (input && !input.value.trim()) { input.setCustomValidity(isEn() ? "Enter a deck name." : "Nhập tên bộ bài."); input.reportValidity(); return }
+            finishChoice(input ? input.value.trim().slice(0,
+                32) : "confirm")
+        }
+        if (input) input.oninput = () => input.setCustomValidity("")
+        veil.querySelector<HTMLButtonElement>("[data-choice=cancel]")!.onclick = () => finishChoice(null)
+        veil.onmousedown = (event) => { if (event.target === veil) finishChoice(null) }
+        scrollCleanups.push(() => finishChoice(null))
+        requestAnimationFrame(() => { (input ?? veil.querySelector<HTMLButtonElement>("[data-choice=cancel]")!).focus(); input?.select() })
+    })
+}
 /** Chọn ngôn ngữ: lưu lại rồi tải lại trang (dữ liệu game được đổi tên lúc khởi động) */
 const langSelect = () => `<select class="lb-lang" id="lb-lang" title="${t("lang")}">${LANGS.map((l) =>
     `<option value="${l.id}" ${l.id === getLang() ? "selected" : ""}>${l.name}</option>`).join("")}</select>`
 function wireLang() {
+    skinLobbyScrolls()
     const sel = root().querySelector<HTMLSelectElement>("#lb-lang")
     if (sel) sel.onchange = () => { try { localStorage.setItem("lang",
 sel.value as Lang) } catch { /* chế độ riêng tư */ } location.reload() }
@@ -49,46 +193,53 @@ let finish: (e: Entry) => void = () => {}
 /** Hiện màn ngoài trận, trả về khi người chơi vào trận */
 export function showLobby(): Promise<Entry> {
     return new Promise((resolve) => {
+        window.addEventListener("resize",
+            fitLobby)
+        window.visualViewport?.addEventListener("resize",
+            fitLobby)
         finish = (e) => { Object.assign(entry,
-            e); root().remove(); resolve(e) }
-        supabase.auth.getSession().then(async ({ data }) => (data.session ? homeView(await meOf(data.session)) : loginView()))
+            e); scrollCleanups.splice(0).forEach((stop) => stop()); window.removeEventListener("resize",
+            fitLobby); window.visualViewport?.removeEventListener("resize",
+            fitLobby); root().remove(); resolve(e) }
+        renderLobby(`<div class="lb-center"><div class="lb-card"><h1 class="lb-logo">STARCI LEAGUE</h1><p class="lb-hint">${isEn() ? "Connecting…" : "Đang kết nối…"}</p></div></div>`)
+        restoreSession().then((session) => (session ? homeView(meOf(session)) : loginView()))
     })
 }
 
-async function meOf(session: Session): Promise<Me> {
-    const { data } = await supabase.from("profiles").select("display_name").eq("id",
-        session.user.id).maybeSingle()
+function meOf(session: Session): Me {
     return {
-        session, name: data?.display_name ?? session.user.email ?? t("player")
+        session, name: session.user.name || session.user.email || t("player")
     }
 }
 
 async function play(me: Me, mode: JoinMode) {
-    const { data } = await supabase.auth.getSession() // token mới nhất (có thể đã tự làm mới)
     finish({
-        token: data.session?.access_token, name: me.name, mode
+        token: me.session?.token, name: me.name, mode
     })
 }
 
 // ================= ĐĂNG NHẬP =================
 
 function loginView(mode: "in" | "up" = "in", msg = "") {
-    root().innerHTML = `
-    <div class="lb-center"><div class="lb-card nine-panel">
-      <div class="lb-head"><h1 class="lb-logo">StarCi League</h1>${langSelect()}</div>
+    renderLobby(`
+    <div class="lb-center lb-auth-screen">
+      <h1 class="lb-auth-title" data-html-art="title">StarCi League</h1>
+      <div class="lb-card lb-auth-panel" data-html-art="panel"><div class="lb-auth-grid">
+      <aside class="lb-auth-illustration"><div class="lb-auth-portrait" data-html-art="portrait" data-html-image="/heroes/jayce.jpg"></div><h2>${isEn() ? "Choose your champions" : "Chọn tướng của bạn"}</h2><p>${isEn() ? "Build your deck. Command the battlefield." : "Xếp bộ bài. Làm chủ chiến trường."}</p></aside>
+      <div class="lb-auth-form"><div class="lb-auth-tools"><span class="lb-lang-frame" data-html-art="name" data-html-fit="false">${langSelect()}</span></div>
       <div class="lb-tabs">
-        <button data-m="in" class="${mode === "in" ? "on" : ""}">${t("login.tab_in")}</button>
-        <button data-m="up" class="${mode === "up" ? "on" : ""}">${t("login.tab_up")}</button>
+        <button data-m="in" data-html-art="name" class="${mode === "in" ? "on" : ""}">${t("login.tab_in")}</button>
+        <button data-m="up" data-html-art="name" class="${mode === "up" ? "on" : ""}">${t("login.tab_up")}</button>
       </div>
       <form id="lb-form">
-        ${mode === "up" ? `<label>${t("login.name")}<input name="name" required maxlength="24" placeholder="${t("login.name_ph")}"></label>` : ""}
-        <label>${t("login.email")}<input name="email" type="email" required placeholder="you@gmail.com" autocomplete="email"></label>
-        <label>${t("login.password")}<input name="password" type="password" required minlength="6" autocomplete="${mode === "up" ? "new-password" : "current-password"}"></label>
+        ${mode === "up" ? `<label>${t("login.name")}<span class="lb-input-frame" data-html-art="name" data-html-fit="false"><input name="name" required maxlength="24" placeholder="${t("login.name_ph")}"></span></label>` : ""}
+        <label>${t("login.email")}<span class="lb-input-frame" data-html-art="name" data-html-fit="false"><input name="email" type="email" required placeholder="you@gmail.com" autocomplete="email"></span></label>
+        <label>${t("login.password")}<span class="lb-input-frame" data-html-art="name" data-html-fit="false"><input name="password" type="password" required minlength="6" autocomplete="${mode === "up" ? "new-password" : "current-password"}"></span></label>
         <p class="lb-msg">${esc(msg)}</p>
-        <button class="lb-btn gold wide" type="submit">${mode === "in" ? t("login.submit_in") : t("login.submit_up")}</button>
+        <button class="lb-btn gold wide" data-html-art="name" type="submit">${mode === "in" ? t("login.submit_in") : t("login.submit_up")}</button>
       </form>
-      <button class="lb-link" id="lb-guest">${t("login.guest")}</button>
-    </div></div>`
+      <button class="lb-link" data-html-art="name" id="lb-guest">${t("login.guest")}</button>
+    </div></div></div></div>`)
     wireLang()
     root().querySelectorAll<HTMLButtonElement>(".lb-tabs button").forEach((b) => b.onclick = () => loginView(b.dataset.m as "in" | "up"))
   root().querySelector<HTMLButtonElement>("#lb-guest")!.onclick = () => homeView({
@@ -98,22 +249,16 @@ function loginView(mode: "in" | "up" = "in", msg = "") {
       ev.preventDefault()
       const f = new FormData(ev.target as HTMLFormElement)
       const email = String(f.get("email")), password = String(f.get("password"))
-      const res = mode === "in"
-          ? await supabase.auth.signInWithPassword({
-              email, password
-          })
-          : await supabase.auth.signUp({
-              email, password, options: {
-                  data: {
-                      display_name: String(f.get("name"))
-                  }
-              }
-          })
-      if (res.error) return loginView(mode,
-          res.error.message)
-      if (!res.data.session) return loginView("in",
-          t("login.check_email"))
-      homeView(await meOf(res.data.session))
+      try {
+          const session = mode === "in" ? await signIn(email,
+              password) : await signUp(email,
+              password,
+              String(f.get("name")))
+          homeView(meOf(session))
+      } catch (e) {
+          loginView(mode,
+              (e as Error).message)
+      }
   }
 }
 
@@ -155,27 +300,17 @@ const D = isEn()
         summary: (b: number, s: number, g: number, i: number) => `Đánh thường ${b} · Bổ trợ ${s} · Vàng ${g} · Đồ ${i}`,
     }
 
-/** Ô lá bài gọn: tranh + tên (+ số bản) */
-/** Khung + badge theo loại lá: Đánh thường = combat, Bổ trợ = spell, Vàng = stat, Đồ = item */
-const FRAME_KIND: Record<string, string> = {
-    basic: "combat", spell: "spell", gold: "stat", item: "item",
-}
+/** Vanilla twin of GameCardVisual: same intact portrait frame, alpha mask, shade and live name. */
 function tile(id: DeckCardId, attrs = "", n = 0) {
     const m = cardMeta(id)
-    const kind = FRAME_KIND[m.group] ?? "spell"
-    return `<div class="cgc ${m.group}" ${attrs} title="${esc(m.name)}"><div class="cv ${kind}"><div class="cv-in">
-    <img class="cv-badge" src="/ui/badge/${kind}.png" alt="" draggable="false" onerror="this.remove()">
-    <div class="cv-icon"><img class="cv-art" src="${m.art}" alt="" draggable="false" onerror="if(!this.dataset.fb){this.dataset.fb=1;this.src='${m.fallback}'}else{this.style.visibility='hidden'}"></div>
-    <b class="cv-name">${esc(m.name)}</b>
-  </div></div>${n > 0 ? `<i class="cgc-n">×${n}</i>` : ""}</div>`
+    return `<div class="game-card cv cgc ${m.group}" ${attrs} title="${esc(m.name)}"><div class="game-card-frame" data-html-art="portrait" data-html-image="${esc(m.art)}" data-html-fallback="${esc(m.fallback)}" data-html-content-class="game-card-content" data-html-surface-class="game-card-surface" data-html-shade-class="game-card-shade"><div class="game-card-copy"><b class="game-card-name">${esc(m.name)}</b></div></div>${n > 0 ? `<i class="cgc-n">×${n}</i>` : ""}</div>`
 }
 
 /** Các bộ thẻ bài của người chơi (chỉ bộ có mọi lá bắt đầu bằng "cg:") */
-async function loadCgDecks(uid: string): Promise<CgDeck[]> {
-    const { data } = await supabase.from("decks").select("id, name, cards, is_active").eq("owner_id",
-        uid).order("created_at")
+async function loadCgDecks(session: Session): Promise<CgDeck[]> {
+    const data = await listDecks(session).catch(() => [])
     const out: CgDeck[] = []
-    for (const d of (data ?? []) as { id: string; name: string; cards: string[]; is_active: boolean }[]) {
+    for (const d of data) {
         const cards = fromDb(d.cards ?? [])
         if (cards) out.push({
             id: d.id, name: d.name, cards, is_active: d.is_active
@@ -187,50 +322,53 @@ async function loadCgDecks(uid: string): Promise<CgDeck[]> {
 async function homeView(me: Me, msg = "") {
     let active: DeckCardId[] = loadLocalDeck() ?? DEFAULT_DECK
     if (me.session) {
-        const decks = await loadCgDecks(me.session.user.id)
+        const decks = await loadCgDecks(me.session)
         active = decks.find((d) => d.is_active)?.cards ?? DEFAULT_DECK
     }
     if (deckError(active)) active = DEFAULT_DECK
     const counts = groupCounts(active)
-    const mini = [...new Set(sortDeck(active))].map((id) => tile(id,
-        "",
-        active.filter((x) => x === id).length)).join("")
-    root().innerHTML = `
-    <div class="lb-home">
-      <header class="lb-bar nine-header">
-        <span class="lb-logo">StarCi League</span>
-        <div class="lb-user">${langSelect()}<span class="lb-avatar">${esc(me.name.slice(0,
+    const mini = [...new Set(sortDeck(active))].map((id) => {
+        const count = active.filter((x) => x === id).length
+        return tile(id,
+            "data-home-card",
+            count)
+    }).join("")
+    renderLobby(`
+    <div class="lb-home lb-modular-home">
+      <header class="lb-bar lb-home-header">
+        <span class="lb-home-title" data-html-art="title">StarCi League</span>
+        <div class="lb-user"><span class="lb-lang-frame" data-html-art="name" data-html-fit="false">${langSelect()}</span><span class="lb-avatar" data-html-art="icon">${esc(me.name.slice(0,
     1).toUpperCase())}</span>
-          <div><b>${esc(me.name)}</b><small>${me.session ? esc(me.session.user.email ?? "") : t("guest")}</small></div>
-          <button class="lb-btn" id="lb-out">${me.session ? t("home.signout") : t("home.signin")}</button></div>
+          <div><b class="lb-home-name" data-html-art="name" title="${esc(me.name)}">${esc(me.name)}</b></div>
+          <button class="lb-btn" data-html-art="name" id="lb-out">${me.session ? t("home.signout") : t("home.signin")}</button></div>
       </header>
       <main class="lb-menu">
-        <section class="lb-panel nine-panel lb-card-mode">
+        <section class="lb-panel lb-card-mode" data-html-art="panel">
           <h2>${CG.title}<span class="lb-new">${CG.badge}</span></h2>
           <p class="lb-hint">${CG.hint}</p>
-          <button class="lb-tile gold" id="lb-cg-quick"><b>${CG.quick}</b><small>${CG.quickSub}</small></button>
+          <button class="lb-tile gold" data-html-art="name" id="lb-cg-quick"><span class="lb-choice-art lb-choice-cards" aria-hidden="true"><img src="/ui/card_back.png" alt=""><img src="/ui/card_back.png" alt=""><img src="/ui/card_back.png" alt=""></span><b>${CG.quick}</b><small>${CG.quickSub}</small></button>
           <div class="lb-bots">
-            <button class="lb-tile" id="lb-cg-easy"><b>${CG.easy}</b><small>${CG.easySub}</small></button>
-            <button class="lb-tile" id="lb-cg-hard"><b>${CG.hard}</b><small>${CG.hardSub}</small></button>
+            <button class="lb-tile" data-html-art="name" id="lb-cg-easy" title="${CG.easySub}"><span class="lb-choice-art" data-html-art="portrait" data-html-image="/heroes/jayce.jpg" aria-hidden="true"></span><b>${CG.easy}</b></button>
+            <button class="lb-tile" data-html-art="name" id="lb-cg-hard" title="${CG.hardSub}"><span class="lb-choice-art" data-html-art="portrait" data-html-image="/heroes/azir.jpg" aria-hidden="true"></span><b>${CG.hard}</b></button>
           </div>
-          <form class="lb-code" id="lb-cg-join"><input name="code" required placeholder="${CG.codePh}" autocomplete="off"><button class="lb-btn">${CG.join}</button></form>
+          <form class="lb-code" id="lb-cg-join"><span class="lb-code-frame" data-html-art="name" data-html-fit="false"><input name="code" required placeholder="${CG.codePh}" autocomplete="off"></span><button class="lb-btn" data-html-art="name">${CG.join}</button></form>
           <p class="lb-msg">${esc(msg)}</p>
         </section>
-        <section class="lb-panel nine-panel">
+        <section class="lb-panel lb-home-deck" data-html-art="panel">
           <h2>${D.title}<small>${D.count(active.length)}</small></h2>
-          <p class="lb-hint">${D.hint}</p>
+          <p class="lb-hint lb-deck-description">${D.hint}</p>
           <p class="lb-hint"><b>${D.summary(counts.basic,
         counts.spell,
         counts.gold,
         counts.item)}</b></p>
           <div class="lb-mini nine-tray">${mini}</div>
-          <button class="lb-tile" id="lb-deck"><b>${D.open}</b><small>${me.session ? D.openSub : D.guest}</small></button>
+          <button class="lb-tile" data-html-art="name" id="lb-deck" title="${me.session ? D.openSub : D.guest}"><b>${D.open}</b></button>
         </section>
       </main>
-    </div>`
+    </div>`)
     wireLang()
     const $ = <T extends HTMLElement>(s: string) => root().querySelector<T>(s)!
-    $("#lb-out").onclick = async () => { if (me.session) await supabase.auth.signOut(); loginView() }
+    $("#lb-out").onclick = () => { signOut(); loginView() }
     $("#lb-deck").onclick = () => cardDeckBuilder(me)
     $("#lb-cg-quick").onclick = () => play(me,
         {
@@ -259,9 +397,10 @@ async function homeView(me: Me, msg = "") {
 // Trái: chi tiết lá · Giữa: bộ đang xếp (80 lá) · Phải: kho DECK_POOL. Bấm để xem, bấm đúp hoặc kéo thả để thêm/bớt.
 
 async function cardDeckBuilder(me: Me) {
-    root().innerHTML = `<div class="lb-center"><p class="lb-hint">${D.loading}</p></div>`
-    const uid = me.session?.user.id ?? null
-    let decks: CgDeck[] = uid ? await loadCgDecks(uid) : []
+    renderLobby(`<div class="lb-center"><p class="lb-hint">${D.loading}</p></div>`)
+    const session = me.session
+    const uid = session?.user.id ?? null
+    let decks: CgDeck[] = session ? await loadCgDecks(session) : []
     let dirty = false
     if (!decks.length) {
         decks = [{
@@ -297,58 +436,57 @@ async function cardDeckBuilder(me: Me) {
     const save = async (): Promise<boolean> => {
         const d = deck(), err = deckError(d.cards)
         if (err) { say(err); return false }
-        if (!uid) {
+        if (!session) {
             if (!saveLocalDeck(d.cards)) { say(D.saveFail); return false }
             dirty = false; say(D.saved,
                 true)
             return true
         }
-        const body = {
-            name: d.name, cards: toDb(d.cards), updated_at: new Date().toISOString()
-        }
-        const res = d.id
-            ? await supabase.from("decks").update(body).eq("id",
-                d.id).select("id").single()
-            : await supabase.from("decks").insert({
-                ...body, owner_id: uid, is_active: !decks.some((x) => x.id && x.is_active)
-            }).select("id, is_active").single()
-        if (res.error) { say(D.saveFail + res.error.message); return false }
-        d.id = res.data.id
-        if ("is_active" in res.data) d.is_active = !!res.data.is_active
+        try {
+            const row = d.id
+                ? await updateDeck(session,
+                    d.id,
+                    {
+                        name: d.name, cards: toDb(d.cards)
+                    })
+                : await createDeck(session,
+                    d.name,
+                    toDb(d.cards))
+            d.id = row.id
+            d.is_active = row.is_active
+        } catch (e) { say(D.saveFail + (e as Error).message); return false }
         dirty = false; say(D.saved,
             true)
         return true
     }
     /** Chọn bộ đang xem làm bộ dùng khi vào trận */
     const activate = async () => {
-        if (!uid) return
+        if (!session) return
         if ((dirty || !deck().id) && !await save()) return
-        await supabase.from("decks").update({
-            is_active: false
-        }).eq("owner_id",
-            uid).eq("is_active",
-            true)
-        const { error } = await supabase.from("decks").update({
-            is_active: true
-        }).eq("id",
-            deck().id!)
-        if (error) return say(error.message)
+        try { await activateDeck(session,
+            deck().id!) } catch (e) { return say((e as Error).message) }
         decks.forEach((d) => (d.is_active = d === deck()))
         say(D.activated,
             true)
     }
 
     const render = () => {
+        const scrollPositions = [".db-view",
+            ".db-deck",
+            ".db-search"].map((selector) => ({
+            selector, top: root().querySelector<HTMLElement>(`${selector} > .game-scroll-viewport`)?.scrollTop ?? 0
+        }))
         const d = deck(), err = deckError(d.cards), m = cardMeta(view)
         const gc = groupCounts(d.cards)
         const pool = DECK_POOL.filter((p) => group === "all" || p.group === group)
         const slots = Math.max(0,
             DECK_SIZE - d.cards.length)
-        root().innerHTML = `
+        renderLobby(`
       <div class="db">
         <header class="lb-bar nine-header">
           <button class="lb-btn" id="db-back">${D.back}</button>
           <select id="db-pick" ${uid ? "" : "disabled"}>${decks.map((x, i) => `<option value="${i}" ${i === cur ? "selected" : ""}>${esc(x.name)}${x.is_active ? ` · ${D.active}` : ""}${x.id ? "" : ` ${D.unsaved}`}</option>`).join("")}</select>
+          <b class="db-cap ${err ? "bad" : "ok"}" aria-label="${isEn() ? "Deck size" : "Số lá trong bộ"}" aria-live="polite">${D.count(d.cards.length)}</b>
           <button class="lb-btn" id="db-new" ${uid ? "" : "disabled"}>${D.newDeck}</button>
           <button class="lb-btn" id="db-sample">${D.sample}</button>
           <button class="lb-btn" id="db-rename">${D.rename}</button>
@@ -365,7 +503,7 @@ async function cardDeckBuilder(me: Me) {
             <h3>${esc(m.name)}</h3>
             <p class="db-type cg-${m.group}">${groupName(m.group)}</p>
             <p class="db-desc">${esc(m.desc)}</p>
-            <div class="db-actions"><button class="lb-btn" id="db-add">${D.add}</button><button class="lb-btn" id="db-rem">${D.rem}</button><b>${countOf(view)}/${maxOf(view)}</b></div>
+            <div class="db-actions"><button class="lb-btn" id="db-add" ${d.cards.length >= DECK_SIZE || countOf(view) >= maxOf(view) ? "disabled" : ""}>${D.add}</button><button class="lb-btn" id="db-rem" ${countOf(view) ? "" : "disabled"}>${D.rem}</button><b class="db-owned"><span>${isEn() ? "In deck" : "Trong bộ"}</span><strong>${countOf(view)}/${maxOf(view)}</strong></b></div>
           </aside>
           <section class="db-deck lb-panel nine-tray" id="db-drop">
             <h2>${esc(d.name)} <span class="${err ? "bad" : "ok"}">${D.count(d.cards.length)}</span></h2>
@@ -402,20 +540,28 @@ async function cardDeckBuilder(me: Me) {
             <p class="lb-hint">${D.poolHint}</p>
           </aside>
         </div>
-      </div>`
+      </div>`)
         wire()
+        for (const { selector, top } of scrollPositions) root().querySelector<HTMLElement>(`${selector} > .game-scroll-viewport`)?.scrollTo({
+            top
+        })
     }
 
     const wire = () => {
         const r = root(), $ = <T extends HTMLElement>(s: string) => r.querySelector<T>(s)!
         wireLang()
-        $("#db-back").onclick = () => (!dirty || confirm(D.discard)) && homeView(me)
+        $("#db-back").onclick = async () => {
+            if (!dirty || await lobbyChoice({
+                title: isEn() ? "Unsaved changes" : "Thay đổi chưa lưu", description: D.discard, confirm: isEn() ? "Discard changes" : "Bỏ thay đổi"
+            })) homeView(me)
+        }
         $<HTMLSelectElement>("#db-pick").onchange = (e) => {
             cur = Number((e.target as HTMLSelectElement).value); dirty = !deck().id; view = deck().cards[0] ?? view; say("")
         }
-        $("#db-new").onclick = () => {
-            const name = prompt(D.newPrompt,
-                `${D.firstName} ${decks.length + 1}`)?.trim()
+        $("#db-new").onclick = async () => {
+            const name = await lobbyChoice({
+                title: D.newDeck, description: isEn() ? "Start an empty deck, then add 80 cards before saving." : "Tạo bộ bài trống, sau đó xếp đủ 80 lá trước khi lưu.", confirm: isEn() ? "Create deck" : "Tạo bộ bài", value: `${D.firstName} ${decks.length + 1}`
+            })
             if (!name) return
             decks.push({
                 id: null, name: name.slice(0,
@@ -424,17 +570,20 @@ async function cardDeckBuilder(me: Me) {
             cur = decks.length - 1; dirty = true; say("")
         }
         $("#db-sample").onclick = () => { deck().cards = sortDeck(DEFAULT_DECK); dirty = true; say("") }
-        $("#db-rename").onclick = () => {
-            const name = prompt(D.renamePrompt,
-                deck().name)?.trim()
+        $("#db-rename").onclick = async () => {
+            const name = await lobbyChoice({
+                title: D.rename, description: isEn() ? "Choose a name for your deck. Its cards stay the same." : "Đặt tên để dễ nhận ra bộ bài của bạn.", confirm: isEn() ? "Rename" : "Đổi tên", value: deck().name
+            })
             if (name) { deck().name = name.slice(0,
                 32); dirty = true; render() }
         }
         $("#db-del").onclick = async () => {
-            if (!deck().id || !confirm(D.delConfirm)) return
-            const { error } = await supabase.from("decks").delete().eq("id",
-                deck().id!)
-            if (error) return say(error.message)
+            if (!deck().id || !await lobbyChoice({
+                title: isEn() ? "Delete deck" : "Xoá bộ bài", description: `${deck().name} — ${D.delConfirm}`, confirm: isEn() ? "Delete deck" : "Xoá bộ bài", destructive: true
+            })) return
+            if (!session) return
+            try { await deleteDeck(session,
+                deck().id!) } catch (e) { return say((e as Error).message) }
             decks.splice(cur,
                 1); cur = 0; dirty = false; say(D.deleted,
                 true)
@@ -443,7 +592,9 @@ async function cardDeckBuilder(me: Me) {
         $("#db-use").onclick = () => { void activate() }
         $("#db-add").onclick = () => add(view)
         $("#db-rem").onclick = () => remove(view)
-        r.querySelectorAll<HTMLButtonElement>("#db-pool .lb-tabs button").forEach((b) => b.onclick = () => { group = b.dataset.g as typeof group; render() })
+        r.querySelectorAll<HTMLButtonElement>("#db-pool .lb-tabs button").forEach((b) => b.onclick = () => { group = b.dataset.g as typeof group; r.querySelector<HTMLElement>("#db-pool > .game-scroll-viewport")?.scrollTo({
+            top: 0
+        }); render() })
         // bấm để xem, bấm đúp để thêm/bớt, kéo thả giữa kho và bộ bài
         r.querySelectorAll<HTMLElement>("[data-card]").forEach((el) => {
             const id = el.dataset.card as DeckCardId, from = el.dataset.from!

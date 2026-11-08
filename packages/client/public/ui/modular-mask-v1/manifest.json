@@ -1,0 +1,152 @@
+{
+  "m06-title-plaque.png": {
+    "width": 2172,
+    "height": 724,
+    "outer": {
+      "x": 19,
+      "y": 72,
+      "width": 2134,
+      "height": 526
+    },
+    "safe": {
+      "x": 383,
+      "y": 296,
+      "width": 1407,
+      "height": 193
+    },
+    "region": "face",
+    "aperture": {
+      "x": 18,
+      "y": 71,
+      "width": 2136,
+      "height": 527
+    },
+    "mask": "url(\"/ui/modular-mask-v1/m06-title-plaque.mask.svg\")",
+    "area": 0
+  },
+  "m05-panel-ring.png": {
+    "width": 1536,
+    "height": 1024,
+    "outer": {
+      "x": 20,
+      "y": 27,
+      "width": 1496,
+      "height": 966
+    },
+    "safe": {
+      "x": 210,
+      "y": 156,
+      "width": 1115,
+      "height": 698
+    },
+    "region": "hole",
+    "aperture": {
+      "x": 116,
+      "y": 121,
+      "width": 1305,
+      "height": 766
+    },
+    "mask": "url(\"/ui/modular-mask-v1/m05-panel-ring.mask.svg\")",
+    "area": 0
+  },
+  "m01-portrait-ring.png": {
+    "width": 1122,
+    "height": 1402,
+    "outer": {
+      "x": 13,
+      "y": 17,
+      "width": 1096,
+      "height": 1335
+    },
+    "safe": {
+      "x": 173,
+      "y": 188,
+      "width": 777,
+      "height": 993
+    },
+    "region": "hole",
+    "aperture": {
+      "x": 120,
+      "y": 133,
+      "width": 883,
+      "height": 1106
+    },
+    "mask": "url(\"/ui/modular-mask-v1/m01-portrait-ring.mask.svg\")",
+    "area": 0
+  },
+  "m03-name-plaque.png": {
+    "width": 1774,
+    "height": 887,
+    "outer": {
+      "x": 18,
+      "y": 253,
+      "width": 1739,
+      "height": 365
+    },
+    "safe": {
+      "x": 266,
+      "y": 363,
+      "width": 1243,
+      "height": 163
+    },
+    "region": "face",
+    "aperture": {
+      "x": 17,
+      "y": 252,
+      "width": 1740,
+      "height": 367
+    },
+    "mask": "url(\"/ui/modular-mask-v1/m03-name-plaque.mask.svg\")",
+    "area": 0
+  },
+  "m04-meter-ring.png": {
+    "width": 2172,
+    "height": 724,
+    "outer": {
+      "x": 11,
+      "y": 232,
+      "width": 2150,
+      "height": 257
+    },
+    "safe": {
+      "x": 229,
+      "y": 322,
+      "width": 1713,
+      "height": 81
+    },
+    "region": "hole",
+    "aperture": {
+      "x": 188,
+      "y": 317,
+      "width": 1797,
+      "height": 90
+    },
+    "mask": "url(\"/ui/modular-mask-v1/m04-meter-ring.mask.svg\")",
+    "area": 0
+  },
+  "m02-icon-ring.png": {
+    "width": 1254,
+    "height": 1254,
+    "outer": {
+      "x": 19,
+      "y": 17,
+      "width": 1216,
+      "height": 1182
+    },
+    "safe": {
+      "x": 226,
+      "y": 211,
+      "width": 802,
+      "height": 802
+    },
+    "region": "hole",
+    "aperture": {
+      "x": 155,
+      "y": 153,
+      "width": 945,
+      "height": 916
+    },
+    "mask": "url(\"/ui/modular-mask-v1/m02-icon-ring.mask.svg\")",
+    "area": 0
+  }
+}

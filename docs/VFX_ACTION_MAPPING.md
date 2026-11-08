@@ -22,7 +22,19 @@ Một hành động ánh xạ đến **danh sách VFX**, kể cả khi hiện ch
 | Xạ thủ đánh thường | Mũi tên bắn vào mục tiêu |
 | Đỡ đòn đánh thường | Va đập nặng |
 
+Bảng trên là mặc định khi tướng chưa khai báo đòn riêng. Hiện cả 33 tướng đã có đòn đánh thường riêng theo LMHT (`heroMap.ts`, `fx_basics.ts` và file VFX riêng của tướng): cận chiến đánh khi chạm, đánh xa bay tới mục tiêu. Xem đủ tại `/vfx/examples/basic-attacks`.
+
 Tướng có cơ chế đặc thù được khai báo ngoại lệ rõ ràng. Blitz móc vào lá bài rồi kéo; Teemo gài nấm vào bộ và nấm nổ từ bộ vào đúng tướng. Các chiêu chọn riêng hình thức bay/đâm/chém/phép mà không ghi đè ý nghĩa các hiệu ứng theo sau.
+
+## Nguyên tắc mượt UX/UI
+
+Luôn ưu tiên cảm giác mượt khi làm giao diện và VFX.
+
+- Mỗi chiêu là một nhịp: hiệu ứng mở màn chạy trước, rồi một khoảnh khắc trúng duy nhất. Tại đó VFX, trừ máu, số nổi và trạng thái (Choáng...) ra cùng lúc.
+- Đạn chạm mục tiêu là ra kết quả ngay (`ctx.onBeat`), không chờ đuôi hạt tan.
+- Chiêu nảy nhiều lần: chạm là nảy tiếp, không dừng giữa các lần nảy.
+- Không thêm nhịp trạng thái riêng sau cú trúng.
+- Số nổi và đoạn máu vừa mất theo màu loại sát thương: vàng vật lý, xanh dương phép, trắng chuẩn.
 
 ## Trình diễn tổ hợp
 

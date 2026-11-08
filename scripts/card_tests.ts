@@ -3388,6 +3388,20 @@ test("Nguồn trạng thái: status ghi src (tướng) và card (lá) đang gi�
         setHand(s,
             "B",
             [])
+        // Q choáng kẻ đã đủ Bỏng: Choáng là trạng thái có nguồn (AP tạm đủ để phần lẻ X.Y thành chắc chắn)
+        gm(s).status(u(s,
+            "A",
+            "brand"),
+        "ap_up",
+        30,
+        {
+            v: 1000, of: "A"
+        })
+        gm(s).stack(u(s,
+            "B",
+            "t_guard"),
+        "burn",
+        cg.kit("brand").p.q3)
         const r = play(s,
             "A",
             q,
@@ -3396,13 +3410,15 @@ test("Nguồn trạng thái: status ghi src (tướng) và card (lá) đang gi�
             })
         const st = u(r.s,
             "B",
-            "t_guard").statuses.burn
+            "t_guard").statuses.stun
+        assert.ok(st,
+            "Choáng gắn lên mục tiêu")
         assert.equal(st?.src,
             "A:brand")
         assert.equal(st?.card,
             "brand_q")
         assert.ok(evs(r.ev,
-            "status").some((e) => e.id === "burn" && e.card === "brand_q"))
+            "status").some((e) => e.id === "stun" && e.card === "brand_q"))
     })
 
 // ======================================================================
@@ -3421,7 +3437,7 @@ console.log(`\nTỔNG (lõi + nhóm lead): ${results.length} test | PASS ${c("PA
 let total = results.length, pass = c("PASS"), fail = c("FAIL")
 if (!only && !process.argv.includes("--core")) {
     const dir = path.dirname(fileURLToPath(import.meta.url))
-    for (const f of fs.readdirSync(dir).filter((x) => /^card_tests_(g\d+|items|bot|v2|v3|reactions|heroes_g\d+v?|heroes_new|balance_[a-z_]+)\.ts$/.test(x)).sort()) {
+    for (const f of fs.readdirSync(dir).filter((x) => /^card_tests_(g\d+|items|bot|v2|v3|reactions|heroes_g\d+v?|heroes_new|balance_[a-z_]+|kits_[a-z]+)\.ts$/.test(x)).sort()) {
         const r = spawnSync(process.execPath,
             ["--import",
                 "tsx",

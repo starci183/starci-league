@@ -1,100 +1,54 @@
-// Braum (Đỡ đòn, phép): máu 485 · AD 64 · AP gốc 0 · giáp/kháng 35/34.
-// CHẤT: "Đứng sau tôi": Braum mở giao tranh cho đồng đội và hứng đòn thay họ, càng hứng càng cứng (Song Giáp).
-// Nội tại: mỗi đòn đánh trúng Braum +1 Song Giáp (vĩnh viễn, không giới hạn); mỗi Song Giáp +1.5 Giáp và +1.5 Kháng Phép.
-// Q: Đấm Băng gây sát thương + Dấu Băng tới hết lượt hiện tại; đồng minh khác đánh trúng thì thử Choáng (1 + 0,1% AD + 0,2% AP đơn vị) + Braum +2 Song Giáp.
-// E (Quick): Đỡ Thay + 2 Song Giáp + Khiên. R: toàn bàn địch; tâm Choáng 1 + 0,2% AP đơn vị, mỗi địch còn lại Choáng d theo Máu/Giáp/AP.
-// Cơ chế engine dùng: HeroDef.bonusStats (Giáp/Kháng Phép theo Song Giáp), g.addMark + hook onMarkHit (Dấu Băng), hook onAttackHit, g.chainFx().redirect, stack.
-// Khống chế theo đơn vị thời gian (law.md §4): ccApply bên dưới (phần lẻ do engine tung trong g.status), dùng chung cho các tướng Đỡ đòn khác.
+// Braum (Đỡ đòn, phép): "Đứng sau tôi". Hứng đòn thay đồng đội, càng bị đánh càng cứng (Song Giáp), Dấu Băng biến đòn của đồng đội thành Choáng.
+// Số liệu: balance/heroes/braum.json (p1.. nội tại, q/e/r theo chiêu). Chiêu chỉ scale Máu tối đa, Giáp.
+// Engine dùng: HeroDef.bonusStats + deathHalf (Song Giáp), g.addMark + hook onMarkHit (Dấu Băng), ReactFx.intercept (E), g.timed (Choáng theo đơn vị).
+import {
+    kit, when
+} from "../balance"
 import {
     defineHero
 } from "../registry"
-import type {
-    Game
-} from "../game"
 import {
-    otherSide, type Unit
+    otherSide
 } from "../types"
 
+const k = kit("braum"), { p } = k
 const DUAL = "braum_dual"
 const MARK = "braum_mark"
-/** Mỗi Song Giáp: bấy nhiêu Giáp và Kháng Phép */
-export const DUAL_ARMOR = 1.5
-const Q_GAIN = 2
-const E_GAIN = 2
-export const F_Q = "65 + 50% AD + 40% AP"
-export const F_E_SHIELD = "60 + 40% AD + 30% AP"
-/** Q: Choáng 1 + 0,1% AD + 0,2% AP đơn vị (theo chỉ số Braum) */
-export const Q_STUN = {
-    base: 1, ad: 0.001, ap: 0.002
-}
-/** R tâm: Choáng 1 + 0,2% AP đơn vị */
-export const R_MAIN_STUN = {
-    base: 1, ap: 0.002
-}
-/** R phụ: d = 0,25 + 0,015 mỗi 100 Máu tối đa + 0,015 mỗi 10 Giáp + 0,1% AP của Braum */
-export const R_BASE = 0.25
-export const R_PER_100_HP = 0.015
-export const R_PER_10_ARMOR = 0.015
-export const R_PER_AP = 0.001
-
-/** Thời hạn d theo chỉ số người tung: base + ad·AD + ap·AP + hp·Máu tối đa + armor·Giáp */
-export function ccDuration(g: Game, caster: Unit, o: { base?: number; ad?: number; ap?: number; hp?: number; armor?: number }): number {
-    return (o.base ?? 0) + (o.ad ?? 0) * g.atk(caster) + (o.ap ?? 0) * g.ap(caster) + (o.hp ?? 0) * caster.maxHp + (o.armor ?? 0) * g.armor(caster)
-}
-/**
- * Gắn khống chế `id` (vd "stun") d đơn vị lên u. Một đơn vị = từ Draw của phe người tung tới hết lượt đối thủ;
- * tung trong lượt đối thủ thì phần còn lại của lượt đó là đơn vị đầu. Xét miễn/chặn trước rồi mới roll phần lẻ.
- * Trả số đơn vị đã gắn (0 = không gắn).
- */
-export function ccApply(g: Game, caster: Unit, u: Unit | undefined, id: string, d: number, label: string): number {
-    if (!u || u.status !== "board" || u.token) return 0
-    if (u.side !== caster.side && (g.has(u,
-        "stasis") || g.s.immune?.includes(u.id))) return 0
-    void label
-    if (d <= 0) return 0
-    // engine tự tung phần lẻ một lần sau kiểm tra miễn (game.ts status + CC_STATUSES)
-    g.status(u,
-        id,
-        d,
-        {
-            of: otherSide(caster.side)
-        })
-    return g.has(u,
-        id) ? Math.max(1,
-            Math.floor(d)) : 0
-}
+const F_Q = k.x("q1 + q2·Máu tối đa"), EN_Q = k.xe("q1 + q2·Máu tối đa")
+/** Dấu Băng: Choáng p3 + p4·Giáp đơn vị */
+const F_MARK = k.x("p3 + p4·Giáp"), EN_MARK = k.xe("p3 + p4·Giáp")
+const F_E = k.x("e1 + e2·Máu tối đa + e3·Giáp"), EN_E = k.xe("e1 + e2·Máu tối đa + e3·Giáp")
+const F_R = k.x("r1 + r2·Máu tối đa"), EN_R = k.xe("r1 + r2·Máu tối đa")
+const F_R_MAIN = k.x("r3 + r4·Giáp"), EN_R_MAIN = k.xe("r3 + r4·Giáp")
+const F_R_REST = k.x("r5 + r6·Giáp"), EN_R_REST = k.xe("r5 + r6·Giáp")
 
 export default defineHero({
-    id: "braum", name: "Braum", role: "tank", damage: "magic", hp: 485, atk: 64, armor: 35, mr: 34,
-    bot: {
-        stackValue: {
-            braum_dual: 25,
-        },
-    },
-    desc: "Tấm khiên của Freljord: mở giao tranh bằng Dấu Băng, hứng đòn thay cả đội, càng bị đánh càng cứng, rồi khoá cả hàng địch.",
+    id: "braum", name: "Braum", role: "tank", damage: "magic", ...k.base,
+    deathHalf: [DUAL],
+    // Dấu Băng đã đặt vẫn kích khi Braum đã ngã (đồng minh đánh trúng: Choáng, Song Giáp)
+    offBoardHooks: ["onMarkHit"],
+    bot: k.bot,
+    desc: "Tấm khiên của Freljord: mở giao tranh bằng Dấu Băng, hứng đòn thay đồng đội, càng bị đánh càng cứng, rồi khoá cả hàng địch.",
     passive: {
-        name: "Da Sắt",
-        desc: "Mỗi đòn thật của địch trúng Braum cho 1 Song Giáp vĩnh viễn; mỗi cộng dồn tăng 1,5 Giáp và 1,5 Kháng phép. Tính cả hit chí tử và giữ qua chết.",
+        name: "Song Giáp",
+        desc: `Mỗi đòn đánh thường của địch trúng Braum cho ${p.p1} Song Giáp, cộng dồn vô hạn; mỗi Song Giáp tăng ${p.p2} Giáp và ${p.p2} Kháng phép. Mất một nửa Song Giáp khi Braum bị hạ.`,
     },
     bonusStats(g, me) {
         const n = g.stackOf(me,
             DUAL)
         return {
-            armor: n * DUAL_ARMOR, mr: n * DUAL_ARMOR
+            armor: n * p.p2, mr: n * p.p2
         }
     },
-    // Dấu Băng đã đặt vẫn kích khi Braum đã ngã (đồng minh đánh trúng: thử Choáng + Song Giáp giữ qua chết)
-    offBoardHooks: ["onMarkHit"],
     hooks: {
         onAttackHit(g, me, d) {
-            // bị đánh: +1 Song Giáp
             if (d.target.id === me.id && d.attacker.side !== me.side) g.stack(me,
                 DUAL,
-                1)
+                p.p1)
         },
         onMarkHit(g, me, d) {
             if (d.mark.id !== MARK || d.mark.src !== me.id) return
-            // chính Braum đánh: giữ nguyên dấu (và hạn gốc) cho đồng đội (engine tiêu 1 nấc cho mọi đòn của phe)
+            // chính Braum đánh: dấu giữ nguyên (và hạn gốc) cho đồng đội, engine đã tiêu 1 nấc
             if (d.attacker.id === me.id) {
                 g.addMark(d.target,
                     MARK,
@@ -106,24 +60,22 @@ export default defineHero({
                 if (m) m.until = d.mark.until
                 return
             }
-            // đồng minh khác Braum đánh trúng: thử Choáng, Braum +2 Song Giáp kể cả khi Choáng bị chặn
-            ccApply(g,
-                me,
+            // đồng minh khác Braum đánh trúng: Choáng, Braum nhận Song Giáp kể cả khi Choáng bị chặn
+            const dur = g.f(me,
+                F_MARK)
+            if (dur > 0 && d.target.status === "board") g.timed(me,
                 d.target,
                 "stun",
-                ccDuration(g,
-                    me,
-                    Q_STUN),
-                "Braum Q Choáng")
+                dur)
             g.stack(me,
                 DUAL,
-                Q_GAIN)
+                p.p5)
         },
     },
     skills: {
         Q: {
-            key: "Q", mana: 10, name: "Đấm Băng", target: "enemy",
-            desc: `Chọn một tướng địch; gây {${F_Q}} sát thương phép, đặt Dấu Băng tới hết lượt hiện tại. Đòn thật của đồng minh khác Braum trúng nó tiêu dấu: thử Choáng 1 + 0,1% AD + 0,2% AP đơn vị và Braum nhận 2 Song Giáp, kể cả khi Choáng bị chặn.`,
+            key: "Q", name: "Cú Đấm Băng", target: "enemy", mana: p.q0,
+            desc: `Chọn 1 tướng địch; gây {${F_Q}} sát thương phép và đặt Dấu Băng trong ${p.q3} đơn vị. Đồng minh khác Braum đánh trúng nó thì tiêu dấu: nó bị Choáng {${F_MARK}} đơn vị và Braum nhận ${p.p5} Song Giáp.`,
             resolve(c) {
                 const t = c.target!
                 c.g.damage(c.self,
@@ -133,64 +85,77 @@ export default defineHero({
                     {
                         tag: "skill"
                     })
-                c.g.addMark(t,
+                if (t.status === "board") c.g.addMark(t,
                     MARK,
                     c.self,
                     {
-                        hits: 1
+                        hits: 1, turns: p.q3, of: otherSide(c.side)
                     })
-                // Dấu Băng tới hết lượt hiện tại (expireMarks giữ khi until > turnNo, gỡ ở cuối lượt này)
-                const m = t.marks?.find((x) => x.id === MARK && x.src === c.self.id)
-                if (m) m.until = c.g.s.turnNo
             },
         },
         E: {
-            key: "E", mana: 20, name: "Đứng Sau Tôi", target: "none", quick: true, chainOnly: true,
-            desc: `Khi địch đánh thường đơn nhắm một tướng đồng minh khác, bạn có thể dùng lá này: Braum lộ diện, Đỡ Thay đòn đó bất kể đường và Khiêu Khích, nhận 2 Song Giáp và {${F_E_SHIELD}} Khiên trắng. Không chuyển vị.`,
+            key: "E", name: "Đứng Sau Tôi", target: "none", mana: p.e0, quick: true, chainOnly: true,
+            desc: `Quick, Chỉ Nối Chuỗi. Khi địch đánh hoặc dùng chiêu nhắm đúng 1 tướng mình khác (không phải cả phe), bạn có thể dùng lá này: huỷ mọi tác động của nó lên tướng đó; Braum nhận thay ${p.e5}% sát thương, nhận ${p.e4} Song Giáp và {${F_E}} Khiên.`,
             quickWhen(c) {
-                const target = c.g.unit(c.trigger.target)
-                return c.trigger.side !== c.side && c.trigger.kind === "attack" && !!c.trigger.single
-                    && target?.side === c.side && !target.token && target.id !== c.self.id
-                    && !!c.trigger.redirectable?.includes(c.self.id)
+                const t = c.g.unit(c.trigger.target)
+                return (c.trigger.kind === "attack" || c.trigger.kind === "skill") && when.targetsOtherAlly(c) && !t?.token
             },
             resolve(c) {
-                c.g.removeStatus(c.self,
-                    "stealth") // lộ diện
-                if (c.trigger?.target !== c.self.id) c.g.chainFx().redirect = c.self.id
+                const ally = c.trigger?.target
+                if (!ally) return
+                c.g.chainFx().intercept = {
+                    from: ally, by: c.self.id, pct: p.e5 / 100
+                }
                 c.g.stack(c.self,
                     DUAL,
-                    E_GAIN)
+                    p.e4)
                 c.g.shield(c.self,
                     c.self,
-                    c.f(F_E_SHIELD))
+                    c.f(F_E))
             },
         },
         R: {
-            key: "R", mana: 35, name: "Băng Phong Ấn", target: "all_enemies",
-            desc: "Toàn bàn tướng địch, không chọn tay. Tâm tự lấy địch đối diện hợp lệ, thiếu thì lấy ngẫu nhiên: Choáng 1 + 0,2% AP đơn vị. Những địch còn lại chịu Choáng d = 0,25 + 0,015 mỗi 100 Máu tối đa + 0,015 mỗi 10 Giáp + 0,1% AP của Braum; phần lẻ dùng đúng một lần roll thời lượng.",
+            key: "R", name: "Khe Băng", target: "all_enemies", mana: p.r0,
+            desc: `Mọi tướng địch nhận {${F_R}} sát thương phép. Địch đối diện Braum bị Choáng {${F_R_MAIN}} đơn vị, các địch còn lại bị Choáng {${F_R_REST}} đơn vị.`,
             resolve(c) {
                 const g = c.g
-                const foes = g.heroes(otherSide(c.side))
                 const opp = g.opposite(c.self)
-                const main = opp && !opp.token && g.targetable(opp) ? opp : g.pick(foes.filter((x) => g.targetable(x)))
-                if (main) ccApply(g,
-                    c.self,
-                    main,
-                    "stun",
-                    ccDuration(g,
-                        c.self,
-                        R_MAIN_STUN),
-                    `Braum R (tâm ${g.nameOf(main)})`)
-                const d = R_BASE + R_PER_100_HP * (c.self.maxHp / 100) + R_PER_10_ARMOR * (g.armor(c.self) / 10) + R_PER_AP * g.ap(c.self)
-                for (const t of foes) {
-                    if (t.id === main?.id) continue
-                    ccApply(g,
-                        c.self,
+                const dmg = c.f(F_R), dMain = c.f(F_R_MAIN), dRest = c.f(F_R_REST)
+                for (const t of g.heroes(otherSide(c.side))) {
+                    g.damage(c.self,
+                        t,
+                        dmg,
+                        "magic",
+                        {
+                            tag: "skill"
+                        })
+                    const d = t.id === opp?.id ? dMain : dRest
+                    if (d > 0 && t.status === "board") g.timed(c.self,
                         t,
                         "stun",
-                        d,
-                        `Braum R (${g.nameOf(t)})`)
+                        d)
                 }
+            },
+        },
+    },
+    en: {
+        desc: "Shield of the Freljord: open fights with the Frost Mark, take hits for your allies, grow harder with every blow, then lock down the enemy line.",
+        passive: {
+            name: "Twin Armor",
+            desc: `Each enemy attack that hits Braum gives ${p.p1} Twin Armor, stacking without limit; each Twin Armor adds ${p.p2} Armor and ${p.p2} MR. Half of the Twin Armor is lost when Braum is taken down.`,
+        },
+        skills: {
+            Q: {
+                name: "Winter's Bite",
+                desc: `Choose 1 enemy champion; deal {${EN_Q}} magic damage and place a Frost Mark for ${p.q3} units. When an ally other than Braum hits it, the mark is consumed: it is Stunned for {${EN_MARK}} units and Braum gains ${p.p5} Twin Armor.`,
+            },
+            E: {
+                name: "Stand Behind Me",
+                desc: `Quick, Chain Only. When the enemy attacks or casts a skill at exactly 1 allied champion other than Braum (not the whole team), you may play this card: cancel every effect it has on that champion; Braum takes ${p.e5}% of the damage instead, gains ${p.e4} Twin Armor and {${EN_E}} Shield.`,
+            },
+            R: {
+                name: "Glacial Fissure",
+                desc: `Every enemy champion takes {${EN_R}} magic damage. The enemy opposite Braum is Stunned for {${EN_R_MAIN}} units, the other enemies are Stunned for {${EN_R_REST}} units.`,
             },
         },
     },

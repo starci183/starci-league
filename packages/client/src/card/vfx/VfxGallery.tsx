@@ -236,7 +236,7 @@ export function VfxGallery() {
         <VfxCanvas />
         <header className="vfx-header">
             <div><span className="vfx-eyebrow">STARCI LEAGUE</span><h1>Thư viện hiệu ứng</h1></div>
-            <div className="vfx-head-meta"><span>{VFX_CATALOG.length} mẫu · {heroes.length} tướng</span><a href="/vfx/examples">Chơi tình huống ↗</a><a href="/">Về game ↗</a></div>
+            <div className="vfx-head-meta"><span>{VFX_CATALOG.length} mẫu · {heroes.length} tướng</span><a href="/vfx/fire-stream">Brand · Q / E / R ↗</a><a href="/vfx/examples">Chơi tình huống ↗</a><a href="/">Về game ↗</a></div>
         </header>
         <div className="vfx-layout">
             <aside className="vfx-browser">

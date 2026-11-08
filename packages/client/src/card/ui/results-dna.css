@@ -1,0 +1,34 @@
+/* Results are individual alpha-masked PNG modules, floating on the match veil. */
+.sc-overlay.dna-screen.result-screen { z-index:70; padding:0; overflow:hidden; background:radial-gradient(ellipse at 50% 35%,#062419ed,#000d08f5); }
+.forest-game:has(.result-screen) > .cg-fx-toggle { visibility:hidden; }
+.result-screen.dna-screen .sc-end { width:1500px; height:1020px; min-height:0; max-height:1020px; padding:12px 0; gap:4px; position:relative; display:flex; flex-direction:column; align-items:center; justify-content:flex-start; border:0; border-image:none; border-radius:0; background:none; box-shadow:none; }
+.result-screen.dna-screen .sc-end::before { display:none; }
+.result-screen.dna-screen .sc-result-header { display:flex; align-items:center; flex-direction:column; gap:0; padding:0; }
+.result-screen.dna-screen .sc-kicker { font-size:18px; line-height:1.2; margin:0; color:#b9aa7c; letter-spacing:.12em; }
+.result-screen.dna-screen .sc-result-title { background:none; padding:0; flex:none; }
+.result-screen.dna-screen .sc-result-title h1 { margin:0; font-size:64px; line-height:1; font-weight:700; letter-spacing:.05em; white-space:nowrap; color:#ffe4a1; }
+.result-screen.dna-screen .sc-end.lose h1 { color:#eac19c; text-shadow:0 2px 12px #b4674122; }
+.result-screen.dna-screen .sc-reason { margin:0; padding:0; border:0; background:none; font-size:26px; line-height:1; color:#d7dbbd; white-space:nowrap; }
+.result-screen.dna-screen .sc-result-lineup-title { margin:0 0 4px; padding:0; border:0; background:none; flex:none; }
+.result-screen.dna-screen .sc-result-lineup-title h2 { display:flex; align-items:center; justify-content:center; gap:10px; margin:0; color:#efd493; font-size:24px; line-height:1; font-weight:600; white-space:nowrap; }
+.result-screen.dna-screen .sc-result-lineup-title h2 > .game-icon { width:24px; height:24px; }
+.result-screen.dna-screen .sc-result-lineup-title span { color:#aec3a1; font-weight:400; }
+.result-screen.dna-screen .sc-result-team { width:1400px; display:grid; grid-template-columns:repeat(5,1fr); gap:18px; margin:0 0 8px; flex:none; }
+.result-screen.dna-screen .sc-result-hero { width:100%; height:330px; min-width:0; padding:0; display:flex; flex-direction:column; align-items:center; gap:0; border:0; border-image:none; background:none; box-shadow:none; overflow:visible; }
+.result-screen.dna-screen .sc-result-portrait { flex:none; border:0; overflow:visible; }
+.result-screen.dna-screen .sc-result-portrait .af-surface-image { object-position:center; }
+.result-screen.dna-screen .sc-result-hero b { padding:0; margin:0; font-size:25px; line-height:1; font-weight:600; color:#ffe1a0; white-space:nowrap; }
+.result-screen.dna-screen .sc-result-hero small { padding:0; margin:0; font-size:18px; line-height:1; color:#b5c6a7; white-space:nowrap; }
+.result-screen.dna-screen .sc-result-scores { display:grid; grid-template-columns:repeat(4,300px); justify-content:center; gap:32px; width:100%; margin:0 0 6px; flex:none; }
+.result-screen.dna-screen .sc-result-scores > .sc-result-stat { display:flex; flex-direction:column; align-items:center; border:0; border-image:none; padding:0; background:none; min-height:0; box-shadow:none; }
+.result-screen.dna-screen .sc-result-scores dt { display:flex; justify-content:center; align-items:center; gap:7px; color:#b7c6a8; font-size:20px; font-weight:400; line-height:1; text-align:center; white-space:nowrap; }
+.result-screen.dna-screen .sc-result-scores dt .game-icon { width:20px; height:20px; flex:none; color:#d7bb70; }
+.result-screen.dna-screen .sc-result-scores dd { margin:0; padding:0; font-size:35px; color:#f5dfa0; line-height:1; font-variant-numeric:tabular-nums; text-align:center; }
+.result-screen.dna-screen .sc-result-back { margin-top:8px; flex:none; }
+.result-screen.dna-screen .sc-result-back .sc-btn { display:flex; align-items:center; justify-content:center; gap:12px; width:100%; height:100%; min-width:0; min-height:0; padding:0; margin:0; border:0; border-image:none; background:none; box-shadow:none; font-size:27px; line-height:1; color:#ffe1a0; }
+.result-screen.dna-screen .sc-result-back .sc-btn::before,.result-screen.dna-screen .sc-result-back .sc-btn::after { display:none; }
+.result-screen.dna-screen .sc-result-back:has(button:hover) { filter:brightness(1.22) drop-shadow(0 0 12px #43c88b88); }
+.result-screen.dna-screen .sc-result-back .sc-btn:focus-visible { outline:2px solid #a7f9cd; outline-offset:4px; }
+.result-screen.dna-screen .af-surface { background:radial-gradient(ellipse at 50% 25%,#164d36,#031a13 85%); }
+@media(prefers-reduced-motion:reduce) { .result-screen .sc-end { animation:none; } }
+.game-canvas-stage .result-screen.dna-screen .sc-result-back .sc-btn { background:none!important; clip-path:none!important; border:0!important; box-shadow:none!important; padding:0!important; }

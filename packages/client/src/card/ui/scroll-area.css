@@ -1,0 +1,22 @@
+.game-scroll { display:flex; min-height:0; min-width:0; overflow:hidden; }
+.game-scroll-viewport { flex:1; min-width:0; min-height:0; overflow:auto; overscroll-behavior:contain; scrollbar-width:none; }
+.game-scroll-viewport::-webkit-scrollbar { display:none; }
+.game-scroll-content { display:flow-root; }
+.game-scroll-rail { width:clamp(16px,21.12px,32px); margin:4px 0 4px 6px; flex:none; display:flex; flex-direction:column; gap:3px; visibility:hidden; }
+.game-scroll-rail.scrollable { visibility:visible; }
+.game-scroll-track { flex:1; min-height:36px; position:relative; background:linear-gradient(90deg,#020b09,#17392d,#020b09); border:1px solid #746239; box-shadow:inset 0 0 5px #000; cursor:pointer; }
+.game-scroll-thumb { position:absolute; left:-2px; right:-2px; box-sizing:border-box; min-height:36px; border:5px solid transparent; border-image:url('/ui/forest-v2/panel-frame-v4.png') 22% stretch; background:linear-gradient(90deg,#064432,#27a17c,#064432); background-clip:padding-box; cursor:grab; touch-action:none; display:grid; place-items:center; }
+.game-scroll-thumb:active { cursor:grabbing; filter:brightness(1.3); }
+.game-scroll-thumb i { width:5px; height:5px; border:1px solid #f7d786; background:#8fffe0; transform:rotate(45deg); box-shadow:0 0 6px #4fe8c3; pointer-events:none; }
+.game-scroll-arrow { display:grid; place-items:center; aspect-ratio:1; width:100%; min-height:16px; padding:0; border:4px solid transparent; border-image:url('/ui/forest-v2/panel-frame-v4.png') 22% stretch; background:#0d3428; background-clip:padding-box; cursor:pointer; }
+.game-scroll-arrow i { width:0; height:0; border-left:4px solid transparent; border-right:4px solid transparent; border-bottom:5px solid #f6d487; }
+.game-scroll-arrow.down i { transform:rotate(180deg); }
+.game-scroll-arrow:disabled { opacity:.35; cursor:default; }
+.game-scroll :is(.game-scroll-thumb,.game-scroll-arrow):focus-visible { outline:2px solid #72ffe0; outline-offset:2px; }
+.action-body.game-scroll { overflow:hidden; padding:0; flex:1 1 auto; }
+.action-body > .game-scroll-viewport > .game-scroll-content { padding:12px; }
+.us-scroll.game-scroll,.ch-log-list.game-scroll { flex-direction:row; overflow:hidden; padding:0; }
+.us-scroll.game-scroll { flex:1; }
+.us-scroll .game-scroll-content { padding:0 6px 8px; }
+.ch-log-list .game-scroll-content { padding:6px 6px 10px; }
+.forest-game .game-scroll-rail { width:clamp(12px,.9cqw,28px); margin-left:3px; }

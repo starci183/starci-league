@@ -1,0 +1,43 @@
+{
+    "id": "tristana",
+    "stats": {
+        "hp": 360,
+        "atk": 80,
+        "armor": 26,
+        "mr": 26
+    },
+    "params": {
+        "p1": 1,
+        "p2": 1,
+        "p3": 12,
+        "p4": 4,
+        "p5": 0.005,
+        "q0": 20,
+        "q1": 2,
+        "q2": 30,
+        "q3": 0.3,
+        "e0": 20,
+        "e1": 3,
+        "r0": 60,
+        "r1": 120,
+        "r2": 1.6,
+        "r3": 50
+    },
+    "flags": {
+        "noCrit": true,
+        "detonatesPerTurn": 1
+    },
+    "bot": {
+        "carrierStackValue": {
+            "tri_bomb": 8
+        },
+        "buffValue": {
+            "tri_q": 30
+        }
+    },
+    "limits": {
+        "Q": 1,
+        "E": 2,
+        "R": 1
+    }
+}

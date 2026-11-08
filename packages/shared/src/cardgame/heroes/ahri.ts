@@ -1,8 +1,9 @@
-// Ahri (Pháp sư, phép) V3: "Mê hồn": pháp sư cân bằng sát thương và hiệu ứng; Say Mê tích vĩnh viễn, địch càng mê càng yếu và càng ăn đau. Máu 340 · AD 70 · giáp/kháng 25/28 · AP gốc 0.
-// Say Mê = status "ahri_charm" (v = số tầng, vĩnh viễn FOREVER, KHÔNG trần). Khi Ahri sống trên bàn, n tầng: địch đó gây sát thương ×1/(1+0,10n) và nhận sát thương từ Ahri ×(1+0,05n) (HeroDef.modifyDamage).
-// Nội tại: mỗi hit chiêu gốc trực tiếp của Ahri trúng tướng địch có min(100%, 18% + 5% mỗi 100 AD + 10% mỗi 100 AP) cơ hội +1 Say Mê (hook onDamage).
-// Mục tiêu chết: engine xoá mọi status (mất Say Mê). Ahri chết: dấu giữ trên địch, modifyDamage chỉ chạy khi Ahri trên sân nên hiệu lực tạm ngừng.
-// Mana bể chung (starci-33 tuning v1): Q 20 · E 30 · R 50.
+// Ahri (Pháp sư, phép): bộ chiêu chốt 31/10 - 01/11/2026 (docs/heroes/KITS.md). Số ở balance/heroes/ahri.json.
+// P Hút Tinh Hoa: mỗi đánh thường, dùng chiêu hoặc đổi chỗ cho 1 Tinh Hoa (vô hạn, mất một nửa khi chết); Tinh Hoa tăng sát thương chiêu, đòn thường và Tốc Đánh.
+// Q đánh địch đối diện (hoặc địch Say Mê) rồi thêm sát thương chuẩn theo Máu đã mất, E đổi chỗ + đánh, R gắn Say Mê (tối đa 1 tầng, không hết hạn).
+import {
+    kit
+} from "../balance"
 import {
     pct
 } from "../formula"
@@ -12,107 +13,107 @@ import type {
 import {
     defineHero
 } from "../registry"
-import type {
-    Unit
-} from "../types"
 import {
-    FOREVER
+    FOREVER, type Unit
 } from "../types"
 
-/** Status Say Mê của Ahri (v = số tầng) */
+const k = kit("ahri"), { p } = k
+/** Tinh Hoa (trên Ahri): mất một nửa khi Ahri chết */
+export const ESSENCE = "ahri_essence"
+/** Say Mê (trên tướng địch, do R gắn): tối đa 1 tầng, không hết hạn, mất khi nó bị hạ */
 export const CHARM = "ahri_charm"
-/** Không trần tầng Say Mê (tuning v1 bỏ trần 3) */
-export const CHARM_MAX = Infinity
-/** n tầng: sát thương địch đó gây ra nhân 1 / (1 + CHARM_WEAKEN·n) */
-export const CHARM_WEAKEN = 0.1
-/** Mỗi tầng: địch đó nhận thêm bấy nhiêu sát thương từ Ahri */
-export const CHARM_AMP = 0.05
-/** Cơ hội nội tại: 18% + 5% mỗi 100 AD + 10% mỗi 100 AP (kẹp ≤ 100%) */
-export const PROC_BASE = 0.18
-export const PROC_PER_100_AD = 0.05
-export const PROC_PER_100_AP = 0.1
-const F_PROC = `${pct(PROC_BASE)}% + ${pct(PROC_PER_100_AD)}% mỗi 100 AD + ${pct(PROC_PER_100_AP)}% mỗi 100 AP`
-const F_Q = "115 + 30% AD + 70% AP"
-const F_Q_TRUE = "45 + 15% AD + 30% AP"
-const F_E = "70 + 30% AD + 50% AP"
-const F_R = "180 + 40% AD + 100% AP"
 
-/** Cơ hội +1 Say Mê mỗi hit chiêu (g.chance: base + ad theo 100 AD + ap theo 100 AP, kẹp [0, 1]) */
-export const charmChance = (g: Game, me: Unit) => g.chance(me,
-    {
-        base: PROC_BASE, ad: PROC_PER_100_AD, ap: PROC_PER_100_AP
-    })
-/** Hệ số sát thương ra của tướng mang n tầng Say Mê */
-export const charmWeaken = (n: number) => 1 / (1 + CHARM_WEAKEN * Math.max(0,
-    n))
-/** Thêm n tầng Say Mê (vĩnh viễn, không trần) */
-export const charm = (g: Game, t: Unit, n: number) => {
-    if (t.status !== "board" || t.token || n <= 0) return
-    g.status(t,
-        CHARM,
-        1,
-        {
-            v: n, add: true, until: FOREVER
-        })
-}
+const F_ATTACK = k.x("p2·AP"), EN_ATTACK = k.xe("p2·AP")
+const F_Q = k.x("q1 + q2·AP"), EN_Q = k.xe("q1 + q2·AP")
+const F_Q_LOST = k.x("q3% máu đã mất mục tiêu"), EN_Q_LOST = k.xe("q3% máu đã mất mục tiêu")
+const F_E = k.x("e1 + e2·AP"), EN_E = k.xe("e1 + e2·AP")
+const F_R = k.x("r1 + r2·AP"), EN_R = k.xe("r1 + r2·AP")
+
+const essence = (g: Game, me: Unit) => g.stackOf(me,
+    ESSENCE)
+/** Sát thương thêm của Q, E, R: p1 mỗi Tinh Hoa */
+const skillBonus = (g: Game, me: Unit) => p.p1 * essence(g,
+    me)
+/** Ahri `me` đã gắn Say Mê lên t chưa */
+const charmedBy = (g: Game, me: Unit, t: Unit) => g.has(t,
+    CHARM) && t.statuses[CHARM].src === me.id
 
 export default defineHero({
-    id: "ahri", name: "Ahri", role: "mage", damage: "magic", hp: 340, atk: 70, armor: 25, mr: 28,
-    bot: {
-        markValue: {
-            ahri_charm: 25,
-        },
-    },
-    desc: "Mê hồn: mỗi hit chiêu của Ahri có thể gắn Say Mê vĩnh viễn, không trần; địch càng mê càng yếu đòn và càng ăn đau từ Ahri. Q và E trút phép, E gắn Mê chắc chắn, R đổi chỗ với đồng minh rồi chốt kẻ đối diện.",
+    id: "ahri", name: "Ahri", role: "mage", damage: "magic", ...k.base,
+    deathHalf: [ESSENCE],
+    bot: k.bot,
+    desc: "Hồ ly hút tinh hoa: mỗi đòn đánh, chiêu và lần đổi chỗ cho 1 Tinh Hoa, làm chiêu và đòn thường mạnh dần, đánh nhanh dần; R mê hoặc một kẻ vĩnh viễn.",
     passive: {
-        name: "Say Mê",
-        desc: `Mỗi hit chiêu gốc trực tiếp trúng tướng địch có {${F_PROC}} cơ hội gắn 1 Say Mê không tự hết hạn, không trần tầng. Khi Ahri sống trên bàn, n tầng làm sát thương mục tiêu gây ra còn 1/(1 + 0,10 × n), còn sát thương nhận từ Ahri nhân 1 + 0,05 × n. Mục tiêu chết thì mất Say Mê; Ahri chết thì dấu vẫn còn nhưng tạm ngừng hiệu lực.`,
+        name: "Hút Tinh Hoa",
+        desc: `Mỗi đánh thường, mỗi lần dùng chiêu và mỗi lần đổi chỗ của Ahri cho 1 Tinh Hoa, cộng dồn vô hạn; đòn thường của Ahri gây sát thương phép. Mỗi Tinh Hoa: Q, E, R gây thêm ${p.p1} sát thương; đòn thường gây thêm {${F_ATTACK}} sát thương phép và Ahri được thêm ${p.p3}% Tốc Đánh. Khi Ahri bị hạ, mất một nửa số Tinh Hoa.`,
+    },
+    attackSpeedAura(g, me, u) {
+        return u.id === me.id ? p.p3 * essence(g,
+            me) : 0
     },
     modifyDamage(g, me, d) {
         if (!d.src) return 1
-        if (d.src.side !== me.side) {
-            const n = g.statusV(d.src,
-                CHARM)
-            return n > 0 ? charmWeaken(n) : 1
-        }
-        if (d.src.id === me.id && d.target.side !== me.side) {
-            const n = g.statusV(d.target,
-                CHARM)
-            return 1 + n * CHARM_AMP
-        }
+        // Say Mê: Ahri gây thêm r3 lên kẻ bị mê, kẻ bị mê gây ít hơn r4 lên Ahri
+        if (d.src.id === me.id && d.target.side !== me.side && charmedBy(g,
+            me,
+            d.target)) return 1 + p.r3
+        if (d.target.id === me.id && d.src.side !== me.side && charmedBy(g,
+            me,
+            d.src)) return 1 - p.r4
         return 1
     },
     hooks: {
-        onDamage(g, me, d) {
-            // mỗi hit chiêu gốc thực trúng (kể cả chỉ trúng Khiên) xét 1 lần; miễn toàn lá trả 0 trước hook nên không xét
-            if (d.src?.id !== me.id || d.tag !== "skill" || d.amount <= 0) return
-            const t = d.target
-            if (t.side === me.side || t.token || t.status !== "board") return
-            if (g.rollLog(charmChance(g,
-                me),
-            (hit, p) => (hit ? `Ahri: ${g.nameOf(t)} +1 Say Mê (tỉ lệ ${p})` : undefined))) charm(g,
-                t,
+        onAttackHit(g, me, d) {
+            if (d.attacker.id === me.id) g.stack(me,
+                ESSENCE,
                 1)
+        },
+        onCast(g, me, d) {
+            if (d.caster.id === me.id) g.stack(me,
+                ESSENCE,
+                1)
+        },
+        onMove(g, me, d) {
+            if (d.unit.id === me.id || d.with?.id === me.id) g.stack(me,
+                ESSENCE,
+                1)
+        },
+        onAttack(g, me, d) {
+            if (d.attacker.id !== me.id || !essence(g,
+                me)) return
+            d.info.bonus.push({
+                raw: g.f(me,
+                    F_ATTACK) * essence(g,
+                    me), kind: "magic"
+            })
         },
     },
     skills: {
         Q: {
-            key: "Q", name: "Quả Cầu Ma Lực", target: "enemy", mana: 20,
-            desc: `Chọn 1 tướng địch bất kỳ đường: gây {${F_Q}} sát thương phép; 1 tướng địch khác ngẫu nhiên hợp lệ nhận {${F_Q_TRUE}} sát thương chuẩn. Mỗi hit riêng xét Say Mê.`,
+            key: "Q", name: "Quả Cầu Ma Lực", target: "enemy", mana: p.q0,
+            desc: `Chọn địch đối diện, hoặc địch đang có Say Mê ở bất kỳ đường; gây {${F_Q}} sát thương phép. Sau đó, gây thêm {${F_Q_LOST}} sát thương chuẩn.`,
+            options(c) {
+                const opp = c.g.opposite(c.self)
+                return c.g.targetableEnemies(c.self).filter((u) => !u.token && (u.id === opp?.id || c.g.has(u,
+                    CHARM))).map((u) => ({
+                    target: u.id
+                }))
+            },
             resolve(c) {
-                const t = c.target!
-                c.g.damage(c.self,
+                const g = c.g, me = c.self, t = c.target!
+                g.damage(me,
                     t,
-                    c.f(F_Q),
+                    c.f(F_Q) + skillBonus(g,
+                        me),
                     "magic",
                     {
                         tag: "skill"
                     })
-                const other = c.g.pick(c.g.targetableEnemies(c.self).filter((x) => x.id !== t.id && !x.token))
-                if (other) c.g.log(`Ahri Q: sát thương chuẩn ngẫu nhiên trúng ${c.g.nameOf(other)}`)
-                if (other) c.g.damage(c.self,
-                    other,
-                    c.f(F_Q_TRUE),
+                if (t.status === "board") g.damage(me,
+                    t,
+                    g.f(me,
+                        F_Q_LOST,
+                        t),
                     "true",
                     {
                         tag: "skill"
@@ -120,36 +121,63 @@ export default defineHero({
             },
         },
         E: {
-            key: "E", name: "Mê Hoặc", target: "enemy", mana: 30,
-            desc: `Chọn 1 tướng địch: gây {${F_E}} sát thương phép rồi chắc chắn thêm 1 Say Mê nếu nó còn nhận hiệu ứng; hit cũng xét cơ hội nội tại, nên có thể nhận tổng 2 tầng. Khiên thường không chặn dấu, miễn toàn lá chặn cả hai.`,
+            key: "E", name: "Phi Hồ", target: "ally_other", mana: p.e0,
+            desc: `Chọn 1 tướng mình khác; Ahri đổi chỗ với nó, rồi tướng địch đối diện vị trí mới nhận {${F_E}} sát thương phép.`,
             resolve(c) {
-                const t = c.target!
-                c.g.damage(c.self,
-                    t,
-                    c.f(F_E),
+                const g = c.g, me = c.self
+                if (!g.swapWith(me,
+                    c.target!)) return
+                const front = g.opposite(me)
+                if (front && g.targetable(front) && !front.token) g.damage(me,
+                    front,
+                    c.f(F_E) + skillBonus(g,
+                        me),
                     "magic",
                     {
                         tag: "skill"
                     })
-                charm(c.g,
-                    t,
-                    1)
             },
         },
         R: {
-            key: "R", name: "Phi Hồ", target: "ally_other", mana: 50,
-            desc: `Chọn 1 đồng minh khác hợp lệ, đổi chỗ với Ahri; chỉ khi đổi chỗ thành công, tướng địch hợp lệ đối diện vị trí mới nhận {${F_R}} sát thương phép. Không cần dấu sẵn, không tự hồi và không cấp quyền đánh.`,
+            key: "R", name: "Mê Hoặc", target: "opposite", mana: p.r0,
+            desc: `Chọn địch đối diện; gây {${F_R}} sát thương phép và gắn Say Mê: Ahri gây thêm ${pct(p.r3)}% sát thương lên nó, và nó gây ít hơn ${pct(p.r4)}% sát thương lên Ahri. Không hết hạn, tối đa 1 tầng, mất khi nó bị hạ.`,
             resolve(c) {
-                if (!c.g.swapWith(c.self,
-                    c.target!)) return
-                const front = c.g.opposite(c.self)
-                if (front && !front.token) c.g.damage(c.self,
-                    front,
-                    c.f(F_R),
+                const g = c.g, me = c.self, t = c.target!
+                const dealt = g.damage(me,
+                    t,
+                    c.f(F_R) + skillBonus(g,
+                        me),
                     "magic",
                     {
                         tag: "skill"
                     })
+                if (dealt > 0 && t.status === "board") g.status(t,
+                    CHARM,
+                    1,
+                    {
+                        v: 1, until: FOREVER
+                    })
+            },
+        },
+    },
+    en: {
+        desc: "Essence-stealing fox: every attack, skill and swap gives 1 Essence, making her skills and attacks stronger and faster; R charms one enemy for good.",
+        passive: {
+            name: "Essence Theft",
+            desc: `Each basic attack, each skill cast and each swap by Ahri gives 1 Essence, stacking without limit; Ahri's basic attacks deal magic damage. Each Essence: Q, E and R deal ${p.p1} extra damage; basic attacks deal an extra {${EN_ATTACK}} magic damage and Ahri gains ${p.p3} Attack Speed. When Ahri is taken down she loses half her Essence.`,
+        },
+        skills: {
+            Q: {
+                name: "Orb of Deception",
+                desc: `Choose the enemy opposite, or an enemy with Charm in any lane; deal {${EN_Q}} magic damage. Then deal an extra {${EN_Q_LOST}} true damage.`,
+            },
+            E: {
+                name: "Spirit Rush",
+                desc: `Choose 1 other ally; Ahri swaps places with it, then the enemy champion opposite her new position takes {${EN_E}} magic damage.`,
+            },
+            R: {
+                name: "Charm",
+                desc: `Choose the enemy opposite; deal {${EN_R}} magic damage and apply Charm: Ahri deals ${pct(p.r3)}% more damage to it, and it deals ${pct(p.r4)}% less damage to Ahri. Never expires, 1 stack at most, lost when it is taken down.`,
             },
         },
     },

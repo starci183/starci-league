@@ -59,6 +59,7 @@
 .forest-game .hd-actions > .hd-group { max-height: 7.5cqh; overflow-y: auto; }
 .forest-game .hd-bottom { gap: .55cqw; }
 .forest-game .hd-actions .hd-btn,.forest-game .hd-end { display: flex; align-items: center; justify-content: center; gap: .35cqw; min-height: 6.2cqh; padding: .4cqw; border: 2px solid #9a8958; border-radius: .3cqw; color: #f6e6bc; background: linear-gradient(#2e3b31,#19251e); font: 700 clamp(13px,1.03cqw,21px) var(--font-game-title); box-shadow: inset 0 0 0 1px #081a15,0 .2cqh .4cqh #0008; }
+.forest-game .hd-step { flex: 1.2; display: flex; align-items: center; justify-content: center; gap: .35cqw; min-height: 3.8cqw; font-size: .85cqw; font-weight: 800; color: #fff4c8; background: linear-gradient(#a8722a,#5f3c12); border: .12cqw solid #e6c877; border-radius: .3cqw; cursor: pointer; }
 .forest-game .hd-end { flex: 1.4; background: linear-gradient(#176247,#083824); border-color: #b5cb80; }
 .forest-game .hd-end:disabled { background: #26322b; color: #b4bba5; border-color: #5e6a53; opacity: .85; filter: none; }
 .forest-game .hd-end:not(:disabled):hover { filter: brightness(1.15); }
@@ -80,6 +81,6 @@
 .forest-game .bd-slot[data-move-preview]::after { content: attr(data-move-preview); position: absolute; left: 50%; bottom: -1.7cqh; transform: translateX(-50%); z-index: 12; width: max-content; max-width: 15cqw; padding: .25cqh .4cqw; border: 1px solid #adc48d; border-radius: .25cqw; background: #0b291eef; color: #f8e6b6; font: 700 clamp(11px,.85cqw,16px) var(--font-game-title); pointer-events: none; }
 .forest-game .cg-phase-panel { position: absolute; left: 1.1%; top: 78%; width: 16.8%; height: 12.8%; z-index: 9; border: .7cqw solid transparent; border-image: var(--concept-frame) 64 fill stretch; background: #0a241bec; box-sizing: border-box; }
 .forest-game .cg-phase-panel .bd-bar { display: flex; flex-wrap: wrap; align-items: center; align-content: center; justify-content: center; height: 100%; gap: .35cqh .45cqw; font-size: clamp(11px,.9cqw,17px); }
-.forest-game .bd-phase-ribbon { display: grid; grid-template-columns: repeat(4,1fr); gap: .1cqw; flex: 0 0 100%; width: 100%; padding-bottom: .45cqh; }
+.forest-game .bd-phase-ribbon { display: grid; grid-template-columns: repeat(7,1fr); gap: .1cqw; flex: 0 0 100%; width: 100%; padding-bottom: .45cqh; }
 .forest-game .bd-phase-ribbon > span { padding: .4cqh .1cqw; border: 1px solid #786b3f; border-radius: .2cqw; background: #0b2019; color: #e5d9ae; font: 700 clamp(10px,.72cqw,14px) var(--font-game-title); text-align: center; }
 .forest-game .bd-phase-ribbon > .active { background: linear-gradient(#f8d97a,#b68b34); color: #1b2619; border-color: #ffe296; box-shadow: 0 0 .35cqw #e3c16a66; }

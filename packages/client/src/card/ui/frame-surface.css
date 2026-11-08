@@ -1,0 +1,27 @@
+/* The painted inner rail of panel-frame-v4 is ~45% into each source cap.
+   CSS padding-box starts at 100% of the cap and leaves a transparent moat.
+   Extend the surface underneath the painted rail; the border stays on top. */
+.game-canvas-stage :is(.action-dialog,.dna-screen .sc-end,.dna-screen .sc-draft,.dna-screen .sc-card,.dna-screen .sc-wait) { --frame-fill-trim:24px; }
+.game-canvas-stage .result-screen .sc-result-hero { --frame-fill-trim:11px; }
+.game-canvas-stage .result-screen .sc-sum > div { --frame-fill-trim:8px; }
+.game-canvas-stage .result-screen .sc-reason { --frame-fill-trim:6px; }
+.game-canvas-stage .craft-dialog :is(.cd-socket,.cd-recipe-card,.cd-chip,.cd-hint,.cd-circle-rule) { --frame-fill-trim:7px; }
+.game-canvas-stage .craft-dialog .cd-result-art { --frame-fill-trim:15px; }
+.game-canvas-stage .sylas-dialog .sylas-rules { --frame-fill-trim:12px; }
+.game-canvas-stage .sylas-dialog .sylas-portrait { --frame-fill-trim:18px; }
+.game-canvas-stage :is(
+    .action-dialog,.dna-screen .sc-end,.dna-screen .sc-draft,.dna-screen .sc-card,.dna-screen .sc-wait,
+    .result-screen .sc-result-hero,.result-screen .sc-sum > div,.result-screen .sc-reason,
+    .craft-dialog .cd-socket,.craft-dialog .cd-recipe-card,.craft-dialog .cd-chip,.craft-dialog .cd-result-art,
+    .sylas-dialog .sylas-rules,.sylas-dialog .sylas-portrait
+) {
+    background-color:transparent !important;
+    background-image:var(--frame-surface,linear-gradient(135deg,#123b2c,#041d15)) !important;
+    background-origin:border-box !important;
+    background-clip:border-box !important;
+    background-position:center !important;
+    background-size:calc(100% - var(--frame-fill-trim)) calc(100% - var(--frame-fill-trim)) !important;
+    background-repeat:no-repeat !important;
+}
+.game-canvas-stage .craft-dialog .cd-recipe-card:is(.selected,:hover,:focus-visible) { --frame-surface:linear-gradient(#206347,#093d2b); }
+.game-canvas-stage .craft-dialog :is(.cd-chip.on,.cd-chip.gold,.cd-socket.filled) { --frame-surface:linear-gradient(#164933,#08271b); }

@@ -1,0 +1,84 @@
+{
+  "date": "2026-11-04",
+  "generator": "built-in imagegen",
+  "width": 1920,
+  "height": 1080,
+  "initialGenerationOrder": [
+    "lobby.png",
+    "matchmaking.png",
+    "draft.png",
+    "weapon-pick.png",
+    "form-switch.png",
+    "craft.png",
+    "steal.png",
+    "chain.png",
+    "targeting.png",
+    "result.png"
+  ],
+  "imagegenCalls": 17,
+  "postprocessing": "High-quality bicubic resize and PNG output only",
+  "files": [
+    {
+      "order": 1,
+      "file": "lobby.png",
+      "source": "C:\\Users\\Hi\\.codex\\generated_images\\01a1a269-d59f-74e2-afaa-f9edf0694fd9\\exec-e9c66d5e-4b14-4704-a9e8-92a2378ddede.png",
+      "preRevisionSource": null
+    },
+    {
+      "order": 2,
+      "file": "matchmaking.png",
+      "source": "C:\\Users\\Hi\\.codex\\generated_images\\01a1a269-d59f-74e2-afaa-f9edf0694fd9\\exec-d2091105-95b6-458e-809c-81579a5e2a33.png",
+      "preRevisionSource": null
+    },
+    {
+      "order": 3,
+      "file": "draft.png",
+      "source": "C:\\Users\\Hi\\.codex\\generated_images\\01a1a269-d59f-74e2-afaa-f9edf0694fd9\\exec-9e74489f-a944-445c-8a2b-a086701b8372.png",
+      "preRevisionSource": "C:\\Users\\Hi\\.codex\\generated_images\\01a1a269-d59f-74e2-afaa-f9edf0694fd9\\exec-6abc6ccd-1ca0-45af-b683-2d9757df826e.png"
+    },
+    {
+      "order": 4,
+      "file": "weapon-pick.png",
+      "source": "C:\\Users\\Hi\\.codex\\generated_images\\01a1a269-d59f-74e2-afaa-f9edf0694fd9\\exec-0b4ed0f0-9ab3-4c85-9a50-321cd494c1e2.png",
+      "preRevisionSource": "C:\\Users\\Hi\\.codex\\generated_images\\01a1a269-d59f-74e2-afaa-f9edf0694fd9\\exec-53a045b3-c9e6-4011-8a69-c8d6aeb1b753.png"
+    },
+    {
+      "order": 5,
+      "file": "form-switch.png",
+      "source": "C:\\Users\\Hi\\.codex\\generated_images\\01a1a269-d59f-74e2-afaa-f9edf0694fd9\\exec-edcb4a2b-7d73-4fde-90de-0006b428ae87.png",
+      "preRevisionSource": "C:\\Users\\Hi\\.codex\\generated_images\\01a1a269-d59f-74e2-afaa-f9edf0694fd9\\exec-aed17140-79b1-4c01-b7fc-9e7d71fe7a6d.png"
+    },
+    {
+      "order": 6,
+      "file": "craft.png",
+      "source": "C:\\Users\\Hi\\.codex\\generated_images\\01a1a269-d59f-74e2-afaa-f9edf0694fd9\\exec-6489309f-7de6-4b05-bc87-cb360e12b7f5.png",
+      "preRevisionSource": "C:\\Users\\Hi\\.codex\\generated_images\\01a1a269-d59f-74e2-afaa-f9edf0694fd9\\exec-3698633f-382b-48aa-87cb-df47721c09ef.png"
+    },
+    {
+      "order": 7,
+      "file": "steal.png",
+      "source": "C:\\Users\\Hi\\.codex\\generated_images\\01a1a269-d59f-74e2-afaa-f9edf0694fd9\\exec-ad9be86b-8ca2-41b8-bca4-b26efbd8699d.png",
+      "preRevisionSource": null
+    },
+    {
+      "order": 8,
+      "file": "chain.png",
+      "source": "C:\\Users\\Hi\\.codex\\generated_images\\01a1a269-d59f-74e2-afaa-f9edf0694fd9\\exec-73778eaa-9ea6-4b8c-b86a-275ac3c877eb.png",
+      "preRevisionSource": "C:\\Users\\Hi\\.codex\\generated_images\\01a1a269-d59f-74e2-afaa-f9edf0694fd9\\exec-0275025f-3fad-435b-9e01-78ca0f1abd72.png"
+    },
+    {
+      "order": 9,
+      "file": "targeting.png",
+      "source": "C:\\Users\\Hi\\.codex\\generated_images\\01a1a269-d59f-74e2-afaa-f9edf0694fd9\\exec-8aaa3870-f1ac-4954-bad9-dc7d44dbc52b.png",
+      "preRevisionSource": "C:\\Users\\Hi\\.codex\\generated_images\\01a1a269-d59f-74e2-afaa-f9edf0694fd9\\exec-8816bd33-ab9d-4328-b3cf-96fca0ea496c.png"
+    },
+    {
+      "order": 10,
+      "file": "result.png",
+      "source": "C:\\Users\\Hi\\.codex\\generated_images\\01a1a269-d59f-74e2-afaa-f9edf0694fd9\\exec-4948cef2-c789-4eb0-8480-1eb04d471685.png",
+      "preRevisionSource": null
+    }
+  ],
+  "prompts": "prompts.md"
+}
+

@@ -11,6 +11,21 @@ import {
 import {
     RichText
 } from "./RichText"
+import {
+    GameIcon
+} from "./ui/GameIcon"
+import {
+    ArtFrame
+} from "./ui/ArtFrame"
+import {
+    ScrollArea
+} from "./ui/ScrollArea"
+import {
+    viewportToCanvasPoint
+} from "./ui/GameCanvas"
+import "./ui/screens-dna.css"
+import "./ui/results-dna.css"
+import "./ui/connection-dna.css"
 
 const EN = (() => {
     try { return localStorage.getItem("lang") === "en" } catch { return false }
@@ -81,77 +96,89 @@ const fmt = (s: string, n: number) => s.replace("{n}",
     String(n))
 
 const heroName = (h: DraftHero) => (EN ? cg.HERO_EN[h.id]?.name : undefined) ?? h.name
-const portrait = (id: string) => `/heroes/${id}.jpg`
+const portrait = (id: string) => `/heroes-square/${id}.jpg`
 const hideBroken = (e: { currentTarget: HTMLImageElement }) => { e.currentTarget.style.visibility = "hidden" }
 
-/** Mục đích + độ khó từng tướng (nguồn: docs/heroes/ENGINES.md; shared chưa export) */
+/** Mục đích + độ khó từng tướng (nguồn: docs/heroes/KITS.md) */
 const BRIEF: Record<string, [string, string]> = {
     darius: ["Đơn giản",
-        "Đao phủ: rải Chảy Máu rồi kết liễu kẻ đang chảy máu"],
+        "Rải Chảy Máu cộng dồn vô hạn, rồi Máy Chém dồn chuẩn lên kẻ chảy máu nặng nhất"],
     zed: ["Vừa",
-        "Một lượt dồn chết: nhân bản lá trong mộ bằng Bóng"],
+        "Combo một lượt: càng nhiều chiêu và đòn, Dấu Ấn cuối lượt nổ càng đau"],
     katarina: ["Vừa",
-        "Mưa dao găm: tạo lá Dao tạm, hạ gục thì lấy lại chiêu từ mộ"],
+        "Sát thủ cơ hội: Dao rơi ngẫu nhiên, nhặt Dao gây sát thương và mở khoá Bông Sen Tử Thần"],
     khazix: ["Vừa",
-        "Săn mồi cô lập; tiến hoá theo lá thưởng đã lật"],
+        "Bắt tướng thiếu buff: Cô Lập kẻ đối diện, R tàng hình né đòn và Q miễn phí"],
     qiyana: ["Phức tạp",
-        "Nguyên tố = lá trên cùng mộ bài; tự đốt bài để đổi"],
+        "Mỗi đường một Nguyên Tố: Đất dồn sát thương, Nước khống chế, Cỏ lạng lách né chiêu"],
     aatrox: ["Đơn giản",
-        "Máu là đạn: tiêu máu mình để chém, yếu máu thì nguy hiểm"],
+        "Càng mất Máu càng đau, hồi Máu theo sát thương; R biến hình và sống lại một lần"],
     garen: ["Đơn giản",
-        "Công lý: trừng phạt phe đang dẫn trước (nhiều đồ/mạng/bài hơn)"],
+        "Đấu sĩ phổ thông, không cần đồ: đánh là hồi Máu, tăng Giáp; R sát thương chuẩn"],
     vayne: ["Vừa",
-        "Săn tank: 3 Mũi Tên Bạc theo % máu, Kết Án ghim tường giữa chuỗi"],
+        "Giam trong dự bị để tích Bóng Đêm, giữ lá Đánh Thường rồi gọi ra xả R lật kèo"],
     braum: ["Vừa",
-        "Chỉ chơi trong lượt đối thủ: mọi lá là phản ứng"],
+        "Bảo kê đồng đội: E đỡ thay đòn đơn mục tiêu, Song Giáp dày lên mỗi lần bị đánh"],
     blitzcrank: ["Phức tạp",
-        "Cướp bài: lá của đối thủ thành vũ khí của mình"],
+        "Cướp bài: kéo lá của đối thủ về tay, E huỷ và cướp luôn chiêu địch đang tung"],
     leona: ["Vừa",
-        "Khoá chặt: Choáng/ngắt chuỗi, Ánh Dương cho đồng đội kích nổ"],
+        "Giáp càng dày, khống chế càng lâu: cả ba chiêu đều Choáng và scale theo Giáp"],
     malphite: ["Đơn giản",
-        "Giáp là tất cả; R không thể bị nối chuỗi"],
+        "Buff Giáp, Máu cho cả đội, Liên Kết Đá chia đều sát thương; không có khống chế"],
     ornn: ["Phức tạp",
-        "Lò rèn của đội: cấp mảnh Đồ, tiêu Vàng rèn Kiệt Tác"],
+        "Lò rèn của đội: tạo đồ, rèn Kiệt Tác, buff chỉ số đồ của mọi tướng"],
     janna: ["Vừa",
-        "Chống đòn đánh: thổi bay đòn tay giữa chuỗi"],
+        "Khiên là tất cả: tích Gió Thuận từ Khiên, Q gây sát thương theo tổng Khiên phe bạn"],
     soraka: ["Đơn giản",
-        "Bền bài: lá thừa thành máu, xáo mộ để không bao giờ cạn"],
+        "Hồi Máu của phe thành Thánh Quang làm mọi lần hồi mạnh lên; E đổi Máu lấy hồi đồng minh, R hồi cả đội"],
     yorick: ["Phức tạp",
-        "Người chăn hồn: lá Yorick trong mộ = linh hồn, Thiếu Nữ ở ô phụ"],
+        "Câu giờ đốt bài: mỗi đòn đốt bộ địch, tích Hồn Ma lấy R, Ma Sương đánh phụ"],
     kogmaw: ["Đơn giản",
-        "Lớn lên từ cái chết: Kog Stack sống/chết đều tăng"],
+        "Đói tăng vô hạn, chết không mất: đòn đánh ăn % Máu tối đa mục tiêu"],
     jinx: ["Đơn giản",
-        "Phấn khích dây chuyền: mỗi hạ gục mở đòn tiếp + bài"],
+        "Chọn súng khi ra sân; Q bắn phát cường hoá theo Điên, đánh kẻ yếu Máu để nhận Điên"],
     ashe: ["Đơn giản",
-        "Đóng băng nhịp đối thủ: Buốt tướng, đẩy lá chiêu địch xuống đáy bộ"],
+        "Mỗi đòn gắn Buốt, cả đội đánh mục tiêu đó đau hơn, đủ Buốt thì Choáng"],
     lux: ["Vừa",
-        "Chiếu Sáng rồi kích nổ; R xuyên cả hàng"],
+        "Cả đội tiêu mana thành Ánh Sáng, tăng mọi chiêu của Lux, R chi mana tuỳ ý"],
     ahri: ["Vừa",
-        "Quyến Rũ rồi khai thác mục tiêu bị Quyến Rũ"],
+        "Pháp sư cơ động: Tinh Hoa tăng đòn và chiêu, đổi chỗ để dồn, Say Mê khoá mục tiêu"],
     annie: ["Đơn giản",
-        "Gấu Tibbers ở ô phụ là trung tâm mọi lá"],
+        "Bốn Lửa thì Choáng; scale AP và Máu, R gọi Tibbers ở ô phụ"],
     lissandra: ["Vừa",
-        "Băng giá: Buốt là chìa khoá; Quan Tài Băng nối chuỗi"],
+        "Hoá Băng lá trên tay đối thủ, càng nhiều lá băng R càng đau"],
     gangplank: ["Phức tạp",
-        "Thùng thuốc súng ở ô phụ, kích nổ bằng Quick giữa lượt địch"],
+        "Úp lá thành Thùng ô phụ, Thuốc Súng tăng mỗi lượt, nổ càng lâu càng đau"],
     renata: ["Phức tạp",
-        "Lật kèo: đồng minh sắp chết vẫn đứng dậy, địch càng mạnh càng tự hại"],
+        "Đồng đội mất Máu càng nhiều càng mạnh; hồi sinh mỗi đồng minh một lần"],
     brand: ["Phức tạp",
-        "Lửa lan: Bỏng (stack hiện) tự cháy mỗi lượt hoặc kích nổ ngay; chết thì lan"],
+        "Rải Bỏng cộng dồn cháy theo % Máu từ đầu tới cuối trận, R nhân đôi Bỏng"],
     nami: ["Đơn giản",
-        "Thuỷ triều nuôi bài: mỗi lá rút thành sức mạnh cho đồng đội"],
+        "Phe bạn gây sát thương thì tích Dậy Sóng: tăng AP cả đội và rút bài"],
     viktor: ["Phức tạp",
-        "Tiến hoá bằng mộ bài: mỗi 3 lá Viktor trong mộ = 1 bậc"],
+        "Mỗi lá bỏ khỏi tay là một Tiến Hoá, chiêu nào cũng đau thêm vĩnh viễn"],
     twistedfate: ["Phức tạp",
-        "Kiểm soát bộ bài: tìm lá, soi/huỷ Nấm, xem và phá tay"],
+        "Chơi với bộ bài: xem, xếp lá trên cùng; lá lật ra quyết định hiệu ứng chiêu"],
     teemo: ["Phức tạp",
-        "Ép cạn bài: Nấm trong bộ địch, rút càng nhiều càng nổ"],
+        "Xáo Nấm vào bộ địch, rút trúng là nổ; R kích nổ hàng loạt"],
     tristana: ["Vừa",
-        "Bom nổ chậm: gắn Bom rồi nện cho nổ, nổ hạ gục thì lá E về tay"],
+        "Gắn Bom bằng đòn đánh, sát thương tăng vọt theo số Bom, tự chọn lúc kích nổ"],
     missfortune: ["Đơn giản",
-        "Mưa đạn: đổi mục tiêu liên tục, Bão Đạn bắn hai nhịp"],
+        "Xạ thủ diện rộng: đòn nảy sang địch khác, R quét cả bàn"],
     velkoz: ["Vừa",
-        "Phân Rã: chiêu trúng đủ 3 lần thì nổ sát thương chuẩn"],
+        "Mỗi tia trúng tích Phân Rã, đủ tầng nổ sát thương chuẩn"],
+    rumble: ["Phức tạp",
+        "Tái Chế: lấy lá chiêu trong mộ lên tay, dùng như chiêu của mình theo AP"],
+    sylas: ["Phức tạp",
+        "Đoạt 1 chiêu của địch trên sân rồi tung như của mình, AD đổi thành AP, giữ khống chế"],
+    mel: ["Vừa",
+        "Q, E tích Chói Lọi rồi R thu hoạch cả bàn; E trả chiêu nhắm đồng minh về kẻ dùng"],
+    sona: ["Đơn giản",
+        "Đội tung chiêu hay mất Máu đều hồi mana; Q, E buff vĩnh viễn một tướng rồi lan sang tướng kề"],
+    azir: ["Phức tạp",
+        "Gọi Lính Cát lên đồng minh, mỗi đòn đánh của Azir cả đội Lính cùng đâm"],
+    jayce: ["Phức tạp",
+        "Búa là đấu sĩ hồi Máu, Pháo tích Gia Tốc và mặc đồ để bắn, đồ đổi chỉ số theo dạng"],
 }
 const syn = (id: string) => cg.SYNERGY[id] as cg.HeroSynergy | undefined
 const nameOf = (id: string) => (EN ? cg.HERO_EN[id]?.name : undefined) ?? cg.getHero(id)?.name ?? id
@@ -160,17 +187,29 @@ const skillIcon = (id: string, k: string) => `/card_skills/${id}_${k.toLowerCase
 const leave = () => { cardActions.leave(); location.reload() }
 
 function Back() {
-    return <button className="sc-btn" onClick={leave}>{L.back}</button>
+    return <button className="sc-btn" onClick={leave}><GameIcon name="arrow" />{L.back}</button>
 }
 
 export function WaitingScreen() {
+    return <GameConnectionScreen kind="waiting" />
+}
+
+/** Real connection states only: never promises a reconnect/resume the server cannot perform. */
+export function GameConnectionScreen(p: { kind: "idle" | "connecting" | "waiting" | "error"; message?: string }) {
+    const error = p.kind === "error"
+    const title = p.kind === "waiting" ? L.waiting : error ? (EN ? "Connection interrupted" : "Kết nối bị gián đoạn") : EN ? "Connecting to the match" : "Đang kết nối trận đấu"
+    const description = p.kind === "waiting" ? L.waitingSub : error ? (EN ? "The connection to your match was interrupted. Return to the lobby to continue." : "Không thể duy trì kết nối với phòng đấu. Hãy trở về sảnh để tiếp tục.") : EN ? "Preparing your seat at the table…" : "Đang chuẩn bị vị trí của bạn trên bàn đấu…"
+    const details = error && p.message ? p.message.replace(/(?:https?|wss?):\/\/\S+/g,
+        EN ? "the server" : "máy chủ") : undefined
     return (
-        <div className="sc-stage">
-            <div className="sc-card sc-wait">
-                <div className="sc-spinner" />
-                <h2>{L.waiting}</h2>
-                <p>{L.waitingSub}</p>
-                <Back />
+        <div className={`sc-stage dna-screen sc-connection${error ? " is-error" : ""}`} data-connection-state={p.kind}>
+            <div className="connection-scene">
+                <ArtFrame kind="title" className="connection-title" width={1200} height={240}><h1>STARCI LEAGUE</h1></ArtFrame>
+                <small className="connection-kicker">{EN ? "CARD BATTLE" : "ĐẤU TRƯỜNG THẺ BÀI"}</small>
+                <div className="connection-emblem" aria-hidden="true"><ArtFrame kind="icon" width={180} height={180}><GameIcon name={error ? "chain" : "diamond"} /></ArtFrame>{error ? null : <span className="connection-orbit" />}</div>
+                <ArtFrame kind="name" className="connection-status" width={1080} height={200}><h2 role={error ? "alert" : "status"}>{title}</h2></ArtFrame>
+                <div className="connection-copy"><p>{description}</p>{details ? <ScrollArea className="connection-error-details" label={EN ? "Connection details" : "Chi tiết kết nối"}><small className="connection-detail">{details}</small></ScrollArea> : null}</div>
+                <div className="connection-actions"><button type="button" className="connection-back" onClick={leave}><ArtFrame kind="name" width={480} height={112}><GameIcon name="arrow" /><span>{L.back}</span></ArtFrame></button></div>
             </div>
         </div>
     )
@@ -212,7 +251,12 @@ function HeroTile({ h, state, selected, canAct, mark, onClick, onHover }: {
     return (
         <button
             className={`sc-hero role-${h.role} st-${state}${selected ? " on" : ""}${dis ? " dis" : ""}`}
+            aria-label={`${heroName(h)} · ${L.roles[h.role] ?? h.role}${taken ? ` · ${state === "banned" ? L.banned : L.taken}` : ""}`}
+            aria-disabled={dis}
+            aria-pressed={selected}
             onClick={() => { if (!dis) onClick() }}
+            onFocus={(e) => onHover(e.currentTarget)}
+            onBlur={() => onHover(null)}
             onMouseEnter={(e) => onHover(e.currentTarget)}
             onMouseLeave={() => onHover(null)}
             onTouchStart={(e) => {
@@ -225,11 +269,11 @@ function HeroTile({ h, state, selected, canAct, mark, onClick, onHover }: {
             onTouchMove={() => window.clearTimeout(timer.current)}
             onContextMenu={(e) => e.preventDefault()}
         >
-            <div className="sc-art">
-                <img src={portrait(h.id)} alt="" draggable={false} onError={hideBroken} />
+            <ArtFrame kind="icon" className="sc-art" image={portrait(h.id)}>
                 <span className="sc-role">{L.roles[h.role] ?? h.role}</span>
+                {selected ? <span className="sc-preview-mark"><GameIcon name="target" />{EN ? "Selected" : "Đang chọn"}</span> : null}
                 {taken ? <span className="sc-taken">{state === "banned" ? L.banned : L.taken}</span> : null}
-            </div>
+            </ArtFrame>
             {!taken ? (
                 <div className="sc-badges">
                     {mark.ban ? <span className="bd ban">{L.bBan}</span> : null}
@@ -238,7 +282,7 @@ function HeroTile({ h, state, selected, canAct, mark, onClick, onHover }: {
                     {mark.combo ? <span className="bd cmb">{L.bCombo}</span> : null}
                 </div>
             ) : null}
-            <b className="sc-name">{heroName(h)}</b>
+            <ArtFrame kind="name" className="sc-hero-name"><b className="sc-name">{heroName(h)}</b></ArtFrame>
             <div className="sc-stats">
                 <span title={L.hp}><i className="hp" />{h.hp}</span>
                 <span title={L.ad}><i className="ad" />{h.atk}</span>
@@ -278,11 +322,17 @@ function HeroBrief({ id, rect, avail }: { id: string; rect: DOMRect; avail: Avai
         purpose] = BRIEF[id] ?? ["",
         ""]
     const W = 400
-    const left = rect.right + 10 + W < window.innerWidth ? rect.right + 10 : Math.max(8,
-        rect.left - 10 - W)
+    const anchor = viewportToCanvasPoint({
+        x: rect.right, y: rect.top
+    })
+    const start = viewportToCanvasPoint({
+        x: rect.left, y: rect.top
+    })
+    const left = anchor.x + 10 + W < 1920 ? anchor.x + 10 : Math.max(8,
+        start.x - 10 - W)
     const top = Math.max(8,
-        Math.min(rect.top - 20,
-            window.innerHeight - 320))
+        Math.min(anchor.y - 20,
+            1080 - 320))
     // tính công thức theo chỉ số gốc của tướng (chưa vào trận, chưa đồ)
     const pv = cg.previewUnit(id)
     const txt = (raw: string) => cg.formulaText(raw,
@@ -307,7 +357,7 @@ function HeroBrief({ id, rect, avail }: { id: string; rect: DOMRect; avail: Avai
     const heroDesc = en?.desc ?? def.desc
     return (
         <div className="sc-brief" style={{
-            left, top, width: W, maxHeight: window.innerHeight - top - 8
+            left, top, width: W, maxHeight: 1080 - top - 8
         }}>
             <div className="bf-head">
                 <img src={portrait(id)} alt="" onError={hideBroken} />
@@ -385,7 +435,7 @@ function ScoutBlock({ foeId, mine, avail, compact }: { foeId: string; mine: stri
             </div>
             <ChipRow ids={s.weak} avail={avail} label={L.weakTo} />
             <ChipRow ids={s.strong} avail={avail} label={L.strongVs} warn={s.warn} />
-            {s.warn.length ? <div className="sc-warn">⚠ {L.warnYou} ({s.warn.map(nameOf).join(", ")})</div> : null}
+            {s.warn.length ? <div className="sc-warn"><GameIcon name="target" />{L.warnYou} ({s.warn.map(nameOf).join(", ")})</div> : null}
             <div className="sc-beat"><em>{L.beat}</em>{s.beat}</div>
         </div>
     )
@@ -398,47 +448,43 @@ function TeamColumn({ title, mine, picks, bans, size, banSlots, byId, active, sc
 }) {
     return (
         <aside className={`sc-col${mine ? " mine" : " foe"}${active ? " active" : ""}`}>
-            <h3>{title}</h3>
-            <div className="sc-picks">
-                {Array.from({
-                    length: size
+            <ArtFrame kind="name" className="sc-team-title"><h3>{title}</h3></ArtFrame>
+            {banSlots > 0 ? <section className="sc-ban-tray" aria-label={`${title} · ${L.bans}`}>
+                <h4><span>{L.bans}</span><b>{bans.length} / {banSlots}</b></h4>
+                <div className="sc-bans">{Array.from({
+                    length: banSlots
                 },
                 (_, i) => {
-                    const h = picks[i] ? byId.get(picks[i]) : undefined
-                    const next = active === "pick" && i === picks.length
-                    return (
-                        <div key={i} className={`sc-pickslot${h ? " full" : ""}${next ? " next" : ""}`}>
-                            {h ? <img src={portrait(h.id)} alt="" draggable={false} onError={hideBroken} /> : <span>{i + 1}</span>}
-                            {h ? <b>{heroName(h)}</b> : null}
-                        </div>
-                    )
-                })}
-            </div>
-            {banSlots > 0 ? (
-                <>
-                    <h4>{L.bans}</h4>
-                    <div className="sc-bans">
-                        {Array.from({
-                            length: banSlots
-                        },
-                        (_, i) => {
-                            const h = bans[i] ? byId.get(bans[i]) : undefined
-                            const next = active === "ban" && i === bans.length
-                            return (
-                                <div key={i} className={`sc-banslot${h ? " full" : ""}${next ? " next" : ""}`} title={h ? heroName(h) : ""}>
-                                    {h ? <img src={portrait(h.id)} alt="" draggable={false} onError={hideBroken} /> : null}
-                                </div>
-                            )
-                        })}
+                    const h = bans[i] ? byId.get(bans[i]) : undefined
+                    const next = active === "ban" && i === bans.length
+                    return <div key={i} role="img" aria-label={h ? `${L.banned}: ${heroName(h)}` : `${L.bans} ${i + 1}`} className={`sc-banslot${h ? " full" : ""}${next ? " next" : ""}`} title={h ? heroName(h) : `${L.bans} ${i + 1}`}>
+                        <ArtFrame kind="icon" image={h ? portrait(h.id) : undefined}>{h ? null : <GameIcon name="shield" />}</ArtFrame>
                     </div>
-                </>
-            ) : null}
-            {scout && picks.length ? (
-                <>
-                    <h4>{L.scout}</h4>
-                    {picks.map((id) => <ScoutBlock key={id} foeId={id} mine={scout.mine} avail={scout.avail} />)}
-                </>
-            ) : null}
+                })}</div>
+            </section> : null}
+            <ScrollArea className="sc-col-scroll" label={title}>
+                <div className="sc-picks">
+                    {Array.from({
+                        length: size
+                    },
+                    (_, i) => {
+                        const h = picks[i] ? byId.get(picks[i]) : undefined
+                        const next = active === "pick" && i === picks.length
+                        return (
+                            <div key={i} className={`sc-pickslot${h ? " full" : ""}${next ? " next" : ""}`}>
+                                <ArtFrame kind="icon" className="sc-picked-art" image={h ? portrait(h.id) : undefined}>{h ? null : <span>{i + 1}</span>}</ArtFrame>
+                                <ArtFrame kind="name" className="sc-picked-name"><b>{h ? heroName(h) : `${EN ? "PICK" : "CHỌN"} ${i + 1}`}</b></ArtFrame>
+                            </div>
+                        )
+                    })}
+                </div>
+                {scout && picks.length ? (
+                    <>
+                        <h4>{L.scout}</h4>
+                        {picks.map((id) => <ScoutBlock key={id} foeId={id} mine={scout.mine} avail={scout.avail} />)}
+                    </>
+                ) : null}
+            </ScrollArea>
         </aside>
     )
 }
@@ -496,23 +542,26 @@ export function DraftScreen() {
         id, rect: el.getBoundingClientRect()
     } : null)
     return (
-        <div className="sc-stage">
-            <div className="sc-draft bp">
+        <div className="sc-stage dna-screen">
+            <div className={`sc-draft bp sc-modular-draft ${turn?.action === "ban" ? "is-banning" : "is-picking"}`}>
                 <header className="sc-head">
-                    <div>
-                        <h1>{L.draftTitle}</h1>
+                    <div className="sc-draft-title">
+                        <small className="sc-kicker">STARCI LEAGUE</small>
+                        <ArtFrame kind="title" className="sc-main-title"><h1>{L.draftTitle}</h1></ArtFrame>
                         <p>{fmt(L.draftSub,
                             draft.size)}</p>
                     </div>
                     <div className="sc-status">
-                        <span className={`sc-pill turn${myTurn ? " mine" : ""}${turn?.action === "ban" ? " ban" : ""}`}>{status}</span>
+                        <span role="status" aria-live="polite" className={`sc-pill turn${myTurn ? " mine" : ""}${turn?.action === "ban" ? " ban" : ""}`}><GameIcon name={turn?.action === "ban" ? "shield" : "roster"} />{status}</span>
                         {secs !== null ? <span className={`sc-timer${secs <= 10 ? " low" : ""}`}>{L.timeLeft} {secs}s</span> : null}
                     </div>
                 </header>
                 <div className="sc-order-strip">
+                    <span className="sc-order-caption">{EN ? "TURN" : "LƯỢT"} <b>{Math.min(draft.step + 1,
+                        draft.order.length)} / {draft.order.length}</b></span>
                     {draft.order.map((t, i) => (
-                        <span key={i} className={`sc-step ${t.action}${t.side === me ? " me" : " foe"}${i === draft.step ? " now" : ""}${i < draft.step ? " past" : ""}`}>
-                            {t.action === "ban" ? "✕" : "●"}
+                        <span key={i} title={`${i + 1} · ${t.side === me ? L.you : L.foe} · ${t.action === "ban" ? L.doBan : L.doPick}`} aria-current={i === draft.step ? "step" : undefined} className={`sc-step ${t.action}${t.side === me ? " me" : " foe"}${i === draft.step ? " now" : ""}${i < draft.step ? " past" : ""}`}>
+                            <GameIcon name={t.action === "ban" ? "shield" : "roster"} />
                         </span>
                     ))}
                 </div>
@@ -522,16 +571,17 @@ export function DraftScreen() {
                         {theirs.length ? (
                             <div className="sc-analysis">
                                 <h4>{L.scout}</h4>
-                                <div className="sc-analysis-row">
+                                <ScrollArea className="sc-analysis-scroll" label={L.scout}><div className="sc-analysis-row">
                                     {theirs.map((id) => <ScoutBlock key={id} foeId={id} mine={mine} avail={avail} compact />)}
-                                </div>
+                                </div></ScrollArea>
                             </div>
                         ) : null}
-                        <div className="sc-grid">
+                        <div className="sc-roster-label"><GameIcon name="roster" /><b>{EN ? "CHAMPIONS" : "DANH SÁCH TƯỚNG"}</b><span>{draft.pool.filter((h) => stateOf(h.id) === "free").length} / {draft.pool.length}</span></div>
+                        <ScrollArea className="sc-roster-scroll" label={EN ? "Champions" : "Danh sách tướng"}><div className="sc-grid">
                             {draft.pool.map((h) => (
                                 <HeroTile key={h.id} h={h} state={stateOf(h.id)} selected={sel === h.id} canAct={myTurn} mark={markOf(h.id)} onClick={() => setSel(h.id)} onHover={onHover(h.id)} />
                             ))}
-                        </div>
+                        </div></ScrollArea>
                     </div>
                     <TeamColumn title={L.foeTeam} mine={false} picks={theirs} bans={bansOf(foe)} size={draft.size} banSlots={banSlots} byId={byId} active={turn && turn.side === foe ? turn.action : null} scout={{
                         mine, avail
@@ -539,15 +589,19 @@ export function DraftScreen() {
                 </div>
                 <footer className="sc-foot">
                     <div className="sc-team">
+                        {sel ? <div className="sc-selected-preview"><ArtFrame kind="icon" className="sc-selected-art" image={portrait(sel)} /><div><b>{heroName(byId.get(sel)!)}</b><small>{L.roles[byId.get(sel)!.role]}</small><span>{["p",
+                            "q",
+                            "e",
+                            "r"].map((key) => <img key={key} src={`/icons/${sel}_${key}.png`} alt={key.toUpperCase()} onError={hideBroken} />)}</span></div></div> : <GameIcon name="target" />}
                         <span className="sc-team-label">{sel ? heroName(byId.get(sel)!) : myTurn ? L.pickHero : status}</span>
                     </div>
                     <div className="sc-actions">
                         {myTurn ? (
-                            <button className={`sc-btn ${turn!.action === "ban" ? "red" : "gold"}`} onClick={confirm} disabled={!sel}>
-                                {turn!.action === "ban" ? L.doBan : L.doPick}
-                            </button>
+                            <ArtFrame kind="name" className="sc-action-frame"><button className={`sc-btn ${turn!.action === "ban" ? "red" : "gold"}`} onClick={confirm} disabled={!sel}>
+                                <GameIcon name={turn!.action === "ban" ? "shield" : "roster"} />{turn!.action === "ban" ? L.doBan : L.doPick}{sel ? ` · ${heroName(byId.get(sel)!)}` : ""}
+                            </button></ArtFrame>
                         ) : null}
-                        <Back />
+                        <ArtFrame kind="name" className="sc-action-frame"><Back /></ArtFrame>
                     </div>
                 </footer>
             </div>
@@ -565,6 +619,8 @@ export function EndScreen() {
     const title = kind === "win" ? L.victory : kind === "lose" ? L.defeat : kind === "draw" ? L.draw : L.over
     const reason = (kind === "lose" ? L.reasonYouLose : L.reason)[end.reason] ?? end.reason
     const rows: { k: string; v: string }[] = []
+    const lineupSide = you ?? end.winner ?? "A"
+    const lineup = view?.players[lineupSide].heroes ?? []
     if (view) {
         rows.push({
             k: L.round, v: String(view.round)
@@ -583,19 +639,32 @@ export function EndScreen() {
         }
     }
     return (
-        <div className="sc-overlay">
-            <div className={`sc-end ${kind}`}>
-                <h1>{title}</h1>
-                <p className="sc-reason">{reason}</p>
+        <div className="sc-overlay dna-screen result-screen">
+            <section className={`sc-end ${kind}`} aria-label={title}>
+                <header className="sc-result-header">
+                    <small className="sc-kicker">STARCI LEAGUE · {L.over}</small>
+                    <ArtFrame kind="title" width={1080} height={150} className="sc-result-title"><h1>{title}</h1></ArtFrame>
+                    <ArtFrame kind="name" width={780} height={72} className="sc-result-reason"><p className="sc-reason">{reason}</p></ArtFrame>
+                </header>
+                {lineup.length ? <ArtFrame kind="name" width={780} height={64} className="sc-result-lineup-title"><h2><GameIcon name="roster" />{you ? L.yourTeam : EN ? "TEAM LINEUP" : "ĐỘI HÌNH"}<span> · {view?.names[lineupSide]}</span></h2></ArtFrame> : null}
+                {lineup.length ? <section className="sc-result-team" aria-label={you ? L.yourTeam : lineupSide === "A" ? "A" : "B"}>{lineup.map((hero) => {
+                    const def = cg.getHero(hero)
+                    return <article className="sc-result-hero" key={hero}>
+                        <ArtFrame kind="icon" width={228} height={228} className="sc-result-portrait" image={`/heroes-square/${hero}.jpg`} label={nameOf(hero)} />
+                        <ArtFrame kind="name" width={250} height={58} className="sc-result-hero-name"><b>{nameOf(hero)}</b></ArtFrame>
+                        <ArtFrame kind="name" width={200} height={44} className="sc-result-hero-role"><small>{def ? L.roles[def.role] : ""}</small></ArtFrame>
+                    </article>
+                })}</section> : null}
                 {rows.length ? (
-                    <dl className="sc-sum">
-                        {rows.map((r) => (
-                            <div key={r.k}><dt>{r.k}</dt><dd>{r.v}</dd></div>
+                    <dl className="sc-result-scores">
+                        {rows.map((r, index) => (
+                            <div className="sc-result-stat" key={r.k}><ArtFrame kind="name" width={300} height={64}><dt><GameIcon name={index === 0 ? "diamond" : index === 1 ? "arrow" : index === 2 ? "shield" : "cards"} />{index === 2 ? (EN ? "Lives · You / Rival" : "Mạng · Bạn / Địch") : index === 3 ? (EN ? "Deck · You / Rival" : "Bộ bài · Bạn / Địch") : r.k}</dt></ArtFrame><ArtFrame kind="name" width={300} height={82}><dd>{r.v}</dd></ArtFrame></div>
                         ))}
                     </dl>
                 ) : null}
-                <button className="sc-btn gold" onClick={leave}>{L.back}</button>
-            </div>
+                <ArtFrame kind="name" width={420} height={92} className="sc-result-back"><button className="sc-btn gold" onClick={leave}><GameIcon name="arrow" />{L.back}</button></ArtFrame>
+            </section>
         </div>
     )
 }
+

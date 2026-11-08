@@ -3,6 +3,9 @@ import {
     cloneDeep
 } from "./clone"
 import {
+    balanceHeroIds, kit
+} from "./balance"
+import {
     getItem
 } from "../items"
 import {
@@ -15,10 +18,8 @@ import {
     DEFAULT_DECK, parseDeckCard, validateDeck, type DeckCardId
 } from "./deck"
 import {
-    CARD_ITEMS, cardCombine, hasAnyTarget, itemText, setVowLink, vowOptions
+    CARD_ITEMS, cardCombine, hasAnyTarget, itemText
 } from "./items"
-/** Khoá stacks: lượt người đeo Lời Thề đã đổi đồng minh bảo hộ */
-const VOW_TURN = "itemT:vow:turn"
 import {
     getHero, getSpecialCard, getTokenBehavior, implementedHeroes
 } from "./registry"
@@ -34,8 +35,19 @@ import {
 // ======================================================================
 // Khởi tạo
 // ======================================================================
+/** Dàn xếp bài rút (quay demo, tái hiện lỗi): lá `ids` lên đầu bộ theo đúng thứ tự, id nào bộ này không có thì bỏ qua */
+function rigDeckTop(deck: Card[], ids: string[]) {
+    const top: Card[] = []
+    for (const id of ids) {
+        const i = deck.findIndex((c) => c.id === id)
+        if (i >= 0) top.push(...deck.splice(i,
+            1))
+    }
+    deck.unshift(...top)
+}
+
 export function newGameEx(seed: number, teamA: string[], teamB: string[], decks: Partial<Record<Side, DeckCardId[]>> = {
-}): { state: GameState; events: GameEvent[] } {
+}, rig: string[] = []): { state: GameState; events: GameEvent[] } {
     const teams: Record<Side, string[]> = {
         A: teamA, B: teamB
     }
@@ -99,6 +111,10 @@ export function newGameEx(seed: number, teamA: string[], teamB: string[], decks:
         for (const h of teams[side]) p.deck.push(...g.heroCards(h,
             side))
         g.shuffle(p.deck)
+        rigDeckTop(p.deck,
+            rig)
+        for (const h of teams[side]) getHero(h)?.setup?.(g,
+            side)
         // lá thưởng úp: ngẫu nhiên từ thẻ hỗ trợ + thẻ chiêu chung, không lấy từ bộ bài chính
         for (let i = 0; i < RULES.prizeCount; i++) {
             const id = PRIZE_POOL[g.randInt(PRIZE_POOL.length)]
@@ -166,7 +182,7 @@ const PRIZE_POOL = ["basic",
 // ======================================================================
 const isOver = (g: Game) => g.s.phase === "over"
 const keyOf = (id: string): SkillKey => id.slice(-1).toUpperCase() as SkillKey
-const sig = (c: Card) => `${c.kind}|${c.id}|${c.hero ?? ""}|${c.item ?? ""}|${c.copyOf ?? ""}`
+const sig = (c: Card) => `${c.kind}|${c.id}|${c.hero ?? ""}|${c.item ?? ""}|${c.copyOf ?? ""}${c.kind === "special" && c.data?.uid !== undefined ? `|${c.data.uid}` : ""}${c.data?.recycled ? `|r:${c.data.recycled}` : ""}` // lá chọn (pick_card, rumble_pick, tf_fate) trỏ tới lá khác nhau thì là lựa chọn khác nhau
 
 /** Chiêu mà lá chiêu/lá Bóng này tung (thẻ chiêu chung "wild" đã bỏ khỏi chế độ; tham số wildHero giữ để tương thích) */
 /** Lá đặc biệt do tướng tạo mà đánh được như chiêu (SpecialCardDef.skill) */
@@ -175,6 +191,7 @@ const specialSkill = (card: Card): SkillDef | undefined => (card.kind === "speci
 const isSkillLike = (card: Card) => card.kind === "skill" || !!card.copyOf || !!specialSkill(card)
 export function skillOfCard(card: Card, wildHero?: string): SkillDef | undefined {
     if (card.kind === "wild") return wildHero ? getHero(wildHero)?.skills[keyOf(card.id)] : undefined
+    if (card.data?.recycled) return getHero(String(card.data.recycled))?.skills[keyOf(card.id)] // Lá Tái Chế: chiêu của tướng gốc, Rumble tung
     const sp = specialSkill(card)
     if (sp) return sp
     if (card.kind !== "skill" && !card.copyOf) return undefined
@@ -269,7 +286,21 @@ function targetValues(g: Game, side: Side, self: Unit, k: TargetKind, max: numbe
     }
 }
 /** Liệt kê PlayArgs hợp lệ của một chiêu (rỗng = không đánh được) */
+/** Khoá đếm lượt dùng: theo tướng dùng và lá, nên Sylas đếm riêng từng chiêu đoạt */
+const useKey = (self: Unit, card: Card) => `${self.id}:${card.id}`
+/** Lá chiêu đã hết lượt dùng trong lượt này. Số lấy theo tướng gốc của lá */
+export function skillLimited(g: Game, self: Unit, card: Card, def: SkillDef): boolean {
+    if (!RULES.skillLimits || card.kind !== "skill") return false
+    const hero = String(card.data?.recycled ?? card.hero ?? self.hero)
+    const n = balanceHeroIds().includes(hero) ? kit(hero).limit(def.key) : 0
+    return n > 0 && (g.s.skillUses?.[useKey(self,
+        card)] ?? 0) >= n
+}
 export function skillArgs(g: Game, side: Side, self: Unit, card: Card, def: SkillDef, trigger?: Trigger): PlayArgs[] {
+    if (skillLimited(g,
+        self,
+        card,
+        def)) return []
     const oc: OptCtx = {
         g, side, self, card, trigger
     }
@@ -481,12 +512,19 @@ export function legalActions(state: GameState, side: Side): Action[] {
         return out
     }
     if (s.active !== side || s.phase !== "main") return []
+    if (s.step === "standby") return [...standbyActions(g,
+        side),
+    {
+        t: "step", side
+    }]
+    const main = inMain(s), battle = inBattle(s)
     const out: Action[] = []
     if (s.actionsThisTurn < RULES.maxActionsPerTurn) {
         // đánh lá
         const seen = new Set<string>()
         for (const card of s.players[side].hand) {
-            if (seen.has(sig(card))) continue
+            if (seen.has(sig(card)) || !cardAllowed(s,
+                card)) continue
             seen.add(sig(card))
             for (const args of playOptions(g,
                 side,
@@ -495,17 +533,17 @@ export function legalActions(state: GameState, side: Side): Action[] {
             })
         }
         // đòn không cần lá của Đấu sĩ (Quick, RULES.fighterCardlessMult = 50%)
-        for (const a of g.heroes(side)) if (g.canCardless(a)) for (const t of attackTargets(g,
+        if (battle) for (const a of g.heroes(side)) if (g.canCardless(a)) for (const t of attackTargets(g,
             a,
             false)) out.push({
             t: "attack", side, actor: a.id, target: t.id, cardless: true
         })
         // tháo đồ (V3): lá đồ về tay (tay đầy thì đốt)
-        for (const u of g.heroes(side)) for (const item of new Set(u.items)) out.push({
+        if (main) for (const u of g.heroes(side)) for (const item of new Set(u.items)) out.push({
             t: "unequip", side, unit: u.id, item
         })
         // ghép tại chỗ: tướng đang mang 1 mảnh + 1 mảnh trên tay + 1 Vàng
-        {
+        if (main) {
             const hd = s.players[side].hand
             const gold1 = hd.find((c) => c.kind === "support" && c.id === "gold" && !c.frozen)
             if (gold1) {
@@ -526,19 +564,16 @@ export function legalActions(state: GameState, side: Side): Action[] {
                 }
             }
         }
-        // Lời Thề Hiệp Sĩ: đổi đồng minh bảo hộ (1 lần/lượt mỗi người đeo)
-        for (const u of g.heroes(side)) {
-            if (u.stacks[VOW_TURN] === s.turnNo) continue
-            for (const a of vowOptions(g,
-                u)) out.push({
-                t: "vow", side, unit: u.id, ally: a.id
-            })
-        }
+        // nút hành động của tướng (Gangplank Úp Lá, Tristana kích nổ)
+        if (main) for (const u of g.heroes(side)) for (const ab of g.hero(u).abilities ?? []) if (!ab.standby) for (const args of ab.options(g,
+            u)) out.push({
+            t: "ability", side, unit: u.id, id: ab.id, args
+        })
         // ghép đồ
         const hand = s.players[side].hand
         const items = hand.filter((c) => c.kind === "support" && c.id === "item" && !c.frozen)
         const gold = hand.find((c) => c.kind === "support" && c.id === "gold" && !c.frozen)
-        if (gold && items.length >= 2) {
+        if (main && gold && items.length >= 2) {
             const pairs = new Set<string>()
             for (let i = 0; i < items.length; i++) for (let j = i + 1; j < items.length; j++) {
                 const k = [items[i].item,
@@ -557,10 +592,44 @@ items[j].item!)) continue
     for (const c of s.players[side].hand) if (canDiscardManually(c)) out.push({
         t: "discard", side, uid: c.uid
     })
+    if (s.step === "main1" || s.step === "battle") out.push({
+        t: "step", side
+    })
     out.push({
         t: "end", side
     })
     return out
+}
+
+// ======================================================================
+// Bước trong lượt (law.md "Trình tự lượt")
+// ======================================================================
+/** Main 1, Main 2 (trạng thái cũ không có step thì không chặn) */
+const inMain = (s: GameState) => !s.step || s.step === "main1" || s.step === "main2"
+const inBattle = (s: GameState) => !s.step || s.step === "battle"
+/** Lá Đánh Thường đánh ở Battle, mọi lá khác ở Main */
+const cardAllowed = (s: GameState, card: Card) => (card.kind === "support" && card.id === "basic" ? inBattle(s) : inMain(s))
+/** Nút tướng dùng được ở Standby lúc này */
+function standbyActions(g: Game, side: Side): Action[] {
+    const out: Action[] = []
+    for (const u of g.heroes(side)) for (const ab of g.hero(u).abilities ?? []) if (ab.standby) for (const args of ab.options(g,
+        u)) out.push({
+        t: "ability", side, unit: u.id, id: ab.id, args
+    })
+    return out
+}
+/** Vào Main 1: nơi lượt bắt đầu cho người chơi */
+function enterMain1(g: Game) {
+    g.s.step = "main1"
+    if (!isOver(g)) g.hook("onMainStart",
+        {
+            side: g.s.active
+        })
+}
+/** Hết Standby: không còn hành động Standby thì tự sang Main 1 */
+function leaveStandby(g: Game) {
+    if (!isOver(g) && g.s.step === "standby" && !standbyActions(g,
+        g.s.active).length) enterMain1(g)
 }
 
 // ======================================================================
@@ -597,6 +666,8 @@ export function applyAction(state: GameState, action: Action): { state: GameStat
     case "play": {
         const card = s.players[action.side].hand.find((c) => c.uid === action.uid)
         if (!card) throw new Error("Không có lá này trên tay")
+        if (!cardAllowed(s,
+            card)) throw new Error(`Lá ${card.id} không đánh được ở bước ${s.step}`)
         const args = action.args ?? {
         }
         if (!playOptions(g,
@@ -642,6 +713,7 @@ export function applyAction(state: GameState, action: Action): { state: GameStat
             a,
             false).some((x) => x.id === t.id)) throw new Error("Đòn đánh không hợp lệ")
         if (action.cardless) {
+            if (!inBattle(s)) throw new Error("Đòn không cần lá chỉ ở Battle")
             if (!g.canCardless(a)) throw new Error("Không đánh không cần lá được")
             g.turnAttacks(a.side).cardless.push(a.id)
         } else throw new Error("Chỉ Đấu sĩ được đánh không cần lá")
@@ -654,6 +726,32 @@ export function applyAction(state: GameState, action: Action): { state: GameStat
                 actor: a.id, target: t.id
             },
             "cardless")
+        break
+    }
+    case "ability": {
+        const u = g.unit(action.unit)
+        const ab = u && u.side === action.side && u.status === "board" ? g.hero(u).abilities?.find((x) => x.id === action.id) : undefined
+        const args = action.args ?? {
+        }
+        if (ab && !(ab.standby ? s.step === "standby" : inMain(s))) throw new Error(`Nút ${ab.id} không dùng được ở bước ${s.step}`)
+        if (!u || !ab || !ab.options(g,
+            u).some((o) => Game.argsKey(o) === Game.argsKey(args))) throw new Error("Không dùng được nút này")
+        g.cur = {
+            src: u.id, card: `${u.hero}_p`
+        }
+        g.emit({
+            t: "ability", unit: u.id, id: ab.id, ...(args.target ? {
+                target: args.target
+            } : {
+            })
+        })
+        ab.resolve(g,
+            u,
+            args)
+        g.cur = {
+        }
+        if (ab.standby) s.actionsThisTurn--
+        leaveStandby(g)
         break
     }
     case "unequip": {
@@ -677,21 +775,17 @@ export function applyAction(state: GameState, action: Action): { state: GameStat
         action); break
     case "upgrade": doUpgrade(g,
         action); break
-    case "vow": {
-        const u = g.unit(action.unit)
-        if (!u || u.side !== action.side || u.stacks[VOW_TURN] === s.turnNo || !vowOptions(g,
-            u).some((a) => a.id === action.ally)) throw new Error("Không đổi được đồng minh bảo hộ")
-        s.actionsThisTurn-- // miễn phí, không tính vào giới hạn hành động
-        setVowLink(g,
-            u,
-            action.ally)
-        u.stacks[VOW_TURN] = s.turnNo
-        g.emit({
-            t: "log", text: `${g.hero(u).name} (Lời Thề Hiệp Sĩ) bảo hộ ${g.hero(g.unit(action.ally)!).name}.`
-        })
+    case "step":
+        s.actionsThisTurn--
+        if (s.step === "standby") enterMain1(g)
+        else if (s.step === "main1") s.step = "battle"
+        else if (s.step === "battle") s.step = "main2"
+        else throw new Error("Không có bước kế để chuyển")
         break
-    }
-    case "end": endTurn(g); break
+    case "end":
+        if (s.step === "standby") throw new Error("Standby chưa kết thúc")
+        endTurn(g)
+        break
     default: throw new Error("Hành động không hợp lệ ở lượt này (gọi tướng chỉ ở bước gọi tướng úp)")
     }
     return {
@@ -717,6 +811,9 @@ function payMana(g: Game, side: Side, card: Card, args?: PlayArgs): number {
             card,
             side), def = skillOfCard(card)
     if (!u || !def) return 0
+    if (def.stealData) card.data = {
+        ...def.stealData(u), ...card.data // Jayce: lá mang dạng lúc đánh để resolve và VFX đọc cùng một dạng; Chiêu Đoạt giữ dạng đã đoạt
+    }
     const cost = g.manaCost(u,
         def,
         card,
@@ -724,7 +821,28 @@ function payMana(g: Game, side: Side, card: Card, args?: PlayArgs): number {
     if (!g.spendMana(u,
         cost,
         card)) throw new Error("Không đủ mana")
+    const uses = g.s.skillUses ??= {
+    }
+    uses[useKey(u,
+        card)] = (uses[useKey(u,
+        card)] ?? 0) + 1
     return cost
+}
+/** Sylas đoạt chiêu: lá không lên tay, trả mana rồi giải quyết ngay trong lá đang chạy */
+export function castNow(g: Game, side: Side, card: Card, args: PlayArgs) {
+    const manaPaid = payMana(g,
+        side,
+        card,
+        args)
+    g.emit({
+        t: "play", side, card, args
+    })
+    resolveCard(g,
+        side,
+        card,
+        args,
+        undefined,
+        manaPaid)
 }
 
 // ======================================================================
@@ -743,8 +861,11 @@ function blindOptions(g: Game, side: Side): Extract<Action, { t: "summon" }>[] {
         const def = getHero(h)!
         const lanes = def.summonLanes ? def.summonLanes(g,
             side) : g.emptyLanes(side)
-        for (const lane of lanes) if (!taken.some((x) => x.lane === lane)) out.push({
-            t: "summon", side, hero: h, lane
+        for (const lane of lanes) if (!taken.some((x) => x.lane === lane)) for (const mode of def.summonModes ?? [undefined]) out.push({
+            t: "summon", side, hero: h, lane, ...(mode ? {
+                mode
+            } : {
+            })
         })
     }
     return out
@@ -784,7 +905,8 @@ function lockBlind(g: Game, side: Side) {
         const u = g.s.units[`${sd}:${pk.hero}`]
         if (u && u.status === "reserve") g.summon(sd,
             pk.hero,
-            pk.lane)
+            pk.lane,
+            pk.mode)
     }
     if (!isOver(g)) beginTurn(g)
 }
@@ -800,9 +922,12 @@ function applyBlind(g: Game, action: Action) {
         return
     }
     if (!blindOptions(g,
-        action.side).some((o) => o.hero === action.hero && o.lane === action.lane)) throw new Error("Không gọi được tướng/đường này")
+        action.side).some((o) => o.hero === action.hero && o.lane === action.lane && (!action.mode || o.mode === action.mode))) throw new Error("Không gọi được tướng/đường này")
     b.picks[action.side].push({
-        hero: action.hero, lane: action.lane
+        hero: action.hero, lane: action.lane, ...(action.mode ? {
+            mode: action.mode
+        } : {
+        })
     })
     if (b.picks[action.side].length >= b.cap || !blindOptions(g,
         action.side).length) lockBlind(g,
@@ -854,6 +979,10 @@ function describeLink(g: Game, side: Side, card: Card | undefined, args: PlayArg
     if (isAttack) ids = args.target ? [args.target] : []
     else if (allEnemies) ids = g.enemies(side).map((u) => u.id)
     else if (kinds.includes("opposite")) { const o = caster ? g.opposite(caster) : undefined; ids = o ? [o.id] : [] }
+    else if (def?.aimsAt && caster) { const o = def.aimsAt(g,
+        caster,
+        args,
+        card as Card); ids = o && !o.token ? [o.id] : [] }
     else ids = [...(args.target ? [args.target] : []),
         ...(args.targets ?? [])]
     const hit = ids.map((id) => g.unit(id)).filter((u): u is Unit => !!u && u.side === foe && u.status === "board")
@@ -991,11 +1120,16 @@ function resolveChain(g: Game) {
         if (ch.opened) g.emit({
             t: "chainResolve", n: L.n, side: L.side, card: L.card
         })
+        const mark = g.events.length
         resolveLink(g,
             L,
             !!ch.opened)
         carry = g.s.fxNext
+        const mirror = g.s.fx?.mirror
         g.s.fx = undefined; g.s.fxNext = undefined
+        // Mel E: chiêu bị huỷ thì không có gì để phản
+        if (mirror && !g.events.slice(mark).some((e) => e.t === "chainCancel")) g.applyMirror(mirror,
+            L.card)
     }
     if (ch.opened) g.emit({
         t: "chainEnd", length: ch.links.length
@@ -1003,12 +1137,20 @@ function resolveChain(g: Game) {
 }
 
 function resolveLink(g: Game, L: ChainLink, opened = false) {
-    // Luật Chuỗi: mắt xích có người tung đang bị Choáng lúc tới lượt giải quyết thì bị huỷ (lá vẫn vào mộ như đã dùng)
+    // Luật Chuỗi (law.md 11b): khống chế lúc tới lượt giải quyết huỷ mắt xích. Choáng huỷ cả chiêu lẫn đòn, Câm Lặng huỷ chiêu, Mù huỷ đòn. Lá vẫn vào mộ như đã dùng.
     const caster = g.unit(L.actor)
-    if (opened && caster && g.has(caster,
-        "stun")) {
+    const isAttackLink = L.kind === "attack" || L.card?.id === "basic"
+    const isSkillLink = !!L.card && !!skillOfCard(L.card)
+    if (opened && caster && (g.has(caster,
+        "stun") || (isSkillLink && g.has(caster,
+        "silence")) || (isAttackLink && (g.has(caster,
+        "blind") || g.has(caster,
+        "disarm"))))) {
         g.emit({
-            t: "log", text: `Chain Link ${L.n} fizzles: its caster is Stunned.`
+            t: "chainCancel", n: L.n, side: L.side, card: L.card
+        })
+        g.emit({
+            t: "log", text: `Chain Link ${L.n} fizzles: its caster is controlled.`
         })
         if (L.card && L.card.kind !== "support" && L.card.kind !== "special" && !L.card.copyOf && !L.card.temp) g.player(L.side).grave.push(L.card)
         return
@@ -1063,7 +1205,7 @@ const SUPPORT_DESC: Record<string, string> = {
     item: "Mảnh đồ: đánh lên 1 tướng mình để đeo riêng (chiếm 1 ô); 2 Đồ + 1 Vàng ghép thành 1 món đồ.",
     potion: `1 tướng mình hồi {${RULES.potion.base}} + ${pct(RULES.potion.pctMax)}% máu tối đa.`,
     draw: "Rút 2 lá.",
-    mana: `Phe bạn hồi {${RULES.mage.restoreCard}} mana chung (tối đa bằng trần bể đội: ${RULES.teamManaMax} + mana trên đồ).`,
+    mana: `Phe bạn hồi {${RULES.mage.restoreCard}} mana chung (tối đa bằng trần bể đội: ${RULES.teamManaMax}).`,
     buff: `1 tướng mình +${pct(RULES.buffCard.dmg)}% sát thương và Khiên ${RULES.buffCard.shield} tới hết lượt đối thủ.`,
 }
 
@@ -1141,16 +1283,23 @@ function resolveCardInner(g: Game, side: Side, card: Card, args: PlayArgs, trigg
             const needsTarget = !def.chainOnly && kinds.some((k) => k === "opposite" || k === "enemy" || k === "ally" || k === "ally_other")
             const needsAny = !def.chainOnly && kinds.some((k) => k === "enemies_upto" || k === "allies_upto") && (args.targets?.length ?? 0) > 0
             if (!(needsTarget && (!target || target.status !== "board" || lost(target))) && !(needsAny && !targets.length) && self.status === "board") {
+                const recycled = !!card.data?.recycled
                 const ctx: Ctx = {
                     g, self, side, card, args, target, targets, lane: args.lane, trigger, manaPaid,
                     f: (expr) => g.f(self,
                         expr),
-                    toHand: () => { dest = "hand" },
+                    toHand: () => { if (!recycled) dest = "hand" },
                     vanish: () => { dest = "vanish" },
                 }
                 g.cur = {
-                    src: self.id, card: `${self.hero}_${def.key.toLowerCase()}`, uid: card.uid
+                    src: self.id, card: `${self.hero}_${def.key.toLowerCase()}`, uid: card.uid, ...(kinds.includes("all_enemies") ? {
+                        aoe: true
+                    } : {
+                    })
                 }
+                g.recycling = recycled ? {
+                    unit: self.id, apPerAd: Number(card.data?.apPerAd ?? 2), keepCC: !!card.data?.keepCC, hero: String(card.data?.recycled)
+                } : null
                 g.emit({
                     t: "cast", unit: self.id, skill: def.key, target: target?.id
                 })
@@ -1168,7 +1317,7 @@ function resolveCardInner(g: Game, side: Side, card: Card, args: PlayArgs, trigg
                     {
                         side, card, unit: self
                     })
-                try { def.resolve(ctx) } finally { g.s.immune = undefined }
+                try { def.resolve(ctx) } finally { g.s.immune = undefined; g.recycling = null }
                 g.hook("onCast",
                     {
                         caster: self, card, skill: def, target
@@ -1276,7 +1425,15 @@ function beginTurn(g: Game) {
     if ((s.ownTurns[side] ?? 0) > 1) g.gainTeamMana(side,
         g.teamManaRegen(side),
         "turn")
+    s.step = "draw"
+    drawStep(g)
+    if (isOver(g)) return
+    s.step = "reward"
+    giveFreeCards(g,
+        side)
+    if (isOver(g)) return
     g.giveMageTemps(side) // Pháp sư nhận chiêu tạm (RULES.mageTempSkill)
+    s.step = "standby"
     g.hook("onTurnStart",
         {
             side
@@ -1304,10 +1461,7 @@ function beginTurn(g: Game) {
         {
             tag: "dot", visuals: u.statuses.ignite?.visuals ?? ["burn"]
         }) }
-    if (isOver(g)) return
-    drawStep(g)
-    if (!isOver(g)) giveFreeCards(g,
-        side)
+    leaveStandby(g)
 }
 
 /** Quà tặng đều đặn (không lấy từ bộ bài), từ lượt thứ 2 của mình: mỗi RULES.freeBasicEvery lượt +1 Đánh Thường; mỗi RULES.freeLootEvery lượt +1 lá: mảnh đồ (RULES.freeLootItemChance) hoặc Vàng; freeItemEvery/freeGoldEvery riêng (0 = tắt); lượt freeSkillOffset, +freeSkillEvery... +1 lá chiêu tạo mới của 1 tướng mình trên sân. Lượt đầu không có quà (tay đầu giữ đúng RULES.startHand). */
@@ -1345,6 +1499,7 @@ function drawStep(g: Game) {
 
 function endTurn(g: Game) {
     const s = g.s, side = s.active
+    s.step = "end"
     // tự đánh cuối lượt (chỉ HeroDef.autoAttack: Kog'Maw E...); không tính vào giới hạn đòn
     for (const u of g.board(side)) {
         if (isOver(g)) break
@@ -1374,6 +1529,7 @@ function endTurn(g: Game) {
             side
         })
     g.expireTemps(side)
+    g.expireFrozen()
     g.expireTokens()
     g.expireReveals()
     // trạng thái có decay giảm cuối lượt của CHỦ nó
@@ -1408,6 +1564,8 @@ function endTurn(g: Game) {
         }) }
     s.active = otherSide(side)
     s.turnNo++
+    s.skillUses = {
+    }
     if (isOver(g)) return
     if (side === "B") beginRound(g)
     else beginTurn(g)
@@ -1417,7 +1575,18 @@ function endTurn(g: Game) {
 // Hiển thị
 // ======================================================================
 /** Tên + mô tả đã tính công thức theo tướng (nếu có) cho UI */
-export function cardInfo(g: Game, card: Card, unit?: Unit): { name: string; desc: string; type: string } {
+/** Đuôi tên của lá đặc biệt trỏ tới một lá khác: Chọn lá / Tái Chế (lá trong mộ), Thần Bài (lá trên cùng bộ) */
+export function specialSuffix(g: Game, card: Card, lang: "vi" | "en" = "vi"): string | undefined {
+    const uid = String(card.data?.uid ?? "")
+    let target: Card | undefined
+    if (card.id === "pick_card" || card.id === "rumble_pick") target = Object.values(g.s.players).flatMap((pl) => pl.grave).find((c) => c.uid === uid)
+    else if (card.id === "tf_fate") target = Object.values(g.s.players).flatMap((pl) => pl.deck).find((c) => c.uid === uid)
+    return target ? cardInfo(g,
+        target,
+        undefined,
+        lang).name : undefined
+}
+export function cardInfo(g: Game, card: Card, unit?: Unit, lang: "vi" | "en" = "vi"): { name: string; desc: string; type: string } {
     if (card.kind === "support" && card.id === "legend") {
         const it = getItem(card.item ?? ""), tx = itemText(card.item ?? "",
             "vi")
@@ -1438,11 +1607,10 @@ export function cardInfo(g: Game, card: Card, unit?: Unit): { name: string; desc
     if (card.kind === "special") {
         const sp = getSpecialCard(card.id)
         let name = sp?.name ?? card.id
-        if (card.id === "pick_card") { // V3: lá chọn lá từ mộ (g.offerPick) ghi tên lá sẽ lấy
-            const target = Object.values(g.s.players).flatMap((pl) => pl.grave).find((c) => c.uid === String(card.data?.uid))
-            if (target) name = `${name}: ${cardInfo(g,
-                target).name}`
-        }
+        const suffix = specialSuffix(g,
+            card,
+            lang) // lá chọn lá / Tái Chế / Thần Bài ghi tên lá liên quan
+        if (suffix) name = `${name}: ${suffix}`
         return {
             name, desc: sp?.desc ?? "", type: "special"
         }
@@ -1451,8 +1619,33 @@ export function cardInfo(g: Game, card: Card, unit?: Unit): { name: string; desc
     const u = unit ?? heroUnitOfCard(g,
         card,
         card.side ?? "A")
+    if (def && card.data?.recycled) { // Lá Tái Chế của Rumble: chiêu của tướng gốc, hệ số tính theo AD đổi từ AP
+        const orig = getHero(String(card.data.recycled))
+        const apPerAd = Number(card.data.apPerAd ?? 2), off = Number(card.data.manaOff ?? 0)
+        const prev = g.recycling
+        if (u) g.recycling = {
+            unit: u.id, apPerAd
+        }
+        let body = ""
+        try { body = formulaText(def.variant?.(u,
+            card)[lang].desc ?? def.desc,
+        g,
+        u) } finally { g.recycling = prev }
+        if (card.data.stolen) return {
+            name: `${lang === "en" ? "Hijacked" : "Chiêu Đoạt"}: ${orig?.name ?? card.hero} ${def.variant?.(u,
+                card)[lang].name ?? def.name}`,
+            desc: (lang === "en" ? `Hijacked skill: Sylas casts it as his own at its original mana; AD comes from AP (${apPerAd} AP = 1 AD), crowd control is kept, vanishes after use. ` : `Chiêu Đoạt: Sylas dùng như chiêu của mình, trả mana gốc, AD đổi từ AP (${apPerAd} AP = 1 AD), giữ nguyên khống chế, dùng xong biến mất. `) + body,
+            type: "skill"
+        }
+        const head = lang === "en" ? `Recycled card: Rumble casts it as his own skill; AD comes from AP (${apPerAd} AP = 1 AD), no crowd control, ${off} less mana, vanishes after use. ` : `Lá Tái Chế: Rumble dùng như chiêu của mình, AD đổi từ AP (${apPerAd} AP = 1 AD), không áp khống chế, giảm ${off} mana, dùng xong biến mất. `
+        return {
+            name: `${lang === "en" ? "Recycled" : "Tái Chế"}: ${orig?.name ?? card.hero} ${def.name}`, desc: head + body, type: "skill"
+        }
+    }
+    const vr = def?.variant?.(u,
+        card)[lang]
     return {
-        name: def ? `${getHero(card.hero!)?.name}: ${def.name}` : card.id, desc: def ? formulaText(def.desc,
+        name: def ? `${getHero(card.hero!)?.name}: ${vr?.name ?? def.name}` : card.id, desc: def ? formulaText(vr?.desc ?? def.desc,
             g,
             u) : "", type: "skill"
     }

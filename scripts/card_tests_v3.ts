@@ -1786,7 +1786,7 @@ test("Lá tạm tốn mana như lá thật và đánh được; đánh xong bi�
         0)
     })
 
-test("Lá tạm chưa dùng: biến mất cuối lượt (tempExpired), không vào mộ; lượt sau lại nhận lá mới",
+test("Lá tạm chưa dùng: giữ qua hết lượt mình, biến mất cuối lượt ĐỐI THỦ (tempExpired), không vào mộ; lượt sau lại nhận lá mới",
     () => {
         const s = mk({
             A: {
@@ -1799,17 +1799,23 @@ test("Lá tạm chưa dùng: biến mất cuối lượt (tempExpired), không v
             "A")
         assert.equal(evs(r.ev,
             "tempExpired").length,
-        1)
+        0,
+        "cuối lượt mình chưa hết")
         assert.equal(tempsOf(r.s,
             "A").length,
-        0)
-        assert.equal(r.s.players.A.grave.length,
-            graveBefore)
-        const s2 = end(r.s,
-            "B").s
-        assert.equal(tempsOf(s2,
-            "A").length,
+        1,
+        "vẫn còn trong tay qua lượt đối thủ")
+        const r2 = end(r.s,
+            "B")
+        assert.equal(evs(r2.ev,
+            "tempExpired").length,
         1)
+        assert.equal(r2.s.players.A.grave.length,
+            graveBefore)
+        assert.equal(tempsOf(r2.s,
+            "A").length,
+        1,
+        "lượt mới của A nhận lá tạm mới (lá cũ đã hết)")
     })
 
 test("Lá tạm không tính vào giới hạn tay: tay 10 lá vẫn nhận lá tạm, không đốt lá nào; không cho Bỏ vào mộ",

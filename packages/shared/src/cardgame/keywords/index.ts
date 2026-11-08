@@ -36,6 +36,24 @@ import {
 import {
     KEYWORDS_V3_NEW
 } from "../i18n/v3_new"
+import {
+    KEYWORDS_KITS_TANK
+} from "../i18n/kits_tank"
+import {
+    KEYWORDS_KITS_ASSASSIN
+} from "../i18n/kits_assassin"
+import {
+    KEYWORDS_KITS_MARKSMAN
+} from "../i18n/kits_marksman"
+import {
+    KEYWORDS_KITS_SUPMAGE
+} from "../i18n/kits_supmage"
+import {
+    KEYWORDS_KITS_FIGHTER
+} from "../i18n/kits_fighter"
+import {
+    KEYWORDS_KITS_MAGE
+} from "../i18n/kits_mage"
 
 export type {
     Keyword
@@ -53,4 +71,10 @@ export const KEYWORDS: Record<string, Keyword> = {
     ...KEYWORDS_V2_G4V,
     ...KEYWORDS_V2_G5V,
     ...KEYWORDS_V3_NEW,
+    ...KEYWORDS_KITS_TANK,
+    ...KEYWORDS_KITS_ASSASSIN,
+    ...KEYWORDS_KITS_MARKSMAN,
+    ...KEYWORDS_KITS_SUPMAGE,
+    ...KEYWORDS_KITS_FIGHTER,
+    ...KEYWORDS_KITS_MAGE,
 }

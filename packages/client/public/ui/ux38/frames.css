@@ -1,0 +1,25 @@
+.starci-panel-frame {
+  border: 32px solid transparent;
+  border-image: url('./panel-frame.png') 30% stretch;
+  background: #0c251e;
+  background-clip: padding-box;
+  box-sizing: border-box;
+}
+.starci-card-frame {
+  border: 20px solid transparent;
+  border-image: url('./card-frame.png') 18% stretch;
+  background: #112e25;
+  background-clip: padding-box;
+  box-sizing: border-box;
+}
+.starci-button-frame {
+  border: 14px solid transparent;
+  border-image: url('./button-frame.png') 20% stretch;
+  background: linear-gradient(#316f46, #153c2a);
+  background-clip: padding-box;
+  padding: 5px 15px;
+  color: #fae8b4;
+  font: inherit;
+  box-sizing: border-box;
+}
+.starci-button-frame:disabled { background: #35443b; background-clip: padding-box; color: #a2ab9c; filter: saturate(.4); }

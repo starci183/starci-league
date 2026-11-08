@@ -8,3 +8,6 @@ coverage/
 .claude/
 *.local.md
 scripts/_variants/**/*.json
+
+# Công cụ tạm (xuất skin UI...)
+tmp/

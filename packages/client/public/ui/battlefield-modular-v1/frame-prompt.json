@@ -1,0 +1,40 @@
+{
+  "asset": "frame-v1.png",
+  "mode": "built-in image_gen",
+  "nativePath": "C:/Users/Hi/.codex/generated_images/01a196b8-4b4a-7da1-acc7-d36bc22336ad/exec-1f2488fa-16f1-42b2-986c-27490bec28fd.png",
+  "nativeDimensions": [
+    1567,
+    1004
+  ],
+  "targetDimensions": [
+    1280,
+    820
+  ],
+  "prompt": "Use case: stylized-concept. Asset type: production transparent PNG OUTER BORDER RING overlay for a fantasy card-game battlefield, one separate modular asset. Input image is STYLE REFERENCE ONLY: use its warm aged gold edgework, rich forest leaves, emerald accents and hand-painted finish. Do not recreate the screenshot or any internal UI.\nGenerate exactly one landscape rectangular hollow frame, intended canvas 1280x820, aspect 1.56:1. Orthographic straight-on flat 2D overlay, perfectly horizontal top/bottom, vertical sides, no perspective.\nGEOMETRY: slender continuous warm aged-gold metal outline supported by very narrow mossy forest-stone edging. Main ring occupies only outermost 2 percent of width/height. Corner ornaments may extend inward to at most 4 percent: small leaves and tiny emerald stones, elegant restrained detail. Keep all five future roads completely unobstructed at x .10,.30,.50,.70,.90 and card positions y .24,.76. Ring corners small, no oversized jewels. Ring reaches close to canvas edges with only tiny transparent margin.\nCRITICAL ALPHA: entire large center hole must be genuinely completely transparent alpha, showing nothing at all. Entire exterior around the ring must be transparent alpha. This is a hollow freestanding border, NOT a filled panel. The middle 90 percent width by 88 percent height is entirely empty alpha. No background, no dark-jade fill, no checkerboard baked into pixels, no scenery in the hole.\nNo cards, champions, text, numbers, title crest, top-middle ornament, buttons, inner dividers, lanes, rivers, atlas or extra assets. One ring only. Native crisp beautifully rendered production game art.\nAdditional strict production correction: cleaner and even thinner ring. Keep every leaf and decoration inside the outer 4 percent strip on all four sides; corners max5 percent. No center-top or center-bottom emerald ornament. The inner rectangle from x0.06 to0.94 and y0.08 to0.92 must have EXACT ALPHA ZERO for every pixel; no invisible haze, stray particles, anti-alias fog, shadow, color wash or almost-transparent pixels across center. Exterior transparent background must also be clean true zero alpha. Crisp anti-alias only immediately at ring edges. Ring is metal+stone and modest leaves, not a scene or screenshot.",
+  "reference": "outputs/game-ui-kit/01-battlefield-final.png",
+  "geometry": {
+    "anchor": [
+      0,
+      0
+    ],
+    "size": [
+      1,
+      1
+    ],
+    "uniformFit": true,
+    "transparentOpeningNormalized": [
+      0.08,
+      0.1,
+      0.92,
+      0.9
+    ]
+  },
+  "alphaQA": {
+    "mode": "RGBA",
+    "centerAlpha": 0,
+    "outerCornerAlpha": 0,
+    "centralOpeningMaxAlpha": 1,
+    "centralOpeningAlphaAbove2": 0,
+    "note": "Native output retained unchanged. Faint alpha1 pixels remain within central opening; visually transparent. Corner foliage occupies up to~8% horizontal /10%vertical near corners."
+  }
+}

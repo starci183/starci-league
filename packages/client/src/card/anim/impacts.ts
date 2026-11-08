@@ -31,3 +31,16 @@ export function onImpactFloats(f: (events: GameEvent[]) => void): () => void {
         floatSubs.delete(f)
     }
 }
+
+/** Đoạn thanh máu vừa mất: màu theo loại sát thương (vàng vật lý, xanh dương phép, trắng chuẩn) rồi mờ dần */
+export function showHpLoss(e: Extract<GameEvent, { t: "damage" }>, maxHp: number) {
+    const bar = document.querySelector(`[data-unit-id="${e.target}"] .bd-hp`)
+    if (!bar || e.hpLost <= 0 || maxHp <= 0) return
+    const chunk = document.createElement("i")
+    chunk.className = `hp-loss ${e.kind}`
+    chunk.style.left = `${e.hp / maxHp * 100}%`
+    chunk.style.width = `${e.hpLost / maxHp * 100}%`
+    chunk.addEventListener("animationend",
+        () => chunk.remove())
+    bar.append(chunk)
+}

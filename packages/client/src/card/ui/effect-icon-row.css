@@ -1,0 +1,16 @@
+.effect-icon-row { display:flex; align-items:center; justify-content:center; gap:5px; }
+.game-canvas-stage .effect-icon-row .effect-icon-cell { position:relative; display:block; flex:none; width:32px; height:32px; min-width:32px; padding:2px; margin:0; border:1px solid #b29a61; border-radius:3px; background:#051b14; color:#ffe4a7; box-shadow:0 2px 5px #000a; cursor:help; pointer-events:auto; }
+.game-canvas-stage .effect-icon-row .effect-icon-cell > img { display:block; width:26px; height:26px; object-fit:cover; border-radius:1px; }
+.game-canvas-stage .effect-icon-row .effect-icon-cell > b { position:absolute; right:-5px; bottom:-4px; min-width:14px; padding:1px 3px; background:#031910; border:1px solid #ad9156; border-radius:3px; color:#ffe9af; font:700 12px/1.1 var(--font-game-text); font-variant-numeric:tabular-nums; text-shadow:0 1px #000; }
+.game-canvas-stage .effect-icon-row .effect-icon-cell.effect-icon-overflow { font:700 17px/1 var(--font-game-text); }
+.game-canvas-stage .effect-icon-row .effect-icon-cell:is(:hover,:focus-visible) { outline:2px solid #ffe5a1; outline-offset:2px; filter:brightness(1.12); }
+.game-canvas-stage .effect-detail-panel { position:absolute; right:20px; bottom:20px; z-index:300; width:480px; height:360px; pointer-events:auto; color:#dbe4cc; font:400 17px/1.4 var(--font-game-text); filter:drop-shadow(0 6px 18px #000b); }
+.game-canvas-stage .effect-detail-panel .effect-detail-material { position:absolute; inset:0; background:radial-gradient(ellipse at top,#164331,#041b13 85%); }
+.game-canvas-stage .effect-detail-panel .effect-detail-safe { display:flex; align-items:stretch; justify-content:flex-start; padding:8px; box-sizing:border-box; }
+.game-canvas-stage .effect-detail-panel .effect-detail-scroll { flex:1; min-width:0; min-height:0; }
+.game-canvas-stage .effect-detail-panel .game-scroll-content { padding:0 9px 5px 0; }
+.game-canvas-stage .effect-detail-panel .effect-detail-entry + .effect-detail-entry { padding-top:12px; margin-top:12px; border-top:1px solid #a68c4b66; }
+.game-canvas-stage .effect-detail-panel .effect-detail-entry header { display:flex; align-items:center; gap:10px; }
+.game-canvas-stage .effect-detail-panel .effect-detail-entry header strong { color:#ffe0a0; font:700 22px/1.15 var(--font-game-title); flex:1; }
+.game-canvas-stage .effect-detail-panel .effect-detail-entry header > b { color:#f3d48f; font-size:20px; font-variant-numeric:tabular-nums; }
+.game-canvas-stage .effect-detail-panel .effect-detail-entry p { margin:8px 0 0; }

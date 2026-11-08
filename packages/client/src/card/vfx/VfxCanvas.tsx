@@ -22,8 +22,47 @@ import "./fx_weapons"
 import "./fx_defense"
 import "./fx_card_hook"
 import "./fx_mushroom"
+import "./fx_teemo"
 import "./fx_actions"
 import "./fx_mana"
+import "./fx_nami"
+import "./fx_renata"
+import "./fx_basics"
+import "./fx_janna"
+import "./fx_soraka"
+import "./fx_brand"
+import "./fx_ahri"
+import "./fx_annie"
+import "./fx_lissandra"
+import "./fx_lux"
+import "./fx_malphite"
+import "./fx_twistedfate"
+import "./fx_khazix"
+import "./fx_qiyana"
+import "./fx_missfortune"
+import "./fx_rumble"
+import "./fx_azir"
+import "./fx_jayce"
+import "./fx_mel"
+import "./fx_sylas"
+import "./fx_tristana"
+import "./fx_blitzcrank"
+import "./fx_velkoz"
+import "./fx_viktor"
+import "./fx_garen"
+import "./fx_leona"
+import "./fx_ornn"
+import "./fx_braum"
+import "./fx_darius"
+import "./fx_gangplank"
+import "./fx_yorick"
+import "./fx_jinx"
+import "./fx_aatrox"
+import "./fx_kogmaw"
+import "./fx_ashe"
+import "./fx_katarina"
+import "./fx_vayne"
+import "./fx_zed"
 
 let app: Application | null = null
 let ready: Promise<Application | null> | null = null
@@ -173,6 +212,7 @@ export function VfxCanvas() {
         const id = ++generation
         let dead = false
         let unclip: (() => void) | undefined
+        let unwatchDensity: (() => void) | undefined
         const a = new Application()
         error = null
         const p = a.init({
@@ -199,6 +239,34 @@ export function VfxCanvas() {
                 "true")
             document.body.appendChild(c)
             unclip = bindGameOverlayClip(c)
+            // OS scaling / browser zoom / moving between monitors can change DPR.
+            // Keep the backing store sharp without multiplying it beyond 2x.
+            let densityQuery: MediaQueryList | undefined
+            const syncDensity = () => {
+                if (dead) return
+                const resolution = Math.min(2,
+                    window.devicePixelRatio || 1)
+                if (a.renderer.resolution !== resolution) a.renderer.resize(window.innerWidth,
+                    window.innerHeight,
+                    resolution)
+            }
+            const watchDensity = () => {
+                densityQuery?.removeEventListener("change",
+                    watchDensity)
+                densityQuery = window.matchMedia(`(resolution: ${window.devicePixelRatio || 1}dppx)`)
+                densityQuery.addEventListener("change",
+                    watchDensity)
+                syncDensity()
+            }
+            watchDensity()
+            window.addEventListener("resize",
+                syncDensity)
+            unwatchDensity = () => {
+                densityQuery?.removeEventListener("change",
+                    watchDensity)
+                window.removeEventListener("resize",
+                    syncDensity)
+            }
             app = a
             return a
         }).catch((cause: unknown) => {
@@ -209,6 +277,7 @@ export function VfxCanvas() {
         return () => {
             dead = true
             unclip?.()
+            unwatchDensity?.()
             if (ready === p) ready = null
             if (app === a) {
                 clearVfx()

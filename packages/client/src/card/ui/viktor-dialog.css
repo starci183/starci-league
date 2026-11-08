@@ -1,0 +1,39 @@
+/* Independent PNG modules fitted uniformly to their alpha bounds on the game canvas. */
+.game-canvas-stage .action-dialog.discard-dialog { width:1640px; max-height:1000px; }
+.game-canvas-stage .action-dialog.discard-dialog .game-scroll-content { padding:22px; min-height:0; background:none; }
+.game-canvas-stage .discard-dialog .discard-workbench { display:grid; grid-template-columns:250px minmax(0,1fr); gap:24px; align-items:start; }
+.game-canvas-stage .discard-dialog .discard-caster { position:sticky; top:0; align-self:start; display:flex; flex-direction:column; align-items:center; gap:8px; width:250px; height:320px; border:0; border-image:none; padding:0; background:none; overflow:visible; }
+.game-canvas-stage .discard-dialog .discard-caster-frame .af-art { position:absolute; inset:auto 0; top:50%; width:100%; height:auto; aspect-ratio:1; transform:translateY(-50%); object-fit:cover; object-position:center; }
+.game-canvas-stage .discard-dialog .discard-caster-caption { display:grid; padding:0; }
+.game-canvas-stage .discard-dialog .discard-caster-caption b { font-family:var(--font-game-title); font-size:23px; line-height:1; color:#ffe4a1; }
+.game-canvas-stage .discard-dialog .discard-caster-caption > span { padding:3px 6px; background:#03251dd9; font-size:16px; line-height:1.2; color:#d1d9bb; }
+.game-canvas-stage .discard-dialog .discard-hand { min-width:0; }
+.game-canvas-stage .discard-dialog .discard-selection-rule { display:flex; align-items:center; gap:12px; box-sizing:border-box; min-height:54px; padding:10px 16px; margin-bottom:16px; background:linear-gradient(90deg,#1a4831aa,#071e17); color:#d9dfc5; font-size:20px; line-height:1.3; }
+.game-canvas-stage .discard-dialog .discard-selection-rule .game-icon { width:28px; height:28px; color:#e6c778; }
+.game-canvas-stage .action-dialog.discard-dialog .action-discard-grid { grid-template-columns:repeat(5,minmax(0,1fr)); gap:14px; padding:0; }
+.game-canvas-stage .action-dialog.discard-dialog .action-option { position:relative; display:block; height:300px; padding:0; border:0; border-image:none; background:none; box-shadow:none; min-width:0; text-align:center; }
+.game-canvas-stage .discard-dialog .discard-choice-frame { width:100%; height:100%; }
+.game-canvas-stage .discard-dialog .discard-choice-frame .af-art { position:absolute; inset:auto 0; top:50%; width:100%; height:auto; aspect-ratio:1; transform:translateY(-50%); border:0; object-fit:cover; }
+.game-canvas-stage .discard-dialog .discard-choice-content { position:relative; width:100%; height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; }
+.game-canvas-stage .discard-dialog .discard-choice-content > b { display:flex; align-items:center; justify-content:center; width:100%; min-height:48px; margin:0; font-size:20px; line-height:1.16; overflow-wrap:anywhere; color:#f1ddb0; }
+.game-canvas-stage .action-dialog.discard-dialog .action-check { position:absolute; top:0; right:0; display:grid; place-items:center; width:26px; height:26px; border:1px solid #d3bf78; border-radius:50%; background:#102b21; color:#a7b9a3; font-size:21px; line-height:1; box-shadow:0 2px 8px #000a; }
+.game-canvas-stage .action-dialog.discard-dialog .action-option.selected { background:none; box-shadow:none; filter:drop-shadow(0 0 8px #5aeec099); }
+.game-canvas-stage .discard-dialog .action-option.selected .discard-choice-frame > .af-frame-box > .af-surface { background:#0c4a34; }
+.game-canvas-stage .action-dialog.discard-dialog .action-option.selected .action-check { background:#116444; border-color:#ffdf89; color:#e4ffdc; }
+.game-canvas-stage .action-dialog.discard-dialog .discard-card-state { display:block; color:#9eb19a; font-size:16px; line-height:1.2; }
+.game-canvas-stage .action-dialog.discard-dialog .action-option.selected .discard-card-state { color:#b8ffd5; }
+.game-canvas-stage .action-dialog.discard-dialog .action-option:disabled { opacity:.38; filter:saturate(.3); }
+.game-canvas-stage .action-dialog.discard-dialog .action-option:hover:not(:disabled) { background:none; box-shadow:none; filter:drop-shadow(0 0 6px #ead58f88); }
+.game-canvas-stage .discard-dialog .discard-counter-plaque { margin-right:auto; }
+.game-canvas-stage .discard-dialog .discard-counter { display:flex; align-items:center; justify-content:center; gap:12px; font-size:23px; line-height:1; white-space:nowrap; }
+.game-canvas-stage .discard-dialog .discard-counter-gems { display:flex; gap:8px; padding:0 4px; }
+.game-canvas-stage .discard-dialog .discard-counter-gems i { display:block; width:12px; height:12px; transform:rotate(45deg); border:1px solid #b99c58; background:#102c20; }
+.game-canvas-stage .discard-dialog .discard-counter-gems i.filled { background:#54d69f; border-color:#d0f8b1; box-shadow:0 0 7px #54d69f99; }
+/* Viktor uses the identical printed face; checkbox and selection state are contextual overlays. */
+.game-canvas-stage .action-dialog.discard-dialog .action-option { display:flex; flex-direction:column; align-items:center; justify-content:flex-start; height:300px; gap:5px; }
+.game-canvas-stage .discard-dialog .discard-choice-frame { display:block; flex:none; width:100%; height:auto; aspect-ratio:190/250; }
+.game-canvas-stage .discard-dialog .discard-choice-frame .game-card.cv { width:100%; height:auto; aspect-ratio:190/250; }
+.game-canvas-stage .discard-dialog .discard-choice-frame .game-card .af-art { position:absolute; left:var(--af-aperture-left); top:var(--af-aperture-top); width:var(--af-aperture-width); height:var(--af-aperture-height); aspect-ratio:auto; transform:none; object-fit:cover; object-position:center; }
+.game-canvas-stage .action-dialog.discard-dialog .action-check { top:8px; right:8px; z-index:6; }
+.game-canvas-stage .action-dialog.discard-dialog .discard-card-state { flex:none; padding:0; font-size:15px; line-height:18px; }
+.game-canvas-stage .action-dialog.discard-dialog .action-option { height:auto; min-height:0; align-self:start; }

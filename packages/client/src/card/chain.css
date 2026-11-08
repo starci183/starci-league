@@ -91,7 +91,7 @@
 @keyframes ch-pulse { 50% { opacity: .35; } }
 @keyframes ch-glow { 50% { box-shadow: 0 0 26px rgba(245, 210, 122, .55), inset 0 0 12px rgba(245, 210, 122, .12); } }
 @keyframes ch-toast { 0% { opacity: 0; transform: translateY(-14px) scale(.95); } 8% { opacity: 1; transform: none; } 88% { opacity: 1; } 100% { opacity: 0; transform: translateY(-6px); } }
-@media (max-height: 800px) {
+@container game-canvas (max-height: 800px) {
     .ch-art { width: 32px; height: 32px; }
     .ch-head { padding: 7px 10px; }
     .ch-round-n { font-size: 15px; }

@@ -1,0 +1,64 @@
+[
+  {
+    "file": "lane-marker-v1.png",
+    "size": [
+      1254,
+      1254
+    ],
+    "mode": "RGBA",
+    "alpha_extrema": [
+      0,
+      255
+    ],
+    "alpha_bbox": [
+      0,
+      15,
+      1242,
+      1254
+    ],
+    "corners_alpha": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "visible_alpha128_bbox": [
+      67,
+      61,
+      1187,
+      1188
+    ],
+    "alpha_zero_fraction": 0.612184550109506
+  },
+  {
+    "file": "lane-locked-v1.png",
+    "size": [
+      1254,
+      1254
+    ],
+    "mode": "RGBA",
+    "alpha_extrema": [
+      0,
+      255
+    ],
+    "alpha_bbox": [
+      0,
+      0,
+      1214,
+      1228
+    ],
+    "corners_alpha": [
+      1,
+      0,
+      0,
+      0
+    ],
+    "visible_alpha128_bbox": [
+      66,
+      59,
+      1188,
+      1190
+    ],
+    "alpha_zero_fraction": 0.6076898422655159
+  }
+]

@@ -8,7 +8,7 @@ import {
 } from "../packages/client/src/card/store"
 
 type Action = cg.Action
-const argsOf = (a: Action): cg.PlayArgs => ((a.t === "play" || a.t === "chain") ? a.args ?? {
+const argsOf = (a: Action): cg.PlayArgs => ((a.t === "play" || a.t === "chain" || a.t === "ability") ? a.args ?? {
 } : {
 })
 const dedupe = (l: Action[]) => [...new Map(l.map((a) => [JSON.stringify(a),
@@ -22,6 +22,8 @@ const groupBy = (l: Action[], k: (x: cg.PlayArgs) => string | undefined) => {
 }
 const stuck = new Map<string, string>()
 const seenCards = new Set<string>()
+const abilityIds = new Set<string>()
+const summonModes = new Set<string>()
 
 /** Trả về true nếu mọi hành động trong `options` đều chọn được qua UI */
 function reach(options: Action[], label: string): void {
@@ -97,13 +99,37 @@ for (let gi = 0; steps < target; gi++) {
                         s.players[side].hand,
                         card)
                     if (!opts.length) continue
-                    const sig = `${card.kind}:${card.id}`
+                    const sig = `${card.kind}:${card.id}${card.data?.recycled ? ":recycled" : ""}` // Lá Tái Chế của Rumble khác lá gốc
                     if (sigs.has(sig)) continue
                     sigs.add(sig)
                     seenCards.add(card.id)
                     cases++
                     reach(opts,
                         card.id)
+                }
+            }
+            // nút hành động của tướng (HeroDef.abilities): Hand.tsx gom theo (tướng, nút), rồi chọn lá (args.pick) / mục tiêu (args.target)
+            if (s.phase === "main") {
+                const byBtn = new Map<string, Action[]>()
+                for (const a of legal) if (a.t === "ability") byBtn.set(`${a.unit}:${a.id}`,
+                    [...(byBtn.get(`${a.unit}:${a.id}`) ?? []),
+                        a])
+                for (const [k,
+                    opts] of byBtn) { abilityIds.add(k.split(":").slice(-1)[0]); cases++; reach(opts,
+                    `ability:${k.split(":").slice(-1)[0]}`) }
+            }
+            // gọi tướng úp: ReserveRoster hỏi chế độ (args.mode, vd súng của Jinx) trước khi chọn đường
+            if (s.phase === "blind") {
+                const byHero = new Map<string, Action[]>()
+                for (const a of legal) if (a.t === "summon") byHero.set(a.hero,
+                    [...(byHero.get(a.hero) ?? []),
+                        a])
+                for (const [h,
+                    opts] of byHero) {
+                    const modes = [...new Set(opts.map((a) => (a as { mode?: string }).mode ?? ""))]
+                    if (modes.length > 1) summonModes.add(`${h}:${modes.join("/")}`)
+                    for (const m of modes) { cases++; reach(opts.filter((a) => ((a as { mode?: string }).mode ?? "") === m),
+                        `summon:${h}${m ? `:${m}` : ""}`) }
                 }
             }
             s = cg.applyAction(s,
@@ -121,6 +147,7 @@ for (let gi = 0; steps < target; gi++) {
 const covered = heroes.filter((h) => [...seenCards].some((c) => c.startsWith(`${h}_`)))
 console.log(`${games} trận (${finished} kết thúc), ${steps} bước, ${cases} lần kiểm lá; ${seenCards.size} loại lá; tướng có lá được thử: ${covered.length}/${heroes.length}; ${((Date.now() - t0) / 1000).toFixed(0)}s`)
 if (covered.length < heroes.length) console.log(`Chưa thử: ${heroes.filter((h) => !covered.includes(h)).join(", ")}`)
+console.log(`nút hành động đã thử: ${[...abilityIds].join(", ") || "(không có)"}; chế độ gọi tướng: ${[...summonModes].join(", ") || "(không có)"}`)
 let fail = false
 if (stuck.size) {
     fail = true

@@ -1,0 +1,22 @@
+{
+  "panel.png": { "top": 88, "right": 88, "bottom": 88, "left": 88 },
+  "panel-soft.png": { "top": 72, "right": 72, "bottom": 72, "left": 72 },
+  "slot-gold.png": { "top": 52, "right": 52, "bottom": 52, "left": 52 },
+  "slot-ally.png": { "top": 52, "right": 52, "bottom": 52, "left": 52 },
+  "slot-enemy.png": { "top": 52, "right": 52, "bottom": 52, "left": 52 },
+  "slot-teal.png": { "top": 52, "right": 52, "bottom": 52, "left": 52 },
+  "slot-bronze.png": { "top": 52, "right": 52, "bottom": 52, "left": 52 },
+  "slot-steel.png": { "top": 52, "right": 52, "bottom": 52, "left": 52 },
+  "btn-gold.png": { "top": 36, "right": 44, "bottom": 36, "left": 44 },
+  "btn-gold-hover.png": { "top": 36, "right": 44, "bottom": 36, "left": 44 },
+  "btn-primary.png": { "top": 36, "right": 44, "bottom": 36, "left": 44 },
+  "btn-primary-hover.png": { "top": 36, "right": 44, "bottom": 36, "left": 44 },
+  "btn-danger.png": { "top": 36, "right": 44, "bottom": 36, "left": 44 },
+  "btn-disabled.png": { "top": 36, "right": 44, "bottom": 36, "left": 44 },
+  "btn-pill.png": { "top": 24, "right": 24, "bottom": 24, "left": 24 },
+  "tab-underline.png": { "top": 0, "right": 40, "bottom": 0, "left": 40 },
+  "field.png": { "top": 28, "right": 28, "bottom": 28, "left": 28 },
+  "field-focus.png": { "top": 28, "right": 28, "bottom": 28, "left": 28 },
+  "notice-error.png": { "top": 28, "right": 28, "bottom": 28, "left": 28 },
+  "notice-ok.png": { "top": 28, "right": 28, "bottom": 28, "left": 28 }
+}

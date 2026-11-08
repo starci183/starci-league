@@ -1,0 +1,64 @@
+/* Weapon picker: individual masked PNG modules, no column-sized frame or 9-slice. */
+.game-canvas-stage .action-veil.mode-veil { justify-items:center; padding:20px; background:linear-gradient(90deg,#00120cea,#00120c77); backdrop-filter:blur(2px); }
+.game-canvas-stage .action-dialog.mode-dialog.mode-dialog { width:1560px; max-height:1020px; border:0; border-image:none; padding:0; background:none; box-shadow:none; container-type:inline-size; }
+.game-canvas-stage .action-dialog.mode-dialog > header { min-height:0; padding:0 0 4px; }
+.game-canvas-stage .action-dialog.mode-dialog .action-heading > .af-asset[data-asset="title"] { height:120px!important; }
+.game-canvas-stage .action-dialog.mode-dialog .action-body { padding:0; }
+.game-canvas-stage .action-dialog.mode-dialog .game-scroll-content { padding:8px 18px 12px; }
+.game-canvas-stage .action-dialog.mode-dialog .mode-comparison { position:relative; }
+.game-canvas-stage .action-dialog.mode-dialog .mode-cards { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:260px; }
+.game-canvas-stage .action-dialog.mode-dialog .mode-card { position:relative; display:flex; flex-direction:column; align-items:stretch; gap:0; padding:0; min-width:0; border:0; border-image:none; border-radius:0; background:none; box-shadow:none; color:#f6ebd2; text-align:left; font:inherit; cursor:pointer; }
+.game-canvas-stage .action-dialog.mode-dialog .mode-card:is(:hover,:focus-visible) { filter:brightness(1.09); outline:none; }
+.game-canvas-stage .action-dialog.mode-dialog .mode-card:focus-visible .mode-art { filter:drop-shadow(0 0 8px #8affda); }
+.game-canvas-stage .action-dialog.mode-dialog .mode-card.selected .mode-art { filter:drop-shadow(0 0 9px #3bd7a577); box-shadow:none; }
+.game-canvas-stage .action-dialog.mode-dialog .mode-card.selected .mode-art::before { content:none; }
+.game-canvas-stage .action-dialog.mode-dialog .mode-art { position:relative; display:grid; aspect-ratio:auto; border:0; border-image:none; margin:0; overflow:visible; background:none; }
+.game-canvas-stage .action-dialog.mode-dialog .mode-art::after { content:none; }
+.game-canvas-stage .action-dialog.mode-dialog .mode-art .af-art { position:absolute; inset:auto 0; top:50%; transform:translateY(-50%); width:100%; height:auto; aspect-ratio:1; object-fit:cover; object-position:70% center; }
+.game-canvas-stage .action-dialog.mode-dialog .mode-art-hammer .af-art { object-position:62% center; }
+.game-canvas-stage .action-dialog.mode-dialog .mode-art > .af-frame-box > .af-safe-content { align-items:flex-start; justify-content:flex-end; }
+.game-canvas-stage .action-dialog.mode-dialog .mode-current { position:absolute; top:12px; left:20px; right:auto; z-index:3; margin:0; padding:0; border:0; background:none; color:#ffebae; font-size:12px; line-height:1; clip-path:none; }
+.game-canvas-stage .action-dialog.mode-dialog .mode-preview { color:#d4ffe3; filter:drop-shadow(0 0 4px #47dcb0); }
+.game-canvas-stage .action-dialog.mode-dialog .mode-name { position:relative; display:grid; margin:-3px 0 0; padding:0; border:0; border-image:none; background:none; clip-path:none; font-size:24px; line-height:1.1; color:#ffe7b3; text-transform:none; }
+.game-canvas-stage .action-dialog.mode-dialog .mode-name .af-label-inner { gap:9px; }
+.game-canvas-stage .action-dialog.mode-dialog .mode-name .game-icon { width:25px; height:25px; color:#f9cf75; }
+.game-canvas-stage .action-dialog.mode-dialog .mode-name .af-label-inner > span { display:flex; flex-direction:column; align-items:center; gap:2px; }
+.game-canvas-stage .action-dialog.mode-dialog .mode-name b { font-size:24px; font-weight:600; }
+.game-canvas-stage .action-dialog.mode-dialog .mode-name small { font-size:13px; line-height:1; letter-spacing:.05em; color:#c9d2ba; }
+.game-canvas-stage .action-dialog.mode-dialog .mode-health { display:flex; align-items:center; justify-content:center; gap:10px; margin:-4px 0 0; }
+.game-canvas-stage .action-dialog.mode-dialog .mode-hp { position:relative; display:grid; margin:0; padding:0; border:0; background:none; overflow:visible; clip-path:none; border-radius:0; }
+.game-canvas-stage .action-dialog.mode-dialog .mode-hp-track { display:block; width:100%; height:100%; background:#031c11; }
+.game-canvas-stage .action-dialog.mode-dialog .mode-hp-track > i { display:block; height:100%; background:linear-gradient(#a1f777,#25b746 50%,#0c672c); }
+.game-canvas-stage .action-dialog.mode-dialog .mode-hp-counter strong { font-size:23px; line-height:1; font-variant-numeric:tabular-nums; color:#eaffcf; }
+.game-canvas-stage .action-dialog.mode-dialog .mode-trait { display:block; color:#d8d9a6; font-size:16px; line-height:1.2; text-align:center; margin:1px 0 6px; }
+.game-canvas-stage .action-dialog.mode-dialog .mode-skill { display:grid; grid-template-columns:25px 54px minmax(0,1fr); align-items:center; gap:10px; box-sizing:border-box; padding:5px 4px; min-height:66px; height:auto; border:0; background:none; }
+.game-canvas-stage .action-dialog.mode-dialog .mode-skill:nth-last-child(n) { height:auto; min-height:58px; }
+.game-canvas-stage .action-dialog.mode-dialog .mode-key { display:grid; place-items:center; width:25px; height:34px; min-height:0; margin:0; padding:0; border:0; border-image:none; background:none; font-style:normal; font-size:24px; line-height:1; color:#f3d086; }
+.game-canvas-stage .action-dialog.mode-dialog .mode-skill > span { display:flex; flex-direction:column; min-width:0; gap:4px; }
+.game-canvas-stage .action-dialog.mode-dialog .mode-skill strong { font-size:20px; line-height:1.1; color:#f7ebd2; font-weight:600; }
+.game-canvas-stage .action-dialog.mode-dialog .mode-skill em { color:#7cdaff; font-style:normal; font-size:18px; font-weight:400; white-space:nowrap; }
+.game-canvas-stage .action-dialog.mode-dialog .mode-skill small { display:block; font:400 17px/1.22 var(--font-game-text); letter-spacing:0; color:#d8dfd2; }
+.game-canvas-stage .action-dialog.mode-dialog .mode-switch-emblem { position:absolute; z-index:2; top:72px; left:50%; transform:translateX(-50%); width:250px; display:flex; align-items:center; flex-direction:column; gap:4px; pointer-events:none; }
+.game-canvas-stage .action-dialog.mode-dialog .mode-switch-emblem > .forest-icon { width:108px; height:78px; filter:drop-shadow(0 0 7px #45ffe0b0); }
+.game-canvas-stage .action-dialog.mode-dialog .mode-confirm.action-primary { display:block; position:relative; width:250px; height:66px; min-height:0; margin:0; padding:0; border:0; border-image:none; background:none; box-shadow:none; clip-path:none; filter:none; pointer-events:auto; }
+.game-canvas-stage .action-dialog.mode-dialog .mode-confirm.action-primary::before { content:none; }
+.game-canvas-stage .action-dialog.mode-dialog .mode-confirm.action-primary:hover:not(:disabled) { filter:brightness(1.18) drop-shadow(0 0 5px #5deab5); }
+.game-canvas-stage .action-dialog.mode-dialog .mode-confirm b { font-size:24px; line-height:1; }
+.game-canvas-stage .action-dialog.mode-dialog .mode-confirm-choice small { font-size:16px; line-height:1; color:#d2e6bf; }
+.game-canvas-stage .action-dialog.mode-dialog .mode-selection { position:absolute; width:1px; height:1px; padding:0; overflow:hidden; clip-path:inset(50%); white-space:nowrap; }
+.game-canvas-stage .action-dialog.mode-dialog .mode-passive { margin:8px 0 0; padding:0; border:0; border-image:none; background:none; }
+.game-canvas-stage .action-dialog.mode-dialog .mode-passive h3 { font-size:18px; line-height:1.1; margin:0; font-weight:600; text-align:center; color:#edcc80; }
+.game-canvas-stage .action-dialog.mode-dialog .mode-passive-options { display:grid; grid-template-columns:1fr 1fr; gap:64px; }
+.game-canvas-stage .action-dialog.mode-dialog .mode-standby { display:grid; box-sizing:border-box; min-height:0; padding:0; border:0; border-image:none; background:none; clip-path:none; }
+.game-canvas-stage .action-dialog.mode-dialog .mode-standby .af-label-inner { gap:16px; }
+.game-canvas-stage .action-dialog.mode-dialog .mode-standby .forest-icon { width:42px; height:42px; flex:none; }
+.game-canvas-stage .action-dialog.mode-dialog .mode-standby .af-label-inner > span { display:flex; flex-direction:column; gap:5px; }
+.game-canvas-stage .action-dialog.mode-dialog .mode-standby strong { font-size:20px; line-height:1.1; color:#f1e9ce; font-weight:600; }
+.game-canvas-stage .action-dialog.mode-dialog .mode-standby small { font-size:17px; line-height:1.15; color:#c2d5c5; letter-spacing:0; }
+.game-canvas-stage .action-dialog.mode-dialog .mode-standby.locked { filter:saturate(.25); background:none; }
+.game-canvas-stage .action-dialog.mode-dialog > footer { display:block; padding:0 18px 12px; border:0; background:none; }
+.game-canvas-stage .action-dialog.mode-dialog .mode-phases { display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:8px; width:100%; }
+.game-canvas-stage .action-dialog.mode-dialog .mode-phase { color:#b6c5b4; filter:saturate(.35); }
+.game-canvas-stage .action-dialog.mode-dialog .mode-phase b { font-size:19px; line-height:1; font-weight:500; }
+.game-canvas-stage .action-dialog.mode-dialog .mode-phase.active { color:#e6ffe7; filter:drop-shadow(0 0 6px #3ce9af); }
+@media(prefers-reduced-motion:reduce) { .game-canvas-stage .mode-card { transition:none; } }

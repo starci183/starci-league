@@ -26,6 +26,7 @@ const VI = {
     extra: "Triệu hồi phụ",
     emptyExtra: "Trống",
     soakFor: "che chắn cho",
+    tokenOf: "của",
     deck: "Bộ bài",
     hand: "Tay",
     grave: "Mộ",
@@ -52,7 +53,7 @@ const VI = {
     targetPick: "Chọn mục tiêu (Esc để hủy)",
     spectator: "Đang xem",
     token: "Vật triệu hồi",
-    cardlessTip: `Đánh không cần lá (chỉ lượt bạn, ${Math.round(cg.RULES.fighterCardlessMult * 100)}% sát thương, tính vào ${cg.RULES.attackLimit} đòn/lượt)`,
+    cardlessTip: `Đánh không cần lá (chỉ lượt bạn, ${Math.round(cg.RULES.fighterCardlessMult * 100)}% sát thương)`,
     cardlessUsed: "Đã đánh không cần lá trong lượt này",
     fighterLine: `Đấu sĩ: mỗi lượt đánh không cần lá 1 lần (${Math.round(cg.RULES.fighterCardlessMult * 100)}% sát thương).`,
     mageLine: `Mỗi chiêu tốn mana từ bể chung của đội (+${cg.RULES.teamManaRegen} mỗi lượt).`,
@@ -79,6 +80,7 @@ const EN: typeof VI = {
     extra: "Extra summon",
     emptyExtra: "Empty",
     soakFor: "soaks for",
+    tokenOf: "of",
     deck: "Deck",
     hand: "Hand",
     grave: "Grave",
@@ -105,7 +107,7 @@ const EN: typeof VI = {
     targetPick: "Pick a target (Esc to cancel)",
     spectator: "Spectating",
     token: "Summon",
-    cardlessTip: `Cardless attack (your turn only, ${Math.round(cg.RULES.fighterCardlessMult * 100)}% damage, counts toward ${cg.RULES.attackLimit} attacks/turn)`,
+    cardlessTip: `Cardless attack (your turn only, ${Math.round(cg.RULES.fighterCardlessMult * 100)}% damage)`,
     cardlessUsed: "Already used the cardless attack this turn",
     fighterLine: `Fighter: one cardless attack per turn (${Math.round(cg.RULES.fighterCardlessMult * 100)}% damage).`,
     mageLine: `Every skill spends from the shared team mana pool (+${cg.RULES.teamManaRegen} per turn).`,
@@ -188,7 +190,72 @@ const STATUS_VI_BASE: Record<string, { name: string; desc: string }> = {
         name: "Thấy Bài", desc: "Đang xem tay bài đối thủ."
     },
     armor_up: {
-        name: "Tăng Giáp", desc: "Giáp cộng thêm tạm thời (số trên biểu tượng) tới hết lượt kế của địch (Renata Q)."
+        name: "Tăng Giáp", desc: "Giáp cộng thêm tạm thời (số trên biểu tượng) trong thời hạn của trạng thái."
+    },
+    armor_down: {
+        name: "Giảm Giáp", desc: "Giáp bị trừ phẳng (số trên biểu tượng) trong thời hạn của trạng thái."
+    },
+    mr_up: {
+        name: "Tăng Kháng Phép", desc: "Kháng phép cộng thêm (số trên biểu tượng) trong thời hạn của trạng thái."
+    },
+    mr_down: {
+        name: "Giảm Kháng Phép", desc: "Kháng phép bị trừ phẳng (số trên biểu tượng) trong thời hạn của trạng thái."
+    },
+    ad_up: {
+        name: "Tăng AD", desc: "Sát thương vật lý (AD) cộng thêm (số trên biểu tượng) trong thời hạn của trạng thái."
+    },
+    ad_down: {
+        name: "Giảm AD", desc: "AD bị trừ phẳng (số trên biểu tượng) trong thời hạn của trạng thái."
+    },
+    ap_up: {
+        name: "Tăng AP", desc: "Sức mạnh phép (AP) cộng thêm (số trên biểu tượng) trong thời hạn của trạng thái."
+    },
+    crit_up: {
+        name: "Tăng Chí Mạng", desc: "Tỉ lệ Chí mạng cộng thêm (số trên biểu tượng, %) trong thời hạn của trạng thái."
+    },
+    attack_speed: {
+        name: "Tốc Đánh", desc: "Tốc Đánh cộng thêm (số trên biểu tượng): đòn đánh nhanh hơn, thêm đòn trong lượt."
+    },
+    disarm: {
+        name: "Tước Vũ Khí", desc: "Không đánh thường được (vẫn dùng chiêu)."
+    },
+    invulnerable: {
+        name: "Bất Khả Xâm Phạm", desc: "Không nhận sát thương trong thời hạn của trạng thái."
+    },
+}
+const STATUS_EN_BASE: Record<string, { name: string; desc: string }> = {
+    armor_up: {
+        name: "Armor Up", desc: "Bonus Armor (number on the icon) while the status lasts."
+    },
+    armor_down: {
+        name: "Armor Down", desc: "Flat Armor reduction (number on the icon) while the status lasts."
+    },
+    mr_up: {
+        name: "MR Up", desc: "Bonus Magic Resist (number on the icon) while the status lasts."
+    },
+    mr_down: {
+        name: "MR Down", desc: "Flat Magic Resist reduction (number on the icon) while the status lasts."
+    },
+    ad_up: {
+        name: "AD Up", desc: "Bonus AD (number on the icon) while the status lasts."
+    },
+    ad_down: {
+        name: "AD Down", desc: "Flat AD reduction (number on the icon) while the status lasts."
+    },
+    ap_up: {
+        name: "AP Up", desc: "Bonus AP (number on the icon) while the status lasts."
+    },
+    crit_up: {
+        name: "Crit Up", desc: "Bonus Crit chance (number on the icon, %) while the status lasts."
+    },
+    attack_speed: {
+        name: "Attack Speed", desc: "Bonus Attack Speed (number on the icon): attacks faster."
+    },
+    disarm: {
+        name: "Disarm", desc: "Cannot make basic attacks (skills still work)."
+    },
+    invulnerable: {
+        name: "Invulnerable", desc: "Takes no damage while the status lasts."
     },
 }
 const STATUS_VI: Record<string, { name: string; desc: string }> = {
@@ -198,7 +265,7 @@ const STATUS_VI: Record<string, { name: string; desc: string }> = {
         v.vi])),
 }
 export const statusInfo = (id: string): { name: string; desc: string } => {
-    const t = isEn() ? cg.STATUS_EN[id] ?? STATUS_VI[id] : STATUS_VI[id]
+    const t = isEn() ? cg.STATUS_EN[id] ?? STATUS_EN_BASE[id] ?? STATUS_VI[id] : STATUS_VI[id]
     return t ?? {
         name: id, desc: ""
     }
@@ -250,7 +317,26 @@ const STATUS_ICON: Record<string, string> = {
     vayne_e: "empower",
     vayne_r: "empower",
     tri_bomb: "burn",
+    armor_down: "shred",
+    mr_down: "shred",
+    ad_down: "wounds",
+    ad_up: "empower",
+    ap_up: "empower",
+    crit_up: "true",
+    mr_up: "shield",
+    disarm: "root",
+    invulnerable: "invuln",
+    vulnerable: "wounds",
+    stone_link: "guard",
+    shield_power: "shield",
+    madness: "taunt",
+    gp_wanted: "true",
+    zed_q: "true",
+    renata_q: "shield",
+    bleed_t: "wounds",
     tri_q: "attack_speed",
+    ashe_q: "attack_speed",
+    mf_exposed: "wounds",
 }
 export const statusIcon = (id: string) => {
     const f = STATUS_ICON[id] ?? id
@@ -270,27 +356,49 @@ const STACK_OWNER: Record<string, string> = {
     hunger: "kogmaw",
     night: "vayne",
     mf_rain: "missfortune",
+    frost: "ashe",
+    tri_bomb: "tristana",
+    jinx_gun: "jinx",
+    jayce_form: "jayce",
+    jayce_charge: "jayce",
+    jayce_gate: "jayce",
+    sylas_shackle: "sylas",
+    mel_glow: "mel",
+    azir_soldiers: "azir",
+    buff_atk: "sona",
+    buff_ap: "sona",
+    buff_armor: "sona",
+    buff_mr: "sona",
+    azir_call: "azir",
     velkoz_decay: "velkoz",
+    burn: "brand",
+    bleed: "darius",
+    blitz_parts: "blitzcrank",
+    mist_evo: "yorick",
 }
 /** Icon của bộ đếm: icon nội tại của tướng sở hữu (không biết thì tướng đang mang) */
 export const stackIcon = (key: string, carrier: string) => `/card_skills/${STACK_OWNER[key] ?? carrier}_p.png`
 
-/** Nguyên tố Qiyana (stack "element": 1 Đỏ · 2 Xanh · 3 Lục) */
-const ELEMENT_VI = ["Đỏ",
-    "Xanh",
-    "Lục"]
-const ELEMENT_EN = ["Red",
-    "Blue",
-    "Green"]
-export const ELEMENT_CLS = ["red",
-    "blue",
-    "green"]
+/** Nguyên tố Qiyana (stack "element": 1 Đất · 2 Nước · 3 Cỏ; cùng thứ tự với GameState.laneElements "earth" | "water" | "grass") */
+const ELEMENT_VI = ["Đất",
+    "Nước",
+    "Cỏ"]
+const ELEMENT_EN = ["Earth",
+    "Water",
+    "Grass"]
+export const ELEMENT_CLS = ["earth",
+    "water",
+    "grass"]
 export const elementName = (v: number) => (isEn() ? ELEMENT_EN : ELEMENT_VI)[v - 1] ?? "?"
+/** Tên nguyên tố công khai của đường (GameState.laneElements); undefined nếu id lạ */
+export const laneElementName = (id: string): string | undefined => elementName(ELEMENT_CLS.indexOf(id) + 1) === "?" ? undefined : elementName(ELEMENT_CLS.indexOf(id) + 1)
 
 /** Giá trị bộ đếm dạng chữ (nguyên tố hiện tên màu, còn lại là số) */
 export function stackValueText(key: string, v: number): string {
     if (key === "element") return elementName(v)
     if (key === "mf_rain") return v > 0 ? (isEn() ? "armed" : "chờ nổ") : "0"
+    if (key === "jayce_form") return v >= 1 ? (isEn() ? "Mercury Cannon" : "Pháo Thủy Ngân") : (isEn() ? "Mercury Hammer" : "Búa Thủy Ngân")
+    if (key === "jinx_gun") return v >= 1 ? (isEn() ? "Fishbones" : "Xương Cá") : (isEn() ? "Pow-Pow" : "Bằng Chíu")
     return `${Math.round(v * 100) / 100}`
 }
 
@@ -391,7 +499,17 @@ const DEBUFFS = new Set(["stun",
     "kat_dagger",
     "qiyana_mark",
     "ahri_charm",
-    "tri_bomb"])
+    "tri_bomb",
+    "mf_exposed",
+    "armor_down",
+    "mr_down",
+    "ad_down",
+    "disarm",
+    "vulnerable",
+    "madness",
+    "gp_wanted",
+    "zed_q",
+    "bleed_t"])
 const BUFFS = new Set(["empower",
     "stealth",
     "stasis",
@@ -414,7 +532,16 @@ const BUFFS = new Set(["empower",
     "kog_e",
     "vayne_e",
     "vayne_r",
-    "tri_q"])
+    "tri_q",
+    "ashe_q",
+    "mr_up",
+    "ad_up",
+    "ap_up",
+    "crit_up",
+    "attack_speed",
+    "invulnerable",
+    "shield_power",
+    "renata_q"])
 export const statusKind = (id: string): StatusKind => (DEBUFFS.has(id) ? "debuff" : BUFFS.has(id) ? "buff" : "neutral")
 
 /** Trường tùy chọn mà engine ghi thêm vào StatusInst: đơn vị gây ra và lá bài gây ra */

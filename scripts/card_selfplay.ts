@@ -295,7 +295,7 @@ function report(res: Result, secs: number) {
     const turns = Math.max(1,
         v.turns ?? 0)
     console.log(`V2: tướng trên sân lúc kết thúc TB ${((v.boardSum ?? 0) / Math.max(1,
-        v.boardN ?? 0)).toFixed(2)}/bên (mục tiêu ~4); đòn tính giới hạn ${((v.counted ?? 0) / turns).toFixed(2)}/lượt (tối đa ${cg.RULES.attackLimit}); đòn không cần lá ${((v.cardless ?? 0) / finished).toFixed(1)}/trận`)
+        v.boardN ?? 0)).toFixed(2)}/bên (mục tiêu ~4); đòn tính giới hạn ${((v.counted ?? 0) / turns).toFixed(2)}/lượt (không giới hạn); đòn không cần lá ${((v.cardless ?? 0) / finished).toFixed(1)}/trận`)
     console.log(`V2: lá bị đốt do tay đầy ${((v.burned ?? 0) / finished).toFixed(1)}/trận; mana bỏ phí khi đầy ${(((v.manaWasted ?? 0) / Math.max(1,
         v.manaRegenMax ?? 0)) * 100).toFixed(1)}% lượng hồi; thua do cạn bài ${((res.reasons.deck / finished) * 100).toFixed(1)}%`)
     console.log("Tỉ lệ thắng theo tướng (mỗi lần xuất hiện trong đội):")

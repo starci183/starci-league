@@ -159,7 +159,8 @@ export const SYNERGY: Record<string, HeroSynergy> = {
             "garen",
             "jinx",
             "malphite"], counteredBy: ["blitzcrank",
-            "renata"]
+            "renata",
+            "sylas"]
     },
     katarina: {
         engines: ["grave",
@@ -193,6 +194,44 @@ export const SYNERGY: Record<string, HeroSynergy> = {
             "katarina",
             "viktor"]
     },
+    rumble: {
+        engines: ["recycle",
+            "grave"], combos: ["viktor",
+            "lux"], counteredBy: ["teemo",
+            "zed"]
+    },
+    sylas: {
+        engines: ["recycle",
+            "scaling"], combos: ["lux",
+            "viktor"], counteredBy: ["blitzcrank",
+            "lissandra",
+            "azir"]
+    },
+    mel: {
+        engines: ["marks",
+            "chain"], combos: ["brand",
+            "soraka"], counteredBy: ["blitzcrank",
+            "renata"]
+    },
+    azir: {
+        engines: ["lanes",
+            "scaling"], combos: ["janna",
+            "nami"], counteredBy: ["zed",
+            "khazix",
+            "jayce"]
+    },
+    sona: {
+        engines: ["scaling"], combos: ["lux",
+            "viktor"], counteredBy: ["zed",
+            "khazix"]
+    },
+    jayce: {
+        engines: ["lanes",
+            "items"], combos: ["nami",
+            "janna"], counteredBy: ["malphite",
+            "leona",
+            "mel"]
+    },
     lissandra: {
         engines: ["chain",
             "prizes"], combos: ["ashe",
@@ -203,7 +242,8 @@ export const SYNERGY: Record<string, HeroSynergy> = {
         engines: ["marks"], combos: ["leona",
             "ahri",
             "nami"], counteredBy: ["katarina",
-            "khazix"]
+            "khazix",
+            "rumble"]
     },
     ashe: {
         engines: ["mill",
@@ -222,7 +262,8 @@ export const SYNERGY: Record<string, HeroSynergy> = {
         engines: ["marks",
             "lanes"], combos: ["janna",
             "ornn"], counteredBy: ["ahri",
-            "khazix"]
+            "khazix",
+            "sona"]
     },
     janna: {
         engines: ["marks"], combos: ["jinx",

@@ -1,0 +1,9 @@
+/* This row belongs to .bd-slot, never to .bd-unit: moving or dying cannot move it. */
+.forest-game.cg-root .modular-battlefield .bd-slot-effects { position:absolute; left:50%; top:304px; transform:translateX(-50%); width:164px; min-height:32px; display:flex; justify-content:center; align-items:center; gap:5px; pointer-events:none; z-index:12; }
+/* Reward receipts cover the journal with an opaque material while they are visible. */
+.forest-game.cg-root .cg-chain.ch .ch-toasts { z-index:30; isolation:isolate; }
+.forest-game.cg-root .cg-chain.ch .ch-toast { position:relative; background:#073020; background-clip:border-box; opacity:1; animation:slot-reward-receipt .3s ease-out both; }
+.forest-game.cg-root .cg-chain.ch .ch-toast::before { content:""; position:absolute; inset:0; z-index:-1; background:#073020; }
+
+@keyframes slot-reward-receipt { from { transform:translateY(-10px); } to { transform:translateY(0); } }
+.forest-game.cg-root .modular-battlefield .bd-row.foe .bd-slot-effects { top:272px; }

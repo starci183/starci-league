@@ -12,6 +12,7 @@ CHAMPS = {
     "ahri": "Ahri", "darius": "Darius", "leona": "Leona", "jinx": "Jinx", "thresh": "Thresh",
     "zed": "Zed", "annie": "Annie", "vayne": "Vayne", "malphite": "Malphite", "soraka": "Soraka",
     "qiyana": "Qiyana", "nami": "Nami", "teemo": "Teemo", "twistedfate": "TwistedFate", "viktor": "Viktor",
+    "rumble": "Rumble", "sylas": "Sylas", "mel": "Mel", "azir": "Azir", "sona": "Sona", "jayce": "Jayce",
 }
 # tuỳ chọn: chỉ tải các tướng liệt kê ở tham số thứ 3 (cách nhau dấu phẩy)
 if len(sys.argv) > 3:

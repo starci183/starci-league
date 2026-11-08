@@ -1,0 +1,45 @@
+/* Archive is assembled from independent whole-PNG modules on the 1920 × 1080 canvas. */
+.game-canvas-stage .action-dialog.collection-dialog { width:1760px; height:1000px; max-height:1020px; }
+.collection-dialog .action-body > .game-scroll-viewport { overflow:hidden; }
+.collection-dialog .action-body > .game-scroll-rail { display:none; }
+.collection-dialog .action-body > .game-scroll-viewport > .game-scroll-content { height:100%; box-sizing:border-box; display:flex; flex-direction:column; padding:6px 14px; }
+.collection-dialog .bd-collection-toolbar { display:flex; align-items:center; justify-content:space-between; gap:20px; padding:0 6px; flex:none; }
+.collection-dialog .bd-collection-tabs { display:flex; gap:12px; }
+.collection-dialog :is(.bd-collection-tabs,.bd-collection-filters) button { padding:0; border:0; background:none; color:#b9c9b4; font:600 22px/1 var(--font-game-text); cursor:pointer; }
+.collection-dialog :is(.bd-collection-tabs,.bd-collection-filters) button[aria-pressed=true] { color:#fff0bb; filter:drop-shadow(0 0 7px #51e5b499); }
+.collection-dialog :is(.bd-collection-tabs,.bd-collection-filters) button:is(:hover,:focus-visible) { outline:none; color:#fff0bb; filter:brightness(1.2) drop-shadow(0 0 5px #67e8b8); }
+.collection-dialog .bd-collection-tabs :is(.af-safe-content,.af-label-inner) { gap:10px; }
+.collection-dialog .bd-collection-tabs .game-icon { width:22px; height:22px; }
+.collection-dialog .bd-collection-owner { color:#aabd9c; font-size:22px; }
+.collection-dialog .bd-collection-controls { display:grid; grid-template-columns:490px minmax(0,1fr) 90px; align-items:center; gap:14px; flex:none; padding:0 6px; }
+.collection-dialog .bd-collection-controls label { display:block; min-width:0; }
+.collection-dialog .bd-collection-search { gap:12px; }
+.collection-dialog .bd-collection-search .game-icon { width:24px; height:24px; color:#e2cc8d; flex:none; }
+.game-canvas-stage .action-dialog.collection-dialog input { width:100%; min-width:0; box-sizing:border-box; color:#f2e6bf; background:none; border:0; border-radius:0; padding:2px; font:400 21px/1.2 var(--font-game-text); }
+.collection-dialog input:focus-visible { outline:none; text-shadow:0 0 8px #64f8c277; }
+.collection-dialog input::placeholder { color:#9bb49e; }
+.collection-dialog .bd-collection-filters { display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); align-items:center; gap:4px; min-width:0; }
+.collection-dialog .bd-collection-filters button { min-width:0; grid-column:span 2; font-size:19px; }
+.collection-dialog .bd-collection-filters button:nth-child(4) { grid-column:2 / span 2; }
+.collection-dialog .bd-collection-filters button:nth-child(5) { grid-column:4 / span 2; }
+.collection-dialog .bd-collection-result-count { text-align:right; color:#c5e5ba; font-size:22px; white-space:nowrap; }
+.collection-dialog .bd-collection-note { color:#a7b9a5; margin:0 6px 8px; font-size:19px; line-height:1.25; flex:none; }
+.collection-dialog .bd-collection-body { display:grid; grid-template-columns:minmax(0,1fr) 440px; min-height:0; flex:1; gap:24px; }
+.collection-dialog .bd-collection-body.empty { grid-template-columns:1fr; }
+.collection-dialog .collection-list { min-height:0; }
+.collection-dialog .bd-collection-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:20px 12px; padding:8px; align-content:start; }
+.collection-dialog .bd-collection-card { box-sizing:border-box; position:relative; display:flex; flex-direction:column; align-items:center; gap:0; min-width:0; padding:8px 4px; border:0; background:none; color:#eadbb6; font:inherit; cursor:pointer; transition:filter .15s; }
+.collection-dialog .bd-collection-card:is(:hover,:focus-visible),.collection-dialog .bd-collection-card[aria-pressed=true] { outline:none; filter:drop-shadow(0 0 6px #51eaba80); }
+.collection-dialog .bd-collection-name { margin-top:-3px; }
+.collection-dialog .bd-collection-name b { width:100%; text-align:center; font-size:18px; line-height:1.08; font-weight:600; overflow-wrap:anywhere; }
+.collection-dialog .bd-collection-count { color:#fff0bb; font-size:21px; line-height:1; margin-top:-2px; }
+.collection-dialog .bd-collection-seal { position:absolute; top:18px; left:calc(50% + 66px); color:#8cffe1; }
+.collection-dialog .bd-collection-seal .game-icon { width:17px; height:17px; }
+.collection-dialog .bd-collection-detail { min-width:0; border:0; background:none; }
+.collection-dialog .bd-collection-empty { grid-column:1/-1; color:#b9c9b5; padding:28px; text-align:center; font-size:28px; }
+.collection-dialog .bd-collection-empty > .game-icon { width:68px; height:68px; color:#d1bf7a; opacity:.7; }
+.collection-dialog .bd-collection-empty > p { margin:16px 0; }
+@media(prefers-reduced-motion:reduce) { .collection-dialog .bd-collection-card { transition:none; } }
+
+
+.collection-dialog .bd-collection-visual { width:226px; height:auto; aspect-ratio:190/250; flex:none; }

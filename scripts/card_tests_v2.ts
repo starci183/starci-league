@@ -535,23 +535,23 @@ test("Lật lá thưởng khi tay đầy -> cardBurned",
     })
 
 // ======================================================================
-G("V2: giới hạn 3 đòn đánh mỗi lượt (cứng, mọi tướng)")
+G("V2: không còn giới hạn đòn đánh mỗi lượt (law.md 11c)")
 // ======================================================================
-test("RULES.attackLimit = 3, không còn attackLimitCap; g.attackLimit(side) = 3",
+test("Không còn RULES.attackLimit / attackLimitCap; g.attackLimit(side) = Infinity",
     () => {
-        assert.equal(R.attackLimit,
-            3)
+        assert.equal((cg.RULES as unknown as Record<string, unknown>).attackLimit,
+            undefined)
         assert.equal((cg.RULES as unknown as Record<string, unknown>).attackLimitCap,
             undefined)
         assert.equal(gm(mk()).attackLimit("A"),
-            3)
+            Infinity)
     })
-test("3 lá Đánh thường -> lá thứ 4 không còn trong legalActions; attackCount 1..3",
+test("5 lá Đánh thường liên tiếp đều đánh được (không trần); attackCount 1..5",
     () => {
-        let s = fighterDuel(4)
+        let s = fighterDuel(5)
         s.players.B.hand = []
         const counts: number[] = []
-        for (let i = 0; i < 3; i++) {
+        for (let i = 0; i < 5; i++) {
             const a = basicsPlayable(s,
                 "A")
             assert.ok(a.length > 0,
@@ -569,10 +569,13 @@ test("3 lá Đánh thường -> lá thứ 4 không còn trong legalActions; atta
         assert.deepEqual(counts,
             [1,
                 2,
-                3])
+                3,
+                4,
+                5])
         assert.equal(basicsPlayable(s,
             "A").length,
-        0)
+        0,
+        "hết lá thì hết đòn (không phải hết trần)")
     })
 test("API cấp đòn đánh độc lập bị bỏ; dữ liệu buff cũ không tạo hành động và không chặn Đấu sĩ",
     () => {
@@ -608,7 +611,7 @@ test("g.attack() bên trong chiêu/hook không bị tính (chỉ đòn do ngư�
         assert.equal(g.turnAttacks().used,
             0)
     })
-test("Không có cách tăng quá 3: attackLimit luôn <= 3 dù tướng có attackLimitMod; không còn addAttackLimit",
+test("attackLimitMod của tướng bị bỏ qua: attackLimit luôn Infinity; không còn addAttackLimit",
     () => {
         const s = fighterDuel(0)
         const g = gm(s) as unknown as Record<string, unknown>
@@ -624,9 +627,10 @@ test("Không có cách tăng quá 3: attackLimit luôn <= 3 dù tướng có att
                 v2_tank: 2
             }
         })
-        assert.ok(gm(s2).attackLimit("A") <= 3)
+        assert.equal(gm(s2).attackLimit("A"),
+            Infinity)
     })
-test("Giới hạn đặt lại ở lượt kế tiếp của chính phe đó",
+test("Bộ đếm đòn đặt lại ở lượt kế tiếp của chính phe đó; vẫn không có trần",
     () => {
         let s = fighterDuel(3)
         for (let i = 0; i < 3; i++) {
@@ -638,14 +642,16 @@ test("Giới hạn đặt lại ở lượt kế tiếp của chính phe đó",
                     t: "pass", side: cg.whoseMove(s)
                 }).s
         }
+        assert.equal(gm(s).turnAttacks("A").used,
+            3)
         assert.equal(gm(s).attacksLeft("A"),
-            0)
+            Infinity)
         s = toTurn(s,
             "B")
         s = toTurn(s,
             "A")
         assert.equal(gm(s).attacksLeft("A"),
-            3)
+            Infinity)
         assert.equal(gm(s).turnAttacks().used,
             0)
     })
@@ -722,7 +728,7 @@ test("allowCardless cho phép đánh không cần lá thêm lần nữa",
             "A").length,
         1)
     })
-test("Không được đề nghị đòn không cần lá khi bị choáng hoặc hết lượt đánh",
+test("Không được đề nghị đòn không cần lá khi bị choáng; đã đánh nhiều đòn vẫn được (không trần)",
     () => {
         const b = fighterDuel(0)
         gm(b).status(u(b,
@@ -736,10 +742,9 @@ test("Không được đề nghị đòn không cần lá khi bị choáng hoặ
         "choáng")
         const c = fighterDuel(0)
         gm(c).turnAttacks().used = 3
-        assert.equal(cardlessActs(c,
-            "A").length,
-        0,
-        "hết 3 đòn")
+        assert.ok(cardlessActs(c,
+            "A").length > 0,
+        "đã 3 đòn vẫn đánh được")
     })
 test("Đòn không cần lá không bao giờ tự động: cuối lượt đấu sĩ KHÔNG tự đánh",
     () => {
@@ -1137,6 +1142,7 @@ test("Không đủ mana -> lá không hợp lệ (cả Quick trong chuỗi ở l
             const tt = toTurn(t,
                 "B")
             tt.teamMana.A = mana
+            tt.step = "battle"
             const open = cg.legalActions(tt,
                 "B").find((a) => a.t === "play" && a.uid === bb.uid)
             assert.ok(open,
@@ -1184,7 +1190,7 @@ test("Mana: ném hết Q khi đủ rồi hết mana; mana không bao giờ âm",
             Math.floor(R.teamManaStart / 20) > 0 ? Math.min(6,
                 Math.floor(R.teamManaStart / 20)) : 0)
     })
-test("Đồ có maxMana / manaRegen / manaCostMod được tính (stub)",
+test("Đồ có maxMana / manaRegen được tính (stub); manaCostMod bị bỏ qua: không giảm phí mana",
     () => {
         const items = cg.CARD_ITEMS as unknown as Record<string, Record<string, unknown>>
         items.v2_stub = {
@@ -1211,7 +1217,7 @@ test("Đồ có maxMana / manaRegen / manaCostMod được tính (stub)",
         assert.equal(g.manaCost(m,
 cg.getHero("v2_mage")!.skills.E,
 e),
-        25 - Math.round(40 * R.itemManaCostCut)) // hệ số quy đổi chung (đang 0): mỗi món tự giảm chi phí qua manaCostMod
+        35) // hàm mana của E, không giảm phí mana (law.md): manaCostMod của đồ không còn tác dụng
         s.teamMana.A = 10
         s.ownTurns = {
             A: 1, B: 1

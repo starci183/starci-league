@@ -1,241 +1,186 @@
-// Yorick (Đấu sĩ, vật lý): máu 410 · AD 68 · giáp/kháng 31/30 (V3).
-// CHẤT: "Nuôi Thiếu Nữ". Yorick đánh để LẤP MỘ (đòn gây 50% + 2%/lá trong mộ, tối đa 130%; mỗi đòn vứt 1 lá trên cùng bộ bài vào mộ và rút 1 lá, tối đa 2 lá rút/lượt);
-// Q Chôn bài chết và rút bù (hồi máu), E Đào Mộ vứt 3 lá rồi chọn 1 lá về tay, R Thiếu Nữ Sương Mù: trạng thái vĩnh viễn Ma Sương (giảm sát thương; đầu lượt Thiếu Nữ đánh và đào mộ),
-// mộ càng dày Thiếu Nữ càng đau và Yorick càng trâu.
-// Engine: AttackInfo.mult (nội tại), g.mill + g.offerPick (E), SkillDef.extra "discard" (Q), status FOREVER + modifyDamage + onTurnStart (R).
-// Đối thủ trả lời: hạ Yorick (mất Ma Sương), Blitzcrank cướp bài, đánh nhanh trước khi Yorick làm cạn bộ bài của chính mình.
+// Yorick (Đấu sĩ, vật lý). Bộ chiêu chốt 31/10 – 01/11/2026, số liệu ở balance/heroes/yorick.json (docs/heroes/KITS.md).
+// CHẤT: "Câu giờ đốt bài". Đòn trúng đốt bộ bài đối thủ và nuôi Hồn Ma (máu, giáp, và cứ mỗi p4 Hồn Ma tạo 1 lá R); E đốt thêm và Rã Giáp;
+// R gọi Ma Sương ở ô phụ (token): đầu lượt và mỗi đòn Yorick nó đánh đối diện rồi đốt thêm bài. Gọi lại khi đã có thì hồi đầy và Tiến Hoá.
+// Thắng bằng cạn bộ bài: dùng luật sẵn có của engine (đầu lượt rút bài mà bộ trống thì thua), cờ deckOutWinUsesEngineRule trong JSON ghi quyết định tạm này.
+import {
+    kit
+} from "../balance"
+import {
+    defineHero, defineTokenBehavior
+} from "../registry"
 import type {
     Game
 } from "../game"
-import {
-    defineHero
-} from "../registry"
-import {
-    FOREVER, RULES
-} from "../types"
 import type {
-    Card, Side, Unit
+    Unit
+} from "../types"
+import {
+    otherSide
 } from "../types"
 
-/** Nội tại: đòn đánh của Yorick gây (50% + 2% mỗi lá trong mộ, không trần) sát thương đòn chính; mỗi đòn vứt 1 lá trên cùng bộ bài vào mộ và bạn rút 1 lá (tối đa 2 lá rút/lượt) */
-export const ATTACK_BASE = 0.5
-export const ATTACK_PER_GRAVE = 0.02
-/** Bỏ trần hệ số đòn theo mộ (giữ tên để tương thích) */
-export const ATTACK_MAX = Infinity
-const ATTACK_MILL = 1
-export const ATTACK_DRAW_CAP = 2
-/** Hệ số đòn đánh theo số lá trong mộ */
-export const attackMult = (grave: number) => Math.min(ATTACK_MAX,
-    ATTACK_BASE + ATTACK_PER_GRAVE * grave)
-/** Q: Yorick hồi */
-export const F_Q = "30 + 35% AD + 4% AP"
-/** E: vứt 3 lá trên cùng, chọn 1 lá trong đó về tay */
-const E_MILL = 3
-/** R (chủ đổi 30/10, không còn token): Yorick nhận trạng thái VĨNH VIỄN "Ma Sương" (yorick_mist, v = số tầng, cộng dồn mỗi lần dùng R; mất khi Yorick chết) */
+const k = kit("yorick"), { p } = k
+export const SOUL = "yorick_soul"
+export const EVO = "mist_evo"
 export const MIST = "yorick_mist"
-/** Sát thương Yorick nhận nhân 1 / [1 + tầng × (0,15 + 0,001 × Giáp)] (lợi ích biên giảm, không trần) */
-export const MIST_CUT_BASE = 0.15
-export const MIST_CUT_PER_ARMOR = 0.001
-/** Thiếu Nữ đánh: (1.5% máu tối đa mục tiêu mỗi 5 lá trong mộ + 8% máu tối đa + 50% Giáp của Yorick) sát thương vật lý */
-export const GRAVE_STEP = 5
-export const MAIDEN_PCT_PER_STEP = 0.015
-export const F_MAIDEN = "5% máu tối đa + 30% Giáp"
-/** Yorick hồi (1% máu tối đa mỗi 5 lá trong mộ + 20% Giáp) */
-export const MAIDEN_HEAL_PER_STEP = 0.01
-export const F_MAIDEN_HEAL = "15% Giáp"
-/** Đầu lượt bạn, mỗi tầng: Thiếu Nữ đào 1 lá trên cùng bộ bài vào mộ */
-export const MIST_MILL = 1
+/** Quyết định tạm của thầy: thắng khi cạn bộ bài dùng đúng luật engine, không thêm điều kiện thắng riêng */
+export const DECK_OUT_USES_ENGINE_RULE = k.flag("deckOutWinUsesEngineRule")
+export const F_Q_DMG = k.x("q1 + q2·Máu tối đa"), EN_Q_DMG = k.xe("q1 + q2·Máu tối đa")
+export const F_Q_HEAL = k.x("q3 + q4·Máu tối đa"), EN_Q_HEAL = k.xe("q3 + q4·Máu tối đa")
+export const F_E = k.x("e2 + e3·Giáp"), EN_E = k.xe("e2 + e3·Giáp")
+export const F_MIST_HP = k.x("r1 + r2·Máu tối đa"), EN_MIST_HP = k.xe("r1 + r2·Máu tối đa")
+export const F_MIST_ARMOR = k.x("r3 + r4·Giáp"), EN_MIST_ARMOR = k.xe("r3 + r4·Giáp")
 
-/** Chủ đổi 30/10: mộ đạt mỗi mốc bấy nhiêu lá (20, 40, 60...) thì lá R Thiếu Nữ Sương Mù tự lên tay (lấy từ bộ, không có thì từ mộ) */
-export const R_GRAVE_STEP = 20
-/** Số mốc đã đạt (theo mộ cao nhất từng có) */
-const R_MARK = "yorickRMark"
-/** Quyền tìm R còn chờ (mỗi mốc mới +1; không mất khi đang chết, tay đầy, đã có R hay chưa tìm thấy R) */
-const R_PENDING = "yorickRPending"
-const isMyR = (c: Card) => c.kind === "skill" && c.id === "yorick_r" && !c.temp
-/** Ghi mốc mộ mới (20, 40, 60... theo mộ cao nhất) rồi thử trả quyền chờ: tìm lá R thật từ bộ, không có thì từ mộ */
-function checkMaidenCard(g: Game, me: Unit) {
-    const mark = Math.floor(graveSize(g,
-        me.side) / R_GRAVE_STEP)
-    const had = me.stacks[R_MARK] ?? 0
-    if (mark > had) {
-        me.stacks[R_MARK] = mark
-        me.stacks[R_PENDING] = (me.stacks[R_PENDING] ?? 0) + mark - had
-    }
-    if ((me.stacks[R_PENDING] ?? 0) <= 0 || me.status !== "board") return
-    const p = g.player(me.side)
-    if (p.hand.some(isMyR) || g.handCount(me.side) >= RULES.handMax) return
-    const inDeck = g.deckCards(me.side,
-        isMyR)[0]
-    let got: Card | undefined
-    if (inDeck) {
-        g.log("Mốc mộ: Yorick lấy lá Thiếu Nữ Sương Mù từ bộ bài lên tay")
-        got = g.tutor(me.side,
-            (c) => c.uid === inDeck.uid)
-    } else {
-        const inGrave = g.graveCards(me.side,
-            isMyR)[0]
-        if (inGrave) {
-            g.log("Mốc mộ: Yorick lấy lá Thiếu Nữ Sương Mù từ mộ lên tay")
-            got = g.fromGrave(me.side,
-                inGrave.uid)
-        }
-    }
-    if (got && p.hand.some((c) => c.uid === got.uid)) me.stacks[R_PENDING] = (me.stacks[R_PENDING] ?? 1) - 1
+export const soulsOf = (u: Unit) => u.stacks[SOUL] ?? 0
+/** Ma Sương của Yorick `me` đang ở ô phụ */
+export const mistOf = (g: Game, me: Unit): Unit | undefined => {
+    const t = g.tokenOf(me.side)
+    return t?.token?.id === MIST && t.token.ownerId === me.id ? t : undefined
 }
+/** Máu tối đa cộng thêm từ Hồn Ma (kiểu aura, đổi theo số tầng) */
+const syncSouls = (g: Game, me: Unit) => g.setAuraMaxHp(me,
+    SOUL,
+    soulsOf(me) * p.p2)
 
-/** Số lá trong mộ bài của bạn */
-export const graveSize = (g: Game, side: Side) => g.player(side).grave.length
-export const steps = (g: Game, side: Side) => Math.floor(graveSize(g,
-    side) / GRAVE_STEP)
-
-/** Số tầng Ma Sương của Yorick */
-export const mistStacks = (g: Game, me: Unit) => g.statusV(me,
-    MIST)
-/** Hệ số sát thương Yorick nhận dưới Ma Sương: 1 / [1 + tầng × (0,15 + 0,001 × Giáp)] */
-export const mistMult = (g: Game, me: Unit) => {
-    const n = mistStacks(g,
+/** Ma Sương đánh: đối diện Yorick (hoặc mục tiêu chỉ định) nhận r5 + r6·Hồn Ma + r10·Tiến Hoá sát thương vật lý, rồi đốt r7 lá bộ nó */
+export function mistStrike(g: Game, me: Unit, target?: Unit) {
+    const tok = mistOf(g,
         me)
-    if (n <= 0) return 1
-    return 1 / (1 + n * (MIST_CUT_BASE + MIST_CUT_PER_ARMOR * Math.max(0,
-        g.armor(me))))
+    const foe = target ?? g.opposite(me)
+    if (!tok || !foe || foe.token || foe.status !== "board") return
+    g.damage(me,
+        foe,
+        p.r5 + p.r6 * soulsOf(me) + p.r10 * (tok.stacks[EVO] ?? 0),
+        "physical",
+        {
+            tag: "effect"
+        })
+    g.burn(foe.side,
+        p.r7)
 }
-/** Tỉ lệ giảm sát thương của Ma Sương (tổng mọi tầng) */
-export const mistCut = (g: Game, me: Unit) => 1 - mistMult(g,
-    me)
-/** Thiếu Nữ đánh 1 lần: 1 địch ngẫu nhiên nhận sát thương vật lý, Yorick hồi máu */
-export function maidenStrike(g: Game, me: Unit) {
-    const n = steps(g,
-        me.side)
-    const foe = g.pick(g.targetableEnemies(me).filter((x) => !x.token))
-    if (foe) {
-        g.log(`Thiếu Nữ Sương Mù đánh ngẫu nhiên ${g.nameOf(foe)}`)
-        g.damage(me,
-            foe,
-            foe.maxHp * MAIDEN_PCT_PER_STEP * n + g.f(me,
-                F_MAIDEN),
-            "physical",
-            {
-                tag: "effect"
-            })
-    }
-    g.heal(me,
-        me,
-        me.maxHp * MAIDEN_HEAL_PER_STEP * n + g.f(me,
-            F_MAIDEN_HEAL))
-}
-/** Đầu lượt bạn: chụp số tầng; mỗi tầng = Thiếu Nữ đánh + hồi, rồi đào 1 lá vào mộ (mộ tăng thì n của tầng sau tăng) */
-function mistTurn(g: Game, me: Unit) {
-    const n = mistStacks(g,
-        me)
-    for (let i = 0; i < n && me.status === "board"; i++) {
-        maidenStrike(g,
-            me)
-        if (g.player(me.side).deck.length > 0) {
-            g.log("Thiếu Nữ Sương Mù đào 1 lá trên cùng bộ bài vào mộ")
-            g.mill(me.side,
-                MIST_MILL)
-        }
-    }
-}
+
+defineTokenBehavior({
+    id: MIST,
+    onOwnerTurnStart(g, _tok, owner) { if (owner && owner.status === "board") mistStrike(g,
+        owner) },
+})
 
 export default defineHero({
-    id: "yorick", name: "Yorick", role: "fighter", damage: "physical", hp: 380, atk: 64, armor: 31, mr: 30,
-    bot: {
-        graveCardValue: 3,
-    },
-    desc: "Người Chăn Hồn: đánh để lấp mộ chứ không để giết; mộ càng dày, Thiếu Nữ Sương Mù (đi cạnh Yorick) càng đáng sợ và Yorick càng trâu.",
+    id: "yorick", name: "Yorick", role: "fighter", damage: "physical", ...k.base,
+    deathHalf: [SOUL],
+    bot: k.bot,
+    desc: "Người Chăn Hồn: đánh để đốt bộ bài đối thủ và nuôi Hồn Ma; Ma Sương đi cạnh đốt thêm. Cạn bộ bài là thua.",
     passive: {
         name: "Người Đào Mộ",
-        desc: "Trước từng đòn được cấp quyền, hệ số sát thương đòn chính là 50% + 2% mỗi lá hiện có trong mộ, không trần; đào 1 lá rồi rút bù 1 lá, tối đa 2 lá rút mỗi lượt đang chạy, kể cả đòn trượt vẫn đào/rút. Mỗi mốc mộ cao nhất mới 20, 40, 60... cho một quyền chờ tìm R thật từ bộ, nếu không có thì từ mộ.",
+        desc: `Đòn trúng đốt ${p.p1} lá trên cùng bộ bài đối thủ và cho Yorick 1 Hồn Ma. Mỗi Hồn Ma cho ${p.p2} Máu tối đa và ${p.p3} Giáp. Mỗi bội số của ${p.p4} Hồn Ma, tạo 1 lá R. Yorick chết thì mất một nửa Hồn Ma.`,
     },
-    modifyDamage(g, me, d) {
-        // Ma Sương: Yorick nhận ít sát thương hơn
-        return d.target.id === me.id ? mistMult(g,
-            me) : 1
+    en: {
+        desc: "Gravedigger: his hits burn the opponent's deck and feed Wraiths; the Mist Walker beside him burns even more. An empty deck loses.",
+        passive: {
+            name: "Gravedigger",
+            desc: `A hit burns the top ${p.p1} card(s) of the opponent's deck and gives Yorick 1 Wraith. Each Wraith gives ${p.p2} max HP and ${p.p3} Armor. At every multiple of ${p.p4} Wraiths, create 1 R card. When Yorick dies he loses half his Wraiths.`,
+        },
+        skills: {
+            Q: {
+                name: "Last Rites",
+                desc: `The opposite enemy takes {${EN_Q_DMG}} physical damage; Yorick heals {${EN_Q_HEAL}} HP.`,
+            },
+            E: {
+                name: "Mourning Mist",
+                desc: `Burn ${p.e1} card(s) from the opponent's deck. Choose 1 enemy champion: it takes {${EN_E}} physical damage and loses Armor (Shred) for ${p.e4} units. If the Mist Walker is out, it attacks that champion too.`,
+            },
+            R: {
+                name: "Dirge of the Mist",
+                desc: `Summon the Mist Walker in the extra slot with {${EN_MIST_HP}} HP and {${EN_MIST_ARMOR}} Armor. At the start of your turn and with each of Yorick's hits it strikes the opposite enemy for ${p.r5} + ${p.r6} per Wraith physical damage and burns ${p.r7} card(s). If it is already out: it heals fully and gains 1 Evolution (${p.r8} HP, ${p.r9} Armor, ${p.r10} damage; lost with the Mist Walker). It vanishes when Yorick dies.`,
+            },
+        },
     },
-    // ghi mốc mộ cả khi Yorick đang chết (quyền chờ không mất); lấy lá R vẫn chờ Yorick trên sân (checkMaidenCard tự kiểm)
-    offBoardHooks: ["onBurn",
-        "onDiscard",
-        "onActionEnd",
-        "onTurnEnd"],
+    bonusStats: (_g, me) => ({
+        armor: soulsOf(me) * p.p3
+    }),
     hooks: {
-        onBurn(g, me, d) { if (d.side === me.side) checkMaidenCard(g,
-            me) },
-        onDiscard(g, me, d) { if (d.side === me.side) checkMaidenCard(g,
-            me) },
-        // mọi lá vào mộ (lá đã dùng, bị huỷ...) đều có thể chạm mốc
-        onActionEnd(g, me) { checkMaidenCard(g,
-            me) },
-        onTurnEnd(g, me) { checkMaidenCard(g,
-            me) },
-        onTurnStart(g, me, d) {
-            if (d.side !== me.side) return
-            mistTurn(g,
+        onAttackHit(g, me, d) {
+            if (d.attacker.id !== me.id || d.info.miss || d.target.side === me.side || d.target.token) return
+            g.burn(d.target.side,
+                p.p1)
+            const n = g.stack(me,
+                SOUL,
+                1)
+            syncSouls(g,
                 me)
-            checkMaidenCard(g,
+            if (n % p.p4 === 0) g.giveSkillToHand(me.side,
+                "yorick",
+                "R",
+                "effect")
+            mistStrike(g,
                 me)
         },
-        onAttack(g, me, d) {
-            if (d.attacker.id !== me.id) return
-            d.info.mult *= attackMult(graveSize(g,
-                me.side))
-            g.mill(me.side,
-                ATTACK_MILL)
-            // rút bù, tối đa ATTACK_DRAW_CAP lá mỗi lượt (2 khoá oncePerTurn)
-            if (g.player(me.side).deck.length > 0 && (g.oncePerTurn(me,
-                "yorickDraw1") || g.oncePerTurn(me,
-                "yorickDraw2"))) g.draw(me.side,
-                1,
-                {
-                    reason: "skill", by: me.id
-                })
+        onDeath(g, me, d) {
+            if (d.victim.id === me.id) syncSouls(g,
+                me) // engine đã giảm một nửa Hồn Ma
         },
     },
     skills: {
         Q: {
-            key: "Q", mana: 10, name: "Chôn Cất", target: "none", extra: "discard",
-            desc: `Bỏ 1 lá khác trên tay vào mộ, rút 1 lá rồi Yorick hồi {${F_Q}} Máu; cần có lá khác để trả.`,
-            canPlay: (c) => c.g.player(c.side).hand.some((x) => x.uid !== c.card.uid),
+            key: "Q", mana: p.q0, name: "Nghi Thức Cuối", target: "opposite",
+            desc: `Tướng địch đối diện nhận {${F_Q_DMG}} sát thương vật lý; Yorick hồi {${F_Q_HEAL}} Máu.`,
             resolve(c) {
-                const uid = c.args.discard?.[0]
-                if (uid) c.g.discard(c.side,
-                    uid,
-                    "cost")
-                c.g.draw(c.side,
-                    1,
-                    {
-                        reason: "skill", by: c.self.id
-                    })
+                c.g.damage(c.self,
+c.target!,
+c.f(F_Q_DMG),
+"physical",
+{
+    tag: "skill"
+})
                 c.g.heal(c.self,
                     c.self,
-                    c.f(F_Q))
+                    c.f(F_Q_HEAL))
             },
         },
         E: {
-            key: "E", mana: 15, name: "Đào Mộ", target: "none",
-            desc: "Đào tối đa 3 lá trên cùng bộ vào mộ; chọn 1 trong số lá vừa đào vẫn thực sự còn trong mộ để chuyển lên tay, không nhân bản. Cần bộ còn ít nhất 1 lá khi dùng.",
-            canPlay: (c) => c.g.deckCards(c.side).length > 0,
+            key: "E", mana: p.e0, name: "Sương Sầu", target: "enemy",
+            desc: `Đốt ${p.e1} lá trên cùng bộ bài đối thủ. Chọn 1 tướng địch: nhận {${F_E}} sát thương vật lý và Rã Giáp ${p.e4} đơn vị. Có Ma Sương: nó cũng đánh tướng đó.`,
             resolve(c) {
-                // 3 lá vào mộ, rồi mỗi lá thành 1 lá chọn tạm trên tay: đánh 1 lá = lấy lá đó về tay
-                const cards = c.g.mill(c.side,
-                    E_MILL)
-                c.g.offerPick(c.side,
-                    c.self.hero,
-                    cards)
+                const t = c.target!
+                c.g.burn(otherSide(c.side),
+                    p.e1)
+                c.g.damage(c.self,
+                    t,
+                    c.f(F_E),
+                    "physical",
+                    {
+                        tag: "skill"
+                    })
+                c.g.timed(c.self,
+                    t,
+                    "shred",
+                    p.e4)
+                mistStrike(c.g,
+                    c.self,
+                    t)
             },
         },
         R: {
-            key: "R", mana: 30, name: "Thiếu Nữ Sương Mù", target: "none",
-            desc: `Thiếu Nữ đánh 1 tướng địch hợp lệ ngẫu nhiên và hồi Yorick ngay, rồi thêm 1 tầng Ma Sương vĩnh viễn tới chết thật. Mỗi tầng đầu lượt mình đánh/hồi một lần rồi đào 1 lá. Với n=floor(mộ/5), mỗi lần đánh gây 1,5% × n Máu tối đa mục tiêu + {${F_MAIDEN}} của Yorick sát thương vật lý; hồi Yorick 1% × n Máu tối đa Yorick + {${F_MAIDEN_HEAL}}. Sát thương nhận nhân 1/[1 + tầng × (0,15 + 0,001 × Giáp)].`,
+            key: "R", mana: p.r0, name: "Khúc Ai Ca", target: "none",
+            desc: `Gọi Ma Sương ở ô phụ: Máu {${F_MIST_HP}}, Giáp {${F_MIST_ARMOR}}. Đầu lượt bạn và mỗi đòn của Yorick, nó đánh tướng đối diện ${p.r5} + ${p.r6} mỗi Hồn Ma sát thương vật lý và đốt ${p.r7} lá bộ bài nó. Đã có Ma Sương: hồi đầy và nhận 1 Tiến Hoá (${p.r8} Máu, ${p.r9} Giáp, ${p.r10} sát thương; mất khi Ma Sương mất). Yorick chết thì Ma Sương biến mất.`,
             resolve(c) {
-                maidenStrike(c.g,
-                    c.self)
-                c.g.status(c.self,
-                    MIST,
-                    1,
+                const g = c.g, me = c.self
+                const mist = mistOf(g,
+                    me)
+                if (mist) {
+                    mist.maxHp += p.r8
+                    mist.hp += p.r8
+                    if (mist.token) mist.token.armor += p.r9
+                    g.stack(mist,
+                        EVO,
+                        1)
+                    g.heal(me,
+                        mist,
+                        mist.maxHp)
+                    return
+                }
+                g.summonToken(me.side,
                     {
-                        v: 1, add: true, until: FOREVER
+                        id: MIST, name: "Ma Sương", hp: Math.round(c.f(F_MIST_HP)), armor: Math.round(c.f(F_MIST_ARMOR)), mr: p.r11, ownerId: me.id, soak: false,
                     })
             },
         },

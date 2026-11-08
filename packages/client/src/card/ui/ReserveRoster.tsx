@@ -1,4 +1,7 @@
 import {
+    useEffect, useState
+} from "react"
+import {
     cg
 } from "@starci/shared"
 import {
@@ -13,9 +16,18 @@ import {
 import {
     GameIcon
 } from "./GameIcon"
+import {
+    ChampionModeDialog
+} from "./ChampionModeDialog"
 
 export function ReserveRoster() {
     const { view, legal, presenting, targeting } = useCard()
+    // tướng có nhiều chế độ gọi (Jinx: súng): hỏi chế độ trước khi chọn đường
+    const [modePick,
+        setModePick] = useState<string | null>(null)
+    useEffect(() => { setModePick(null) },
+        [view,
+            legal])
     if (!view?.you) return null
     const side = view.you
     const heroes = view.players[side].heroes.map((id) => view.units[`${side}:${id}`]).filter((u) => u && u.status !== "board")
@@ -31,11 +43,28 @@ export function ReserveRoster() {
                 inspectionActions.unit(unit.id)
                 if (!presenting && options.length) {
                     cardActions.cancelTargeting()
+                    const modes = [...new Set(options.map((a) => a.mode).filter((m): m is string => !!m))]
+                    if (modes.length > 1) {
+                        setModePick(unit.hero)
+                        return
+                    }
+                    setModePick(null)
                     cardActions.beginTargeting(unit.hero,
                         options)
                 }
-            }}><img src={`/heroes/${unit.hero}.jpg`} alt="" /><b>{heroName(unit.hero)}</b><span>{status}</span></button>
+            }}><img src={`/heroes-square/${unit.hero}.jpg`} alt="" /><b>{heroName(unit.hero)}</b><span>{status}</span></button>
         })}</div>
+        {modePick ? (() => {
+            const opts = summons.filter((a) => a.hero === modePick)
+            const modes = [...new Set(opts.map((a) => a.mode).filter((m): m is string => !!m))]
+            if (modes.length < 2) return null
+            const unit = view.units[`${side}:${modePick}`]
+            return <ChampionModeDialog unit={unit} modes={modes} onClose={() => setModePick(null)} onConfirm={(mode) => {
+                setModePick(null)
+                cardActions.beginTargeting(modePick,
+                    opts.filter((a) => a.mode === mode))
+            }} />
+        })() : null}
         {!heroes.length ? <p>{isEn() ? "All champions deployed" : "Tất cả tướng đã ra sân"}</p> : null}
         {view.phase === "blind" ? <p>{view.blind?.ready[side] ? (isEn() ? "Locked · waiting for opponent" : "Đã chốt · chờ đối thủ") : (isEn() ? "Choose a champion, then its lane" : "Chọn tướng rồi chọn đường")}</p> : null}
     </section>

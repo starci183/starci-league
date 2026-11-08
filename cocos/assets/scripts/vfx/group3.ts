@@ -1,0 +1,12 @@
+// Nhóm 3: import file VFX của từng tướng được giao (mỗi file đăng ký registerSkillVfx cho P/Q/E/R và đánh thường).
+import "./vayne"
+import "./janna"
+import "./brand"
+import "./renata"
+import "./tristana"
+import "./missfortune"
+import "./rumble"
+import "./azir"
+import "./mel"
+import "./jayce"
+import "./sona"

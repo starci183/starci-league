@@ -12,6 +12,21 @@ import {
     CraftDialog
 } from "./hand/CraftDialog"
 import {
+    ActionDialog
+} from "./ui/ActionDialog"
+import {
+    SylasStealDialog
+} from "./hand/SylasStealDialog"
+import {
+    ChampionModeDialog
+} from "./ui/ChampionModeDialog"
+import {
+    GAME_CANVAS_HEIGHT, GAME_CANVAS_WIDTH, viewportToCanvasPoint
+} from "./ui/GameCanvas"
+import {
+    ForestIcon
+} from "./ui/ForestIcon"
+import {
     pendingSnapshot, subscribePending
 } from "./anim/pending"
 
@@ -22,6 +37,13 @@ import {
 import {
     GameIcon
 } from "./ui/GameIcon"
+import {
+    CardFace, artInfo
+} from "./anim/CardFace"
+import "./ui/viktor-dialog.css"
+import {
+    ArtFrame
+} from "./ui/ArtFrame"
 
 type Card = cg.Card
 type PlayArgs = cg.PlayArgs
@@ -31,111 +53,11 @@ try { lang = localStorage.getItem("lang") === "en" ? "en" : "vi" } catch { /* ch
 if (lang === "en") cg.applyCardLocale("en")
 const L = (vi: string, en: string) => (lang === "en" ? en : vi)
 
-// ---------------------------------------------------------------- art
-const heroPortrait = (hero: string) => `/heroes/${hero}.jpg`
-
-type FrameKind = "spell" | "trap" | "stat" | "item" | "combat"
-
-interface ArtInfo { kind: FrameKind; srcs: string[]; letter?: string }
-
-function spellIdOf(card: Card): string | undefined {
-    if (card.id.startsWith("spell_")) return card.id.slice(6)
-    if (card.id.startsWith("spell:")) return card.id.slice(6)
-    if (card.id === "spell") {
-        const v = card.data?.spell ?? card.data?.id ?? card.item
-        return v === undefined ? undefined : String(v)
-    }
-    return undefined
+// Shared printed-card face: exactly the same family as the chain and travelling sprites.
+const heroPortrait = (hero: string) => `/heroes-square/${hero}.jpg`
+function Framed({ card, name, status }: { card: Card; name: string; status?: string }) {
+    return <CardFace card={card} name={name} status={status} />
 }
-
-function artInfo(card: Card): ArtInfo {
-    const key = (card.copyOf ?? card.id).slice(-1).toLowerCase()
-    const hero = card.hero
-    if (card.kind === "skill" || card.copyOf) {
-        return {
-            kind: "trap",
-            srcs: hero ? [`/card_skills/${hero}_${key}.png`,
-                `/icons/${hero}_${key}.png`,
-                `/skills_art/${hero}_${key}.jpg`,
-                heroPortrait(hero)] : []
-        }
-    }
-    if (card.kind === "wild") {
-        return {
-            kind: "trap", srcs: [`/card_support/wild_${key}.png`], letter: key.toUpperCase()
-        }
-    }
-    if (card.kind === "support") {
-        const spell = spellIdOf(card)
-        if (spell) {
-            return {
-                kind: "spell", srcs: [`/card_support/spell_${spell}.png`,
-                    "/ui/badge/spell.png"]
-            }
-        }
-        switch (card.id) {
-        case "gold": return {
-            kind: "stat", srcs: ["/card_support/gold.png",
-                "/ui/coin.png"]
-        }
-        case "item":
-        case "legend": return {
-            kind: "item", srcs: card.item ? [`/card_items/${card.item}.png`,
-                `/items/${card.item}.png`] : ["/ui/badge/item.png"]
-        }
-        case "potion": return {
-            kind: "spell", srcs: ["/cards/binh_mau.jpg"]
-        }
-        case "draw": return {
-            kind: "spell", srcs: ["/card_support/draw.png",
-                "/cards/bai_moi.jpg"]
-        }
-        case "buff": return {
-            kind: "spell", srcs: ["/cards/cuong_no.jpg"]
-        }
-        default: return {
-            kind: "combat", srcs: ["/card_support/basic.png",
-                "/ui/badge/combat.png"]
-        }
-        }
-    }
-    return {
-        kind: "trap", srcs: card.id === "mushroom" ? ["/cards/nam_teemo.jpg"] : card.id === "velkoz_decay" ? ["/card_skills/velkoz_p.png",
-            "/ui/badge/spell.png"] : ["/ui/badge/spell.png"]
-    }
-}
-
-/** Lá bài theo khung Hextech giống màn xếp bộ (.cv) */
-function Framed({ card, name }: { card: Card; name: string }) {
-    const info = useMemo(() => artInfo(card),
-        [card.id,
-            card.hero,
-            card.item,
-            card.copyOf,
-            card.kind,
-            card.data])
-    const [i,
-        setI] = useState(0)
-    useEffect(() => setI(0),
-        [info])
-    const failed = i >= info.srcs.length
-    return (
-        <div className={`cv ${info.kind}`}>
-            <div className="cv-in">
-                <img className="cv-badge" src={`/ui/badge/${info.kind}.png`} alt="" draggable={false} onError={(e) => e.currentTarget.remove()} />
-                <div className="cv-icon">
-                    {failed ? (
-                        <div className="hd-letter"><b>{info.letter ?? "?"}</b></div>
-                    ) : (
-                        <img className="cv-art" src={info.srcs[i]} alt="" draggable={false} onError={() => setI(i + 1)} />
-                    )}
-                </div>
-                <b className="cv-name">{name}</b>
-            </div>
-        </div>
-    )
-}
-
 // ---------------------------------------------------------------- dữ liệu một lá
 interface CardData {
     card: Card;
@@ -151,6 +73,8 @@ interface CardData {
     dead: boolean;
     /** Tướng chủ còn dự bị, chưa gọi ra sân */
     reserve: boolean;
+    /** Số đơn vị còn lại tới khi tan băng (card.frozenUntil), nếu engine ghi hạn */
+    frozenLeft?: number;
     /** Lá tạm của hiệu ứng tướng: tan biến cuối lượt nếu chưa dùng */
     temp: boolean;
     /** Mana đội mà lá chiêu tiêu; undefined nếu lá không dùng mana. */
@@ -193,7 +117,8 @@ function buildData(view: CardView, g: cg.Game, legal: Action[], hand: Card[]): C
             card, name: info.name, desc: info.desc, type: info.type, typeLabel: L(lbl[0],
                 lbl[1]),
             quick: !!def?.quick, chainOnly: !!def?.chainOnly, dead: unit?.status === "dead", reserve: unit?.status === "reserve",
-            frozen: !!card.frozen, temp: !!card.temp, cost, mana, lackMana: cost !== undefined && mana < cost,
+            frozen: !!card.frozen, frozenLeft: card.frozen && card.frozenUntil !== undefined ? Math.max(0,
+                card.frozenUntil - view.turnNo) : undefined, temp: !!card.temp, cost, mana, lackMana: cost !== undefined && mana < cost,
             options, chainable: options.some((a) => a.t === "chain"),
         }
     })
@@ -203,7 +128,7 @@ function buildData(view: CardView, g: cg.Game, legal: Action[], hand: Card[]): C
 interface Choice { key: string; label: string; sub?: string; img?: string; dot?: string; options: Action[] }
 interface Chooser { title: string; source: string; choices: Choice[] }
 
-const argsOf = (a: Action): PlayArgs => ((a.t === "play" || a.t === "chain") ? a.args ?? {
+const argsOf = (a: Action): PlayArgs => ((a.t === "play" || a.t === "chain" || a.t === "ability") ? a.args ?? {
 } : {
 })
 const COLORS: Record<string, [string, string, string]> = {
@@ -233,6 +158,7 @@ function groupBy(options: Action[], keyOf: (a: PlayArgs) => string | undefined):
 }
 
 /** Nhãn của lựa chọn args.pick không phải lá bài (Gangplank: úp lá làm Thùng giả, HeroDef.handUse) */
+const skillArt = (hero: string, key: string) => `/card_skills/${hero}_${key.toLowerCase()}.png`
 const PICK_LABEL: Record<string, [string, string]> = {
     gp_fake: ["Úp làm Thùng giả",
         "Face-down as a fake Keg"],
@@ -243,7 +169,8 @@ interface BurnToast { k: number; text: string }
 let burnSeq = 0
 /** Tiền tố nguồn chọn mục tiêu của đòn không cần lá của Đấu sĩ */
 const QUICK_PREFIX = "quick:"
-const VOW_PREFIX = "vow:"
+/** Tiền tố nguồn chọn của nút hành động tướng (HeroDef.abilities): `ability:<unit>:<id>` */
+const ABILITY_PREFIX = "ability:"
 
 // ---------------------------------------------------------------- Hand
 export function Hand() {
@@ -253,6 +180,15 @@ export function Hand() {
     const { view, legal, targeting, error } = s
     const [chooser,
         setChooser] = useState<Chooser | null>(null)
+    const [steal,
+        setSteal] = useState<{ source: string; options: Action[] } | null>(null)
+    const [modeDialog,
+        setModeDialog] = useState<Extract<Action, { t: "ability" }> | null>(null)
+    // bỏ nhiều lá (Viktor Q): tick từng lá thay vì liệt kê mọi tổ hợp
+    const [multi,
+        setMulti] = useState<{ source: string; options: Action[]; max: number; uids: string[] } | null>(null)
+    const [multiSel,
+        setMultiSel] = useState<string[]>([])
     const [craftOpen,
         setCraftOpen] = useState(false)
     const [burns,
@@ -278,6 +214,9 @@ export function Hand() {
     // đóng hộp chọn khi trạng thái đổi
     useEffect(() => {
         setChooser(null)
+        setSteal(null)
+        setModeDialog(null)
+        setMulti(null)
         setCraftOpen(false)
         setPicked(null)
     },
@@ -288,22 +227,6 @@ export function Hand() {
         if (!view || !g || !s.lastEvents.length) return
         const fresh: BurnToast[] = []
         for (const e of s.lastEvents) {
-            if (e.t === "freeCard") { // V3: quà tặng đều đặn (không lấy từ bộ bài)
-                const what = e.kind === "basic" ? L("lá Đánh Thường",
-                    "Basic Attack card") : e.kind === "gold" ? L("lá Vàng",
-                    "Gold card") : e.kind === "skill" ? L("lá chiêu",
-                    "skill card") : L("mảnh đồ",
-                    "item component")
-                fresh.push({
-                    k: ++burnSeq,
-                    text: e.side === view.you
-                        ? L(`Bạn được tặng 1 ${what} (không lấy từ bộ bài)`,
-                            `You received a free ${what} (not from the deck)`)
-                        : L(`Đối thủ được tặng 1 ${what}`,
-                            `Opponent received a free ${what}`)
-                })
-                continue
-            }
             if (e.t !== "cardBurned") continue
             const hid = (e.card as { hidden?: boolean }).hidden === true
             let name = L("một lá",
@@ -339,12 +262,16 @@ export function Hand() {
     },
     [error])
     // Escape huỷ
-    const busy = !!chooser || !!targeting || craftOpen
+    const busy = !!chooser || !!targeting || !!multi || !!steal || !!modeDialog || craftOpen
     useEffect(() => {
         if (!busy) return
         const on = (e: KeyboardEvent) => {
             if (e.key !== "Escape") return
             setChooser(null)
+            setSteal(null)
+            setModeDialog(null)
+            setMulti(null)
+            setPicked(null)
             setCraftOpen(false)
             cardActions.cancelTargeting()
         }
@@ -383,6 +310,14 @@ export function Hand() {
     const advance = (source: string, optionsIn: Action[]) => {
         const options = dedupe(optionsIn)
         if (!options.length) return
+        setMulti(null)
+        if (options.some((a) => argsOf(a).pick?.startsWith("steal:"))) {
+            setChooser(null)
+            setSteal({
+                source, options
+            })
+            return
+        }
         const ask = (title: string, groups: Map<string, Action[]>, mk: (k: string, opts: Action[]) => Omit<Choice, "key" | "options">) => {
             setChooser({
                 title, source, choices: [...groups.entries()].map(([key,
@@ -405,6 +340,15 @@ export function Hand() {
         const discards = groupBy(options,
             (a) => a.discard?.map(sigOfUid).sort().join("+"))
         if (discards.size > 1) {
+            const max = Math.max(...options.map((a) => argsOf(a).discard?.length ?? 0))
+            if (max > 1) {
+                setChooser(null)
+                setMultiSel([])
+                setMulti({
+                    source, options, max, uids: [...new Set(options.flatMap((a) => argsOf(a).discard ?? []))]
+                })
+                return
+            }
             return ask(L("Chọn lá bỏ",
                 "Choose card(s) to discard"),
             discards,
@@ -424,11 +368,25 @@ export function Hand() {
                 const p = argsOf(opts[0]).pick ?? ""
                 const c = cardOfUid(p)
                 const named = PICK_LABEL[p]
+                const [stealTag,
+                    stealHero,
+                    stealKey] = p.split(":")
+                if (stealTag === "steal") {
+                    const h = cg.getHero(stealHero), key = stealKey as cg.SkillKey
+                    const sk = h?.skills[key], en = h?.en?.skills?.[key]
+                    return {
+                        label: `${unitName(`${me === "A" ? "B" : "A"}:${stealHero}`)} ${key} · ${(lang === "en" ? en?.name : undefined) ?? sk?.name ?? ""}`,
+                        img: skillArt(stealHero,
+                            key),
+                        sub: (lang === "en" ? en?.desc : undefined) ?? sk?.desc,
+                    }
+                }
                 return {
                     label: p === "" ? L("Đánh lá",
                         "Play card") : named ? L(named[0],
                         named[1]) : cardName(p) ?? p,
-                    img: c ? artInfo(c).srcs[0] : undefined,
+                    img: c ? artInfo(c,
+                        c.hero ? view.units[`${c.side ?? me}:${c.hero}`] : undefined).srcs[0] : undefined,
                     sub: c ? cg.cardInfoL(g,
                         c).desc : undefined,
                 }
@@ -461,6 +419,13 @@ export function Hand() {
             return
         }
         cardActions.cancelTargeting()
+        if (d.card.id === "basic") {
+            setChooser(null)
+            setMulti(null)
+            cardActions.beginAttack(d.card.uid,
+                d.options)
+            return
+        }
         advance(d.card.uid,
             d.options)
     }
@@ -468,18 +433,37 @@ export function Hand() {
     // ---- hành động toàn cục
     const quickHits = legal.filter((a): a is Extract<Action, { t: "attack" }> => a.t === "attack" && !!a.cardless)
     const upgrades = dedupe(legal.filter((a) => a.t === "upgrade")) as Extract<Action, { t: "upgrade" }>[]
-    // Lời Thề Hiệp Sĩ: mỗi người đeo 1 nút "đổi bảo hộ"; bấm rồi chọn đồng minh trên bàn
-    const vows = legal.filter((a) => a.t === "vow") as Extract<Action, { t: "vow" }>[]
-    const vowers = [...new Set(vows.map((a) => a.unit))]
     // bỏ bài xuống mộ (miễn phí): chỉ khi engine cho phép lá đang chọn (lá đóng băng vẫn bỏ được)
     const discardAct = picked ? legal.find((a): a is Extract<Action, { t: "discard" }> => a.t === "discard" && a.uid === picked) : undefined
     const pickedCard = discardAct ? hand.find((c) => c.uid === discardAct.uid) : undefined
     const foeHand = view.players[me === "A" ? "B" : "A"].hand
     const quickers = [...new Set(quickHits.map((a) => a.actor))]
+    // nút hành động của tướng (HeroDef.abilities): gom theo (tướng, nút); nhiều lựa chọn thì chọn mục tiêu / lá ở bước sau
+    const abilityBtns = (() => {
+        const groups = new Map<string, Extract<Action, { t: "ability" }>[]>()
+        for (const a of legal) {
+            if (a.t !== "ability" || a.side !== me) continue
+            const k = `${a.unit}:${a.id}`
+            groups.set(k,
+                [...(groups.get(k) ?? []),
+                    a])
+        }
+        return [...groups.entries()].map(([k,
+            options]) => {
+            const u = view.units[options[0].unit]
+            const def = u ? cg.getHero(u.hero)?.abilities?.find((x) => x.id === options[0].id) : undefined
+            return {
+                key: k, unit: options[0].unit, options, hero: u?.hero ?? "",
+                name: def ? L(def.name,
+                    def.nameEn) : options[0].id,
+                desc: def ? L(def.desc,
+                    def.descEn) : "",
+            }
+        })
+    })()
     const cardlessPct = Math.round((view.rules.fighterCardlessMult ?? .66) * 100)
-    const { used: atkUsed, limit: atkLimit } = attacksOf(view,
+    const { used: atkUsed } = attacksOf(view,
         me)
-    const atkOut = atkUsed >= atkLimit
     // bước gọi tướng đầu lượt: nút lớn là "Rút bài" (gọi xong hoặc bỏ qua thì rút), sau đó mới là "Kết thúc lượt"
     const drawAct = legal.find((a) => (a.t as string) === "draw")
     // gọi tướng úp (phase "blind"): cả hai bên cùng chọn, nút lớn là "Chốt" rồi chờ đối thủ
@@ -488,6 +472,12 @@ export function Hand() {
     const iReady = !!blind?.ready[me]
     const endAct = legal.find((a) => a.t === "end") ?? drawAct ?? readyAct
     const canEnd = !!endAct
+    // nút chuyển bước tách khỏi nút kết thúc lượt (law.md "Trình tự lượt")
+    const stepAct = legal.find((a) => a.t === "step")
+    const stepLabel = view.step === "standby" ? L("Vào Main 1",
+        "To Main 1") : view.step === "main1" ? L("Vào Battle",
+        "To Battle") : L("Sang Main 2",
+        "To Main 2")
     const chain = view.phase === "chain"
     const endLabel = readyAct ? L("Chốt gọi tướng",
         "Lock in summons") : blind ? (iReady ? L("Đã chốt, chờ đối thủ…",
@@ -509,9 +499,8 @@ export function Hand() {
         && new Set(targeting.options.map((a) => JSON.stringify(targetsOf(a)))).size === 1
         ? [...targeting.options].sort((a, b) => (argsOf(a).manaSpent ?? argsOf(a).amount ?? 0) - (argsOf(b).manaSpent ?? argsOf(b).amount ?? 0)) : []
     const srcId = src ? src.replace(QUICK_PREFIX,
-        "").replace(VOW_PREFIX,
         "") : ""
-    const srcName = src ? (cardName(srcId) ?? (view.units[srcId] ? unitName(srcId) : (cg.getHero(srcId)?.name ?? ""))) : ""
+    const srcName = src?.startsWith(ABILITY_PREFIX) ? (abilityBtns.find((b) => ABILITY_PREFIX + b.key === src)?.name ?? "") : src ? (cardName(srcId) ?? (view.units[srcId] ? unitName(srcId) : (cg.getHero(srcId)?.name ?? ""))) : ""
 
     /** Hộp tuỳ chọn nổi (fixed) neo phía trên lá đang chọn; không nằm trong luồng của thanh nên không đẩy tay bài */
     const popStyle = (uid: string | null | undefined): CSSProperties => {
@@ -521,13 +510,17 @@ export function Hand() {
             left: 16, bottom: 220
         }
         const W = 360
-        const cx = r.left + r.width / 2
+        const anchor = viewportToCanvasPoint({
+            x: r.left + r.width / 2, y: r.top
+        })
+        const staged = !!document.querySelector(".game-canvas-stage")
+        const cx = anchor.x
         const left = Math.max(8,
             Math.min(cx - W / 2,
-                window.innerWidth - W - 8))
+                (staged ? GAME_CANVAS_WIDTH : window.innerWidth) - W - 8))
         return {
             left, bottom: Math.max(8,
-                window.innerHeight - r.top + (el ? 22 : 8))
+                (staged ? GAME_CANVAS_HEIGHT : window.innerHeight) - anchor.y + (el ? 22 : 8))
         }
     }
 
@@ -548,9 +541,13 @@ export function Hand() {
             ) : null}
             {targeting ? (
                 <div className="hd-hint">
-                    <b>{L("Chọn mục tiêu…",
+                    <b>{targeting.step === "actor" ? L("1 · Chọn tướng mình đánh",
+                        "1 · Choose your attacker") : targeting.step === "target" ? L("2 · Chọn mục tiêu địch",
+                        "2 · Choose the enemy target") : L("Chọn mục tiêu…",
                         "Choose a target…")}</b>
                     {srcName ? <span>{srcName}</span> : null}
+                    {targeting.step === "target" ? <button className="hd-cancel" onClick={() => cardActions.beginAttack(targeting.source,
+                        targeting.attackOptions ?? targeting.options)}>Chọn lại tướng</button> : null}
                     {levels.map((a, i) => (
                         <button key={`lv${i}`} className="hd-chip" onClick={() => cardActions.act(a)}>
                             {argsOf(a).manaSpent !== undefined ? L(`Chi ${argsOf(a).manaSpent} mana`,
@@ -568,7 +565,38 @@ export function Hand() {
                         "Cancel")}</button>
                 </div>
             ) : null}
-            {chooser || (discardAct && pickedCard) ? (
+            {multi ? (() => {
+                const sigs = (uids: string[]) => uids.map(sigOfUid).sort().join("+")
+                const match = multi.options.filter((a) => sigs(argsOf(a).discard ?? []) === sigs(multiSel))
+                const origin = cardOfUid(multi.source)
+                return <ActionDialog className="discard-dialog" title={origin?.id === "viktor_q" ? "Viktor Q · Tháo Rời" : "Chọn lá bỏ"} subtitle={`Chọn tối đa ${multi.max} lá khác trên tay. Có thể bỏ 0 lá; chọn xong sẽ chọn mục tiêu.`} onClose={() => { setMulti(null); setPicked(null); cardActions.cancelTargeting() }} footer={<>
+                    <ArtFrame kind="name" width={360} height={80} className="discard-counter-plaque"><b className="discard-counter" aria-live="polite"><span>Đã chọn {multiSel.length}/{multi.max} lá</span><span className="discard-counter-gems" aria-hidden="true">{Array.from({
+                        length: multi.max
+                    },
+                    (_, i) => <i key={i} className={i < multiSel.length ? "filled" : ""} />)}</span></b></ArtFrame>
+                    <button className="action-secondary" onClick={() => setMultiSel([])}>Bỏ chọn tất cả</button>
+                    <button className="action-primary" disabled={!match.length} onClick={() => { setPicked(null); advance(multi.source,
+                        match) }}>Xác nhận bỏ {multiSel.length} lá</button>
+                </>}><div className="discard-workbench"><aside className="discard-caster" aria-label="Tướng dùng chiêu"><ArtFrame kind="icon" width={250} height={250} image={`/heroes-square/${origin?.hero ?? "viktor"}.jpg`} className="discard-caster-frame" /><ArtFrame kind="name" width={250} height={62} className="discard-caster-caption"><b>{origin?.hero ? cg.getHero(origin.hero)?.name : "Viktor"}</b></ArtFrame></aside><section className="discard-hand"><div className="discard-selection-rule"><GameIcon name="cards" /><span>{multiSel.length >= multi.max ? "Đã đủ số lá. Bỏ chọn một lá để đổi lựa chọn." : `Chọn tối đa ${multi.max} lá · Bấm lại để giữ lá.`}</span></div><div className="action-discard-grid" aria-label="Các lá có thể bỏ">{multi.uids.map((uid) => {
+                        const on = multiSel.includes(uid), card = cardOfUid(uid)
+                        return <button key={uid} className={`action-option${on ? " selected" : ""}`} aria-pressed={on} disabled={!on && multiSel.length >= multi.max} onClick={() => setMultiSel(on ? multiSel.filter((x) => x !== uid) : [...multiSel,
+                            uid])}>
+                            <div className="discard-choice-frame">{card ? <CardFace card={card} name={cardName(uid) ?? uid} /> : null}</div><span className="action-check" aria-hidden="true">{on ? "✓" : "+"}</span><span className="discard-card-state">{on ? "Đã chọn bỏ" : "Giữ trên tay"}</span>
+                        </button>
+                    })}</div></section></div></ActionDialog>
+            })() : null}
+            {steal ? <SylasStealDialog view={view} source={steal.source} options={steal.options} onClose={() => { setSteal(null); setPicked(null); cardActions.cancelTargeting() }} onConfirm={(a) => { setSteal(null); setPicked(null); cardActions.act(a) }} /> : null}
+            {modeDialog && view.units[modeDialog.unit] ? (() => {
+                const unit = view.units[modeDialog.unit]
+                const current = unit.hero === "jinx" ? (unit.stacks.jinx_gun ? "rocket" : "minigun") : (unit.stacks.jayce_form ? "cannon" : "hammer")
+                return <ChampionModeDialog unit={unit} modes={unit.hero === "jinx" ? ["minigun",
+                    "rocket"] : ["hammer",
+                    "cannon"]} standby currentMode={current} onClose={() => setModeDialog(null)} onConfirm={(mode) => {
+                    setModeDialog(null)
+                    if (mode !== current) cardActions.act(modeDialog)
+                }} />
+            })() : null}
+            {chooser || (!multi && !steal && !modeDialog && discardAct && pickedCard && !targeting) ? (
                 <div className="hd-pop" style={popStyle(chooser?.source ?? picked)}>
                     {chooser ? (
                         <>
@@ -625,11 +653,11 @@ export function Hand() {
                         "temp")})</i> : null}</b>
                     <span>{L("Bộ bài",
                         "Deck")} {view.players[me].deckCount}</span>
-                    <span className={`hd-atk${atkOut ? " out" : ""}`}
+                    <span className="hd-atk"
                         title={L("Đánh thường mỗi lượt: lá Đánh thường và đòn không cần lá của Đấu sĩ.",
                             "Basic attacks per turn: Basic Attack cards and the Fighter's cardless attack.")}>
                         {L("Đánh",
-                            "Attacks")} {atkUsed}/{atkLimit}
+                            "Attacks")} {atkUsed}
                     </span>
                     {chain && view.chain?.priority === me ? <em>{L("Bạn có quyền nối chuỗi",
                         "You may chain")}</em> : null}
@@ -660,22 +688,30 @@ export function Hand() {
                         </div>
                     </div>
                 ) : null}
-                {vowers.length ? (
+                {abilityBtns.length ? (
                     <div className="hd-group">
-                        <label>{L("Lời Thề Hiệp Sĩ · đổi đồng minh bảo hộ (1 lần/lượt)",
-                            "Knight's Vow · switch protected ally (once per turn)")}</label>
+                        <label>{L("Nút hành động của tướng",
+                            "Champion ability")}</label>
                         <div className="hd-row">
-                            {vowers.map((u) => (
-                                <button key={u} className={`hd-btn up${src === VOW_PREFIX + u ? " sel" : ""}`} title={unitName(u)}
-                                    onClick={() => { cardActions.cancelTargeting(); cardActions.beginTargeting(VOW_PREFIX + u,
-                                        vows.filter((a) => a.unit === u)) }}>
-                                    {L("Đổi bảo hộ",
-                                        "Switch ally")} · {unitName(u)}
+                            {abilityBtns.map((b) => (
+                                <button key={b.key} className={`hd-quick hd-ability${src === ABILITY_PREFIX + b.key ? " sel" : ""}`} title={b.desc}
+                                    onClick={() => {
+                                        cardActions.cancelTargeting()
+                                        const action = b.options[0]
+                                        if (action.id === "jinx_swap" || action.id === "jayce_swap") {
+                                            setPicked(null)
+                                            setModeDialog(action)
+                                        } else advance(ABILITY_PREFIX + b.key,
+                                            b.options)
+                                    }}>
+                                    {b.hero === "jinx" || b.hero === "jayce" ? <ForestIcon name="standby" /> : <img src={b.hero ? heroPortrait(b.hero) : ""} alt="" />}
+                                    <span><b>{b.name}</b><i>{unitName(b.unit)}</i></span>
                                 </button>
                             ))}
                         </div>
                     </div>
                 ) : null}
+                <div className="hd-mode-locks">{Object.values(view.units).filter((u) => u.side === me && u.status === "board" && (u.hero === "jayce" || u.hero === "jinx") && !abilityBtns.some((b) => b.unit === u.id)).map((u) => <div className="hd-mode-lock" key={u.id}><ForestIcon name="lock" /><span>{unitName(u.id)} · {view.step === "standby" ? "Đã đổi hoặc không thể hành động" : "Chỉ đổi ở Standby"}</span></div>)}</div>
                 {quickers.length ? (
                     <div className="hd-group">
                         <label>{L("Đánh không cần lá · lượt của bạn",
@@ -684,7 +720,7 @@ export function Hand() {
                             {quickers.map((u) => (
                                 <button key={u} className={`hd-quick${src === QUICK_PREFIX + u ? " sel" : ""}`} title={`${unitName(u)} · ${L("Đánh không cần lá",
                                     "Cardless attack")} ${cardlessPct}%`}
-                                onClick={() => { cardActions.cancelTargeting(); cardActions.beginTargeting(QUICK_PREFIX + u,
+                                onClick={() => { cardActions.cancelTargeting(); cardActions.beginAttack(QUICK_PREFIX + u,
                                     cardlessOptions(legal,
                                         u)) }}>
                                     <img src={view.units[u] ? heroPortrait(view.units[u].hero) : ""} alt="" />
@@ -696,9 +732,17 @@ export function Hand() {
                     </div>
                 ) : null}
                 <div className="hd-bottom">
-                    <button className="hd-btn blue" onClick={() => setCraftOpen(true)}><GameIcon name="anvil" />{L("Ghép đồ",
-                        "Craft")}</button>
-                    <button className="hd-end" disabled={!canEnd} onClick={() => endAct && cardActions.act(endAct)}><GameIcon name="arrow" />{endLabel}</button>
+                    <button className="hd-btn" disabled={!data.some((d) => d.card.id === "basic" && d.options.length) && !quickHits.length} onClick={() => {
+                        const basic = data.find((d) => d.card.id === "basic" && d.options.length)
+                        setChooser(null); setMulti(null); setSteal(null); setPicked(null)
+                        cardActions.beginAttack(basic?.card.uid ?? "attack",
+                            basic?.options ?? quickHits)
+                    }}><GameIcon name="sword" /><span>{L("Đánh",
+                            "Attack")}</span></button>
+                    <button className="hd-btn blue" onClick={() => setCraftOpen(true)}><GameIcon name="anvil" /><span>{L("Ghép đồ",
+                        "Craft")}</span></button>
+                    {stepAct ? <button className="hd-step" onClick={() => cardActions.act(stepAct)}><GameIcon name="arrow" /><span>{stepLabel}</span></button> : null}
+                    <button className="hd-end" disabled={!canEnd} onClick={() => endAct && cardActions.act(endAct)}><GameIcon name="arrow" /><span>{endLabel}</span></button>
                 </div>
             </div>
 
@@ -732,18 +776,20 @@ function HandCard({ d, chain, selected, onClick }: { d: CardData; chain: boolean
     return (
         <div className={arriving ? "hd-slot arriving" : "hd-slot"} data-hand-uid={d.card.uid}>
             <div className={cls.filter(Boolean).join(" ")} onMouseEnter={inspectCard} onFocus={inspectCard} tabIndex={0} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClick() } }} onClick={() => { inspectCard(); onClick() }} role="button" aria-disabled={!playable}>
-                <Framed card={d.card} name={d.name} />
+                <Framed card={d.card} name={d.name} status={d.dead ? L("Đã bị hạ",
+                    "Fallen") : d.reserve ? L("Chưa gọi",
+                    "Not summoned") : undefined} />
                 {tag ? <span className="hd-q hd-qtag">{tag}</span> : null}
                 {d.cost !== undefined ? <span className={`hd-gem${d.lackMana ? " lack" : ""}`} title={L(`Tốn ${d.cost} mana đội · đang có ${d.mana}`,
                     `Costs ${d.cost} team mana · ${d.mana} available`)}>{d.cost}</span> : null}
+                {d.lackMana && d.cost !== undefined ? <span className="hd-mana-shortfall">{L(`Thiếu ${Math.max(0,
+                    d.cost - d.mana)} mana`,
+                `Need ${Math.max(0,
+                    d.cost - d.mana)} mana`)}</span> : null}
                 {d.frozen ? <div className="hd-ice"><span>{L("Bị Hoá Băng",
-                    "Frozen")}</span></div> : null}
+                    "Frozen")}{d.frozenLeft !== undefined ? ` · ${d.frozenLeft}` : ""}</span></div> : null}
                 {d.temp ? <span className="hd-tmp">{L("Tạm",
                     "Temp")}</span> : null}
-                {d.dead ? <div className="hd-dead">{L("ĐÃ CHẾT",
-                    "DEAD")}</div> : null}
-                {d.reserve ? <div className="hd-dead rsv">{L("Chưa gọi",
-                    "Not summoned")}</div> : null}
             </div>
 
         </div>

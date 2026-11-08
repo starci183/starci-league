@@ -1,6 +1,6 @@
 // Thanh thông tin người chơi (tên, mạng, bộ bài, tay, mộ, lá thưởng, tướng dự bị) và cửa sổ xem mộ.
 import {
-    useEffect, useId, useRef, useState
+    useState
 } from "react"
 import {
     cg
@@ -22,11 +22,22 @@ import {
     CardFace
 } from "../anim/CardFace"
 import {
+    ArtFrame
+} from "../ui/ArtFrame"
+import {
     CardInspector
 } from "../ui/CardInspector"
 import {
     inspectionActions
 } from "../ui/inspection"
+
+import {
+    ActionDialog
+} from "../ui/ActionDialog"
+import {
+    ScrollArea
+} from "../ui/ScrollArea"
+import "../ui/collections-dna.css"
 
 const BACK = "/ui/card_back.png"
 
@@ -47,18 +58,16 @@ function cardName(g: cg.Game, c: cg.Card): { name: string; desc: string } {
 interface CollectionProps { side: Side; view: CardView; g: cg.Game; onClose(): void }
 function CollectionModal(p: CollectionProps & { source: "deck" | "grave" }) {
     const en = isEn()
-    const id = useId()
-    const box = useRef<HTMLDivElement>(null)
-    const close = useRef(p.onClose)
-    close.current = p.onClose
+    const [source,
+        setSource] = useState<"deck" | "grave">(p.source)
     const [query,
         setQuery] = useState("")
     const [kind,
         setKind] = useState("all")
     const [selected,
         setSelected] = useState<string | null>(null)
-    const hidden = p.source === "deck" && p.view.you !== p.side
-    const entries = hidden ? [] : p.source === "deck" ? p.view.players[p.side].deckSummary ?? [] : cg.deckSummaryFor(p.view.players[p.side].grave,
+    const hidden = source === "deck" && p.view.you !== p.side
+    const entries = hidden ? [] : source === "deck" ? p.view.players[p.side].deckSummary ?? [] : cg.deckSummaryFor(p.view.players[p.side].grave,
         p.side,
         p.side) ?? []
     const cards = entries.map((entry) => ({
@@ -66,50 +75,48 @@ function CollectionModal(p: CollectionProps & { source: "deck" | "grave" }) {
             entry.card)
     })).filter((entry) => (kind === "all" || entry.card.kind === kind) && `${entry.info.name} ${entry.info.desc}`.toLocaleLowerCase().includes(query.toLocaleLowerCase()))
     const current = cards.find((entry) => entry.card.uid === selected) ?? cards[0]
-    const total = p.source === "deck" ? p.view.players[p.side].deckCount : p.view.players[p.side].grave.length
-    useEffect(() => {
-        const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null
-        box.current?.querySelector<HTMLButtonElement>("button")?.focus()
-        const key = (e: KeyboardEvent) => {
-            if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); close.current(); return }
-            if (e.key !== "Tab") return
-            const items = [...(box.current?.querySelectorAll<HTMLElement>("button:not([disabled]), input, select, [tabindex=\"0\"]") ?? [])]
-            if (!items.length) return
-            const first = items[0], last = items[items.length - 1]
-            if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus() }
-            else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus() }
+    const total = source === "deck" ? p.view.players[p.side].deckCount : p.view.players[p.side].grave.length
+    const title = en ? "Card archive" : "Kho bài"
+    const filters = [
+        {
+            value: "all", label: en ? "All" : "Tất cả"
+        },
+        {
+            value: "skill", label: en ? "Skills" : "Chiêu"
+        },
+        {
+            value: "support", label: en ? "Support" : "Hỗ trợ"
+        },
+        {
+            value: "wild", label: en ? "Wild" : "Chiêu chung"
+        },
+        {
+            value: "special", label: en ? "Special" : "Đặc biệt"
         }
-        window.addEventListener("keydown",
-            key,
-            true)
-        return () => { window.removeEventListener("keydown",
-            key,
-            true); previous?.focus() }
-    },
-    [])
-    const title = p.source === "deck" ? (en ? "Deck" : "Bộ bài") : (en ? "Graveyard" : "Mộ bài")
-    return <div className="bd-modal bd-collection" onMouseDown={(e) => { if (e.target === e.currentTarget) p.onClose() }}>
-        <div className="bd-modal-box bd-collection-box" ref={box} role="dialog" aria-modal="true" aria-labelledby={id}>
-            <header><h3 id={id}>{title} · {p.view.names[p.side]} ({total})</h3><button type="button" onClick={p.onClose} aria-label={en ? "Close collection" : "Đóng bộ sưu tập"}>{en ? "Close" : "Đóng"} ×</button></header>
-            {hidden ? <p className="bd-collection-empty">{en ? "The opponent's remaining deck count is public; its contents and order stay hidden." : "Chỉ số lá còn lại của đối thủ là công khai; nội dung và thứ tự bộ bài được giữ kín."}</p> : <>
-                <div className="bd-collection-controls"><label>{en ? "Search" : "Tìm lá"}<input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder={en ? "Card name or effect" : "Tên lá hoặc tác dụng"} /></label><label>{en ? "Card type" : "Loại lá"}<select value={kind} onChange={(e) => setKind(e.target.value)}><option value="all">{en ? "All" : "Tất cả"}</option><option value="skill">{en ? "Skills" : "Chiêu"}</option><option value="support">{en ? "Support / equipment" : "Hỗ trợ / trang bị"}</option><option value="wild">{en ? "Wild" : "Chiêu chung"}</option><option value="special">{en ? "Special" : "Đặc biệt"}</option></select></label><span aria-live="polite">{cards.reduce((n, entry) => n + entry.count,
-                    0)} {en ? "cards" : "lá"}</span></div>
-                {p.source === "deck" ? <p className="bd-collection-note">{en ? "Remaining composition. Cards are grouped; draw order is hidden." : "Thành phần còn lại, gộp theo loại lá; không hiển thị thứ tự rút."}</p> : null}
-                <div className="bd-collection-body"><div className="bd-collection-grid">
-                    {cards.map((entry) => <button type="button" key={entry.card.uid} className="bd-collection-card" aria-pressed={current?.card.uid === entry.card.uid} onMouseEnter={() => { setSelected(entry.card.uid); inspectionActions.card(entry.card,
-                        {
-                            source: p.source, side: p.side, count: entry.count
-                        }) }} onFocus={() => setSelected(entry.card.uid)} onClick={() => { setSelected(entry.card.uid); inspectionActions.card(entry.card,
-                        {
-                            source: p.source, side: p.side, count: entry.count
-                        }) }}><div className="bd-collection-thumb"><CardFace card={entry.card} name={entry.info.name} /></div><b>{entry.info.name}</b><span>×{entry.count}</span></button>)}
-                    {!cards.length ? <p className="bd-collection-empty">{query || kind !== "all" ? (en ? "No matching cards." : "Không có lá phù hợp.") : (en ? "This collection is empty." : "Chưa có lá nào tại đây.")}</p> : null}
-                </div>{current ? <aside className="bd-collection-detail"><CardInspector dismissible={false} card={current.card} context={{
-                    source: p.source, side: p.side, count: current.count
-                }} view={p.view} /></aside> : null}</div>
-            </>}
-        </div>
-    </div>
+    ]
+    return <ActionDialog className="collection-dialog" title={`${title} · ${p.view.names[p.side]}`} subtitle={`${total} ${en ? "cards" : "lá bài"}`} onClose={p.onClose}>
+        <div className="bd-collection-toolbar"><nav className="bd-collection-tabs" aria-label={en ? "Collections" : "Kho bài"}>{(["deck",
+            "grave"] as const).map(tab => <button type="button" key={tab} aria-pressed={source === tab} onClick={() => { setSource(tab); setSelected(null); setQuery(""); setKind("all") }}><ArtFrame kind="name" width={260} height={64}><GameIcon name="cards" />{tab === "deck" ? en ? "Deck" : "Bộ bài" : en ? "Graveyard" : "Mộ bài"}<b>{tab === "deck" ? p.view.players[p.side].deckCount : p.view.players[p.side].grave.length}</b></ArtFrame></button>)}</nav><span className="bd-collection-owner">{p.view.names[p.side]}</span></div>
+        {hidden ? <p className="bd-collection-empty">{en ? "The opponent's remaining deck count is public; its contents and order stay hidden." : "Chỉ số lá còn lại của đối thủ là công khai; nội dung và thứ tự bộ bài được giữ kín."}</p> : <>
+            <div className="bd-collection-controls"><label><ArtFrame kind="name" width={490} height={108} fitLabel={false} contentClassName="bd-collection-search"><GameIcon name="cards" /><input type="search" aria-label={en ? "Search cards" : "Tìm lá bài"} value={query} onChange={(e) => setQuery(e.target.value)} placeholder={en ? "Card name or effect" : "Tên lá hoặc tác dụng"} /></ArtFrame></label><nav className="bd-collection-filters" aria-label={en ? "Card type" : "Loại lá"}>{filters.map(filter => <button type="button" key={filter.value} aria-pressed={kind === filter.value} onClick={() => setKind(filter.value)}><ArtFrame kind="name" width="100%" height={48}>{filter.label}</ArtFrame></button>)}</nav><span className="bd-collection-result-count" aria-live="polite">{cards.reduce((n, entry) => n + entry.count,
+                0)} {en ? "cards" : "lá"}</span></div>
+            {source === "deck" ? <p className="bd-collection-note">{en ? "Remaining composition. Cards are grouped; draw order is hidden." : "Thành phần còn lại, gộp theo loại lá; không hiển thị thứ tự rút."}</p> : null}
+            <div className={`bd-collection-body${current ? "" : " empty"}`}><ScrollArea className="collection-list" label={en ? "Browse cards" : "Danh sách lá bài"}><div className="bd-collection-grid">
+                {cards.map((entry) => <button type="button" key={entry.card.uid} className="bd-collection-card" aria-pressed={current?.card.uid === entry.card.uid} onMouseEnter={() => { setSelected(entry.card.uid); inspectionActions.card(entry.card,
+                    {
+                        source, side: p.side, count: entry.count
+                    }) }} onFocus={() => setSelected(entry.card.uid)} onClick={() => { setSelected(entry.card.uid); inspectionActions.card(entry.card,
+                    {
+                        source, side: p.side, count: entry.count
+                    }) }}><div className="bd-collection-visual"><CardFace card={entry.card} name={entry.info.name} /></div>
+                    <ArtFrame kind="icon" className="bd-collection-count" width={66} height={66}><span>×{entry.count}</span></ArtFrame>
+                    {current?.card.uid === entry.card.uid ? <ArtFrame kind="icon" className="bd-collection-seal" width={38} height={38} label={en ? "Selected" : "Đang chọn"}><GameIcon name="diamond" /></ArtFrame> : null}</button>)}
+                {!cards.length ? <div className="bd-collection-empty"><GameIcon name="cards" /><p>{query || kind !== "all" ? (en ? "No matching cards." : "Không có lá phù hợp.") : (en ? "This collection is empty." : "Chưa có lá nào tại đây.")}</p></div> : null}
+            </div></ScrollArea>{current ? <ScrollArea className="bd-collection-detail" label={en ? "Card detail" : "Chi tiết lá đã chọn"}><CardInspector dismissible={false} card={current.card} context={{
+                source, side: p.side, count: current.count
+            }} view={p.view} /></ScrollArea> : null}</div>
+        </>}
+    </ActionDialog>
 }
 export function GraveModal(p: CollectionProps) { return <CollectionModal {...p} source="grave" /> }
 export function DeckModal(p: CollectionProps) { return <CollectionModal {...p} source="deck" /> }
@@ -198,3 +205,6 @@ export function PlayerPiles(p: PlayerDisplayProps & { g: cg.Game; onGrave(): voi
         </span>
     </div>
 }
+
+
+

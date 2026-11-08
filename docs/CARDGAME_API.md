@@ -34,14 +34,15 @@ Tay đầu: 5 lá từ bộ gốc (10 Đánh thường, 6 Vàng, 6 Đồ) + 3 th
 
 ## 3. Action
 ```ts
-{ t:"summon", side, hero, lane }                       // gọi tướng (HeroDef.summonLanes ghi đè, mặc định ô trống đang mở)
+{ t:"summon", side, hero, lane, mode? }               // gọi tướng (HeroDef.summonLanes ghi đè, mặc định ô trống đang mở); mode = HeroDef.summonModes (Jinx: minigun | rocket)
 { t:"play", side, uid, args? }                         // đánh 1 lá trên tay
 { t:"attack", side, actor, target }                    // đòn đánh MIỄN PHÍ nhờ buff (Nami E...) — chỉ khi nextAttack có free
 { t:"craft", side, items:[uidĐồ, uidĐồ], gold:uidVàng }        // 2 Đồ + 1 Vàng -> 1 lá đồ huyền thoại lên tay ({kind:"support", id:"legend", item:<id món>}); unit cũ bị bỏ qua
 { t:"chain", side, uid, args? } | { t:"pass", side }   // khi đang có Chuỗi: nối lá Quick hoặc bỏ qua
+{ t:"ability", side, unit, id, args? }                 // nút hành động của tướng không tốn lá (HeroDef.abilities): Gangplank Úp Lá, Tristana Kích Nổ Bom
 { t:"end", side }
 ```
-`PlayArgs`: `actor` (Đánh thường: tướng ra đòn; wild: tướng tung chiêu), `target`, `targets[]`, `lane`, `color`, `discard[]` (uid lá bỏ), `pick`.
+`PlayArgs`: `actor` (Đánh thường: tướng ra đòn; wild: tướng tung chiêu), `target`, `targets[]`, `lane`, `color`, `discard[]` (uid lá bỏ), `pick` (uid lá hoặc id lựa chọn tự do), `mode`, `manaSpent`, `amount`. Với `ability`: `args.target` = tướng bị nhắm, `args.pick` = uid lá trên tay.
 `legalActions` liệt kê sẵn mọi tổ hợp hợp lệ (gộp lá trùng loại thành 1 lá đại diện). Vai và đánh thường: đấu sĩ không dùng lá Đánh thường (tự đánh cuối lượt); đỡ đòn/pháp sư/trợ thủ → tướng đối diện; sát thủ → cùng đường (350% AD); xạ thủ → bất kỳ (200% AD) nhưng lá Đánh thường phải đánh đỡ đòn nếu có trên sân (khiêu khích).
 
 ### Kiểu mục tiêu chiêu (`SkillDef.target`, kiểu Yu-Gi-Oh, không theo đường)
@@ -123,9 +124,60 @@ Luật cho người đọc: `docs/LUAT_THE_BAI.md` mục "LUẬT V2". Spec kỹ 
 - **Gọi tướng úp đồng thời:** `GameState.phase = "blind"` đầu mỗi vòng (trước lượt A). `state.blind = {cap, picks, ready}`. `cg.actorsOf(state)` là các phe đang phải hành động (cả hai cùng lúc). Trong `blind`: `{t:"summon"}` là lựa chọn úp, `{t:"ready"}` là chốt; đủ `cap` thì tự chốt; hết lựa chọn thì tự chốt (không chặn bên kia). Khi cả hai chốt: sự kiện `blindLocked` rồi tướng lên sân cùng lúc. Sự kiện `blindStart {round, cap}`. Phase `"summon"` và action `draw` đã bỏ.
 - **Đường:** `RULES.laneOrder`, `RULES.laneOpenEvery`; `RULES.laneOpenRound` được suy ra (mỗi lần mở đúng 1 đường).
 - **Tướng chết giữ đường:** `kill` không xoá `lanes[side][lane]`; `u.status === "dead"` nhưng ô đường vẫn trỏ tới nó; `emptyLanes` loại đường đó; hồi sinh đúng `homeLane`. Mọi chỗ kiểm "ô có người" phải xét `status === "board"`.
-- **Giới hạn đòn:** `g.attackLimit(side)` (= `RULES.attackLimit` = 3, cứng), `g.attacksLeft(side)`, `g.turnAttacks(side?)` (`{used, cardless[]}`), `g.countAttack`. Tính: lá Đánh thường, đòn không cần lá, đòn free từ `nextAttack`. Không tính: `g.attack()` gọi bên trong chiêu/hook, `HeroDef.autoAttack`. Sự kiện `attackCount {side, used, limit}`.
+- **Giới hạn đòn:** (ĐÃ BỎ ở bộ chiêu 01/11/2026, xem mục cuối) không còn trần 3 đòn; `g.attackLimit(side)` trả `Infinity` (0 ở lượt đầu của bên đi trước khi `RULES.firstTurnNoAttack`); `g.turnAttacks(side?)` (`{used, cardless[]}`) chỉ còn để đếm và hiển thị. Sự kiện `attackCount {side, used, limit}` có `limit: 0` (= không trần).
 - **Đấu sĩ:** lá Đánh thường dùng được (token vai đấu sĩ thì không). Action mới `{t:"attack", side, actor, target, cardless:true}` (Quick, 1 lần/lượt/đấu sĩ, `RULES.fighterCardlessMult = 0.66`, mở/nối chuỗi như lá Quick). `g.canCardless(u)`, `g.allowCardless(u)` (cho đánh thêm lần nữa). Event `attack` có `cardless`. Không còn đòn tự đánh cuối lượt.
 - **Trợ thủ:** gọi lần đầu → `g.giveSkillToHand(side, hero, "Q"|"E", "support")` lấy Q và E từ bộ (thiếu thì tạo), event `draw {reason:"support"}`.
 - **Pháp sư/mana (×10):** `RULES.mage = {manaMax:100, manaStart:100, manaRegen:10, defaultCost}`, `HeroDef.mana?: {max,start,regen}`, `SkillDef.mana?: number | (c) => number`, `Unit.mana`. `g.isMage/maxMana/manaOf/gainMana/spendMana/manaCost`. Sự kiện `manaChange`, hook `onManaSpent`, `ctx.manaPaid`. Đồ: `CardItemDef.maxMana/manaRegen/manaCostMod`. Thẻ `mana` (hồi mana). Thiếu mana → lá không có trong `legalActions` (kể cả Quick ở lượt đối thủ).
 - **Lá tạm:** hết lượt chủ bị gỡ khỏi tay với event `tempExpired` (không vào mộ); lá tạm bị cướp thì Đánh thường nhận được cũng tạm.
 - Hằng số cũ bị bỏ: `attackLimitCap`, `addAttackLimit` (không còn cách tăng quá 3).
+
+## Bộ chiêu 34 tướng + 36 đồ (01/11/2026): thay đổi API engine
+
+Nguồn: `docs/heroes/KITS.md` (chiêu), `docs/heroes/ITEMS.md` (đồ), `docs/heroes/BALANCE.md` (số liệu), `law.md` mục 10, 11, 11a-11d. Test: `scripts/card_tests_kits_*.ts` (dùng `scripts/kit_test_util.ts`).
+
+### Số liệu cân bằng (JSON)
+- `balance/heroes/<id>.json`: `{ id, stats:{hp,atk,armor,mr}, params:{p1.., q0 q1.., e0 e1.., r0 r1..}, flags:{...} }`. `q0/e0/r0` là mana; `flags` là quyết định tạm (bật/tắt, số lần) để đổi mà không sửa code. Mọi số trong code và chữ đều đọc từ đây.
+- `balance/items.json`: `{ <itemId>: { stats:{...}, params:{...} } }`; đọc bằng `itemBalance(id)` (`.stats`, `.p.<tên>`, tên thiếu thì ném lỗi).
+- `kit(id)` (`balance/index.ts`) trả `Kit`: `k.p` (proxy ném lỗi khi thiếu tham số), `k.base` (spread vào `defineHero`: hp/atk/armor/mr), `k.flag(name)`, `k.num(name)`, `k.x("q1 + q2·AP")` ra chuỗi công thức cho `ctx.f`/`g.f` và `{...}` trong mô tả VI, `k.xe(...)` bản EN. Helper: `when.*` (điều kiện `quickWhen` dựng sẵn: `targetsSelf`, `attacksAlly`...), `actorOrEnemy`, `lockedAlly` (`options`), `spike(p, n, k)`.
+
+### Action và PlayArgs
+- `{t:"ability", side, unit, id, args?}`: nút hành động của tướng không tốn lá (`HeroDef.abilities`): Gangplank Úp Lá (`gp_stash`, `args.pick` = uid lá trên tay), Tristana Kích Nổ Bom (`tri_detonate`, `args.target` = tướng địch đang mang Bom). Chỉ ở bước chính lượt mình.
+- `{t:"summon", side, hero, lane, mode?}`: `mode` là một phần tử `HeroDef.summonModes` (Jinx `"minigun" | "rocket"`); mỗi tổ hợp (đường, chế độ) là một hành động riêng.
+- Ngoài ra đã có: `unequip` (tháo đồ), `upgrade` (ghép tại chỗ), `discard` (bỏ lá), `ready` (chốt gọi tướng úp).
+- `PlayArgs` thêm `mode`, `manaSpent`, `amount`; `pick` là uid lá hoặc id lựa chọn tự do.
+
+### HeroDef: trường mới (`types.ts`)
+- `en`: chữ tiếng Anh dựng từ cùng JSON (cùng hình dạng `HeroTextEn`, bỏ tên).
+- `deathHalf: string[]`: khoá stack TRÊN CHÍNH tướng này, engine giảm một nửa khi nó bị hạ.
+- `carrierStacks: string[]`: khoá stack tướng này đặt lên ĐỊCH (nằm trong `Unit.stacks` của tướng mang): tướng mang chết mất một nửa, chủ chết không đổi (Ashe Buốt, Brand Bỏng, Darius Chảy Máu, Tristana Bom, Vel'Koz Phân Rã).
+- `summonModes: string[]`: chế độ lúc gọi ra sân (Jinx `["minigun","rocket"]`, phần tử đầu mặc định). Hook `onSummon` nhận `d.mode`; sự kiện `summon` có `mode`.
+- `setup(g, side)`: chạy một lần khi tạo ván, trước tay đầu (Qiyana đặt `GameState.laneElements`).
+- `abilities: HeroAbility[]`: `{ id, name, nameEn, desc, descEn, options(g, me): PlayArgs[], resolve(g, me, args) }`. `options` rỗng = nút tắt; mỗi phần tử là một tổ hợp hợp lệ và thành một `Action {t:"ability"}`. Engine phát sự kiện `ability {unit, id, target?}` (KHÔNG mang lá, để giữ bí mật lá úp). Dùng `g.oncePerTurn` / `g.bumpTurnCount` để giới hạn theo lượt.
+- `allyBonusStats(g, owner, target)`: chỉ số cộng cho đồng minh khi tướng này đang trên sân.
+- `bot.carrierStackValue`, `bot.tokenSecretValue`, `bot.unitValue`, `bot.modeValue`: gợi ý bot (xem mục Bot bên dưới).
+
+### Trạng thái chung engine đọc sẵn
+- Chỉ số: `attack_speed`, `ad_up`, `ad_down`, `ap_up`, `crit_up`, `armor_up`, `armor_down`, `mr_up`, `mr_down`, `shred` (giá trị `v` cộng/trừ phẳng vào chỉ số, đọc bằng `g.statusV`); `invulnerable` (không nhận sát thương).
+- `disarm` và `blind` (Mù) chặn đánh (`g.canAttack`) và huỷ mắt xích đòn đánh của tướng; Choáng huỷ mọi mắt xích của tướng; Câm Lặng huỷ mắt xích chiêu.
+- `stone_link` (Malphite): sát thương địch lên một tướng liên kết được chia đều cho mọi tướng liên kết; sát thương `aoe` không chia.
+- `vulnerable` (Nami R), `shield_power` (Janna E), `gp_wanted` (Gangplank R) có chữ riêng ở client (`board/helpers.ts`).
+
+### Game API mới
+- `g.timed(src, unit, id, d, o)`: trạng thái kéo dài `d` ĐƠN VỊ (law 4) đếm từ phía `src`; phần lẻ `X.Y` của chiêu CC là xác suất thêm 1 đơn vị. `g.unitsUntil(src, n)` cho mốc `until` tương ứng.
+- Bộ bài: `g.flipTop(side, by)` (lật lá trên cùng, công khai, phát `deckFlip`), `g.insertTopN`, `g.putOnBottom`, `g.peekDeck`, `g.takeFromDeck`.
+- `g.tempSkillCard(hero, side, key, data)`: lá chiêu tạm (hết cuối lượt đối thủ, có `until`). `g.freezeCard/freezeRandom(..., until)`: Hoá Băng lá trên tay; `Card.frozen` (id tướng), `Card.frozenUntil` (turnNo tan băng). Lá bị băng vẫn bỏ được.
+- `g.damage/heal` nhận thêm `via` (hop trước, cho sự kiện nảy) và `aoe` (bỏ qua `stone_link`).
+- Lá Tái Chế (Rumble): `card.data = {recycled: <tướng gốc>, apPerAd, manaOff}`, `kind:"skill"`, tung bằng chiêu gốc với Rumble là người dùng, không áp khống chế, biến mất khi hết hạn. Các lựa chọn Tái Chế và Thần Bài là lá đặc biệt tạm (`kind:"special"`, id `rumble_pick`, `tf_fate`) có `data.uid` trỏ lá khác; `legalActions` coi chúng khác nhau theo `data.uid` (client: `cardSig` trong `store.ts` phải khớp `sig` trong `engine.ts`).
+- `ReactFx` thêm `intercept {from, by, pct}` (Braum E) và `stealMode: "basic" | "burn" | "convert"`.
+
+### State và sự kiện mới
+- `GameState.laneElements?: string[]`: 5 phần tử `"earth" | "water" | "grass"`, công khai, đặt một lần ở `HeroDef.setup` của Qiyana. Server gửi trong `cg:state` (`CardView.laneElements`); client hiện huy hiệu ở dải số đường giữa sân.
+- Token úp (`token.hidden`, `secret`, `card`): server xoá `secret` và `card` khỏi bản gửi cho đối thủ (`CardRoom.unitsFor`), chủ vẫn thấy. Thùng của Gangplank: `secret.powder` (Thuốc Súng, +1 mỗi đầu lượt chủ), `card` = lá đã úp.
+- Sự kiện mới: `ability {unit, id, target?}`, `deckFlip {side, card, by?}`, `cardFrozen {side, card, by}`, `cardThawed {side, card}`, `revealEnd {side}`, `tempExpired`, `teamManaChange`, `freeCard`, `transform`, `roll`, `tokenFlip`. Định nghĩa đầy đủ: `GameEvent` trong `types.ts`.
+- `CardView` (client) không còn `attackLimit` và `rules.attackLimit`.
+
+### Bot
+- Nhận đủ `Action {t:"ability"}`: bot "easy" chấm theo sự kiện (Úp Lá: giá trị Thùng trừ giá lá úp, nên chỉ úp lá rẻ); bot "hard" tìm kiếm cả lượt rồi chấm thế cờ. Mọi nhánh đi qua `candidateActions` / `closestLegal`.
+- `HeroBotHint` mới: `carrierStackValue` (điểm mỗi stack tướng đặt lên địch, trừ ở phe mang), `tokenSecretValue` (điểm mỗi đơn vị `secret` của token, vd Thuốc Súng), `unitValue(g, u)` (giá trị cấu hình của tướng trên sân, vd Jinx chọn súng hợp đội hình địch), `modeValue(g, side, lane, mode)` (xếp hạng chế độ lúc gọi tướng).
+- `determinize` lấy mẫu lại Thuốc Súng (0..3) và lá úp trong Thùng của đối thủ. Lá Thần Bài cho chủ biết lá trên cùng bộ: bot chôn xuống đáy nếu lá đó kém (`fateBury`, `botEval.ts`). Lựa chọn Tái Chế (`rumble_pick`) đi qua tìm kiếm thông thường.
+- Cấm/chọn (`botDraft.ts`, `synergy.ts`) phủ đủ 34 tướng, gồm Rumble.

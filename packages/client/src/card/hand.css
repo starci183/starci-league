@@ -1,6 +1,6 @@
 /* Thanh dưới: tay bài + thanh hành động. Hextech vàng/xanh. */
 .cg-hand {
-    --cw: clamp(96px, 7vw, 132px);
+    --cw: clamp(96px, 134.4px, 132px);
     --ch: calc(var(--cw) * 1.62);
     --gold: #f5d27a; --gold-d: #c8a050; --blue: #4a9aff;
     position: relative; z-index: 30;
@@ -90,12 +90,15 @@
 .hd-cancel { padding: 4px 12px; background: #1a1f28; color: #e8e4d8; border: 1px solid #6a6f7a; border-radius: 6px; }
 .hd-cancel:hover { border-color: #ff8a7a; color: #ffb0a4; }
 .hd-pop {
-    position: fixed; z-index: 80; display: flex; flex-direction: column; gap: 8px; width: 360px; max-width: calc(100vw - 16px); box-sizing: border-box;
+    position: fixed; z-index: 80; display: flex; flex-direction: column; gap: 8px; width: 360px; max-width: calc(1920px - 16px); box-sizing: border-box;
     padding: 10px 12px; background: #0b121b; border: 2px solid var(--gold-d); border-radius: 10px; box-shadow: 0 8px 26px rgba(0, 0, 0, .8);
 }
 .hd-pop-foot { display: flex; gap: 8px; align-items: center; justify-content: space-between; }
 .hd-pop-title { color: var(--gold); font-weight: 800; font-size: 13px; }
-.hd-pop-list { display: flex; gap: 8px; flex-wrap: wrap; }
+.hd-pop-list { display: flex; gap: 8px; flex-wrap: wrap; max-height: min(561.6px, 420px); overflow-y: auto; }
+.hd-choice:disabled { opacity: .45; cursor: default; }
+.hd-multi img { width: 28px; height: 28px; object-fit: cover; border-radius: 4px; }
+.hd-multi.on { outline: 2px solid var(--gold); background: #2c4a2a; }
 .hd-choice { display: flex; align-items: center; gap: 8px; padding: 6px 12px; background: #131d2b; color: #f0ead6; border: 1px solid var(--gold-d); border-radius: 8px; font-weight: 700; }
 .hd-choice:hover { background: #1e2f47; border-color: var(--gold); }
 .hd-choice img { width: 30px; height: 30px; border-radius: 50%; object-fit: cover; }
@@ -128,7 +131,7 @@
 /* ---------- hộp ghép đồ ---------- */
 .hd-modal { position: fixed; inset: 0; z-index: 200; display: grid; place-items: center; background: rgba(0, 0, 0, .6); }
 .hd-dialog {
-    width: min(560px, 92vw); max-height: 82vh; overflow: auto; padding: 16px 18px; background: #0b121b; border: 2px solid var(--gold-d); border-radius: 12px;
+    width: min(560px, 1766.4px); max-height: 885.6px; overflow: auto; padding: 16px 18px; background: #0b121b; border: 2px solid var(--gold-d); border-radius: 12px;
     box-shadow: 0 10px 40px rgba(0, 0, 0, .8); display: flex; flex-direction: column; gap: 10px; color: #e8e4d8;
 }
 .hd-dialog h3 { margin: 0; color: var(--gold); font-size: 18px; }
@@ -142,7 +145,7 @@
 .hd-recipe img { width: 22px; height: 22px; object-fit: contain; }
 .hd-dialog .hd-cancel { align-self: flex-end; }
 
-@media (max-width: 1500px) {
+@container game-canvas (max-width: 1500px) {
     .hd-zoom { width: 270px; }
 }
 .hd-slot.arriving { visibility: hidden; pointer-events: none; }
@@ -172,7 +175,6 @@
 .hd-zstate.tmp { color: #cdb2ff; }
 
 .hd-atk { color: #e8e4d8; font-weight: 700; }
-.hd-atk.out { color: #ff7a6a; }
 
 
 .hd-hero.sm { width: 58px; }
@@ -188,6 +190,8 @@
 .hd-quick span b { font-size: 12px; color: #cfe2ff; }
 .hd-quick span i { font-style: normal; font-size: 11px; color: #9ab; }
 .hd-quick .hd-q { position: absolute; right: 4px; top: -8px; text-decoration: none; }
+.hd-ability { border-color: #c9a44a; }
+.hd-ability span b { color: #ffe3a0; }
 .hd-quick:hover, .hd-quick.sel { box-shadow: 0 0 10px rgba(90, 168, 255, .8); border-color: #bfe0ff; }
 
 .hd-burns { position: absolute; left: 50%; top: -78px; transform: translateX(-50%); z-index: 66; display: flex; flex-direction: column; gap: 4px; align-items: center; pointer-events: none; }

@@ -70,6 +70,7 @@ const HIDDEN_STACKS = new Set(["lissFrozen",
     "frenzyLow"])
 /** Tiền tố khoá kỹ thuật của engine/đồ (cờ "một lần", hào quang, bộ đếm lượt, bộ đếm ẩn của đồ) */
 const HIDDEN_PREFIX = ["once:",
+    "item:",
     "aura:",
     "tc:",
     "itemT:"]

@@ -109,11 +109,22 @@ export function determinize(real: GameState, side: Side, salt: number): GameStat
         if (tk.secret) {
             const sec: Record<string, string | number> = {
             }
-            for (const k of Object.keys(tk.secret)) sec[k] = rnd() < p ? 1 : 0
+            for (const k of Object.keys(tk.secret)) {
+                // Thuốc Súng của Thùng (Gangplank) là bộ đếm tăng mỗi lượt của chủ, không phải cờ thật/giả: lấy mẫu 0..3
+                if (k === "powder") sec[k] = Math.floor(rnd() * 4)
+                else sec[k] = rnd() < p ? 1 : 0
+            }
             tk.secret = sec
         }
-        if (tk.card) tk.card = {
-            uid: tk.card.uid, kind: "support", id: "basic"
+        // lá úp trong token của đối thủ: lấy mẫu theo kho lá thường gặp (lá chiêu của tướng chủ, Vàng, Đánh thường; đồ bỏ qua vì cần id món)
+        if (tk.card) {
+            const owner = tk.ownerId ? s.units[tk.ownerId] : undefined
+            const r = rnd()
+            tk.card = r < 0.4 && owner ? {
+                uid: tk.card.uid, kind: "skill", id: `${owner.hero}_q`, hero: owner.hero, side: owner.side
+            } : {
+                uid: tk.card.uid, kind: "support", id: r < 0.7 ? "gold" : "basic"
+            }
         }
     }
     // gọi tướng úp: KHÔNG được thấy lựa chọn của đối thủ, thay bằng mẫu ngẫu nhiên (cùng số lượng, tướng dự bị + đường trống)
@@ -169,5 +180,6 @@ export function fingerprint(s: GameState, side: Side): string {
     parts.push(String(s.extra.A),
         String(s.extra.B))
     if (s.markers) parts.push(JSON.stringify(s.markers))
+    if (s.laneStacks) parts.push(JSON.stringify(s.laneStacks))
     return parts.join("|")
 }

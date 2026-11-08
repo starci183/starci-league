@@ -1,0 +1,42 @@
+{
+  "asset": "summon-plate-v1.png",
+  "tool": "built-in image_gen",
+  "use_case": "stylized-concept",
+  "mode": "generate with approved master as style reference",
+  "prompt": "Use case: stylized-concept. Asset type: ONE isolated reusable circular auxiliary-summoning stone plate sprite for a polished forest fantasy card game. The attached full-board screenshot is STYLE REFERENCE ONLY: match its pale mossy sandstone, aged warm gold details, emerald forest and rich jade/turquoise palette. DO NOT reproduce that board or any UI. Draw ONLY one circular round stone disk, perfectly orthographic top-down (true circle, not oval; no isometric angle or visible raised sidewall). It will be composited at river center of a game board, about 180 by 180 reference pixels; generate larger native square for sharpness. Symmetric segmented pale olive sandstone outer ring with restrained thin warm-gold rune-like geometric inlay and a few tiny moss tufts in cracks; subtle emerald accent line. Interior 70 percent diameter is EMPTY QUIET FLAT STONE with faint tasteful wear and low contrast; no central icon or motif, no cross, no plus, no portal hole, no inscriptions, no actual text or letters, no lock, no card, no hero. Clean round silhouette, not a jagged stone pile. Moderate crisp hand-painted material detail, softly lit from above; no directional cast shadow outside disk, no glow halo or particles. Single disk centered and occupying 88 percent of square image width and height with equal transparent margin on all sides, whole circle visible with no cropping. Genuinely transparent alpha outside the entire circle, including margin; no background terrain, no surrounding water, no scenery, no mockup, no atlas or multiple variants. Preserve flat playable center and simple circle silhouette.",
+  "reference": "outputs/game-ui-kit/01-battlefield-final.png",
+  "nativeSource": "C:/Users/Hi/.codex/generated_images/01a19852-758e-71d3-8b03-96f0fa3b35ae/exec-111360a1-6557-48e3-91a3-de26d37820c1.png",
+  "nativeDimensions": [
+    1254,
+    1254
+  ],
+  "intendedVisibleSizeReference": [
+    180,
+    180
+  ],
+  "anchorsNormalized": [
+    [
+      0.08,
+      0.5
+    ],
+    [
+      0.92,
+      0.5
+    ]
+  ],
+  "geometry": "One orthographic round stone plate; quiet stone center; no text, locks, icons, cards, heroes, river or surrounding board.",
+  "alpha": {
+    "mode": "RGBA",
+    "corners": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "center": 252,
+    "min": 0,
+    "max": 255
+  },
+  "nativePreserved": true,
+  "codeEdits": false
+}

@@ -1,163 +1,223 @@
-// Twisted Fate (Pháp sư, phép) V3: "Tay bài là đạn": tay càng dày đánh càng đau, cuối trận lên đồ là R xoá sổ. Máu 320 · AD 69 · giáp/kháng 25/28 · AP gốc 0.
-// Nội tại: mỗi đòn thường thật trúng thêm n × (4 + 1.4% AD + 2% AP) sát thương phép (AttackInfo.bonus, không chí mạng riêng);
-// n = số lá tài nguyên thực trên tay ngay đòn đó (tính lá tạm còn hạn, lá băng và chiêu của chủ đang vắng).
-// Q (20 mana) Chọn Bài: sát thương + màu (Xanh hồi 30 bể chung, Đỏ Rã Giáp ×0,6 tới hết lượt, Vàng thử Choáng) · E (20) Xáo Bài: xem 3, 1 xuống đáy, rút 2
-// R (50) chụp gói lá trên tay lúc giải quyết, bỏ từng lá; đạn = min(số lá thực gỡ, 7), mỗi đạn gây (40 + 21% AD + 25% AP) lên mọi địch.
+// Twisted Fate (Pháp sư, phép): bài. Mọi con số nằm trong balance/heroes/twistedfate.json (docs/heroes/KITS.md).
+// Q và R lật lá trên cùng BỘ BÀI CỦA MÌNH (g.flipTop, cả hai bên thấy) rồi chia lá theo loại; lá lật không được rút thì vào mộ.
+// Nội tại Thần Bài: sau bước rút đầu lượt (hook onMainStart) chủ nhận lá tạm "tf_fate" ghi lá trên cùng bộ; đánh lá đó thì đặt lá ấy xuống đáy.
+import {
+    kit
+} from "../balance"
 import type {
     Game
 } from "../game"
-import type {
-    PlayArgs,
-    Side,
-    Unit
-} from "../types"
 import {
-    otherSide
-} from "../types"
-import {
-    defineHero
+    defineHero, defineSpecialCard, getSpecialCard
 } from "../registry"
+import type {
+    Card, PlayArgs, Side
+} from "../types"
 
-/** E xem bấy nhiêu lá trên cùng bộ bài */
-export const PEEK = 3
-/** E đẩy bấy nhiêu lá xuống đáy */
-export const DOWN = 1
-/** E rút tối đa bấy nhiêu lá */
-export const DRAW = 2
-/** Q Xanh: bể chung hồi bấy nhiêu mana */
-export const Q_BLUE_MANA = 30
-/** R chỉ tính tối đa bấy nhiêu đạn */
-export const R_MAX_CARDS = 7
-/** Q Vàng: Choáng d = 0,9 + 0,001 AD + 0,002 AP (g.scaling: ad/ap theo 100 điểm) */
-export const STUN_GOLD = {
-    base: 0.9, ad: 0.1, ap: 0.2
+const k = kit("twistedfate"), {
+    p
+} = k
+const F_Q = k.x("q1 + q2·AP"), EN_Q = k.xe("q1 + q2·AP")
+const F_STUN = k.x("q3 + q4·AP"), EN_STUN = k.xe("q3 + q4·AP")
+const F_E = k.x("e1 + e2·AP"), EN_E = k.xe("e1 + e2·AP")
+const F_R = k.x("r2 + r3·AP"), EN_R = k.xe("r2 + r3·AP")
+export const FATE = "tf_fate"
+
+/** Lá chiêu: chiêu tướng, lá Bóng hoặc lá đặc biệt đánh được như chiêu */
+const isSkillCard = (c: Card) => c.kind === "skill" || !!c.copyOf || (c.kind === "special" && !!getSpecialCard(c.id)?.skill)
+/** Vàng hoặc đồ (mảnh đồ, đồ huyền thoại) */
+const isLoot = (c: Card) => c.kind === "support" && (c.id === "gold" || c.id === "item" || c.id === "legend")
+/** Lá lật vào mộ (lá đặc biệt/tạm thì biến mất). Không bắn onDiscard: lá chưa từng ở trên tay. */
+const toGrave = (g: Game, side: Side, c: Card) => { if (c.kind !== "special" && !c.temp) g.player(side).grave.push(c) }
+/** Lá lật được rút lên tay: đặt lại đỉnh bộ rồi rút để đi qua đủ luật rút (Nấm tự bật, tay đầy thì đốt) */
+const drawFlipped = (g: Game, side: Side, c: Card, by: string) => {
+    g.player(side).deck.unshift(c)
+    g.drawOne(side,
+        "pick",
+        by)
 }
-const F_PASSIVE = "4 + 1.5% AD + 2% AP"
-const F_Q = "110 + 40% AD + 80% AP"
-const F_R_CARD = "40 + 20% AD + 25% AP"
+const sigOf = (c: Card) => `${c.kind}|${c.id}|${c.hero ?? ""}|${c.item ?? ""}`
 
-/** Số lá tài nguyên thực trên tay `side` (mọi lá trên tay, kể cả tạm/băng; engine chưa có lá proxy lựa chọn) */
-export const resourceHand = (g: Game, side: Side) => g.player(side).hand
+const topUid = (g: Game, side: Side) => g.peekDeck(side,
+    1)[0]?.uid
 
-/** Thử Choáng d đơn vị (law.md §4): xét miễn trước, floor(d) chắc chắn + roll phần lẻ thêm 1 đơn vị */
-function tryStun(g: Game, me: Unit, t: Unit, d: { base: number; ad: number; ap: number }) {
-    if (t.status !== "board" || t.token) return
-    if (g.has(t,
-        "stasis") || g.s.immune?.includes(t.id)) return
-    const x = g.scaling(me,
-        d)
-    if (x <= 0) return
-    // engine tung phần lẻ đúng 1 lần sau kiểm tra miễn/chặn (CC_STATUSES)
-    g.status(t,
-        "stun",
-        x,
-        {
-            of: otherSide(me.side)
-        })
-}
+defineSpecialCard({
+    id: FATE,
+    name: "Thần Bài",
+    desc: "Lá trên cùng bộ bài của bạn: đánh lá này để đặt lá đó xuống đáy bộ. Lá tạm.",
+    skill: {
+        key: "E", name: "Thần Bài", desc: "Đặt lá trên cùng bộ bài xuống đáy bộ.", target: "none", mana: p.e4, uncounterable: true,
+        canPlay: (c) => String(c.card.data?.uid ?? "") === topUid(c.g,
+            c.side),
+        resolve(ctx) {
+            const {
+                g, side, card
+            } = ctx
+            const uid = String(card.data?.uid ?? "")
+            if (topUid(g,
+                side) !== uid) return
+            const top = g.takeFromDeck(side,
+                uid)
+            if (top) g.putOnBottom(side,
+                top)
+        },
+    },
+})
 
 export default defineHero({
-    id: "twistedfate", name: "Twisted Fate", role: "mage", damage: "magic", hp: 320, atk: 69, armor: 25, mr: 28,
-    desc: "Tay bài là đạn: giữ tay dày thì đòn đánh đau thêm, Q chọn màu bài (hồi mana, Rã Giáp hoặc Choáng), E lọc bài và rút, R ném cả gói tay thành bão bài.",
+    id: "twistedfate", name: "Twisted Fate", role: "mage", damage: "magic", ...k.base,
+    desc: "Kiểm soát bộ bài: soi lá trên cùng và đặt xuống đáy nếu không ưng, Q lật bài tuỳ lá mà đổi phép, E đánh rồi xếp lại đỉnh bộ, R lật cả loạt bài ném vào địch.",
     passive: {
-        name: "Bàn Tay Vàng",
-        desc: `Mỗi đòn thường thật trúng hợp lệ thêm n × {${F_PASSIVE}} sát thương phép, không chí mạng riêng; n là số lá trên tay ngay đòn đó, tính cả lá tạm còn hạn, lá băng và chiêu của tướng đang vắng.`,
+        name: "Thần Bài",
+        desc: "Mỗi lượt của mình, sau khi rút bài, chủ bộ bài xem lá trên cùng bộ và có thể đặt nó xuống đáy (lá tạm Thần Bài trên tay, không chọn thì biến mất). Tay bài không lộ cho đối thủ.",
     },
     hooks: {
-        onAttack(g, me, d) {
-            if (d.attacker.id !== me.id) return
-            const n = resourceHand(g,
-                me.side).length
-            if (n > 0) d.info.bonus.push({
-                raw: n * g.f(me,
-                    F_PASSIVE), kind: "magic"
+        onMainStart(g, me, d) {
+            if (d.side !== me.side) return
+            const top = g.peekDeck(me.side,
+                1)[0]
+            if (!top) return
+            g.createCard(me.side,
+                {
+                    kind: "special", id: FATE, hero: me.hero, side: me.side, temp: true, data: {
+                        uid: top.uid, label: top.id
+                    }
+                })
+        },
+        onDraw(g, me, d) {
+            // bộ bài đã đổi đỉnh: lá Thần Bài cũ hết nghĩa
+            if (d.side !== me.side || d.card.id === FATE) return
+            const hand = g.player(me.side).hand
+            const stale = hand.filter((x) => x.kind === "special" && x.id === FATE && String(x.data?.uid) !== topUid(g,
+                me.side))
+            if (!stale.length) return
+            g.player(me.side).hand = hand.filter((x) => !stale.includes(x))
+            for (const card of stale) g.emit({
+                t: "tempExpired", side: me.side, card
             })
         },
     },
     skills: {
         Q: {
-            key: "Q", name: "Chọn Bài", target: "enemy", mana: 20, extra: "color",
-            desc: `Chọn màu và 1 tướng địch bất kỳ đường, gây {${F_Q}} sát thương phép. Xanh: bể chung hồi ${Q_BLUE_MANA} mana sau giải quyết. Đỏ: Giáp và Kháng phép của nó còn 60% tới hết lượt hiện tại. Vàng: thử Choáng d = 0,9 + 0,001 AD + 0,002 AP đơn vị. Chọn màu trước Chuỗi.`,
+            key: "Q", name: "Chọn Bài", target: "enemy", mana: p.q0,
+            desc: `Chọn 1 tướng địch; lật lá trên cùng bộ bài của bạn, gây {${F_Q}} sát thương phép. Lá chiêu: trúng thêm 2 đường kề. Vàng hoặc đồ: Choáng nó {${F_STUN}} đơn vị. Lá khác: rút lá đó. Lá lật không được rút vào mộ.`,
             resolve(c) {
-                const t = c.target!
-                c.g.damage(c.self,
+                const t = c.target!, me = c.self
+                const side = c.side
+                const card = c.g.flipTop(side,
+                    me.id)
+                const raw = c.f(F_Q)
+                const near = card && isSkillCard(card) ? c.g.neighbors(t) : []
+                c.g.damage(me,
                     t,
-                    c.f(F_Q),
+                    raw,
                     "magic",
                     {
                         tag: "skill"
                     })
-                if (c.args.color === "blue") c.g.gainMana(c.self,
-                    Q_BLUE_MANA,
-                    "restore")
-                else if (c.args.color === "red") c.g.status(t,
-                    "shred",
-                    1,
+                for (const n of near) if (c.g.targetable(n)) c.g.damage(me,
+                    n,
+                    raw,
+                    "magic",
                     {
-                        until: c.g.s.turnNo
+                        tag: "skill", aoe: true
                     })
-                else if (c.args.color === "gold") tryStun(c.g,
-                    c.self,
-                    t,
-                    STUN_GOLD)
+                if (!card) return
+                if (isSkillCard(card)) toGrave(c.g,
+                    side,
+                    card)
+                else if (isLoot(card)) {
+                    c.g.timed(me,
+                        t,
+                        "stun",
+                        c.f(F_STUN))
+                    toGrave(c.g,
+                        side,
+                        card)
+                } else drawFlipped(c.g,
+                    side,
+                    card,
+                    me.id)
             },
         },
         E: {
-            key: "E", name: "Xáo Bài", target: "none", mana: 20,
-            desc: `Xem ${PEEK} lá đầu bộ, chọn ${DOWN} lá xuống đáy rồi rút tối đa ${DRAW} lá còn lại theo giới hạn tay chung. Bộ thiếu ${PEEK} lá thì không chọn xuống đáy, rút tối đa ${DRAW} lá đang có. Không tạo lá, không bảo đảm chiêu của TF.`,
+            key: "E", name: "Xào Bài", target: "enemy", mana: p.e0,
+            desc: `Chọn 1 tướng địch: {${F_E}} sát thương phép. Xem ${p.e3} lá trên cùng bộ bài của bạn, chọn 1 lá đặt lên đỉnh, các lá còn lại giữ thứ tự.`,
             options(c) {
                 const top = c.g.peekDeck(c.side,
-                    PEEK)
-                if (top.length < PEEK) return [{
-                }]
-                // pick = lá bị đẩy xuống đáy
-                return top.map((x): PlayArgs => ({
-                    pick: x.uid
-                }))
+                    p.e3)
+                const seen = new Set<string>()
+                const picks = top.length > 1 ? top.filter((x) => !seen.has(sigOf(x)) && !!seen.add(sigOf(x))).map((x) => x.uid) : []
+                const out: PlayArgs[] = []
+                for (const t of c.g.targetableEnemies(c.self)) if (!t.token) {
+                    if (!picks.length) out.push({
+                        target: t.id
+                    })
+                    else for (const pick of picks) out.push({
+                        target: t.id, pick
+                    })
+                }
+                return out
             },
             resolve(c) {
-                const top = c.g.peekDeck(c.side,
-                    PEEK)
-                if (top.length >= PEEK) {
-                    const down = top.find((x) => x.uid === c.args.pick) ?? top[top.length - 1]
-                    const card = c.g.takeFromDeck(c.side,
-                        down.uid)
-                    if (card) c.g.putOnBottom(c.side,
-                        card)
-                }
-                c.g.draw(c.side,
-                    DRAW,
+                c.g.damage(c.self,
+                    c.target!,
+                    c.f(F_E),
+                    "magic",
                     {
-                        reason: "pick", by: c.self.id
+                        tag: "skill"
                     })
+                const deck = c.g.player(c.side).deck
+                const i = deck.slice(0,
+                    p.e3).findIndex((x) => x.uid === c.args.pick)
+                if (i > 0) deck.unshift(...deck.splice(i,
+                    1))
             },
         },
         R: {
-            key: "R", name: "Định Mệnh", target: "all_enemies", mana: 50,
-            desc: `Khi giải quyết, chụp gói lá trên tay rồi bỏ từng lá của gói đó; m là số lá thực gỡ được, đạn = min(m, ${R_MAX_CARDS}). Mỗi đạn gây {${F_R_CARD}} sát thương phép lên mọi tướng địch hợp lệ. Lá nhận sau lúc chụp vẫn giữ; lá tạm bị bỏ thì biến mất. Cần ít nhất 1 lá khác trên tay mới tung được.`,
-            canPlay: (c) => resourceHand(c.g,
-                c.side).some((x) => x.uid !== c.card.uid),
+            key: "R", name: "Định Mệnh", target: "none", mana: p.r0,
+            canPlay: (c) => c.g.targetableEnemies(c.self).some((u) => !u.token),
+            desc: `Lật ${p.r1} lá trên cùng bộ bài của bạn; mỗi lá gây {${F_R}} sát thương phép lên 1 tướng địch ngẫu nhiên, lá chiêu gấp ${p.r4} lần. Các lá lật vào mộ.`,
             resolve(c) {
-                const snapshot = [...resourceHand(c.g,
-                    c.side)]
-                let m = 0
-                for (const card of snapshot) if (c.g.discard(c.side,
-                    card.uid,
-                    "throw")) m++
-                const ammo = Math.min(m,
-                    R_MAX_CARDS)
-                const per = c.f(F_R_CARD)
-                for (let i = 0; i < ammo; i++) {
-                    for (const t of c.g.enemies(c.self).filter((u) => !u.token)) {
-                        c.g.damage(c.self,
-                            t,
-                            per,
-                            "magic",
-                            {
-                                tag: "skill"
-                            })
-                    }
+                const me = c.self
+                const raw = c.f(F_R)
+                for (let i = 0; i < p.r1; i++) {
+                    const card = c.g.flipTop(c.side,
+                        me.id)
+                    if (!card) break
+                    const t = c.g.pick(c.g.targetableEnemies(me).filter((u) => !u.token))
+                    if (t) c.g.damage(me,
+                        t,
+                        isSkillCard(card) ? raw * p.r4 : raw,
+                        "magic",
+                        {
+                            tag: "skill"
+                        })
+                    toGrave(c.g,
+                        c.side,
+                        card)
                 }
+            },
+        },
+    },
+    en: {
+        desc: "Deck control: peek at the top card and bottom it if you dislike it, Q flips a card to change the spell, E hits and rearranges your deck's top, R flips a whole run of cards into the enemy team.",
+        passive: {
+            name: "Destiny",
+            desc: "Each of your turns, after drawing, the deck owner sees the top card of the deck and may put it on the bottom (a temporary Destiny card in hand; if unused it vanishes). The hand stays hidden from the opponent.",
+        },
+        skills: {
+            Q: {
+                name: "Wild Cards",
+                desc: `Choose 1 enemy champion; flip the top card of your deck and deal {${EN_Q}} magic damage. Skill card: also hits the 2 adjacent lanes. Gold or item: Stun it for {${EN_STUN}} units. Any other card: draw that card. A flipped card that is not drawn goes to the graveyard.`,
+            },
+            E: {
+                name: "Stacked Deck",
+                desc: `Choose 1 enemy champion: {${EN_E}} magic damage. Look at the top ${p.e3} cards of your deck and put 1 of them on top; the rest keep their order.`,
+            },
+            R: {
+                name: "Destiny",
+                desc: `Flip the top ${p.r1} cards of your deck; each deals {${EN_R}} magic damage to 1 random enemy champion, multiplied by ${p.r4} for a skill card. The flipped cards go to the graveyard.`,
             },
         },
     },

@@ -65,12 +65,16 @@ export interface CardView {
     phase: "blind" | "summon" | "main" | "chain" | "over";
     toMove: Side;
     actionsThisTurn: number;
-    /** Số đòn đã đánh của phe CÓ LƯỢT (V2: tối đa 3, tính lá Đánh thường và đòn không cần lá của Đấu sĩ) */
+    /** Bước trong lượt (law.md "Trình tự lượt") */
+    step?: cg.TurnStep;
+    /** Số đòn đã đánh của phe CÓ LƯỢT (không có giới hạn, law.md 11c; chỉ để hiển thị) */
     turnAttacks: { used: number; cardless: string[] };
     /** Như turnAttacks nhưng cho phe KHÔNG có lượt (đòn Quick đánh trong lượt đối thủ) */
     offTurnAttacks: { used: number; cardless: string[] };
-    /** Giới hạn cứng số đòn mỗi phe mỗi lượt */
-    attackLimit: number;
+    /** Nguyên Tố công khai của 5 đường (Qiyana): "earth" | "water" | "grass"; thiếu hoặc rỗng = chưa đặt */
+    laneElements?: string[];
+    /** Public effects owned by each board slot, independent of its champion. */
+    laneStacks?: cg.GameState["laneStacks"];
     /** Gọi tướng úp (phase "blind"): lựa chọn của phe kia luôn rỗng tới khi lật; ready công khai */
     blind?: { cap: number; picks: Record<Side, { hero: string; lane: number }[]>; ready: Record<Side, boolean> };
     openLanes: number[];
@@ -90,7 +94,7 @@ export interface CardView {
     bots: Partial<Record<Side, string>>;
     rules: {
         lives: number; handMax: number; laneOpenRound: number[]; summonRounds?: number[];
-        attackLimit: number; drawPerTurn: number; fighterCardlessMult: number;
+        drawPerTurn: number; fighterCardlessMult: number;
         mage: { manaMax: number }; skillCopies: Record<cg.SkillKey, number>;
         teamManaMax?: number; teamManaStart?: number; teamManaRegen?: number;
     };
@@ -101,6 +105,8 @@ export interface LogEntry { n: number; e: GameEvent }
 
 /** Lá bài đang được chọn để đánh: các hành động hợp lệ còn lại chờ người chơi chọn mục tiêu */
 export interface Targeting {
+    step?: "actor" | "target";
+    attackOptions?: Action[];
     /** uid lá trên tay (hoặc id tướng khi là đòn không cần lá / gọi tướng) */
     source: string;
     /** Các hành động hợp lệ ứng với nguồn này (lọc từ legal) */
@@ -139,6 +145,7 @@ let snap: CardSnapshot = EMPTY
 const listeners = new Set<() => void>()
 let room: Room | null = null
 let localAction: ((action: Action) => void) | null = null
+let localResign: ((side: Side) => void) | null = null
 let logN = 0
 let realLegal: Action[] = []
 let awaitingReply = false
@@ -196,6 +203,8 @@ let lagEnabled = false
 let shownCache: { r: CardView; v: number; out: CardView } | null = null
 const applied = new WeakSet<GameEvent>()
 const eventEpoch = new WeakMap<GameEvent, number>()
+/** Đang giữ cho demo: sự kiện tự dựng không có epoch nhưng vẫn được áp lên bản hiển thị */
+let demoHold = false
 
 const clone = <T,>(x: T): T => JSON.parse(JSON.stringify(x)) as T
 
@@ -254,9 +263,16 @@ export function setDisplayLag(on: boolean) {
 
 /** Hiển thị = view thật (hết lô, bỏ qua lô, tắt hoạt ảnh, rời trận) */
 export function snapDisplay() {
+    demoHold = false
     if (!lag) return
     lag = null
     republish()
+}
+
+/** Giữ bản hiển thị để áp sự kiện demo; snapDisplay trả về view thật */
+export function holdDisplay() {
+    demoHold = true
+    beginLag([])
 }
 
 /** Lô sự kiện vừa tới (TRƯỚC cg:state của nó): chụp bản hiển thị từ view thật cũ */
@@ -364,7 +380,7 @@ export function applyToDisplay(events: GameEvent[]) {
         changed = true
     }
     for (const e of events) {
-        if (eventEpoch.get(e) !== presentationEpoch || applied.has(e)) continue
+        if ((!demoHold && eventEpoch.get(e) !== presentationEpoch) || applied.has(e)) continue
         snap.log = [...snap.log,
             {
                 n: ++logN, e
@@ -622,7 +638,7 @@ export const subscribeCard = (listener: () => void) => {
 }
 
 /** Cùng giao thức trình diễn cho sandbox engine local; không tạo socket hoặc room giả. */
-export function bindLocalCardGame(onAction: (action: Action) => void): () => void {
+export function bindLocalCardGame(onAction: (action: Action) => void, onResign?: (side: Side) => void): () => void {
     cardActions.leave()
     presentationEpoch++
     presentationInbox.clear()
@@ -632,9 +648,11 @@ export function bindLocalCardGame(onAction: (action: Action) => void): () => voi
     awaitingReply = false
     realLegal = []
     localAction = onAction
+    localResign = onResign ?? null
     return () => {
         if (localAction === onAction) {
             localAction = null
+            localResign = null
             setDisplayLag(false)
             set(EMPTY)
         }
@@ -698,6 +716,7 @@ export const cardActions = {
     /** Vào phòng card: bot -> create, roomId -> joinById, còn lại joinOrCreate */
     async connect(o: CardJoin) {
         localAction = null
+        localResign = null
         presentationEpoch++
         presentationInbox.clear()
         pendingEvents = []
@@ -709,9 +728,13 @@ export const cardActions = {
             ...EMPTY, stage: "connecting"
         })
         const proto = location.protocol === "https:" ? "wss" : "ws"
-        const client = new Client(`${proto}://${location.hostname}:2567`)
+        const client = new Client(import.meta.env.VITE_CARD_SERVER_URL ?? `${proto}://${location.hostname}:2567`)
+        // dàn xếp bài, đội và thế cờ qua URL: server chỉ nhận khi chạy với CARD_RIG=1
+        const url = new URLSearchParams(location.search)
+        const stage = url.get("stage")
         const opts = {
-            name: o.name, token: o.token, deck: o.deck
+            name: o.name, token: o.token, deck: o.deck, rig: url.get("rig")?.split(",").filter(Boolean),
+            team: url.get("team")?.split(",").filter(Boolean), stage: stage ? JSON.parse(stage) as unknown : undefined
         }
         try {
             room = o.bot ? await client.create("card",
@@ -791,10 +814,13 @@ export const cardActions = {
                 action
             })
     },
-    resign() { room?.send("cg:resign",
-        {
-        }) },
-    leave() { void room?.leave(); room = null; localAction = null; set(EMPTY) },
+    resign() {
+        if (localAction) { localResign?.(snap.view?.you ?? "A"); return }
+        room?.send("cg:resign",
+            {
+            })
+    },
+    leave() { void room?.leave(); room = null; localAction = null; localResign = null; set(EMPTY) },
     /** Chọn tướng để xem ở bảng chỉ số (null = bỏ chọn) */
     inspect(unitId: string | null) { set({
         inspect: unitId
@@ -804,6 +830,15 @@ export const cardActions = {
     }) },
 
     // ---- chọn mục tiêu (Hand/ActionBar bắt đầu, Board kết thúc) ----
+    /** Đòn đánh luôn chọn người đánh rồi mục tiêu, không tự gửi dù chỉ còn một lựa chọn. */
+    beginAttack(source: string, options: Action[]) {
+        if (snap.presenting || awaitingReply || !options.length) return
+        set({
+            targeting: {
+                source, options, attackOptions: options, step: "actor"
+            }
+        })
+    },
     /** Bắt đầu chọn mục tiêu cho các hành động `options`; chỉ 1 lựa chọn thì gửi luôn */
     beginTargeting(source: string, options: Action[]) {
         if (snap.presenting || awaitingReply) return
@@ -821,7 +856,17 @@ export const cardActions = {
     chooseUnit(unitId: string) {
         const t = snap.targeting
         if (!t) return
+        if (t.step === "actor") {
+            const options = t.options.filter((a) => attackActor(a) === unitId)
+            if (options.length) set({
+                targeting: {
+                    ...t, options, step: "target"
+                }
+            })
+            return
+        }
         const hit = t.options.filter((a) => targetsOf(a).units.includes(unitId))
+        if (!hit.length) return
         cardActions.beginTargeting(t.source,
             hit)
     },
@@ -834,6 +879,10 @@ export const cardActions = {
     },
 }
 
+export function attackActor(a: Action): string | undefined {
+    return a.t === "attack" ? a.actor : a.t === "play" ? a.args?.actor : undefined
+}
+
 /** Tướng / đường mà một hành động nhắm tới (để Board tô sáng) */
 export function targetsOf(a: Action): { units: string[]; lanes: number[] } {
     if (a.t === "summon") return {
@@ -842,13 +891,10 @@ export function targetsOf(a: Action): { units: string[]; lanes: number[] } {
     if (a.t === "attack") return {
         units: [a.target], lanes: []
     }
-    if (a.t === "vow") return {
-        units: [a.ally], lanes: []
-    }
     if (a.t === "craft") return {
         units: a.unit ? [a.unit] : [], lanes: []
     }
-    if (a.t === "play" || a.t === "chain") {
+    if (a.t === "play" || a.t === "chain" || a.t === "ability") {
         const args = a.args ?? {
         }
         const units = [...(args.target ? [args.target] : []),
@@ -867,6 +913,11 @@ export function targetsOf(a: Action): { units: string[]; lanes: number[] } {
 export function targetable(t: Targeting | null): { units: Set<string>; lanes: Set<number> } {
     const units = new Set<string>(), lanes = new Set<number>()
     for (const a of t?.options ?? []) {
+        if (t?.step === "actor") {
+            const actor = attackActor(a)
+            if (actor) units.add(actor)
+            continue
+        }
         const x = targetsOf(a)
         x.units.forEach((u) => units.add(u))
         x.lanes.forEach((l) => lanes.add(l))
@@ -882,8 +933,8 @@ export function actionsForCard(legal: Action[], uid: string): Action[] {
     return legal.filter((a) => (a.t === "play" || a.t === "chain") && a.uid === uid && !seen.has(actionKey(a)) && !!seen.add(actionKey(a)))
 }
 
-/** Chữ ký lá: các lá cùng chữ ký là một (engine chỉ liệt kê hành động cho 1 lá đại diện) */
-export const cardSig = (c: Card) => `${c.kind}|${c.id}|${c.hero ?? ""}|${c.item ?? ""}|${c.copyOf ?? ""}`
+/** Chữ ký lá: các lá cùng chữ ký là một (engine chỉ liệt kê hành động cho 1 lá đại diện). Phải khớp `sig` trong engine.ts: lá lựa chọn (Tái Chế, Thần Bài) trỏ lá khác nhau thì khác nhau; Lá Tái Chế khác lá gốc. */
+export const cardSig = (c: Card) => `${c.kind}|${c.id}|${c.hero ?? ""}|${c.item ?? ""}|${c.copyOf ?? ""}${c.kind === "special" && c.data?.uid !== undefined ? `|${c.data.uid}` : ""}${c.data?.recycled ? `|r:${c.data.recycled}` : ""}`
 
 /** Hành động hợp lệ dùng lá `card` trên tay, kể cả khi engine liệt kê theo uid của một lá khác cùng loại */
 export function actionsForHandCard(legal: Action[], hand: Card[], card: Card): Action[] {
@@ -909,11 +960,11 @@ export function manaCostOf(g: cg.Game, card: Card): number | undefined {
         card) : undefined
 }
 
-/** Số đòn đã đánh + các Đấu sĩ đã dùng đòn Quick của `side` lượt này, và giới hạn (đọc đúng phe có lượt hay không) */
-export function attacksOf(v: CardView, side: Side): { used: number; limit: number; cardless: string[] } {
+/** Số đòn đã đánh + các Đấu sĩ đã dùng đòn Quick của `side` lượt này (đọc đúng phe có lượt hay không); không có giới hạn */
+export function attacksOf(v: CardView, side: Side): { used: number; cardless: string[] } {
     const t = side === v.active ? v.turnAttacks : v.offTurnAttacks
     return {
-        used: t?.used ?? 0, limit: v.attackLimit ?? v.rules.attackLimit, cardless: t?.cardless ?? []
+        used: t?.used ?? 0, cardless: t?.cardless ?? []
     }
 }
 

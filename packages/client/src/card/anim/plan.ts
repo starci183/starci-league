@@ -11,14 +11,23 @@ import {
     flushSync
 } from "react-dom"
 import {
+    gameCanvasScale
+} from "../ui/GameCanvas"
+import {
     CARD_W, boardCenter, deckPt, fadeOut, gravePt, handPt, handRect, laneRect, lunge, meSide, opponentCardRect, place, ptOf, pulse, rectOf, run, shake, sleep, unitEl, unitPt, unitRect, type Pt, type Side
 } from "./helpers"
 import {
     skillIcon
-} from "./CardFace"
+} from "./cardArt"
 import {
-    effectStylesFor, styleFor, styleSequenceFor, vfxCardHook, vfxCast, vfxEpoch, vfxImpact, vfxMeta, vfxMushroom, vfxReady, vfxTeamMana, vfxTravel
+    effectStylesFor, styleFor, styleSequenceFor, vfxCardHook, vfxCastBeat, vfxCue, vfxEpoch, vfxImpact, vfxMeta, vfxMushroom, vfxReady, vfxRelease, vfxTeamMana, vfxTravel
 } from "../vfx/dispatch"
+import {
+    annotate, cuesFor, handFlight, mayCue, playCues, resetCueState, tfKind, type Cue, type CueEnv, type CueSet, type Place
+} from "../vfx/heroCues"
+import {
+    ORNN_FORGED_ITEM, TEEMO_VFX, skillVfx
+} from "../vfx/heroMap"
 import {
     releaseCard, reserveHiddenArrival
 } from "./pending"
@@ -96,7 +105,16 @@ const NEUTRAL = new Set(["log",
     "move",
     "reveal",
     "tokenFlip",
-    "tokenEnd"])
+    "tokenEnd",
+    "summonToken",
+    "transform",
+    "deckFlip",
+    "burn"])
+
+/** Sự kiện đi kèm hành động: kể cả bỏ bài do hiệu ứng (R Blitzcrank), khác bỏ bài chủ động có hoạt ảnh riêng */
+const neutral = (x: GameEvent) => NEUTRAL.has(x.t) || (x.t === "discard" && x.reason === "effect")
+type AbilityEv = Extract<GameEvent, { t: "ability" }>
+const isEffectEvent = (x: GameEvent): x is EffectEvent => x.t === "damage" || x.t === "heal" || x.t === "shield" || x.t === "status"
 
 const myside = () => meSide(getCard().view?.you ?? null)
 
@@ -170,14 +188,56 @@ function fly(el: HTMLElement, a: Pt, b: Pt, s0: number, s1: number, o0: number, 
 
 interface Hit { from?: string; to: string; tint: Tint; miss: boolean; crit: boolean }
 
-const heroOf = (unit?: string): string | undefined => (unit ? getCard().view?.units[unit]?.hero : undefined)
+const heroOf = (unit?: string): string | undefined => {
+    const u = unit ? getCard().view?.units[unit] : undefined
+    return u?.hero === "jayce" && u.stacks?.jayce_form === 1 ? "jayce_cannon" : u?.hero // đòn thường Pháo có BASIC riêng
+}
+
+/** Cue của tướng (heroCues.ts) -> toạ độ màn hình */
+function resolvePlace(p: Place): Pt {
+    const me = myside()
+    if ("unit" in p) return unitPt(p.unit,
+        p.lane,
+        me)
+    if ("hand" in p) return handPt(p.hand,
+        me)
+    if ("deck" in p) return deckPt(p.deck,
+        me)
+    if ("grave" in p) return gravePt(p.grave,
+        me)
+    if ("lane" in p) {
+        const r = laneRect(`${p.side}:lane`,
+            p.lane,
+            me)
+        return r ? ptOf(r) : boardCenter()
+    }
+    const r = p.side === myside() ? rectOf(`[data-hand-uid="${p.card}"]`) : null
+    return r ? ptOf(r) : handPt(p.side,
+        me)
+}
+const cueEnv = (): CueEnv => ({
+    units: getCard().view?.units ?? {
+    }, me: myside()
+})
+
+/** Nhả hold rồi chạy các cue thuộc `kinds`. Mỗi lần gọi trả về lời hứa của từng cue; cue hold trả lời ngay */
+function fireCues(sets: CueSet[], kinds: Cue["kind"][]): Promise<void>[] {
+    const out: Promise<void>[] = []
+    for (const set of sets) {
+        if (kinds.includes("with")) for (const key of set.release) vfxRelease(key)
+        if (!vfxReady()) continue
+        for (const cue of set.cues) if (kinds.includes(cue.kind)) out.push(vfxCue(cue,
+            resolvePlace))
+    }
+    return out
+}
 
 /** Lá đánh (play) hoặc đòn lẻ (play = null) cùng các hiệu ứng theo sau */
-function playGroup(fx: Fx, play: PlayEv | null, effects: GameEvent[], span: GameEvent[]): Step {
+function playGroup(fx: Fx, play: PlayEv | null, effects: GameEvent[], span: GameEvent[], ability?: AbilityEv): Step {
     return async () => {
         const visualEpoch = vfxEpoch()
         const me = myside()
-        let caster = play?.args?.actor
+        let caster = play?.args?.actor ?? ability?.unit
         const hits: Hit[] = []
         const kills = new Set<string>()
         const primaryDamage = effects.find((e): e is Extract<GameEvent, { t: "damage" }> => e.t === "damage" && (e.tag === "attack" || e.tag === "skill"))
@@ -320,11 +380,22 @@ function playGroup(fx: Fx, play: PlayEv | null, effects: GameEvent[], span: Game
                 }],
                 fx.t(460),
                 "cubic-bezier(.18,.9,.3,1.3)")
-            await sleep(fx.t(mine ? 1100 : 1000))
+            await sleep(fx.t(mine ? 650 : 750))
         }
 
+        // Hero cues of this action: events that are not damage/heal/shield/status each carry their own recipe
+        const ctxOf = (index: number) => ({
+            env: cueEnv(), card: play?.card, caster, span: firstSpan, index
+        })
+        const setOf = (event: GameEvent): CueSet => cuesFor(event,
+            ctxOf(firstSpan.indexOf(event)))
+        const spanSets = firstSpan.filter(e => !isEffectEvent(e)).map(setOf)
+        const openSets = play ? [playCues(play,
+            ctxOf(0))] : []
+        const active = () => (!fx.active || fx.active()) && visualEpoch === vfxEpoch()
+
         // Opening a reaction window only reveals the card; it must not attack before resolution.
-        if (fizzledJump || !effects.length && !span.some(e => e.t === "teamManaChange")) {
+        if (fizzledJump || !effects.length && !ability && !span.some(e => e.t === "teamManaChange")) {
             if (card) { await fly(card,
                 showPt,
                 showPt,
@@ -333,14 +404,26 @@ function playGroup(fx: Fx, play: PlayEv | null, effects: GameEvent[], span: Game
                 1,
                 0,
                 fx.t(180)); fx.drop(card) }
-            if (play?.reaction && span.some((e) => e.t === "chainAdd")) await sleep(fx.t(650))
+            // Chiêu chỉ đổi bộ đếm/trạng thái/Thùng (Đổi Súng Jinx, Úp Thùng Gangplank, nối Chuỗi): không có cú trúng, chỉ cue riêng của tướng
+            if (!fizzledJump && vfxReady()) {
+                // Mở cửa sổ Chuỗi: chỉ báo hiệu (gồng đòn); kết quả và cue của lá thuộc về lúc giải quyết mắt xích
+                const windowOpening = span.some(e => e.t === "chainAdd")
+                const only = windowOpening ? firstSpan.filter(e => e.t === "chainAdd").map(setOf) : [...openSets,
+                    ...firstSpan.map(setOf)]
+                for (const set of only) for (const cue of set.cues) if (cue.kind === "lead" && active()) await vfxCue(cue,
+                    resolvePlace)
+                track(Promise.all(fireCues(only,
+                    ["with",
+                        "after"])))
+            }
+            if (play?.reaction && span.some((e) => e.t === "chainAdd") || span[0]?.t === "chainResolve") await sleep(fx.t(650))
             return
         }
 
         // ---- nhịp 2: tướng lao tới + lá thu nhỏ bay tới đích rồi mờ dần (lá đồ thì bay tới tướng nhận)
         const first = hits[0] ? unitPt(hits[0].to) : center
         const tasks: Promise<void>[] = []
-        if (caster && casterPt) {
+        if (caster && casterPt && !ability) {
             tasks.push(lunge(unitEl(caster),
                 casterPt,
                 first,
@@ -373,11 +456,30 @@ function playGroup(fx: Fx, play: PlayEv | null, effects: GameEvent[], span: Game
         await Promise.all(tasks)
         if (card) fx.drop(card)
 
-        if (casterPt && vfxReady()) await vfxCast(styleFor(play?.card,
-            hits[0]?.tint ?? "gold",
-            false,
-            heroOf(caster)),
-        casterPt)
+        track(Promise.all(fireCues(openSets,
+            ["with",
+                "lead"])))
+        if (casterPt && vfxReady() && play) {
+            const opening = styleFor(play.card,
+                hits[0]?.tint ?? "gold",
+                false,
+                heroOf(caster))
+            const flipped = firstSpan.find((x): x is Extract<GameEvent, { t: "deckFlip" }> => x.t === "deckFlip")
+            if (flipped) opening.amount = tfKind(flipped.card)
+            // Truy Nã bám lá bằng trạng thái gp_wanted, không niệm hai lần
+            const heldByStatus = !!opening.cast && opening.cast === skillVfx("gangplank",
+                "r").cast && firstSpan.some(x => x.t === "status" && x.id === "gp_wanted")
+            if (!heldByStatus) {
+                // Lá Tái Chế hướng niệm về vị trí lá trên tay; chiêu thường vẽ trùm mọi mục tiêu
+                const aimed = opening.recycled ? [handPt(play.side,
+                    me)] : hits.filter(h => h.to !== caster).map(h => unitPt(h.to))
+                const cast = vfxCastBeat(opening,
+                    casterPt,
+                    aimed)
+                await cast.beat
+                track(cast.tail)
+            }
+        }
 
         // Kéo/đẩy đến đường mới trước khi đòn gây sát thương tới đích.
         const moves = span.filter((e): e is Extract<GameEvent, { t: "move" }> => e.t === "move")
@@ -398,7 +500,7 @@ function playGroup(fx: Fx, play: PlayEv | null, effects: GameEvent[], span: Game
                         track.to,
                         me)
                     if (!el || !old || !destination) return
-                    const to = ptOf(destination), from = ptOf(old), dx = to.x - from.x, dy = to.y - from.y
+                    const to = ptOf(destination), from = ptOf(old), scale = gameCanvasScale(el), dx = (to.x - from.x) / scale, dy = (to.y - from.y) / scale
                     const duration = fx.t(620)
                     const animation = el.animate([
                         {
@@ -429,9 +531,12 @@ function playGroup(fx: Fx, play: PlayEv | null, effects: GameEvent[], span: Game
         }
 
         // ---- nhịp 3: đạn bay tới từng mục tiêu
-        const icon = skillIcon(play?.card)
-        const flights = hits.filter((h) => h.to !== (h.from ?? caster)).map(async (h, i) => {
-            if (!play && firstEffects.some(e => e.t === "damage" && e.target === h.to && e.tag === "dot")) return
+        const icon = skillIcon(play?.card,
+            caster ? getCard().view?.units[caster] : undefined)
+        // Sát thương duy trì, nổ Thùng, Tibbers... xuất hiện tại nạn nhân; chỉ lá chiêu hoặc đòn đánh mới bắn đạn từ người ra đòn
+        const noTravel = !play && !ability && !firstEffects.some(e => e.t === "attack")
+        const ledTargets = new Set(firstSpan.filter(isEffectEvent).filter(e => setOf(e).skipTravel || setOf(e).cues.some(k => k.kind === "lead")).map(e => e.target))
+        const flights = hits.filter((h) => h.to !== (h.from ?? caster) && !ledTargets.has(h.to) && !noTravel).map(async (h, i) => {
             const grouped = firstSpan.some(e => (e.t === "damage" || e.t === "heal" || e.t === "shield" || e.t === "status") && e.target === h.to && e.visualGroup)
             await sleep(fx.t(grouped ? 0 : i * 45))
             if (vfxReady()) {
@@ -464,20 +569,53 @@ function playGroup(fx: Fx, play: PlayEv | null, effects: GameEvent[], span: Game
             fx.drop(orb)
         })
         await Promise.all(flights)
+        for (const set of spanSets) {
+            if (!active()) return
+            for (const cue of set.cues) if (cue.kind === "lead" && vfxReady()) await vfxCue(cue,
+                resolvePlace)
+        }
 
         // ---- nhịp 4: trúng đích (nổ + rung / nhấp nháy xanh khi hồi máu, khiên)
         const impacts: Promise<void>[] = []
         // 1 action -> N effect cues. Never deduplicate by target: damage, stun,
         // shield and healing on the same champion each retain their own beat.
         let effectCursor = 0
-        const active = () => (!fx.active || fx.active()) && visualEpoch === vfxEpoch()
+        // Cue của mọi sự kiện không phải sát thương (bộ đếm, hold, kết thúc trạng thái...) rơi cùng nhịp trúng đầu tiên, một lần
+        let spanLaunched = false
+        const launchSpan = () => {
+            if (spanLaunched) return
+            spanLaunched = true
+            for (const p of fireCues(spanSets,
+                ["with",
+                    "after"])) track(p)
+        }
         const presentEffect = async (event: EffectEvent, land: () => void) => {
+            const set = setOf(event)
+            for (const key of set.release) vfxRelease(key)
+            if (vfxReady()) for (const cue of set.cues) if (cue.kind === "lead") await vfxCue(cue,
+                resolvePlace)
+            if (!active()) return
             const at = unitPt(event.target)
             const source = heroOf(event.src ?? caster)
             const tint: Tint = event.t === "damage" ? event.kind : event.t === "status" ? "gold" : event.t
-            const styles = effectStylesFor(event,
+            let styles = effectStylesFor(event,
                 play?.card,
                 source)
+            // Cue Choáng/Câm Lặng/Mù riêng của tướng thay cue chung; tick duy trì thay hẳn cú trúng
+            if (event.t === "status" && set.cues.some(k => k.kind !== "lead")) styles = []
+            if (set.replace) styles = []
+            if (set.impact) {
+                const o = set.impact
+                styles = styles.map(s => ({
+                    ...s, impact: o.name ?? s.impact, amount: o.amount ?? s.amount, to: o.to ? o.to.map(resolvePlace) : s.to
+                }))
+            }
+            // Khiên đỡ trọn đòn: chỉ có cue Khiên đỡ, không có cú trúng thân
+            if (event.t === "damage" && set.block && event.hpLost === 0) styles = []
+            for (const p of fireCues([{
+                ...set, release: []
+            }],
+            ["with"])) track(p)
             const explicit = (event as { visuals?: string[] }).visuals !== undefined
             const render = async (style: typeof styles[number]) => {
                 if (vfxReady()) await vfxImpact(style,
@@ -487,7 +625,7 @@ function playGroup(fx: Fx, play: PlayEv | null, effects: GameEvent[], span: Game
                     tint,
                     1)
             }
-            const visuals = !explicit && event.t === "damage" && event.tag !== "dot" && (!play || play.card.id === "basic")
+            const visuals = !explicit && event.t === "damage" && event.tag === "attack" && !ability && (!play || play.card.id === "basic")
                 ? runActionVfxSequence(styles,
                     style => vfxReady() && event.src ? vfxTravel(style,
                         unitPt(event.src),
@@ -505,6 +643,10 @@ function playGroup(fx: Fx, play: PlayEv | null, effects: GameEvent[], span: Game
                     fx.t(260)) : event.t === "heal" || event.t === "shield" ? pulse(unitEl(event.target),
                     fx.t(300),
                     1.07) : Promise.resolve()])
+            for (const p of fireCues([{
+                ...set, release: []
+            }],
+            ["after"])) track(p)
         }
         const batches = new Map(effectBatches(firstSpan).map(batch => [batch.start,
             batch]))
@@ -528,6 +670,7 @@ function playGroup(fx: Fx, play: PlayEv | null, effects: GameEvent[], span: Game
                         batch.end).filter(x => x.t !== "kill"))
                 })
                 effectCursor = batch.end
+                launchSpan()
             }
             if (batch.group) await runConcurrentTargets(batch.events,
                 receipt => receipt.target,
@@ -539,6 +682,7 @@ function playGroup(fx: Fx, play: PlayEv | null, effects: GameEvent[], span: Game
                 land)
             index = batch.end - 1
         }
+        launchSpan()
         if (equip) {
             const items = unitEl(equip.unit)?.querySelector(".bd-items") ?? null
             impacts.push(vfxReady() ? vfxMeta("equip",
@@ -550,7 +694,7 @@ function playGroup(fx: Fx, play: PlayEv | null, effects: GameEvent[], span: Game
                 fx.t(380),
                 1.3))
         }
-        if (!hits.length && !equip && casterPt && !["teemo_q",
+        if (!hits.length && !equip && casterPt && !ability && !["teemo_q",
             "teemo_r"].includes(play?.card.id ?? "")) {
             impacts.push(vfxReady() ? vfxImpact(styleFor(play?.card,
                 "gold",
@@ -590,7 +734,7 @@ function playGroup(fx: Fx, play: PlayEv | null, effects: GameEvent[], span: Game
     }
 }
 
-interface DrawItem { side: Side; card?: Card; from?: Side; by?: string; event: GameEvent; stolen?: Extract<GameEvent, { t: "steal" }> }
+interface DrawItem { side: Side; card?: Card; from?: Side; by?: string; event: GameEvent; stolen?: Extract<GameEvent, { t: "steal" }>; redraw?: boolean }
 
 /**
  * Vị trí lá trên tay ngay khi lô sự kiện tới (lúc đó tay còn nguyên); lô chạy sau có thể tới khi state mới đã bỏ lá.
@@ -807,7 +951,7 @@ async function reserveArrival(fx: Fx, side: Side, card: Card) {
     flushSync(() => prepareCardArrival(side,
         card))
     await Promise.all(existing.map(({ el, left }) => {
-        const dx = left - el.getBoundingClientRect().left
+        const dx = (left - el.getBoundingClientRect().left) / gameCanvasScale(el)
         return Math.abs(dx) > .5 ? run(el,
             [{
                 transform: `translateX(${dx}px)`
@@ -915,6 +1059,35 @@ function drawsStep(fx: Fx, list: DrawItem[]): Step {
                     d.card)
             }
             if (fx.active?.() === false) return
+            // Lá Tái Chế, lá rèn của Ornn, lá R của Yorick, Q miễn phí Kha'Zix, Nấm rút bù... bay lên tay bằng cue của tướng
+            const hero = vfxReady() && (d.event.t === "create" || d.event.t === "freeCard" || d.event.t === "returnToHand" || d.event.t === "draw")
+                ? d.redraw ? {
+                    kind: "lead", name: TEEMO_VFX.redraw, from: {
+                        deck: d.side
+                    }, to: [{
+                        hand: d.side
+                    }], color: skillVfx("teemo",
+                        "p").color, color2: skillVfx("teemo",
+                        "p").color2
+                } as Cue : handFlight(d.event,
+                    cueEnv())
+                : undefined
+            if (hero) {
+                const slot = mine && d.card ? rectOf(`[data-hand-uid="${d.card.uid}"] .cv`) : hiddenArrival ? opponentCardRect(d.side,
+                    true) : null
+                const landing = slot ? ptOf(slot) : handPt(d.side,
+                    me)
+                await vfxCue(hero,
+                    (pl) => "hand" in pl && pl.hand === d.side ? landing : resolvePlace(pl))
+                flushSync(() => {
+                    applyToDisplay([d.event])
+                    if (d.card) releaseCard(d.card.uid)
+                    if (hiddenArrival) reserveHiddenArrival(d.side,
+                        -1)
+                })
+                await sleep(fx.t(60))
+                continue
+            }
             let a = d.from ? handPt(d.from,
                 me) : d.event.t === "create" ? center : deckPt(d.side,
                 me)
@@ -1250,6 +1423,50 @@ function summonStep(fx: Fx, unit: string, lane: number, ev: GameEvent): Step {
         [ev])
 }
 
+/** Sự kiện ngoài hành động (đầu lượt, hết hạn, rụng bộ đếm...) mà tướng có cue riêng: cue rơi cùng nhịp đổi số, không giữ hàng đợi lâu */
+function ambientStep(fx: Fx, evs: GameEvent[]): Step {
+    return async () => {
+        if (!vfxReady()) return
+        const env = cueEnv()
+        const sets = evs.map((e, index) => cuesFor(e,
+            {
+                env, span: evs, index
+            }))
+        for (const set of sets) {
+            for (const cue of set.cues) {
+                if (fx.active && !fx.active()) return
+                if (cue.kind === "lead") await vfxCue(cue,
+                    resolvePlace)
+            }
+        }
+        applyToDisplay(evs.filter(x => x.t !== "kill"))
+        const tails = fireCues(sets,
+            ["with",
+                "after"])
+        for (const set of sets) if (set.cues.some(k => k.kind !== "lead")) await Promise.race([Promise.all(tails),
+            sleep(fx.t(650))])
+        for (const tail of tails) track(tail)
+    }
+}
+
+/** Ornn rèn thẳng vào ô đồ: búa nện ở Ornn, món rơi vào ô đồ của tướng nhận */
+function ornnForgeStep(fx: Fx, ev: CraftEv, hammer: string | undefined): Step {
+    return async () => {
+        if (!ev.unit) return
+        const items = unitEl(ev.unit)?.querySelector(".bd-items") ?? null
+        const slot = items ? ptOf(items.getBoundingClientRect()) : unitPt(ev.unit)
+        const from = hammer ? unitPt(hammer) : slot
+        if (vfxReady()) await vfxMeta(ORNN_FORGED_ITEM,
+            from,
+            skillVfx("ornn",
+                "r").color,
+            [slot])
+        await pulse(items,
+            fx.t(380),
+            1.3)
+    }
+}
+
 /** Ghép đồ: 2 mảnh + vàng gộp lại thành lá đồ, rồi bay tới tướng (hoặc về tay) */
 function craftStep(fx: Fx, ev: CraftEv): Step {
     return async () => {
@@ -1482,17 +1699,38 @@ export function buildPlan(events: GameEvent[], fx: Fx): PlanItem[] {
                 if (x.t === "chainResolve") break
                 if (x.t === "attack" && (e.card?.id === "renata_r" || eff.some((previous) => previous.t === "attack"))) break
                 if (EFFECT.has(x.t)) eff.push(x)
-                else if (!NEUTRAL.has(x.t)) break
+                else if (!neutral(x)) break
                 j++
             }
             const played: PlayEv | null = e.card ? {
                 t: "play", side: e.side, card: e.card, reaction: true
             } : null
-            steps.push(eff.length ? playGroup(fx,
+            // Mắt xích không gây gì (Đổi Súng, Tàng Hình...) vẫn qua playGroup: cue riêng của tướng, nhả hold gồng đòn, rồi nghỉ nhịp như cũ
+            steps.push(playGroup(fx,
                 played,
                 eff,
                 events.slice(i,
-                    j)) : () => sleep(fx.t(650)))
+                    j)))
+            i = j
+            continue
+        }
+        // Nút hành động của tướng (Kích Nổ Bom, Úp Lá): không có lá, nên không khoe lá; cue riêng của tướng và hậu quả đi cùng
+        if (e.t === "ability") {
+            const eff: GameEvent[] = []
+            let j = i + 1
+            while (j < events.length) {
+                const x = events[j]
+                if (x.t === "chainResolve" || x.t === "ability" || x.t === "play") break
+                if (EFFECT.has(x.t)) eff.push(x)
+                else if (!neutral(x)) break
+                j++
+            }
+            steps.push(playGroup(fx,
+                null,
+                eff,
+                events.slice(i,
+                    j),
+                e))
             i = j
             continue
         }
@@ -1504,7 +1742,7 @@ export function buildPlan(events: GameEvent[], fx: Fx): PlanItem[] {
                 if (x.t === "chainResolve") break
                 if (x.t === "attack" && (e.t === "play" && e.card.id === "renata_r" || eff.some((previous) => previous.t === "attack"))) break
                 if (EFFECT.has(x.t)) eff.push(x)
-                else if (!NEUTRAL.has(x.t)) break
+                else if (!neutral(x)) break
                 j++
             }
             steps.push(playGroup(fx,
@@ -1535,6 +1773,9 @@ export function buildPlan(events: GameEvent[], fx: Fx): PlanItem[] {
         }
         const d0 = drawLike(e)
         if (d0) {
+            if (e.t === "draw" && e.reason === "effect" && events.slice(Math.max(0,
+                i - 8),
+            i).some(x => x.t === "mushroom" && x.phase === "burst")) d0.redraw = true
             const list = [d0]
             let j = i + 1
             while (j < events.length) {
@@ -1580,14 +1821,27 @@ export function buildPlan(events: GameEvent[], fx: Fx): PlanItem[] {
                 }))
         } else if (e.t === "cardFrozen" || e.t === "cardThawed") {
             const fz = e
-            steps.push(textStep(fx,
+            const label = textStep(fx,
                 fz.t === "cardFrozen" ? (cg.getCardLang() === "en" ? "Frozen" : "Hoá Băng") : (cg.getCardLang() === "en" ? "Thawed" : "Tan băng"),
                 "ice",
                 () => {
                     const r = fz.side === myside() ? rectOf(`[data-hand-uid="${fz.card.uid}"]`) : null
                     return r ? ptOf(r) : handPt(fz.side,
                         myside())
-                }))
+                })
+            // Băng của Lissandra bò từ cú trúng lên lá (chạm lá thì Hoá Băng đáp và giữ tới khi tan); tan băng nhả hold
+            steps.push(async () => {
+                const sets = [cuesFor(fz,
+                    {
+                        env: cueEnv()
+                    })]
+                for (const set of sets) for (const cue of set.cues) if (cue.kind === "lead" && vfxReady()) await vfxCue(cue,
+                    resolvePlace)
+                for (const tail of fireCues(sets,
+                    ["with",
+                        "after"])) track(tail)
+                await label()
+            })
         } else if (e.t === "upgrade") {
             steps.push(upgradeStep(fx,
                 e.unit))
@@ -1639,8 +1893,21 @@ export function buildPlan(events: GameEvent[], fx: Fx): PlanItem[] {
                 e.unit,
                 e.lane,
                 e))
+        } else if (mayCue(e) && e.t !== "cardFrozen" && e.t !== "cardThawed") {
+            const run: GameEvent[] = []
+            let j = i
+            while (j < events.length && mayCue(events[j]) && events[j].t !== "cardFrozen" && events[j].t !== "cardThawed" && !skip.has(j)) run.push(events[j++])
+            steps.push(ambientStep(fx,
+                run))
+            i = j
+            continue
         } else if (e.t === "craft") {
-            steps.push(craftStep(fx,
+            const hammer = e.unit && !e.card ? [...events.slice(0,
+                i)].reverse().find((x): x is PlayEv => x.t === "play" && x.card.hero === "ornn") : undefined
+            steps.push(hammer ? ornnForgeStep(fx,
+                e,
+                Object.keys(getCard().view?.units ?? {
+                }).find(id => id.startsWith(`${hammer.side}:ornn`))) : craftStep(fx,
                 e))
             for (let j = i + 1; j < events.length; j++) {
                 const x = events[j]
@@ -1661,8 +1928,22 @@ export function buildPlan(events: GameEvent[], fx: Fx): PlanItem[] {
 
 export async function runBatch(events: GameEvent[], fx: Fx, alive: () => boolean): Promise<void> {
     let cursor = 0
+    // Ghi chú theo lô cho cue của tướng: bộ đếm lúc đầu lô, nguồn Khiên, loại lá TF, nội dung Thùng...
+    if (events.some(e => e.t === "roundStart" && e.round <= 1)) resetCueState()
+    try {
+        annotate(events,
+            getCard().view?.units ?? {
+            })
+    } catch {
+        /* chỉ phục vụ cue phụ */
+    }
+    // lô chuyển lượt (rút, quà, đốt lá, hết hạn) không có hành động để xem: chạy nhanh để người chơi vào việc ngay
+    const transition = !events.some(e => e.t === "play" || e.t === "attack" || e.t === "ability" || e.t === "chainResolve")
+    const pace: Fx = transition ? {
+        ...fx, t: (ms) => fx.t(ms) * .5
+    } : fx
     for (const p of buildPlan(events,
-        fx)) {
+        pace)) {
         if (!alive()) return
         // sự kiện không có bước riêng nằm trước bước này (hồi mana đầu lượt...) hiện ngay trước bước
         applyToDisplay(events.slice(cursor,
@@ -1674,8 +1955,10 @@ export async function runBatch(events: GameEvent[], fx: Fx, alive: () => boolean
             p.end).filter((e) => e.t === "chainAdd" || e.t === "chainWindow"))
         try {
             await p.step()
-        } catch {
-            /* một bước lỗi không được chặn các bước sau */
+        } catch (error) {
+            // một bước lỗi không được chặn các bước sau, nhưng phải thấy được để sửa
+            console.warn("[anim] bước hoạt ảnh lỗi",
+                error)
         }
         applyToDisplay(events.slice(p.start,
             p.end))

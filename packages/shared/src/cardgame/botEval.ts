@@ -16,7 +16,7 @@ import {
 } from "./registry"
 import {
     COMPONENTS, RULES, otherSide,
-    type Card, type GameState, type HeroBotHint, type Role, type Side, type Unit
+    type Action, type Card, type GameState, type HeroBotHint, type Role, type Side, type Unit
 } from "./types"
 
 export const EVAL = {
@@ -102,12 +102,12 @@ function tables() {
 
 /** Gợi ý chấm điểm của tướng (HeroDef.bot) */
 const hintOf = (hero: string): HeroBotHint | undefined => getHero(hero)?.bot
-const roleOf = (u: Unit): Role => (u.token ? u.token.role : getHero(u.hero)?.role ?? "fighter")
+const roleOf = (u: Unit): Role => { const h = u.token ? undefined : getHero(u.hero); return u.token ? u.token.role : h?.roleOf?.(u) ?? h?.role ?? "fighter" }
 
 /** Sức ép chung của phe `side` (chiêu dồn được vào bất kỳ ai): phần chia đều của mỗi tướng trên sân */
 function burst(g: Game, side: Side): number {
     let sum = 0
-    // đòn đánh thường của xạ thủ: chỉ tính tối đa `attackLimit` đòn mỗi lượt
+    // đòn đánh thường của xạ thủ: ước lượng số đòn mỗi lượt
     const swings: number[] = []
     for (const u of g.board(side)) {
         if (u.token) { sum += 0.5 * u.token.atk; continue }
@@ -168,6 +168,32 @@ function cardValue(g: Game, side: Side, c: Card): number {
     case "legend": return g.heroes(side).some((u) => u.items.length < RULES.itemSlots) ? EVAL.legendInHand : 20
     default: return EVAL.card.other
     }
+}
+
+/** Giá trị một lá của `side` (cùng thang với giá trị tay bài); dùng để chọn lá bỏ/úp */
+export function cardWorth(s: GameState, side: Side, c: Card): number {
+    return cardValue(new Game(s),
+        side,
+        c)
+}
+
+/**
+ * Thần Bài (Twisted Fate, lá tạm "tf_fate"): chủ thấy nhãn lá trên cùng bộ của mình. Nếu lá đó kém giá trị (lá chiêu của
+ * tướng đã chết, Nấm...) thì đánh lá Thần Bài để chôn nó xuống đáy. Trả hành động chôn, hoặc undefined.
+ */
+export const FATE_BURY_BELOW = 24
+export function fateBury(s: GameState, side: Side, legal: Action[]): Action | undefined {
+    const p = s.players[side]
+    for (const a of legal) {
+        if (a.t !== "play") continue
+        const c = p.hand.find((x) => x.uid === a.uid)
+        if (c?.kind !== "special" || c.id !== "tf_fate") continue
+        const top = p.deck.find((x) => x.uid === String(c.data?.uid ?? ""))
+        if (top && cardWorth(s,
+            side,
+            top) < FATE_BURY_BELOW) return a
+    }
+    return undefined
 }
 
 function handValue(g: Game, side: Side): number {
@@ -236,6 +262,18 @@ function stackValue(u: Unit): number {
     return v
 }
 
+/** Giá trị stack do phe `owner` đặt lên tướng địch (carrierStacks), gộp từ HeroDef.bot.carrierStackValue của đội `owner` */
+function carrierTable(s: GameState, owner: Side): Record<string, number> {
+    const t: Record<string, number> = {
+    }
+    for (const h of s.players[owner].heroes) {
+        const cv = hintOf(h)?.carrierStackValue
+        if (cv) for (const [k,
+            x] of Object.entries(cv)) t[k] = (t[k] ?? 0) + x
+    }
+    return t
+}
+
 function tokenValue(g: Game, tok: Unit, viewer: Side): number {
     const k = tok.token!
     const owner = k.ownerId ? g.unit(k.ownerId) : undefined
@@ -244,6 +282,8 @@ function tokenValue(g: Game, tok: Unit, viewer: Side): number {
     if (hint?.tokenValue) v += hint.tokenValue
     if (hint?.tokenStackValue) for (const [key,
         x] of Object.entries(hint.tokenStackValue)) v += (tok.stacks[key] ?? 0) * x
+    if (hint?.tokenSecretValue) for (const [key,
+        x] of Object.entries(hint.tokenSecretValue)) v += Number(k.secret?.[key] ?? 0) * x
     // token úp: phe chủ biết thật/giả; đối thủ chỉ đoán theo tiên nghiệm
     if (k.secret && "real" in k.secret) {
         const p = k.hidden && tok.side !== viewer ? hiddenPrior(g.s,
@@ -314,6 +354,8 @@ function sideTerms(g: Game, side: Side, viewer: Side, common: number): Terms {
         t.status += statusValue(g,
             u)
         t.stack += stackValue(u)
+        t.stack += hintOf(u.hero)?.unitValue?.(g,
+            u) ?? 0
     }
     // mộ bài là tài nguyên (Viktor bậc, Zed, Yorick)
     for (const h of p.heroes) {
@@ -329,6 +371,24 @@ function sideTerms(g: Game, side: Side, viewer: Side, common: number): Terms {
     else t.foeHand = p.hand.length * EVAL.foeHandCard
     t.deck = deckValue(s,
         side)
+    // stack của kẻ địch đặt lên tướng phe này (Buốt, Bỏng, Bom...): trừ ở phe mang
+    const carried = carrierTable(s,
+        otherSide(side))
+    for (const u of Object.values(s.units)) {
+        if (u.side !== side || u.token || u.status !== "board") continue
+        for (const [k,
+            x] of Object.entries(carried)) t.stack -= (u.stacks[k] ?? 0) * x
+    }
+    // Slot-owned assets retain value with an empty/dead occupant and must not be counted on Unit.stacks.
+    const laneHints: Record<string, number> = {
+    }
+    for (const hero of p.heroes) for (const [key,
+        value] of Object.entries(hintOf(hero)?.stackValue ?? {
+        })) laneHints[key] = Math.max(laneHints[key] ?? 0,
+        value)
+    for (const values of Object.values(s.laneStacks?.[side] ?? {
+    })) for (const [key,
+        count] of Object.entries(values)) t.stack += count * (laneHints[key] ?? 0)
     const mk = s.markers?.[side]
     if (mk) for (const l of mk) t.marker += l.length * EVAL.marker
     return t

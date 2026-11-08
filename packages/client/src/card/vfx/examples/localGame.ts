@@ -50,6 +50,8 @@ export interface HistoryFrame {
     events: cg.GameEvent[];
     state: cg.GameState;
     at: number;
+    /** Adapter-only result such as resignation; never an invented engine Action. */
+    endReason?: string;
 }
 
 /** Engine local phát cg:events → cg:state → cg:legal; dùng đúng store/queue của trận mạng. */
@@ -61,6 +63,7 @@ export class LocalExampleGame {
     paused = false
     bothSides = false
     label = "Bạn được chơi tự do"
+    private resultReason: string | null = null
     private timer = 0
     private started = 0
     private closed = false
@@ -112,18 +115,21 @@ export class LocalExampleGame {
             }, offTurnAttacks: state.offTurnAttacks ?? {
                 used: 0, cardless: []
             },
-            attackLimit: cg.RULES.attackLimit, names: {
+            names: {
                 A: "Bạn · Xanh", B: "Máy · Đỏ"
             }, bots: this.bothSides ? {
             } : {
                 B: "easy"
-            }, rules: cg.RULES
+            }, rules: {
+                ...cg.RULES
+            }
         }
     }
 
     /** Hiện tay trống trước khi phát những lá opening do engine rút thật. */
     prepare() {
-        this.unbind = bindLocalCardGame((action) => this.perform(action))
+        this.unbind = bindLocalCardGame((action) => this.perform(action),
+            (side) => this.resign(side))
         const opening = this.scenario.opening
         receiveCardState(this.view(opening.length ? beforeOpening(this.state,
             opening) : this.state))
@@ -188,11 +194,38 @@ export class LocalExampleGame {
             this.bothSides ? cg.whoseMove(this.state) : "A"))
         receiveCardState(this.view())
         if (this.state.phase === "over") receiveCardEnd({
-            winner: this.state.winner, reason: this.state.endReason ?? "over"
+            winner: this.state.winner, reason: this.resultReason ?? this.state.endReason ?? "over"
         })
         this.publishLegal()
         this.notify()
         this.schedule()
+    }
+
+    /** Local equivalent of the room's resignation message; also cancels queued presentation and bot work. */
+    resign(side: cg.Side) {
+        if (this.closed || this.state.phase === "over") return
+        window.clearTimeout(this.timer)
+        this.timer = 0
+        this.auto = false
+        this.paused = true
+        this.state = copy(this.state)
+        this.state.phase = "over"
+        this.state.winner = side === "A" ? "B" : "A"
+        this.state.chain = null
+        this.resultReason = "resign"
+        this.label = `${side === "A" ? "Bạn" : "Đối thủ"} đầu hàng`
+        this.history.push({
+            n: this.history.length, title: this.label, events: [], state: copy(this.state),
+            at: (performance.now() - this.started) / 1000, endReason: this.resultReason
+        })
+        setDisplayLag(false)
+        receiveCardState(this.view())
+        receiveCardLegal([])
+        receiveCardEnd({
+            winner: this.state.winner, reason: this.resultReason
+        })
+        setDisplayLag(true)
+        this.notify()
     }
 
     recommended() { return recommendedAction(this.scenario,
@@ -228,18 +261,32 @@ export class LocalExampleGame {
         this.timer = 0
         this.auto = false
         this.paused = true
+        this.resultReason = this.history[n].endReason ?? null
         this.state = copy(this.history[n].state)
         this.history.splice(n + 1)
         this.unbind?.()
-        this.unbind = bindLocalCardGame((action) => this.perform(action))
+        this.unbind = bindLocalCardGame((action) => this.perform(action),
+            (side) => this.resign(side))
         setDisplayLag(false)
         receiveCardState(this.view())
         if (this.state.phase === "over") receiveCardEnd({
-            winner: this.state.winner, reason: this.state.endReason ?? "over"
+            winner: this.state.winner, reason: this.resultReason ?? this.state.endReason ?? "over"
         })
         setDisplayLag(true)
         this.publishLegal()
         this.label = `Chơi nhánh từ #${n}`
+        this.notify()
+    }
+
+    /** Demo đổi đội ngay trên bàn: thay trạng thái, không phát sự kiện */
+    showState(state: cg.GameState) {
+        if (getCard().presenting) return
+        this.state = state
+        this.resultReason = null
+        setDisplayLag(false)
+        receiveCardState(this.view())
+        setDisplayLag(true)
+        this.publishLegal()
         this.notify()
     }
 

@@ -1,0 +1,21 @@
+/* FHD/QHD/UHD share one 16:9 surface. No transform-based whole-screen scaling. */
+.forest-game.cg-root, .forest-game.cg-root :is(button,input,select,textarea) { font-family:var(--font-game-text); font-synthesis:none; }
+.forest-game .cg-inspector :is(.us-rich,.us-note,.ci-description,.ci-context,.ci-condition,.ci-copies) { font-size:clamp(13px,.95cqw,36px); line-height:1.4; }
+.forest-game .cg-inspector :is(h3,.us-name) { font-size:clamp(20px,1.55cqw,56px); }
+.forest-game .cg-inspector :is(h4,.us-sk-h b) { font-size:clamp(14px,1.05cqw,38px); }
+.forest-game .bd-name { font-size:clamp(12px,.95cqw,36px); }
+.forest-game :is(.ch-current-title,.reserve-roster h3) { font-size:clamp(15px,1.1cqw,40px); }
+.forest-game :is(.ch-current-empty,.ch-row,.reserve-hero span,.reserve-roster p) { font-size:clamp(12px,.84cqw,30px); }
+.forest-game .bd-phase-ribbon { gap:.2cqw; }
+.forest-game .bd-phase-ribbon span { padding:.25cqw .05cqw; border:clamp(3px,.3cqw,11px) solid transparent; border-image:url('/ui/forest-v2/button-frame.png') 24% stretch; background:#091f18; background-clip:padding-box; font-size:clamp(9px,.57cqw,22px); line-height:1.1; }
+.forest-game .bd-phase-ribbon span.active { color:#f0ffe7; background:radial-gradient(ellipse,#16745c,#032b21); background-clip:padding-box; filter:drop-shadow(0 0 5px #2ae7b0); }
+.forest-game :is(.hd-end,.hd-step,.hd-btn) { border:clamp(6px,.65cqw,24px) solid transparent; border-image:url('/ui/forest-v2/button-frame.png') 24% stretch; border-radius:0; background:linear-gradient(#166e50,#052d22); background-clip:padding-box; font-size:clamp(14px,.98cqw,36px); padding:.2cqw .4cqw; }
+.forest-game :is(.hd-end,.hd-step,.hd-btn):disabled { background:linear-gradient(#25352d,#101c17); background-clip:padding-box; filter:saturate(.2); opacity:.65; }
+.forest-game .bd-slot.closed .bd-lock { width:clamp(28px,2.7cqw,100px); height:clamp(28px,2.7cqw,100px); background:url('/ui/forest-v2/icon-lock.png') center/contain no-repeat; border:0; border-radius:0; transform:none; opacity:.7; }
+.forest-game .bd-lock::before { content:none; }
+.forest-game .hd-ability .forest-icon { width:clamp(26px,2.5cqw,92px); height:clamp(26px,2.5cqw,92px); border:0; border-radius:0; }
+.hd-mode-locks { display:flex; flex-direction:column; gap:.2em; }
+.hd-mode-lock { display:flex; align-items:center; gap:.35em; color:#afb7aa; font-size:clamp(10px,.7cqw,26px); line-height:1.15; }
+.hd-mode-lock .forest-icon { width:1.5em; height:1.5em; opacity:.7; }
+.forest-game :is(.hd-end,.hd-step,.hd-btn,.bd-phase-ribbon span,.hd-ability) { border-image-source:url('/ui/forest-v2/panel-frame-v4.png'); border-image-slice:22%; }
+.forest-game .hd-ability { border:clamp(6px,.5cqw,18px) solid transparent; border-image:url('/ui/forest-v2/panel-frame-v4.png') 22% stretch; border-radius:0; background:linear-gradient(#164d3a,#06271d); background-clip:padding-box; }

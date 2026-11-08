@@ -10,7 +10,7 @@ import {
     cardActions, gameOf, useCard, type CardView
 } from "../store"
 import {
-    CardFace
+    artInfo
 } from "../anim/CardFace"
 import {
     useChainAnim, linksOf, type LinkView
@@ -21,7 +21,16 @@ import {
 import {
     inspectionActions
 } from "../ui/inspection"
+import {
+    ArtFrame
+} from "../ui/ArtFrame"
+import {
+    GameCardVisual
+} from "../ui/GameCardVisual"
 import "./stage.css"
+import {
+    GameIcon
+} from "../ui/GameIcon"
 
 type Action = cg.Action
 
@@ -49,21 +58,6 @@ const S = {
 } as const
 
 const sideCls = (v: CardView, s: cg.Side): string => v.you === null ? (s === "A" ? "me" : "foe") : s === v.you ? "me" : "foe"
-
-function AttackFace({ l, v }: { l: LinkView; v: CardView }) {
-    const art = heroArt(l.actor)
-    const [bad,
-        setBad] = useState(false)
-    const t = S[getLang()]
-    return (
-        <div className="cs-atk">
-            {art && !bad ? <img src={`/${art}`} alt="" draggable={false} onError={() => setBad(true)} /> : <b>⚔</b>}
-            <span className="cs-atk-name">{l.mode === "cardless" ? `${getLang() === "en" ? "Cardless attack" : "Đòn không cần lá"} ${Math.round((v.rules.fighterCardlessMult ?? .66) * 100)}%` : t.attack}</span>
-            <small>{l.actor ? unitName(v,
-                l.actor) : ""}</small>
-        </div>
-    )
-}
 
 interface Shout { id: number; text: string; cls: string }
 
@@ -133,9 +127,8 @@ export function ChainStage() {
     if (!view || !g || !count) return null
     const mineTurn = !anim && view.phase === "chain" && !!live && live.priority === view.you
     const waiting = !anim && view.phase === "chain" && !!live && live.priority !== view.you && view.you !== null
-    const pass = legal.find((a) => a.t === "pass") ?? (view.you ? {
-        t: "pass", side: view.you
-    } as Action : null)
+    const pass = legal.find((a) => a.t === "pass")
+    const responseGroups = count < cg.RULES.maxChain ? groups : []
     const hand = view.you ? view.players[view.you].hand ?? [] : []
     const top = live?.links[live.links.length - 1]
     const trigger = top?.trigger
@@ -143,78 +136,86 @@ export function ChainStage() {
         trigger.target) : ""
     const hint = trigger?.kind === "attack" ? (lang === "vi" ? "Đối thủ đánh thường" : "Opponent attacks") : (lang === "vi" ? "Đối thủ dùng chiêu" : "Opponent casts a skill")
 
+    const shortName = (name: string) => name.replace(/^[^:]+:\s*/,
+        "")
+    const artFor = (card: cg.Card, actor?: string) => artInfo(card,
+        actor ? view.units[actor] : card.hero ? view.units[`${card.side ?? view.you ?? "A"}:${card.hero}`] : undefined)
+    const imageFor = (l: LinkView) => l.card && !isHidden(l.card) ? artFor(l.card,
+        l.actor).srcs[0] : heroArt(l.actor) ? `/${heroArt(l.actor)}` : undefined
+    const inspect = (l: LinkView) => {
+        if (l.card && !isHidden(l.card)) inspectionActions.card(l.card,
+            {
+                source: "chain", side: l.side, actor: l.actor, targets: l.targets, link: l.n,
+                cancelled: anim?.cancelled.includes(l.n) ?? false,
+                trigger: live?.links.find((entry) => entry.n === l.n)?.reactTo
+            })
+        else if (l.actor) inspectionActions.unit(l.actor)
+    }
     return (
-        <div className={`cs-root ${anim ? "resolving" : ""}`}>
-            <div className="cs-stack">
-                <header className="cs-title"><b>{t.chain} {count}/{cg.RULES.maxChain}</b><span>{anim ? t.resolve : lang === "vi" ? "Chờ phản ứng" : "Awaiting response"}</span></header>
-                <div className="cs-links">
+        <div className={`cs-root cm-root ${anim ? "resolving" : ""}`} data-chain-count={count}>
+            <div className="cm-stack">
+                <ArtFrame kind="title" fitLabel={false} width={560} height={120} className="cm-title" contentClassName="cm-title-content">
+                    <b>{t.chain} {count}/{cg.RULES.maxChain}</b>
+                    <span>{anim ? t.resolve : lang === "vi" ? "Chờ phản ứng" : "Awaiting response"}</span>
+                </ArtFrame>
+                <div className="cm-links">
                     {links.map((l, i) => {
                         const state = anim ? (anim.resolving === l.n ? "resolving" : anim.done.includes(l.n) ? "done" : "") : ""
                         const cancelled = anim?.cancelled.includes(l.n) ?? false
-                        const hiddenCard = !l.card || isHidden(l.card)
-                        return (
-                            <div key={l.n} className="cs-slot" style={{
-                                zIndex: 10 + i * 2,
-                            } as CSSProperties}>
-                                {i > 0 ? <svg className={`cs-line ${state}`} viewBox="0 0 120 38" aria-hidden="true"><defs><marker id={`chain-arrow-${l.n}`} markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8" fill="none" stroke="#ff7770" strokeWidth="1.5" /></marker></defs><path d="M116,29 Q60,-12 5,29" fill="none" stroke="#ff6660" strokeWidth="2.5" markerEnd={`url(#chain-arrow-${l.n})`} /></svg> : null}
-                                <div tabIndex={0} role="button" aria-label={`${t.chain} ${l.n}`} onMouseEnter={() => { if (l.card && !hiddenCard) inspectionActions.card(l.card,
-                                    {
-                                        source: "chain", side: l.side, actor: l.actor, targets: l.targets, link: l.n, cancelled, trigger: live?.links.find((entry) => entry.n === l.n)?.reactTo
-                                    }); else if (l.actor) inspectionActions.unit(l.actor) }} onFocus={() => { if (l.card && !hiddenCard) inspectionActions.card(l.card,
-                                    {
-                                        source: "chain", side: l.side, actor: l.actor, targets: l.targets, link: l.n, cancelled, trigger: live?.links.find((entry) => entry.n === l.n)?.reactTo
-                                    }); else if (l.actor) inspectionActions.unit(l.actor) }} data-chain-link={l.n} data-chain-card-uid={l.card?.uid} className={`cs-link ${cancelled ? "cancelled" : ""} ${sideCls(view,
-                                    l.side)} ${state}`}>
-                                    <span className="cs-num">{l.n} · {l.side}</span>
-                                    {cancelled && <strong className="cs-cancelled">{t.cancelled}</strong>}
-                                    <div className="cs-face">
-                                        {l.kind === "attack" || hiddenCard ? <AttackFace l={l} v={view} /> : <CardFace card={l.card!} name={cardName(g,
-                                        l.card!,
-                                        lang)} />}
-                                    </div>
-                                    <div className="cs-link-detail"><small>{i > 0 ? (links[i - 1].kind === "attack" ? (lang === "vi" ? "Địch tấn công" : "Opponent attacks") : links[i - 1].card?.kind === "support" ? (lang === "vi" ? "Địch dùng lá hỗ trợ" : "Opponent uses support") : (lang === "vi" ? "Địch dùng chiêu" : "Opponent uses a skill")) : (lang === "vi" ? "Hành động gốc" : "Opening action")}</small><b>{i > 0 ? `${lang === "vi" ? "Đáp mắt xích" : "Responds to link"} ${l.n - 1}` : l.targets.length ? l.targets.map((id) => unitName(view,
-                                        id)).join(", ") : (lang === "vi" ? "Không chỉ định" : "No target")}</b></div>
-                                </div>
+                        const name = l.card && !isHidden(l.card) ? cardName(g,
+                            l.card,
+                            lang) : t.attack
+                        const condition = i ? links[i - 1].kind === "attack" ? (lang === "vi" ? "Địch tấn công" : "Opponent attacks") : (lang === "vi" ? "Địch dùng chiêu" : "Opponent casts") : (lang === "vi" ? "Hành động gốc" : "Opening action")
+                        return <div key={l.n} className="cm-slot" style={{
+                            zIndex: 10 + i * 2
+                        } as CSSProperties}>
+                            {i > 0 ? <svg className={`cm-chain ${state}`} viewBox="0 0 90 44" aria-hidden="true"><g fill="none" stroke="#513814" strokeWidth="10"><ellipse cx="20" cy="22" rx="16" ry="10"/><ellipse cx="45" cy="22" rx="17" ry="8"/><ellipse cx="70" cy="22" rx="16" ry="10"/></g><g fill="none" stroke="#e4ba5a" strokeWidth="6"><ellipse cx="20" cy="22" rx="16" ry="10"/><ellipse cx="45" cy="22" rx="17" ry="8"/><ellipse cx="70" cy="22" rx="16" ry="10"/></g><path d="M7 18Q20 7 33 18M33 19Q45 12 57 19M58 18Q70 7 83 18" stroke="#fff0ad" strokeWidth="2" fill="none"/></svg> : null}
+                            <div tabIndex={0} role="button" aria-label={`${t.chain} ${l.n}: ${name}`} onMouseEnter={() => inspect(l)} onFocus={() => inspect(l)} onClick={() => inspect(l)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); inspect(l) } }} data-chain-link={l.n} data-chain-card-uid={l.card?.uid} className={`cm-link ${cancelled ? "cancelled" : ""} ${sideCls(view,
+                                l.side)} ${state}`}>
+                                <GameCardVisual name={shortName(name)} srcs={l.card && !isHidden(l.card) ? artFor(l.card,
+                                    l.actor).srcs : imageFor(l) ? [imageFor(l)!] : []} actor={l.actor ? unitName(view,
+                                    l.actor) : l.side} detail={<><small>{condition}</small><strong>{i ? `${lang === "vi" ? "Đáp mắt xích" : "Responds to link"} ${l.n - 1}` : l.targets.length ? l.targets.map((id) => unitName(view,
+                                    id)).join(", ") : (lang === "vi" ? "Không chỉ định" : "No target")}</strong></>} />
+                                <ArtFrame kind="icon" width={55} height={55} className="cm-number"><b>{l.n}</b></ArtFrame>
+                                <ArtFrame kind="icon" width={38} height={38} className="cm-side"><b>{l.side}</b></ArtFrame>
+                                {cancelled ? <ArtFrame kind="name" fitLabel={false} width={230} height={64} className="cm-cancelled"><b>{t.cancelled}</b></ArtFrame> : null}
                             </div>
-                        )
+                        </div>
                     })}
                 </div>
-                <footer className="cs-order"><span>{t.resolve}</span>{[...links].reverse().map((l, i) => <span key={l.n} className={anim?.resolving === l.n ? "active" : ""}>{i > 0 ? "→ " : ""}{l.n}</span>)}</footer>
+                <ArtFrame kind="name" fitLabel={false} width={425} height={70} className="cm-order"><span>{t.resolve}</span>{[...links].reverse().map((l, i) => <b key={l.n} className={anim?.resolving === l.n ? "active" : ""}>{i > 0 ? "→ " : ""}{l.n}</b>)}</ArtFrame>
             </div>
-            {shout ? <div key={shout.id} className={`cs-shout ${shout.cls}`}>{shout.text}</div> : null}
-            {mineTurn ? (
-                <div className="cs-prompt">
-                    <div className="cs-ask">{lang === "vi" ? "Bạn có muốn nối chuỗi?" : t.ask}</div>
-                    <p className="cs-trigger">{hint}{triggerName ? ` → ${triggerName}` : ""} · {count}/{cg.RULES.maxChain}</p>
-                    <div className="cs-cards">
-                        {groups.map(([uid,
-                            acts]) => {
-                            const card = hand.find((c) => c.uid === uid)
-                            if (!card) return null
-                            // rê chuột: tên + tác dụng của lá để biết nên nối lá nào
-                            return (
-                                <button key={uid} className="cs-btn-card" onMouseEnter={() => inspectionActions.card(card,
-                                    {
-                                        source: "reaction", side: view.you ?? undefined, trigger, targets: (acts[0].t === "chain" ? acts[0].args?.targets ?? (acts[0].args?.target ? [acts[0].args.target] : []) : [])
-                                    })} onFocus={() => inspectionActions.card(card,
-                                    {
-                                        source: "reaction", side: view.you ?? undefined, trigger
-                                    })} onClick={() => cardActions.beginTargeting(uid,
-                                    acts)}>
-                                    <CardFace card={card} name={cardName(g,
-                                        card,
-                                        lang)} />
-                                    {acts.length > 1 ? <small>×{acts.length}</small> : null}
-
-                                </button>
-                            )
-                        })}
-                    </div>
-                    <span className="cs-eligible">{lang === "vi" ? "Các lá sáng đủ điều kiện phản ứng" : "Highlighted cards meet the response conditions"}</span>
-                    {pass ? <button className="cs-pass" onClick={() => cardActions.act(pass)}>{t.pass}</button> : null}
+            {shout ? <div key={shout.id} className={`cm-shout ${shout.cls}`} aria-live="polite">{shout.text}</div> : null}
+            {mineTurn ? <div className="cm-response">
+                <div className="cm-context">
+                    <ArtFrame kind="name" fitLabel={false} width={335} height={80}><b className="cm-ask"><GameIcon name="chain" />{lang === "vi" ? "Bạn được phản ứng" : "Your response"}</b></ArtFrame>
+                    <ArtFrame kind="name" fitLabel={false} width={335} height={94} contentClassName="cm-context-copy"><span>{hint}{triggerName ? ` → ${triggerName}` : ""}</span><strong>{lang === "vi" ? `${responseGroups.length} lá hợp lệ · Tối đa ${cg.RULES.maxChain}` : `${responseGroups.length} eligible · Max ${cg.RULES.maxChain}`}</strong></ArtFrame>
                 </div>
-            ) : null}
-            {waiting ? <div className="cs-wait">{t.wait}</div> : null}
+                <div className="cm-response-options">
+                    <div className="cm-cards">{responseGroups.map(([uid,
+                        acts]) => {
+                        const card = hand.find((c) => c.uid === uid)
+                        if (!card) return null
+                        const name = cardName(g,
+                            card,
+                            lang)
+                        return <button key={uid} className="cm-reply" aria-label={name} title={cg.cardInfoL(g,
+                            card).desc} onMouseEnter={() => inspectionActions.card(card,
+                            {
+                                source: "reaction", side: view.you ?? undefined, trigger
+                            })} onFocus={() => inspectionActions.card(card,
+                            {
+                                source: "reaction", side: view.you ?? undefined, trigger
+                            })} onClick={() => cardActions.beginTargeting(uid,
+                            acts)}>
+                            <GameCardVisual name={shortName(name)} srcs={artFor(card).srcs} />
+                        </button>
+                    })}</div>
+                    <ArtFrame kind="name" fitLabel={false} width={460} height={50}><span className="cm-eligible">{responseGroups.length ? (lang === "vi" ? "Lá sáng đáp ứng điều kiện phản ứng." : "Glowing cards meet the response conditions.") : (lang === "vi" ? "Không có lá đáp ứng điều kiện." : "No eligible response cards.")}</span></ArtFrame>
+                </div>
+                {pass ? <button className="cm-pass" onClick={() => cardActions.act(pass)}><ArtFrame kind="name" fitLabel={false} width={225} height={88}><b>{t.pass}</b></ArtFrame></button> : null}
+            </div> : null}
+            {waiting ? <ArtFrame kind="name" fitLabel={false} width={530} height={95} className="cm-wait"><b>{t.wait}</b></ArtFrame> : null}
         </div>
     )
 }

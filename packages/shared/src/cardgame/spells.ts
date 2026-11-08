@@ -10,29 +10,12 @@ import type {
     Game
 } from "./game"
 import {
-    otherSide, type PlayArgs, type Side, type Unit
+    otherSide, RULES, type PlayArgs, type Side, type Unit
 } from "./types"
+import spellsJson from "./balance/spells.json"
 
-export const SPELL_NUM = {
-    heal: {
-        base: 100, pctMax: 0.1
-    },
-    ignite: {
-        perTurn: 40, turns: 2
-    },
-    exhaust: {
-        cut: 0.4
-    },
-    barrier: {
-        base: 80, pctMax: 0.1
-    },
-    smite: {
-        token: 150, champion: 0
-    },
-    teleport: {
-        hpPct: 0.5
-    },
-}
+/** Số của phép bổ trợ, sửa ở balance/spells.json */
+export const SPELL_NUM = spellsJson
 /** Trạng thái khống chế/xấu mà Thanh Tẩy gỡ */
 export const CLEANSE_IDS = ["stun",
     "silence",
@@ -55,7 +38,7 @@ export const SPELL_VI: Record<SpellId, { name: string; desc: string }> = {
         name: "Tốc Biến", desc: "1 tướng mình đổi đường với 1 tướng mình khác đang trên sân (không dời vào đường trống hay đường chưa mở)."
     },
     ignite: {
-        name: "Thiêu Đốt", desc: `1 tướng địch bị Thiêu Đốt ${SPELL_NUM.ignite.turns} lượt: đầu mỗi lượt của nó mất ${SPELL_NUM.ignite.perTurn} máu (sát thương chuẩn), kèm Vết Thương Sâu (hồi máu và Khiên nhận vào giảm 50%) cùng thời hạn.`
+        name: "Thiêu Đốt", desc: `1 tướng địch bị Thiêu Đốt ${SPELL_NUM.ignite.turns} lượt: đầu mỗi lượt của nó mất ${SPELL_NUM.ignite.perTurn} máu (sát thương chuẩn), kèm Vết Thương Sâu (hồi máu và Khiên nhận vào giảm ${pct(RULES.grievous)}%) cùng thời hạn.`
     },
     exhaust: {
         name: "Kiệt Sức", desc: `1 tướng địch gây ít hơn ${pct(SPELL_NUM.exhaust.cut)}% sát thương tới hết lượt kế tiếp của nó.`
@@ -145,7 +128,7 @@ export function resolveSpell(g: Game, side: Side, spell: SpellId, args: PlayArgs
             SPELL_NUM.ignite.turns); break
     case "exhaust": g.status(t,
         "exhaust",
-        1); break
+        SPELL_NUM.exhaust.turns); break
     case "smite": if (t.token) g.damage(undefined,
         t,
         SPELL_NUM.smite.token,

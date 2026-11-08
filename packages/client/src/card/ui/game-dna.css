@@ -1,0 +1,25 @@
+:root {
+    --ui-panel-frame:url('/ui/forest-v2/panel-frame-v4.png');
+    --ui-control-frame:url('/ui/forest-v2/panel-frame-v4.png');
+    --ui-gold:#f1ce80; --ui-gold-bright:#fff1bd;
+    --ui-emerald:#46e4b3; --ui-ink:#061b14;
+    --ui-text:#e7e7cb; --ui-muted:#b4c6aa;
+    --ui-danger:#ff9384; --ui-mana:#8bdefb;
+}
+.action-dialog { animation:game-panel-enter .22s ease-out both; }
+.action-dialog :is(.action-primary,.action-secondary,.action-close),
+.forest-game :is(.hd-end,.hd-step,.hd-btn,.ch-chip,.hd-ability) { transition:filter .15s ease,box-shadow .15s ease,background-color .15s ease; }
+.action-dialog :is(.action-primary,.action-secondary):hover:not(:disabled),
+.forest-game :is(.hd-end,.hd-step,.hd-btn,.hd-ability):hover:not(:disabled) { filter:brightness(1.15); box-shadow:inset 0 0 18px #43dfac25,0 0 12px #42d5a527; }
+.action-dialog .mode-card.selected .mode-art { box-shadow:inset 0 0 0 2px #71f3c7; }
+.action-dialog .mode-card.selected .mode-art::before { content:''; position:absolute; z-index:1; inset:0; pointer-events:none; border:1px solid #8affd688; animation:game-selection-flash .35s ease-out both; }
+.action-dialog .mode-current.mode-preview { color:#dcffeb; border-color:#62edb9; }
+.action-dialog .mode-phases span.active { color:#fff0ba; background:linear-gradient(#694e20,#1c3322); box-shadow:inset 0 0 0 1px #e6c46d,0 0 9px #e7b84c55; filter:none; }
+.game-scroll-thumb:hover { filter:brightness(1.2); box-shadow:0 0 9px #51dcb744; }
+.action-dialog button:focus-visible,.forest-game button:focus-visible { outline:2px solid #91fadd; outline-offset:3px; }
+@keyframes game-panel-enter { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+@keyframes game-selection-flash { from { box-shadow:inset 0 0 35px #76ffd599; } to { box-shadow:inset 0 0 8px #76ffd500; } }
+@media(prefers-reduced-motion:reduce) {
+    .action-dialog,.action-dialog .mode-card.selected .mode-art::before { animation:none; }
+    .action-dialog :is(.action-primary,.action-secondary,.action-close),.forest-game :is(.hd-end,.hd-step,.hd-btn,.ch-chip,.hd-ability) { transition:none; }
+}

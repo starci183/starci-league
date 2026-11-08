@@ -16,5 +16,7 @@ export * from "./i18n_en"
 export * from "./synergy"
 export * from "./deck"
 export * from "./spells"
+export * from "./balance"
 
 export * from "./deckSummary"
+export * from "./stage"

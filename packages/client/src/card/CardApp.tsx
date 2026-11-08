@@ -18,7 +18,7 @@ import {
     cardActions, setDisplayLag, useCard, type CardJoin
 } from "./store"
 import {
-    DraftScreen, EndScreen, WaitingScreen
+    DraftScreen, EndScreen, WaitingScreen, GameConnectionScreen
 } from "./Screens"
 import {
     Board, TurnBar
@@ -54,8 +54,20 @@ import "./stats/stats.css"
 import "./forest.css"
 import "./forest-concept.css"
 import "./forest-polish.css"
+import "./forest-v2.css"
+import "./ui/game-dna.css"
+import {
+    GameCanvas
+} from "./ui/GameCanvas"
+import "./ui/game-canvas.css"
+import "./ui/game-skin.css"
+import "./ui/modular-dialog.css"
 
 export function CardApp() {
+    return <GameCanvas><CardScene /></GameCanvas>
+}
+
+function CardScene() {
     const { stage, error, view, targeting, presenting } = useCard()
     const [logOpen,
         setLogOpen] = useState(true)
@@ -63,8 +75,8 @@ export function CardApp() {
         setInfoOpen] = useState(false)
     const [fxOff,
         setFxOff] = useState(noFx)
-    if (stage === "idle" || stage === "connecting") return <div className="cg-center">…</div>
-    if (stage === "error") return <div className="cg-center cg-error">{error}</div>
+    if (stage === "idle" || stage === "connecting") return <GameConnectionScreen kind={stage} />
+    if (stage === "error") return <GameConnectionScreen kind="error" message={error ?? undefined} />
     if (stage === "waiting") return <WaitingScreen />
     if (stage === "draft") return <DraftScreen />
     return (

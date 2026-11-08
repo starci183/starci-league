@@ -1,188 +1,180 @@
-// Brand (Pháp sư, phép) V3: "Bỏng cháy mãi mãi, spam chiêu là cháy hết." Máu 320 · AD 70 · giáp/kháng 25/28 · AP gốc 0.
-// Bỏng = status "burn" (v = số tầng, vĩnh viễn FOREVER, cộng dồn KHÔNG trần, src = Brand). Mục tiêu chết thật: engine xoá status nên mất Bỏng.
-// Nội tại: mỗi Standby của phe mang dấu, mỗi tầng gây (1% máu tối đa của nó + 2 + 1.4% AD + 2% AP của Brand) sát thương phép (tag dot).
-// Lịch cháy: hook onStandby (engine phát mỗi đầu lượt, kể cả khi Brand chết/bị khống chế). Khoá theo turnNo đảm bảo mỗi Standby chỉ cháy 1 lần.
-// Mana bể chung (starci-33 tuning v1): Q 20 · E 30 · R 50.
+// Brand (Pháp sư, phép): bộ chiêu chốt 31/10 - 01/11/2026 (docs/heroes/KITS.md). Số ở balance/heroes/brand.json.
+// P Hoả Lực: mỗi chiêu trúng gắn Bỏng theo đơn vị X.Y (scale AP). Bỏng là bộ đếm đặt trên tướng ĐỊCH (HeroDef.carrierStacks): tướng mang chết mất một nửa, Brand chết không đổi.
+// Bỏng cháy ở đầu lượt của tướng mang (hook onStandby, chạy cả khi Brand đã ngã), không bao giờ hết hạn.
+import {
+    kit
+} from "../balance"
+import {
+    pct
+} from "../formula"
 import type {
     Game
 } from "../game"
 import {
-    pct
-} from "../formula"
-import {
     defineHero
 } from "../registry"
 import type {
-    Side,
     Unit
 } from "../types"
-import {
-    FOREVER,
-    otherSide
-} from "../types"
 
+const k = kit("brand"), { p } = k
+/** Bỏng: bộ đếm trên tướng mang (không phải trạng thái có hạn) */
 export const BURN = "burn"
-/** Không trần tầng Bỏng (tuning v1 bỏ trần 12) */
-export const BURN_MAX = Infinity
-/** Mỗi Bỏng cháy bấy nhiêu phần máu tối đa của tướng bị cháy */
-export const TICK_MAX_HP = 0.01
-/** Q: mục tiêu đã có từ bấy nhiêu Bỏng TRƯỚC lá thì thử Choáng */
-export const Q_STUN_BURN = 3
-/** Q: Choáng d = 0,9 + 0,001 AD + 0,002 AP (g.scaling: ad/ap theo 100 điểm) */
-export const STUN_Q = {
-    base: 0.9, ad: 0.1, ap: 0.2
-}
-const F_TICK = "2 + 1.5% AD + 2% AP"
-const F_Q = "105 + 65% AD + 90% AP"
-const F_E = "45 + 15% AD + 30% AP"
-const F_R = "100 + 30% AD + 50% AP"
-/** Khoá g.oncePerTurn trên Brand (stack ẩn "once:"): mỗi Standby chỉ cháy 1 lần */
-const TICKED = "brand_burn_tick"
 
-/** Thêm n tầng Bỏng (không bao giờ hết, không trần). Gắn dấu không có VFX lửa; lửa chỉ hiện khi cháy. */
-export const ignite = (g: Game, t: Unit, n: number, visualGroup?: string) => {
-    if (t.status !== "board" || t.token || n <= 0) return
-    g.status(t,
-        BURN,
-        1,
-        {
-            v: n, add: true, until: FOREVER, visuals: [], tickVisuals: ["burn"], visualGroup
-        })
+const F_P = k.x("p1 + p2·AP"), EN_P = k.xe("p1 + p2·AP")
+const F_Q = k.x("q1 + q2·AP"), EN_Q = k.xe("q1 + q2·AP")
+const F_STUN = k.x("q4 + q5·AP"), EN_STUN = k.xe("q4 + q5·AP")
+const F_E = k.x("e1 + e2·AP"), EN_E = k.xe("e1 + e2·AP")
+const F_R = k.x("r1 + r2·AP"), EN_R = k.xe("r1 + r2·AP")
+
+/** Đơn vị X.Y: floor(x) chắc chắn, phần lẻ là xác suất thêm 1 (law.md 4) */
+const whole = (g: Game, x: number) => {
+    const f = Math.floor(Math.max(0,
+        x))
+    return f + (g.rand() < Math.max(0,
+        x) - f ? 1 : 0)
 }
-/** Bỏng của t cháy 1 lần: mỗi tầng gây (1% máu tối đa của t + 2 + 1.4% AD + 2% AP của Brand) sát thương phép, không chí mạng */
-export const burnTick = (g: Game, me: Unit, t: Unit, visualGroup?: string) => {
-    const n = g.statusV(t,
+/** Gắn `units` (X.Y) Bỏng lên t */
+export function ignite(g: Game, t: Unit, units: number): number {
+    if (t.status !== "board" || t.token) return 0
+    const n = whole(g,
+        units)
+    if (n > 0) g.stack(t,
+        BURN,
+        n)
+    return n
+}
+/** Brand `me` gắn Bỏng theo nội tại Hoả Lực lên t */
+export const applyBurn = (g: Game, me: Unit, t: Unit) => ignite(g,
+    t,
+    g.f(me,
+        F_P))
+/** Bỏng của t cháy 1 lần: mỗi Bỏng gây p3 Máu hiện tại + p4 Máu tối đa sát thương phép */
+export function burnTick(g: Game, me: Unit, t: Unit, visualGroup?: string) {
+    const n = g.stackOf(t,
         BURN)
     if (n <= 0 || t.status !== "board") return
     g.damage(me,
         t,
-        (t.maxHp * TICK_MAX_HP + g.f(me,
-            F_TICK)) * n,
+        (t.hp * p.p3 + t.maxHp * p.p4) * n,
         "magic",
         {
-            tag: "dot", visuals: t.statuses[BURN]?.tickVisuals ?? ["burn"], visualGroup
+            tag: "dot", visuals: ["burn"], visualGroup
         })
 }
-/** Standby của `side`: mọi tướng phe đó đang mang Bỏng của Brand này cháy 1 lần (nhóm hình ảnh chung) */
-function standbyTick(g: Game, me: Unit, side: Side) {
-    if (side === me.side || !g.oncePerTurn(me,
-        TICKED)) return
-    const visualGroup = `${me.id}:burn:turn:${g.s.turnNo}`
-    for (const t of g.board(side)) {
-        if (t.token) continue
-        const src = t.statuses[BURN]?.src
-        if (src && src !== me.id) continue
-        burnTick(g,
-            me,
-            t,
-            visualGroup)
-    }
-}
-/** Thử Choáng d đơn vị (law.md §4): xét miễn trước, floor(d) chắc chắn + roll phần lẻ thêm 1 đơn vị */
-function tryStun(g: Game, me: Unit, t: Unit, d: { base: number; ad: number; ap: number }) {
-    if (t.status !== "board" || t.token) return
-    if (g.has(t,
-        "stasis") || g.s.immune?.includes(t.id)) return
-    const x = g.scaling(me,
-        d)
-    if (x <= 0) return
-    // engine tung phần lẻ đúng 1 lần sau kiểm tra miễn/chặn (CC_STATUSES)
-    g.status(t,
-        "stun",
-        x,
-        {
-            of: otherSide(me.side), visuals: ["stunHit"]
-        })
-}
-/** Mọi tướng địch (không tính vật triệu hồi) */
 const foes = (g: Game, me: Unit) => g.enemies(me).filter((u) => !u.token)
 
 export default defineHero({
-    id: "brand", name: "Brand", role: "mage", damage: "magic", hp: 320, atk: 70, armor: 25, mr: 28,
-    bot: {
-        markValue: {
-            burn: 20,
-        },
-    },
-    desc: "Bỏng cháy mãi mãi: Q Choáng kẻ đã cháy đủ, E gắn Bỏng lên cả bàn cùng lúc, R nhân đôi mọi đống Bỏng rồi đốt ngay. Bỏng không trần và cháy mỗi Standby của địch, kể cả khi Brand đã ngã.",
+    id: "brand", name: "Brand", role: "mage", damage: "magic", ...k.base,
+    carrierStacks: [BURN],
+    bot: k.bot,
+    desc: "Lửa không bao giờ tắt: mỗi chiêu gắn Bỏng cộng dồn không trần lên địch, Bỏng cháy mỗi đầu lượt của kẻ mang kể cả khi Brand đã ngã; Q choáng kẻ cháy đủ, E rải lửa cả bàn, R nhân đôi Bỏng và đốt ngay.",
     passive: {
-        name: "Bùng Cháy",
-        desc: `Bỏng cộng dồn không trần, không tự hết hạn. Mỗi Standby của phe mang dấu, mỗi tầng gây ${pct(TICK_MAX_HP)}% Máu tối đa mục tiêu + {${F_TICK}} của Brand sát thương phép; Brand chết, Choáng hay Câm Lặng vẫn cháy. Mục tiêu chết thì mất Bỏng; Thanh Tẩy gỡ được Bỏng.`,
+        name: "Hoả Lực",
+        desc: `Mỗi chiêu trúng gắn {${F_P}} Bỏng (đơn vị X.Y: phần nguyên chắc chắn, phần lẻ là xác suất thêm 1). Bỏng: đầu lượt tướng mang, mỗi Bỏng gây ${pct(p.p3)}% Máu hiện tại + ${pct(p.p4)}% Máu tối đa của nó sát thương phép. Không hết hạn. Tướng mang bị hạ mất một nửa số Bỏng; Brand bị hạ không ảnh hưởng Bỏng đã gắn.`,
     },
     hooks: {
         onStandby(g, me, d) {
-            standbyTick(g,
+            // đầu lượt của phe mang Bỏng: mọi tướng địch đang mang Bỏng cháy 1 lần
+            if (d.side === me.side) return
+            const visualGroup = `${me.id}:burn:turn:${g.s.turnNo}` // mọi tick cùng đầu lượt rơi cùng lúc
+            for (const t of g.heroes(d.side)) burnTick(g,
                 me,
-                d.side)
+                t,
+                visualGroup)
         },
     },
     skills: {
         Q: {
-            key: "Q", name: "Thiêu Rụi", target: "enemy", mana: 20,
-            desc: `Chọn 1 tướng địch bất kỳ đường; gây {${F_Q}} sát thương phép rồi thêm 1 Bỏng. Nếu trước lá nó đã có ít nhất ${Q_STUN_BURN} Bỏng: thử Choáng d = 0,9 + 0,001 AD + 0,002 AP đơn vị. Khiên hoặc miễn riêng sát thương không chặn Bỏng/Choáng; miễn toàn lá thì chặn.`,
+            key: "Q", name: "Thiêu Rụi", target: "enemy", mana: p.q0,
+            desc: `Chọn 1 tướng địch; gây {${F_Q}} sát thương phép và gắn Bỏng. Nếu sau đó nó có từ ${p.q3} Bỏng: Choáng {${F_STUN}} đơn vị.`,
             resolve(c) {
-                const t = c.target!
-                const had = c.g.statusV(t,
-                    BURN)
-                c.g.damage(c.self,
+                const g = c.g, me = c.self, t = c.target!
+                const dealt = g.damage(me,
                     t,
                     c.f(F_Q),
                     "magic",
                     {
                         tag: "skill", visuals: ["fireHit"]
                     })
-                ignite(c.g,
+                if (dealt <= 0) return
+                applyBurn(g,
+                    me,
+                    t)
+                if (t.status === "board" && g.stackOf(t,
+                    BURN) >= p.q3) g.timed(me,
                     t,
-                    1)
-                if (had >= Q_STUN_BURN) tryStun(c.g,
-                    c.self,
-                    t,
-                    STUN_Q)
+                    "stun",
+                    c.f(F_STUN))
             },
         },
         E: {
-            key: "E", name: "Rải Lửa", target: "all_enemies", mana: 30,
-            desc: `Mọi tướng địch hợp lệ cùng lúc nhận {${F_E}} sát thương phép và 1 Bỏng (chỉ gắn dấu, Bỏng cháy ở Standby của địch); không tác động vật triệu hồi.`,
+            key: "E", name: "Rải Lửa", target: "all_enemies", mana: p.e0,
+            desc: `Mọi tướng địch nhận {${F_E}} sát thương phép và bị gắn Bỏng.`,
             resolve(c) {
-                const visualGroup = `${c.self.id}:e:${c.card.uid}:${c.g.s.turnNo}`
-                for (const t of foes(c.g,
-                    c.self)) {
-                    c.g.damage(c.self,
+                const g = c.g, me = c.self
+                const dmg = c.f(F_E), visualGroup = `${me.id}:e:${c.card.uid}:${g.s.turnNo}`
+                for (const t of foes(g,
+                    me)) {
+                    if (g.damage(me,
                         t,
-                        c.f(F_E),
+                        dmg,
                         "magic",
                         {
                             tag: "skill", visuals: ["fireHit"], visualGroup
-                        })
-                    ignite(c.g,
-                        t,
-                        1,
-                        visualGroup)
+                        }) > 0) applyBurn(g,
+                        me,
+                        t)
                 }
             },
         },
         R: {
-            key: "R", name: "Bão Lửa", target: "all_enemies", mana: 50,
-            desc: `Mọi tướng địch hợp lệ nhận {${F_R}} sát thương phép; người còn hợp lệ có số Bỏng nhân 2 rồi cháy ngay 1 lần theo nội tại, giữ nguyên toàn bộ số tầng sau cháy. Không tự thêm Bỏng nếu trước đó bằng 0.`,
+            key: "R", name: "Bão Lửa", target: "all_enemies", mana: p.r0,
+            desc: `Mọi tướng địch nhận {${F_R}} sát thương phép và bị gắn Bỏng; sau đó số Bỏng của nó nhân đôi và cháy ngay 1 lần.`,
             resolve(c) {
-                for (const t of foes(c.g,
-                    c.self)) {
-                    c.g.damage(c.self,
+                const g = c.g, me = c.self
+                const dmg = c.f(F_R)
+                for (const t of foes(g,
+                    me)) {
+                    if (g.damage(me,
                         t,
-                        c.f(F_R),
+                        dmg,
                         "magic",
                         {
                             tag: "skill", visuals: ["explosion"]
-                        })
-                    const n = c.g.statusV(t,
+                        }) > 0) applyBurn(g,
+                        me,
+                        t)
+                    const n = g.stackOf(t,
                         BURN)
-                    if (n > 0) ignite(c.g,
-                        t,
+                    if (n > 0) g.stack(t,
+                        BURN,
                         n)
-                    burnTick(c.g,
-                        c.self,
+                    burnTick(g,
+                        me,
                         t)
                 }
+            },
+        },
+    },
+    en: {
+        desc: "Fire that never goes out: every skill stacks uncapped Burn on enemies, Burn ticks at the start of its bearer's turn even if Brand has fallen; Q Stuns the well-burned, E sprays the whole board, R doubles the Burn and ignites it at once.",
+        passive: {
+            name: "Blaze",
+            desc: `Each skill that hits applies {${EN_P}} Burn (X.Y units: the whole part is guaranteed, the fraction is the chance of 1 more). Burn: at the start of its bearer's turn, each Burn deals ${pct(p.p3)}% of its current HP + ${pct(p.p4)}% of its max HP as magic damage. Never expires. When the bearer is taken down it loses half its Burn; Brand being taken down does not change applied Burn.`,
+        },
+        skills: {
+            Q: {
+                name: "Sear",
+                desc: `Choose 1 enemy champion; deal {${EN_Q}} magic damage and apply Burn. If it then has at least ${p.q3} Burn: Stun it for {${EN_STUN}} units.`,
+            },
+            E: {
+                name: "Pillar of Flame",
+                desc: `Every enemy champion takes {${EN_E}} magic damage and gains Burn.`,
+            },
+            R: {
+                name: "Pyroclasm",
+                desc: `Every enemy champion takes {${EN_R}} magic damage and gains Burn; then its Burn doubles and ignites at once, ticking once.`,
             },
         },
     },

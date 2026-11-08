@@ -1,123 +1,110 @@
-// Ashe (Xạ thủ, vật lý): máu 360 · AD 80 · giáp/kháng 26/26. Chất: CHỒNG BUỐT, địch yếu dần, Buốt càng dày Ashe càng đau.
-// Buốt = status "frost" (v = số chồng, VÔ HẠN, không tự hết; mất khi tướng mang chết). KHÔNG phải "chill" của engine.
-// Buốt không bao giờ bị chiêu của Ashe xoá. Khi Ashe còn trên sân, mọi sát thương tướng mang gây ra nhân 1 / (1 + Buốt / 30) (HeroDef.modifyDamage):
-// tích vô hạn vẫn luôn còn sát thương dương (10/30/60 Buốt còn 75%/50%/33,33%).
-// Ashe đánh được mọi địch chọn được đang có Buốt, bỏ qua đỡ đòn/khiêu khích (HeroDef.extraAttackTargets), nhưng đòn lên tướng đã có Buốt không chí mạng (info.noCrit).
-// Tuning v1: mana Q/E/R = 10/15/35; E bonus không nhân chí mạng đòn chính; R Choáng d = 0,70 + 0,005·AD + 0,005·AP đơn vị (phần lẻ là xác suất +1).
+// Ashe (Xạ thủ, vật lý). Chất: CHỒNG BUỐT. Buốt là bộ đếm đặt lên địch (carrierStacks), nằm trong stacks của tướng mang.
+// Mỗi Buốt làm tướng mang chịu thêm p1% sát thương từ phe Ashe (khi Ashe còn trên sân); đạt p2 thì tiêu hết và Choáng.
+// Buốt trên tướng mang chết mất một nửa; Ashe chết không đổi. Mọi con số đọc từ balance/heroes/ashe.json.
 import type {
     Game
 } from "../game"
 import {
+    kit
+} from "../balance"
+import {
     defineHero
 } from "../registry"
-import {
-    FOREVER, type Unit
+import type {
+    Unit
 } from "../types"
 
-const FROST = "frost"
-const EDGE = "ashe_e"
-/** Mẫu số của hệ số giảm sát thương: nhân 1 / (1 + Buốt / FROST_DENOMINATOR) */
-export const FROST_DENOMINATOR = 30
-const F_Q = "55 + 200% AD + 25% AP"
-const Q_FROST = 3
-const F_E_BONUS = "40 + 110% AD + 15% AP"
-const E_FROST = 2
-const F_R = "110 + 180% AD + 35% AP"
-const R_FROST = 5
-/** R: thời hạn Choáng d (đơn vị lượt) = 0,70 + 0,005 × AD + 0,005 × AP */
-export const F_R_STUN = "0.7 + 0.5% AD + 0.5% AP"
+const k = kit("ashe"), {
+    p
+} = k
 
-/** Hệ số sát thương ra của tướng mang `n` Buốt */
-export const frostMult = (n: number) => (n > 0 ? 1 / (1 + n / FROST_DENOMINATOR) : 1)
+export const FROST = "frost"
+const Q_ON = "ashe_q"
 
-/** Cộng n Buốt (không trần, không tự hết) */
-export function addFrost(g: Game, t: Unit, n: number) {
-    if (t.status !== "board" || t.token || n <= 0) return
-    g.status(t,
+const F_STUN_P = k.x("p3 + p4·AD"), EN_STUN_P = k.xe("p3 + p4·AD")
+const F_E = k.x("e1 + e2·AD"), EN_E = k.xe("e1 + e2·AD")
+const F_R = k.x("r1 + r2·AD"), EN_R = k.xe("r1 + r2·AD")
+const F_STUN_R = k.x("r4 + r5·AD"), EN_STUN_R = k.xe("r4 + r5·AD")
+
+/** Cộng n Buốt lên địch; đạt p2 thì tiêu hết và Choáng p3 + p4·AD đơn vị */
+export function addFrost(g: Game, ashe: Unit, t: Unit, n: number) {
+    if (n <= 0 || t.status !== "board" || t.token || t.side === ashe.side) return
+    g.stack(t,
         FROST,
-        1,
-        {
-            v: n, add: true, until: FOREVER
-        })
+        n)
+    if (g.stackOf(t,
+        FROST) < p.p2) return
+    g.setStack(t,
+        FROST,
+        0)
+    const d = g.f(ashe,
+        F_STUN_P)
+    if (d > 0) g.timed(ashe,
+        t,
+        "stun",
+        d)
 }
 
 export default defineHero({
-    id: "ashe", name: "Ashe", role: "marksman", damage: "physical", hp: 360, atk: 80, armor: 26, mr: 26,
-    bot: {
-        markValue: {
-            frost: 25,
-        },
-    },
-    desc: "Bắn đều là chồng đều: Buốt làm địch đánh yếu đi, Ashe với tới cả hàng sau, đến lúc cần thì đóng băng một mục tiêu.",
+    id: "ashe", name: "Ashe", role: "marksman", damage: "physical", ...k.base,
+    carrierStacks: [FROST],
+    bot: k.bot,
+    desc: "Bắn đều là chồng đều: Buốt làm địch chịu thêm sát thương từ cả phe, đủ Buốt thì đóng băng.",
     passive: {
         name: "Băng Tiễn",
-        desc: "Mỗi đòn thật trúng tướng địch gắn 1 Buốt, vô hạn, không tự hết; người mang chết thì mất dấu. Khi Ashe còn trên bàn, mọi sát thương người mang gây ra nhân 1 / (1 + Buốt / 30). Đòn vào người đã có Buốt bỏ qua ép đánh Đỡ Đòn/Khiêu Khích, nhưng phải chọn được và không chí mạng.",
+        desc: `Mỗi đòn trúng gắn 1 Buốt lên tướng địch, vô hạn. Mỗi Buốt làm tướng mang chịu thêm ${p.p1}% sát thương từ phe Ashe khi Ashe còn trên sân. Đạt ${p.p2} Buốt: tiêu hết và Choáng {${F_STUN_P}} đơn vị. Tướng mang chết mất một nửa Buốt; Ashe chết không ảnh hưởng.`,
     },
     hooks: {
-        onAttack(g, me, d) {
-            if (d.attacker.id !== me.id) return
-            // Đòn lên tướng đã có Buốt không thể chí mạng
-            if (g.statusV(d.target,
-                FROST) > 0) d.info.noCrit = true
-        },
         onAttackHit(g, me, d) {
-            if (d.attacker.id !== me.id || d.info.miss || d.target.token || d.target.side === me.side) return
-            const edge = g.has(me,
-                EDGE)
-            // E: sát thương cộng thêm là gói riêng, không nhân chí mạng của đòn chính
-            if (edge) g.damage(me,
-                d.target,
-                g.f(me,
-                    F_E_BONUS),
-                "physical",
-                {
-                    tag: "attack"
-                })
+            if (d.attacker.id !== me.id || d.info.miss) return
             addFrost(g,
+                me,
                 d.target,
-                edge ? E_FROST : 1)
+                1 + (g.has(me,
+                    Q_ON) ? p.q2 : 0))
         },
     },
-    extraAttackTargets(g, me) {
-        return g.enemies(me).filter((u) => !u.token && g.targetable(u) && g.statusV(u,
-            FROST) > 0)
+    attackSpeedAura(g, me, u) {
+        return u.id === me.id && g.has(me,
+            Q_ON) ? p.q1 : 0
     },
     modifyDamage(g, me, d) {
-        // Buốt: sát thương kẻ mang gây ra nhân 1 / (1 + Buốt / 30) (mọi loại sát thương), chỉ khi Ashe còn trên sân
-        if (!d.src || d.src.side === me.side || d.src.token) return 1
-        return frostMult(g.statusV(d.src,
-            FROST))
+        // Buốt: tướng địch mang Buốt chịu thêm p1% mỗi Buốt từ mọi sát thương của phe Ashe
+        if (!d.src || d.src.side !== me.side || d.target.side === me.side || d.target.token) return 1
+        return 1 + (d.target.stacks[FROST] ?? 0) * p.p1 / 100
     },
     skills: {
         Q: {
-            key: "Q", mana: 5, name: "Tên Băng", target: "enemy",
-            desc: `Chọn 1 tướng địch hợp lệ; gây {${F_Q}} sát thương vật lý và gắn ${Q_FROST} Buốt.`,
+            key: "Q", name: "Tập Trung", target: "self", mana: p.q0,
+            desc: `Trong ${p.q3} đơn vị: Ashe nhận ${p.q1}% Tốc Đánh và mỗi đòn trúng gắn thêm ${p.q2} Buốt.`,
+            resolve(c) {
+                c.g.timed(c.self,
+                    c.self,
+                    Q_ON,
+                    p.q3)
+            },
+        },
+        E: {
+            key: "E", name: "Tên Băng", target: "enemy", mana: p.e0,
+            desc: `Chọn 1 tướng địch; gây {${F_E}} sát thương vật lý và gắn ${p.e3} Buốt.`,
             resolve(c) {
                 const t = c.target!
                 c.g.damage(c.self,
                     t,
-                    c.f(F_Q),
+                    c.f(F_E),
                     "physical",
                     {
                         tag: "skill"
                     })
                 addFrost(c.g,
+                    c.self,
                     t,
-                    Q_FROST)
-            },
-        },
-        E: {
-            key: "E", mana: 10, name: "Tập Trung", target: "self",
-            desc: `Tới hết lượt hiện tại, mỗi đòn thật trúng của Ashe gây thêm {${F_E_BONUS}} sát thương vật lý và gắn ${E_FROST} Buốt thay vì 1; không tự tạo đòn.`,
-            resolve(c) {
-                c.g.status(c.self,
-                    EDGE,
-                    1)
+                    p.e3)
             },
         },
         R: {
-            key: "R", mana: 30, name: "Đại Băng Tiễn", target: "enemy",
-            desc: `Chọn 1 tướng địch hợp lệ; gây {${F_R}} sát thương vật lý, gắn ${R_FROST} Buốt và Choáng d = {${F_R_STUN}} đơn vị. Lấy phần nguyên chắc chắn, phần lẻ là xác suất thêm 1 đơn vị.`,
+            key: "R", name: "Đại Băng Tiễn", target: "enemy", mana: p.r0,
+            desc: `Chọn 1 tướng địch ở bất kỳ đường; gây {${F_R}} sát thương vật lý, gắn ${p.r3} Buốt và Choáng {${F_STUN_R}} đơn vị (phần lẻ là xác suất thêm 1 đơn vị).`,
             resolve(c) {
                 const t = c.target!
                 c.g.damage(c.self,
@@ -128,14 +115,36 @@ export default defineHero({
                         tag: "skill"
                     })
                 addFrost(c.g,
+                    c.self,
                     t,
-                    R_FROST)
+                    p.r3)
                 if (t.status !== "board") return
-                // engine tự tung phần lẻ một lần sau kiểm tra miễn (law.md §4)
-                const d = c.f(F_R_STUN)
-                if (d > 0) c.g.status(t,
+                const d = c.f(F_STUN_R)
+                if (d > 0) c.g.timed(c.self,
+                    t,
                     "stun",
                     d)
+            },
+        },
+    },
+    en: {
+        desc: "Steady shots, steady frost: Frostbite makes enemies take more from your whole team, and enough of it freezes them.",
+        passive: {
+            name: "Frost Shot",
+            desc: `Each hit puts 1 Frostbite on an enemy champion, unlimited. Each Frostbite makes its bearer take ${p.p1}% more damage from Ashe's team while Ashe is on the board. At ${p.p2} Frostbite: spend all and Stun for {${EN_STUN_P}} units. The bearer dying halves its Frostbite; Ashe dying changes nothing.`,
+        },
+        skills: {
+            Q: {
+                name: "Ranger's Focus",
+                desc: `For ${p.q3} units: Ashe gains ${p.q1}% attack speed and each hit applies ${p.q2} extra Frostbite.`,
+            },
+            E: {
+                name: "Volley",
+                desc: `Choose 1 enemy champion; deal {${EN_E}} physical damage and apply ${p.e3} Frostbite.`,
+            },
+            R: {
+                name: "Enchanted Crystal Arrow",
+                desc: `Choose 1 enemy champion in any lane; deal {${EN_R}} physical damage, apply ${p.r3} Frostbite and Stun for {${EN_STUN_R}} units (the fraction is the chance of 1 extra unit).`,
             },
         },
     },

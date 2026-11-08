@@ -137,7 +137,7 @@
 .forest-game .ch-btn { border-color: #85956c; background: #d6d6ae; color: #33472d; }
 
 /* A stable hand row with consistent frames and restrained availability glows. */
-.forest-game .cg-hand { --cw: clamp(80px, 6.2vw, 106px); --ch: calc(var(--cw) * 1.52); min-height: 0; height: var(--hand-height); padding: 8px 12px 6px; gap: 8px; grid-template-columns: minmax(0, 1fr) 194px; background: linear-gradient(#112c20f5, #07180ffb); border-color: #8a9862; box-shadow: 0 -5px 22px #07140b77; }
+.forest-game .cg-hand { --cw: clamp(80px, 119.04px, 106px); --ch: calc(var(--cw) * 1.52); min-height: 0; height: var(--hand-height); padding: 8px 12px 6px; gap: 8px; grid-template-columns: minmax(0, 1fr) 194px; background: linear-gradient(#112c20f5, #07180ffb); border-color: #8a9862; box-shadow: 0 -5px 22px #07140b77; }
 .forest-game .hd-count { font-size: 10px; gap: 10px; color: #a9bc91; }
 .forest-game .hd-count b { color: #e2d6a2; font-size: 11px; }
 .forest-game .hd-face { top: 4px; }
@@ -189,7 +189,7 @@
 
 /* Browsable collections with real card thumbnails and readable descriptions. */
 .forest-game .bd-modal { z-index: 100; background: #030e0bbd; backdrop-filter: blur(5px); }
-.forest-game .bd-modal-box { width: min(1000px, 92vw); max-height: 84vh; border: 18px solid transparent; border-image: url('/ui/examples/forest-panel-9slice.png') 25% / 18px stretch; background: #e2d9ba; background-clip: padding-box; color: #273c2a; box-shadow: 0 15px 60px #0009; }
+.forest-game .bd-modal-box { width: min(1000px, 1766.4px); max-height: 907.2px; border: 18px solid transparent; border-image: url('/ui/examples/forest-panel-9slice.png') 25% / 18px stretch; background: #e2d9ba; background-clip: padding-box; color: #273c2a; box-shadow: 0 15px 60px #0009; }
 .forest-game .bd-modal-box header { background: #173b29; color: #eee4bd; border-color: #7c9568; padding: 12px; }
 .forest-game .bd-modal-box header button { background: #2d5236; color: #eee4bd; border-color: #92a375; }
 .forest-game .bd-collection-controls { display: flex; gap: 10px; padding: 12px; flex-wrap: wrap; }
@@ -203,11 +203,11 @@
 .forest-game .bd-collection-detail { flex: 1; min-width: 0; line-height: 1.5; font-size: 11px; }
 .forest-game .bd-collection-detail b { display: block; color: #263d26; }
 .forest-game .bd-collection-empty { padding: 24px; color: #6f7e60; }
-@media(max-width:1439px) { .forest-game { --inspector-width: 300px; --journal-width: 220px; } }
-@media(max-width:1150px) { .forest-game { --inspector-width: 265px; --hand-height: 170px; } .forest-game .cg-hand { --cw: 84px; grid-template-columns: minmax(0,1fr) 160px; } .forest-game .hd-actions { width: 160px; } .forest-game .bd-pname b { max-width: 85px; } .forest-game .bd-counts { gap: 6px; } .forest-game .bd-prizes { display: none; } .forest-game .bd-strip { gap: 7px; } .forest-game .bd-slot.empty,.forest-game .bd-slot.closed { margin: 5px; } }
-@media(max-width:1000px) { .forest-game.log-open { grid-template-columns: var(--inspector-width) minmax(0,1fr); } .forest-game.log-open .cg-side { position: absolute; right: 8px; top: 42px; bottom: 8px; width: 270px; z-index: 70; } .forest-game.log-open .cs-root { right: 18px; } }
-@media(max-width:760px) { .forest-game,.forest-game.log-open { --inspector-width: 0px; padding: 4px; gap: 0; grid-template-columns: minmax(0,1fr); } .forest-game .cg-main { grid-column: 1; } .forest-game .cg-inspector { display: none; } .forest-game.info-open .cg-inspector { position: absolute; left: 4px; top: 42px; bottom: 4px; display: flex; width: 300px; z-index: 70; } .cg-info-toggle { display: inline-block; } .forest-game .bd-reserve { display: none; } .forest-game .bd-strip { gap: 6px; } .forest-game .cs-root { left: 10px; right: 10px; } .forest-game .cs-slot,.forest-game .cs-link { width: 64px; } .forest-game .cs-slot { height: 100px; } .forest-game .cs-links { gap: 12px; } .forest-game .cs-stack { padding: 10px; } .forest-game .cs-prompt { max-width: 90%; } }
-@media(max-height:800px) { .forest-game { --hand-height: 158px; } .forest-game .cg-hand { --cw: 80px; } .forest-game .bd-srow { height: 16px; min-height: 16px; } .forest-game .bd-sc { width: 16px; height: 16px; } .forest-game .bd-items .bd-item { width: 16px; height: 16px; } .forest-game .bd-mid { height: 18px; line-height: 18px; } .forest-game .cs-prompt { bottom: -135px; padding: 7px 12px; } .forest-game .cs-btn-card { width: 60px; } }
+@container game-canvas (max-width:1439px) { .forest-game { --inspector-width: 300px; --journal-width: 220px; } }
+@container game-canvas (max-width:1150px) { .forest-game { --inspector-width: 265px; --hand-height: 170px; } .forest-game .cg-hand { --cw: 84px; grid-template-columns: minmax(0,1fr) 160px; } .forest-game .hd-actions { width: 160px; } .forest-game .bd-pname b { max-width: 85px; } .forest-game .bd-counts { gap: 6px; } .forest-game .bd-prizes { display: none; } .forest-game .bd-strip { gap: 7px; } .forest-game .bd-slot.empty,.forest-game .bd-slot.closed { margin: 5px; } }
+@container game-canvas (max-width:1000px) { .forest-game.log-open { grid-template-columns: var(--inspector-width) minmax(0,1fr); } .forest-game.log-open .cg-side { position: absolute; right: 8px; top: 42px; bottom: 8px; width: 270px; z-index: 70; } .forest-game.log-open .cs-root { right: 18px; } }
+@container game-canvas (max-width:760px) { .forest-game,.forest-game.log-open { --inspector-width: 0px; padding: 4px; gap: 0; grid-template-columns: minmax(0,1fr); } .forest-game .cg-main { grid-column: 1; } .forest-game .cg-inspector { display: none; } .forest-game.info-open .cg-inspector { position: absolute; left: 4px; top: 42px; bottom: 4px; display: flex; width: 300px; z-index: 70; } .cg-info-toggle { display: inline-block; } .forest-game .bd-reserve { display: none; } .forest-game .bd-strip { gap: 6px; } .forest-game .cs-root { left: 10px; right: 10px; } .forest-game .cs-slot,.forest-game .cs-link { width: 64px; } .forest-game .cs-slot { height: 100px; } .forest-game .cs-links { gap: 12px; } .forest-game .cs-stack { padding: 10px; } .forest-game .cs-prompt { max-width: 90%; } }
+@container game-canvas (max-height:800px) { .forest-game { --hand-height: 158px; } .forest-game .cg-hand { --cw: 80px; } .forest-game .bd-srow { height: 16px; min-height: 16px; } .forest-game .bd-sc { width: 16px; height: 16px; } .forest-game .bd-items .bd-item { width: 16px; height: 16px; } .forest-game .bd-mid { height: 18px; line-height: 18px; } .forest-game .cs-prompt { bottom: -135px; padding: 7px 12px; } .forest-game .cs-btn-card { width: 60px; } }
 @media(prefers-reduced-motion:reduce) { .forest-game .hd-face.chainable .cv,.forest-game .cs-link { animation: none; } }
 /* Readable parchment journal and anchored response panel. */
 .forest-game .ch-log-bar { color: #415131; background: #c9cca7; border-color: #9eaa7e; letter-spacing: .5px; }
@@ -234,7 +234,7 @@
 .forest-game .ci-copies { display: flex; gap: 12px; padding: 12px; color: #4f6744; }
 .forest-game .ci-condition h4 { margin: 0; color: #415832; }
 .forest-game .bd-collection-box { display: flex; flex-direction: column; }
-.forest-game .bd-collection-body { flex: 1; height: 52vh; }
+.forest-game .bd-collection-body { flex: 1; height: 561.6px; }
 .forest-game .bd-collection-detail { overflow-y: auto; border-left: 1px solid #9eaa7d; }
 .forest-game .bd-collection-controls label { display: flex; flex-direction: column; gap: 5px; font-size: 11px; }
 .forest-game .bd-collection-controls > span { align-self: end; padding: 8px; color: #5c7049; font-size: 12px; }
@@ -244,8 +244,8 @@
 .forest-game .bd-collection-card > b { font-size: 11px; }
 .forest-game .bd-collection-card > span { position: absolute; top: 5px; right: 5px; border-radius: 8px; background: #1e4b32; color: #f4ecc6; padding: 3px 6px; font-weight: 800; }
 .forest-game .bd-collection-card[aria-pressed=true] { border-color: #397b51; background: #d4dfb4; box-shadow: 0 0 0 1px #5d8a55; }
-@media(max-height:800px) { .forest-game .cs-prompt { bottom: 14px; } }
-@media(max-width:760px) { .forest-game .cs-prompt { right: 8px; width: 180px; max-width: 42%; } .forest-game .bd-collection-body { grid-template-columns: minmax(0,1fr) 230px; } }
+@container game-canvas (max-height:800px) { .forest-game .cs-prompt { bottom: 14px; } }
+@container game-canvas (max-width:760px) { .forest-game .cs-prompt { right: 8px; width: 180px; max-width: 42%; } .forest-game .bd-collection-body { grid-template-columns: minmax(0,1fr) 230px; } }
 .forest-game .bd-collection-detail .cv-name { color: #f7efd8; }
 .forest-game .bd-collection-box > header { min-height: 58px; padding: 10px 12px; }
 .forest-game .bd-collection-box > header h3 { margin: 0; font-size: 17px; }
@@ -291,7 +291,7 @@
 .forest-game .sc-overlay { backdrop-filter: blur(6px); background: #03110ccc; }
 .forest-game .sc-end { border: 24px solid transparent; border-image: url('/ui/examples/forest-panel-9slice.png') 25% / 24px stretch; border-radius: 0; background: radial-gradient(ellipse at top,#315a38,#0e2c1e); background-clip: padding-box; padding: 28px 40px; color: #eae5bc; }
 .forest-game .sc-end h1 { color: #e6d79b; }
-@media(max-width:760px) { .forest-game .cd-body { flex-direction: column; } .forest-game .cd-table img { width: 29px; height: 29px; } .forest-game .cd-table td { width: 32px; height: 32px; } .forest-game .cd-table td img { width: 28px; height: 28px; } }
+@container game-canvas (max-width:760px) { .forest-game .cd-body { flex-direction: column; } .forest-game .cd-table img { width: 29px; height: 29px; } .forest-game .cd-table td { width: 32px; height: 32px; } .forest-game .cd-table td img { width: 28px; height: 28px; } }
 /* Painted material assets: fixed ornamental corners and stretchable rails. */
 .forest-game { --frame-art: url('/ui/examples/forest-wood-frame-v2.png'); --paper-art: url('/ui/examples/forest-vellum-v2.png'); --button-art: url('/ui/examples/forest-button-v2.png'); }
 .forest-game .cg-inspector,.forest-game .cg-side { border-width: 24px; border-image: var(--frame-art) 25% / 24px stretch; background: #e4d8b8 var(--paper-art) center / 520px 520px; background-clip: padding-box; }
@@ -314,7 +314,7 @@
 .forest-game .cd-head h3,.forest-game .cd-rule,.forest-game .cd-x { color: #e9dfb9; }
 .forest-game .bd-collection-card { background-image: linear-gradient(#e0d8b69c,#e0d8b69c),var(--paper-art); background-size: auto,400px; }
 .forest-game .bd-collection-card[aria-pressed=true] { background-image: linear-gradient(#bed19fbb,#bed19fbb),var(--paper-art); }
-@media(max-width:1439px) { .forest-game .cg-inspector,.forest-game .cg-side { border-width: 20px; border-image-width: 20px; } }
+@container game-canvas (max-width:1439px) { .forest-game .cg-inspector,.forest-game .cg-side { border-width: 20px; border-image-width: 20px; } }
 /* Panel interiors use the quiet central wood grain; ornament stays on the 9-slice edge. */
 .forest-game .cg-hand { background: linear-gradient(#05251628,#05251680),var(--button-art) center / auto,180% 270%; }
 .forest-game .us-head,.forest-game .ci-head,.forest-game .ch-head,.forest-game .cs-stack,.forest-game .cs-prompt,.forest-game .bd-modal-box > header,.forest-game .cd-head { background-size: 180% 250%; }

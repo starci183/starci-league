@@ -1,0 +1,464 @@
+{
+  "generator": "Built-in image_gen.imagegen",
+  "brief": "docs/briefs/codex-ui-skin.md",
+  "assetRoot": "cocos/assets/resources/skin",
+  "counts": {
+    "png": 39,
+    "nineSlice": 20,
+    "cards": 6,
+    "ornaments": 13
+  },
+  "assets": [
+    {
+      "file": "panel.png",
+      "width": 640,
+      "height": 640,
+      "group": "panels",
+      "insets": {
+        "top": 88,
+        "right": 88,
+        "bottom": 88,
+        "left": 88
+      },
+      "bytes": 61048,
+      "sha256": "11a11846eeaac41e65f3fec83071db1e777ae270e9103650aaed74f649d3a8d9"
+    },
+    {
+      "file": "panel-soft.png",
+      "width": 640,
+      "height": 640,
+      "group": "panels",
+      "insets": {
+        "top": 72,
+        "right": 72,
+        "bottom": 72,
+        "left": 72
+      },
+      "bytes": 28883,
+      "sha256": "6676ed239ba989090da0afd0dea9a78a307f728c45d22ac24e2a5e257a6c2fdf"
+    },
+    {
+      "file": "slot-gold.png",
+      "width": 256,
+      "height": 256,
+      "group": "slots",
+      "insets": {
+        "top": 52,
+        "right": 52,
+        "bottom": 52,
+        "left": 52
+      },
+      "bytes": 18766,
+      "sha256": "99d69749c63a0174562b2a5a2742293258b5234e7c95e70ffe831ed03105a57e"
+    },
+    {
+      "file": "slot-ally.png",
+      "width": 256,
+      "height": 256,
+      "group": "slots",
+      "insets": {
+        "top": 52,
+        "right": 52,
+        "bottom": 52,
+        "left": 52
+      },
+      "bytes": 20153,
+      "sha256": "95f97626877119bca12a65adf09bb7c14f55986f72743af70d59118b4378910e"
+    },
+    {
+      "file": "slot-enemy.png",
+      "width": 256,
+      "height": 256,
+      "group": "slots",
+      "insets": {
+        "top": 52,
+        "right": 52,
+        "bottom": 52,
+        "left": 52
+      },
+      "bytes": 21006,
+      "sha256": "ef08f5e9c777cbdfe0c385f48824747be99102203620fa49771c633d62fb0cdc"
+    },
+    {
+      "file": "slot-teal.png",
+      "width": 256,
+      "height": 256,
+      "group": "slots",
+      "insets": {
+        "top": 52,
+        "right": 52,
+        "bottom": 52,
+        "left": 52
+      },
+      "bytes": 20776,
+      "sha256": "a986718a0a60f68ba77543d8339fecf05f1332ae1f614be24b9050300b3f3082"
+    },
+    {
+      "file": "slot-bronze.png",
+      "width": 256,
+      "height": 256,
+      "group": "slots",
+      "insets": {
+        "top": 52,
+        "right": 52,
+        "bottom": 52,
+        "left": 52
+      },
+      "bytes": 18621,
+      "sha256": "d6220edf9f47612af466fc1afa21b3f7f18db3a20f786e7df291292c8919912c"
+    },
+    {
+      "file": "slot-steel.png",
+      "width": 256,
+      "height": 256,
+      "group": "slots",
+      "insets": {
+        "top": 52,
+        "right": 52,
+        "bottom": 52,
+        "left": 52
+      },
+      "bytes": 18378,
+      "sha256": "38b9458f671df5e5d8bc7d9cc134b9ebbc1345f7907a2eab7084e2411c9568f2"
+    },
+    {
+      "file": "btn-gold.png",
+      "width": 384,
+      "height": 96,
+      "group": "buttons",
+      "insets": {
+        "top": 36,
+        "right": 44,
+        "bottom": 36,
+        "left": 44
+      },
+      "bytes": 9265,
+      "sha256": "a2c8b8068ff7895763c9281324a34717a3ce58471e20ff0a02f953b007e4a56d"
+    },
+    {
+      "file": "btn-gold-hover.png",
+      "width": 384,
+      "height": 96,
+      "group": "buttons",
+      "insets": {
+        "top": 36,
+        "right": 44,
+        "bottom": 36,
+        "left": 44
+      },
+      "bytes": 8307,
+      "sha256": "da4f6997ca47fb7d7c33b7ba63dc8a96685aac2d2935c09a2a711ba8be705210"
+    },
+    {
+      "file": "btn-primary.png",
+      "width": 384,
+      "height": 96,
+      "group": "buttons",
+      "insets": {
+        "top": 36,
+        "right": 44,
+        "bottom": 36,
+        "left": 44
+      },
+      "bytes": 14278,
+      "sha256": "c8709cc48c16da81564f1a781e04d060a075975a621848403705384a1aeb45c6"
+    },
+    {
+      "file": "btn-primary-hover.png",
+      "width": 384,
+      "height": 96,
+      "group": "buttons",
+      "insets": {
+        "top": 36,
+        "right": 44,
+        "bottom": 36,
+        "left": 44
+      },
+      "bytes": 14014,
+      "sha256": "2a67d0d3188005fbff85e7a8a20de892af03e227bac49dcd43665795451b6077"
+    },
+    {
+      "file": "btn-danger.png",
+      "width": 384,
+      "height": 96,
+      "group": "buttons",
+      "insets": {
+        "top": 36,
+        "right": 44,
+        "bottom": 36,
+        "left": 44
+      },
+      "bytes": 8009,
+      "sha256": "43cc98b884dcdb230dcb93728a7194cbd35f3a8d7eaa61c6ea1068cf01dce67e"
+    },
+    {
+      "file": "btn-disabled.png",
+      "width": 384,
+      "height": 96,
+      "group": "buttons",
+      "insets": {
+        "top": 36,
+        "right": 44,
+        "bottom": 36,
+        "left": 44
+      },
+      "bytes": 7941,
+      "sha256": "cdee89e9898b064d9b741e5bc9808c0bed626089f4392f0529277740fc92c0da"
+    },
+    {
+      "file": "btn-pill.png",
+      "width": 192,
+      "height": 56,
+      "group": "buttons",
+      "insets": {
+        "top": 24,
+        "right": 24,
+        "bottom": 24,
+        "left": 24
+      },
+      "bytes": 2262,
+      "sha256": "c1557f4f17d25d0d6d3f057869f6ae14d1c38429ef2d6ecda593b1a5a59f6897"
+    },
+    {
+      "file": "tab-underline.png",
+      "width": 256,
+      "height": 24,
+      "group": "buttons",
+      "insets": {
+        "top": 0,
+        "right": 40,
+        "bottom": 0,
+        "left": 40
+      },
+      "bytes": 2623,
+      "sha256": "de85af2511871836bb6300237fab74f3a3e05a193c50ba0072e0a0c803217aaa"
+    },
+    {
+      "file": "field.png",
+      "width": 512,
+      "height": 80,
+      "group": "fields",
+      "insets": {
+        "top": 28,
+        "right": 28,
+        "bottom": 28,
+        "left": 28
+      },
+      "bytes": 3531,
+      "sha256": "9bf0156c80c9869eaf236a0448c73ddd9257835fa8acbee2bf1825ab99a47bf0"
+    },
+    {
+      "file": "field-focus.png",
+      "width": 512,
+      "height": 80,
+      "group": "fields",
+      "insets": {
+        "top": 28,
+        "right": 28,
+        "bottom": 28,
+        "left": 28
+      },
+      "bytes": 4300,
+      "sha256": "5b1772fdd87260290f4c273c6d2ab2f3929f2f6d7a34fec40715303499d7b546"
+    },
+    {
+      "file": "notice-error.png",
+      "width": 512,
+      "height": 72,
+      "group": "fields",
+      "insets": {
+        "top": 28,
+        "right": 28,
+        "bottom": 28,
+        "left": 28
+      },
+      "bytes": 5247,
+      "sha256": "aec8f92a24e512e6944e3f75e3467bd6e2549f252fa39b36773075a796b58173"
+    },
+    {
+      "file": "notice-ok.png",
+      "width": 512,
+      "height": 72,
+      "group": "fields",
+      "insets": {
+        "top": 28,
+        "right": 28,
+        "bottom": 28,
+        "left": 28
+      },
+      "bytes": 5332,
+      "sha256": "2cc0c5f8705bd6f20f2b07053c08de87d15945605660f687c746309f40c5a143"
+    },
+    {
+      "file": "card/card-basic.png",
+      "width": 500,
+      "height": 700,
+      "group": "cards",
+      "insets": null,
+      "bytes": 482014,
+      "sha256": "d5ff5b2abb1c61b9a7a4b750dbd3df37d6526725fb851bfb92d8f93f03b04bda"
+    },
+    {
+      "file": "card/card-spell.png",
+      "width": 500,
+      "height": 700,
+      "group": "cards",
+      "insets": null,
+      "bytes": 477829,
+      "sha256": "dd2e96610525e6df856025312c0150f7025730f055efc2c81605b88a62462afb"
+    },
+    {
+      "file": "card/card-gold.png",
+      "width": 500,
+      "height": 700,
+      "group": "cards",
+      "insets": null,
+      "bytes": 473493,
+      "sha256": "fd6db08da69377e1fbe937842f6de9e79566d343afc7c4420a0a9b81f32c8f96"
+    },
+    {
+      "file": "card/card-item.png",
+      "width": 500,
+      "height": 700,
+      "group": "cards",
+      "insets": null,
+      "bytes": 495662,
+      "sha256": "5c8449f8645faf681c6e7d871817c7b14748ae9c5b5766fc975594d0d8b1a6e5"
+    },
+    {
+      "file": "card/card-skill.png",
+      "width": 500,
+      "height": 700,
+      "group": "cards",
+      "insets": null,
+      "bytes": 500795,
+      "sha256": "76e515e18bd741e63f93c563b49924d55f6346e09086c85b9fff0bce6b396bdc"
+    },
+    {
+      "file": "card/card-back.png",
+      "width": 500,
+      "height": 700,
+      "group": "cards",
+      "insets": null,
+      "bytes": 982410,
+      "sha256": "0bb87b26492150c6d4bfe78674efaeca01810c0a54f3c52b297a0e77b35691a6"
+    },
+    {
+      "file": "ornament/gem.png",
+      "width": 96,
+      "height": 96,
+      "group": "ornaments",
+      "insets": null,
+      "bytes": 11573,
+      "sha256": "4c9d3c122e6ba21c519c5b0896c6f9bab169baeffb8bb6c36b20257d78fe0e9d"
+    },
+    {
+      "file": "ornament/gem-red.png",
+      "width": 96,
+      "height": 96,
+      "group": "ornaments",
+      "insets": null,
+      "bytes": 11611,
+      "sha256": "19adcb7cb43ae173e7ace5f3400bdb8c409f96513dc3c4d6b1cd62e73bf7c3a4"
+    },
+    {
+      "file": "ornament/gem-gold.png",
+      "width": 96,
+      "height": 96,
+      "group": "ornaments",
+      "insets": null,
+      "bytes": 11987,
+      "sha256": "67512f1692487215f00dcd2f80f9bfa70ef5c8e721a72da0dcadc156da7a69db"
+    },
+    {
+      "file": "ornament/divider.png",
+      "width": 640,
+      "height": 40,
+      "group": "ornaments",
+      "insets": null,
+      "bytes": 28028,
+      "sha256": "8a9aca00929be1c1fc9da887154d5b3acaaf0f75e439b6107c4589ac88c1a27a"
+    },
+    {
+      "file": "ornament/divider-short.png",
+      "width": 320,
+      "height": 32,
+      "group": "ornaments",
+      "insets": null,
+      "bytes": 10602,
+      "sha256": "b5970f491dd7075d0fce1a874f69d067c52e27e901d7b28f82d71f6adb36c1c8"
+    },
+    {
+      "file": "ornament/title-flourish.png",
+      "width": 900,
+      "height": 120,
+      "group": "ornaments",
+      "insets": null,
+      "bytes": 113033,
+      "sha256": "eb1ed9249fa3dfe86813ef55d5b6b4535d0c8b8e021c380606feb206a2406d14"
+    },
+    {
+      "file": "ornament/victory-wings.png",
+      "width": 1200,
+      "height": 300,
+      "group": "ornaments",
+      "insets": null,
+      "bytes": 342977,
+      "sha256": "9fed8c48e6f13b4761fc289ae3b6eabc315f49894bd0c5245ebbdf23897e3dff"
+    },
+    {
+      "file": "ornament/defeat-wings.png",
+      "width": 1200,
+      "height": 300,
+      "group": "ornaments",
+      "insets": null,
+      "bytes": 267871,
+      "sha256": "df57c33bb7303dccdbdf922385ae56c91f0361fc15a50180b508c0a75c25cee6"
+    },
+    {
+      "file": "ornament/corner-bracket.png",
+      "width": 64,
+      "height": 64,
+      "group": "ornaments",
+      "insets": null,
+      "bytes": 3766,
+      "sha256": "fb9210a0103984dcf242c426c11b8a966b402e9d6656c0033159e31fbbbcd25e"
+    },
+    {
+      "file": "ornament/mana-badge.png",
+      "width": 96,
+      "height": 96,
+      "group": "ornaments",
+      "insets": null,
+      "bytes": 12368,
+      "sha256": "4aa480057d6c4aeb5006fc0af5e45c358952a674743ea40a1c3421dac33a65cf"
+    },
+    {
+      "file": "ornament/quick-ribbon.png",
+      "width": 256,
+      "height": 48,
+      "group": "ornaments",
+      "insets": null,
+      "bytes": 19573,
+      "sha256": "ef085a8d06ccd93a7c5c8990df83b56bf153b2cb4714dd0d08c0bf295df3e20e"
+    },
+    {
+      "file": "ornament/rune-circle.png",
+      "width": 512,
+      "height": 512,
+      "group": "ornaments",
+      "insets": null,
+      "bytes": 224272,
+      "sha256": "15d3a652406087f0db0840be40e7a4ef8d8c630c40d92c424678f34db2610121"
+    },
+    {
+      "file": "ornament/crown-lock.png",
+      "width": 128,
+      "height": 128,
+      "group": "ornaments",
+      "insets": null,
+      "bytes": 23648,
+      "sha256": "88c7c406d5b76081c6a4d9690854a1bdfb8eb66a842295ec8585bc9c4958a09e"
+    }
+  ]
+}

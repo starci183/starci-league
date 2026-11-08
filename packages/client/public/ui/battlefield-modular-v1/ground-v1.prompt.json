@@ -1,0 +1,22 @@
+{
+  "tool": "builtin image_gen",
+  "asset": "ground-v1.png",
+  "source": "C:/Users/Hi/.codex/generated_images/01a196bb-e2be-70f2-94b0-906881ad6ec5/exec-eafeb12d-8730-4756-9118-5d5ec0466c25.png",
+  "prompts": [
+    "Use case: stylized-concept. Production game asset ONLY: a blank central forest card battlefield ground, landscape target ratio 1280:820 (about1.56:1), full bleed opaque background. Image1 is STYLE reference ONLY, never reproduce its HUD/cards/text/frames. Crisp polished hand-painted top-down orthographic fantasy forest arena: rich emerald/jade forest, pale warm sandstone, luminous turquoise water, mossy rocks and small flowers. EXACT GEOMETRY IS CRITICAL: exactly FIVE straight vertical pale sandstone paved roads, centered at10%,30%,50%,70%,90% of imagewidth; evenly spaced, identical width about13% of imagewidth, all clearly separate. Each road runs from top edge down to river and resumes directly aligned below river to bottom edge. Dense dark emerald foliage strips separate these FIVE roads. No sixth road, no side walkways, no horizontal paved paths. A horizontal turquoise river occupies43% to57% of imageheight and spans entirewidth; banks mostlyhorizontal. Mirror upperandlower halves: five unobstructed top card-placement areas centered y24% and five bottom areas centered y76%, all pale paved road clear of foliage/rocks. Card areas are not outlined or framed: just wide calm paving. Keep all roads clear enough to place tall cards without hiding paths. Flat overheadcamera, no perspective/isometric. No UI/HUD, no characters, no cards, no portraits, no gold outer frame, no panels, no labels, no writing, no runes/numbers/logos. No circles/pedestals in river because other layered assets will provide them. Deliver one coherent highly detailed groundtexture, lighting even and readable, no vignette that obscures edge lanes.",
+    "Precise image edit, preserve all five road centerlines at10/30/50/70/90percent and all style. Current river's TOP shoreline is too high aroundy40%. Move ONLY TOP shoreline DOWN to43% imageheight by extending the upper paved roads and adjacent vegetation downward. Bottom river shoreline remains57% unchanged. Thus waterstrip is centeredexactly50%, about14% imageheight. Bottom shore, lower road halves, palette, perspective, all other details unchanged. Roads remain5wideclearstraightvertical pale sandstone paths, no new paths. Blank arena background only, no text/cards/UI/frame/characters."
+  ],
+  "anchors": {
+    "laneX": [
+      0.1,
+      0.3,
+      0.5,
+      0.7,
+      0.9
+    ],
+    "upperCardsY": 0.24,
+    "lowerCardsY": 0.76,
+    "riverCenterY": 0.5
+  },
+  "review": "Exactly five straight paved roads. River top organic bank approximately41%, bottom57%; intended band43–57. Native artifact unmodified."
+}

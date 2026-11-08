@@ -1,0 +1,30 @@
+/* Each connection element is an independent PNG module on the 1920 × 1080 stage. */
+.sc-stage.dna-screen.sc-connection { display:grid; place-items:center; background:radial-gradient(ellipse at 50% 48%,#164d3544,transparent 55%),linear-gradient(#03160dcc,#03170ee8),url('/map/board5.jpg') center/cover; }
+.sc-connection .connection-scene { width:1280px; height:1000px; display:flex; flex-direction:column; align-items:center; gap:6px; position:relative; }
+.sc-connection .connection-title { flex:none; margin-top:-10px; }
+.sc-connection .connection-title h1 { margin:0; color:#ffe4a1; font:800 52px/1.06 var(--font-game-title); letter-spacing:.04em; text-shadow:0 3px 4px #000; }
+.sc-connection .connection-kicker { color:#d5c18a; font:600 18px/1.2 var(--font-game-text); letter-spacing:.17em; margin:0; }
+.sc-connection .connection-emblem { width:208px; height:208px; position:relative; display:grid; place-items:center; flex:none; margin:8px 0 -12px; }
+.sc-connection .connection-emblem .game-icon { width:62px; height:62px; color:#f4d58f; fill:#55cfa026; filter:drop-shadow(0 0 14px #4aeab4aa); }
+.sc-connection .connection-orbit { position:absolute; inset:3px; border:1px solid #b9ab5a33; border-top:3px solid #f0d38b; border-right-color:#74e6b65e; border-radius:50%; box-shadow:0 0 25px #2bd59d22; animation:connection-orbit 3s linear infinite; pointer-events:none; }
+.sc-connection .connection-status { flex:none; }
+.sc-connection .connection-status h2 { margin:0; color:#ffe4aa; font:700 36px/1.12 var(--font-game-title); text-align:center; text-shadow:0 2px 4px #000; }
+.sc-connection .connection-copy { width:820px; min-height:110px; max-height:160px; display:flex; flex-direction:column; align-items:center; gap:12px; margin-top:-12px; }
+.sc-connection .connection-copy p { margin:0; max-width:48ch; color:#cfddc6; font:400 25px/1.35 var(--font-game-text); text-align:center; text-wrap:balance; }
+.sc-connection .connection-error-details { width:100%; max-height:74px; min-height:0; }
+.sc-connection .connection-error-details .game-scroll-content { padding:0 8px; }
+.sc-connection .connection-error-details :is(.game-scroll-arrow,.game-scroll-thumb) { border:1px solid #c4aa69; border-image:none; background:linear-gradient(90deg,#0a3d2c,#258766,#0a3d2c); }
+.sc-connection .connection-detail { display:block; color:#bba68d; font:400 17px/1.35 var(--font-game-text); text-align:center; overflow-wrap:anywhere; }
+.sc-connection .connection-actions { flex:none; margin-top:auto; }
+.sc-connection .connection-back { padding:0; border:0; background:none; color:#ffe5a6; font:700 29px/1.1 var(--font-game-title); cursor:pointer; }
+.sc-connection .connection-back .af-label-inner { gap:16px; }
+.sc-connection .connection-back .game-icon { width:27px; height:27px; transform:rotate(180deg); }
+.sc-connection .connection-back:is(:hover,:focus-visible) { outline:none; filter:brightness(1.17) drop-shadow(0 0 10px #5fe8b3aa); }
+.sc-connection .connection-back:active { transform:translateY(2px); }
+.sc-connection.is-error .connection-emblem .game-icon { color:#f0b18a; fill:#e9793820; filter:drop-shadow(0 0 14px #d77d45aa); }
+.sc-connection.is-error .connection-copy p { color:#e2cebd; }
+@keyframes connection-orbit { to { transform:rotate(360deg); } }
+@media(prefers-reduced-motion:reduce) { .sc-connection .connection-orbit { animation:none; } }
+
+
+

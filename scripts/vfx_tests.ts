@@ -20,6 +20,24 @@ import {
 } from "../packages/client/src/card/vfx/types"
 
 let passed = 0
+// E là thao tác cộng stack: không dựng lính độc lập hay giả hiệu ứng lướt.
+test("Azir stack không dùng VFX lính đứng đường hoặc lướt ở E",
+    () => {
+        const e = skillVfx("azir",
+            "e")
+        assert.equal(e.travel,
+            "none")
+        assert.equal(e.impact,
+            "none")
+        const p = skillVfx("azir",
+            "p")
+        assert.equal(p.cast,
+            undefined)
+        assert.equal(p.extra,
+            undefined)
+        assert.equal(p.impact,
+            "azirStab")
+    })
 function test(name: string, fn: () => void) {
     fn()
     passed++
@@ -61,27 +79,27 @@ test("Mọi bộ Đánh/P/Q/E/R có màu hữu hạn và cả ba nhịp đã đ�
 test("Đòn thường theo vai: sát thủ chém, đấu sĩ đâm, pháp sư/cầu trợ thủ, cung và va đập",
     () => {
         assert.equal(heroBasicVfx("ashe").travel,
-            "bowShot")
+            "basicFrostArrow")
         assert.equal(heroBasicVfx("jinx").travel,
-            "bowShot")
+            "basicMinigun")
         assert.equal(heroBasicVfx("garen").travel,
-            "daggerStab")
+            "basicSwordSwing")
         assert.equal(heroBasicVfx("darius").travel,
-            "daggerStab")
+            "basicAxeChop")
         assert.equal(heroBasicVfx("katarina").travel,
-            "assassinSlashes")
+            "basicDaggerFlurry")
         assert.equal(heroBasicVfx("annie").travel,
-            "mageOrb")
+            "basicFlameBolt")
         assert.equal(heroBasicVfx("janna").travel,
-            "supportOrb")
+            "jannaGust")
         assert.equal(heroBasicVfx("leona").travel,
-            "heavyImpact")
+            "basicSunBlade")
         assert.equal(heroBasicVfx("kogmaw").travel,
-            "poisonBolt")
+            "basicAcidSpit")
         assert.equal(heroBasicVfx("teemo").travel,
-            "poisonBolt")
+            "basicBlowdart")
         assert.equal(heroBasicVfx("blitzcrank").travel,
-            "heavyStrike")
+            "basicSteamFist")
     })
 
 test("Một đòn có danh sách N VFX; thêm cue không làm mất cue trước hoặc sửa cấu hình gốc",
@@ -103,8 +121,7 @@ test("Một đòn có danh sách N VFX; thêm cue không làm mất cue trước
         try {
             const resolved = styleSequenceFor(undefined,
                 "physical",
-                false,
-                "garen")
+                false)
             assert.deepEqual(resolved.map(cue => cue.travel),
                 ["daggerStab",
                     "assassinSlashes"])
@@ -130,7 +147,7 @@ test("Dispatcher dùng mapping nội tại P và đòn riêng của tướng",
             "physical",
             false,
             "jinx").travel,
-        "bowShot")
+        "basicMinigun")
         assert.equal(styleFor(undefined,
             "physical",
             true,
@@ -142,20 +159,20 @@ test("Lux Q, Yorick R và miễn sát thương Janna R có hình ảnh đúng lo
     () => {
         assert.equal(skillVfx("lux",
             "q").travel,
-        "none")
+        "luxShard")
         assert.equal(skillVfx("lux",
-            "q").impact,
-        "shield")
+            "q").shield,
+        "luxPrism")
         assert.equal(skillVfx("yorick",
             "r").impact,
-        "darkPulse")
+        "yorickMaidenRise")
         assert.notEqual(skillVfx("yorick",
             "r").impact,
         "summonToken")
         assert.equal(skillVfx("janna",
             "r").impact,
-        "invulnerability",
-        "Janna R protects now; actual healing belongs to the end-turn event")
+        "jannaMonsoonHit",
+        "Janna R: Gió Mùa gives Shield and healing in one beat")
     })
 
 test("Mọi phép bổ trợ đều có đủ travel/impact/cast hợp lệ",

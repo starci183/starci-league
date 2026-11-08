@@ -1,6 +1,6 @@
 /* Màn chờ / chọn tướng / kết thúc: Hextech vàng-xanh, cùng tông lobby.css */
 .sc-stage { position: absolute; inset: 0; display: grid; place-items: center; background: radial-gradient(circle at 50% 15%, #1b2a3a 0%, #070b10 72%); overflow: auto; }
-.sc-card { width: min(420px, 92vw); padding: 36px 28px; text-align: center; background: rgba(10,16,24,.94); border: 1px solid #c8a050; border-radius: 10px; box-shadow: 0 0 40px rgba(0,0,0,.6); display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.sc-card { width: min(420px, 1766.4px); padding: 36px 28px; text-align: center; background: rgba(10,16,24,.94); border: 1px solid #c8a050; border-radius: 10px; box-shadow: 0 0 40px rgba(0,0,0,.6); display: flex; flex-direction: column; align-items: center; gap: 10px; }
 .sc-card h2 { margin: 6px 0 0; font-size: 20px; color: #f5d27a; font-weight: 700; }
 .sc-card p { margin: 0 0 12px; color: #9a9aa3; font-size: 13px; }
 .sc-spinner { width: 46px; height: 46px; border-radius: 50%; border: 3px solid #3a3020; border-top-color: #f5d27a; animation: sc-spin 1s linear infinite; }
@@ -58,7 +58,7 @@
 
 .sc-overlay { position: absolute; inset: 0; z-index: 50; display: grid; place-items: center; background: rgba(4,7,11,.78); backdrop-filter: blur(3px); animation: sc-fade .35s ease-out; }
 @keyframes sc-fade { from { opacity: 0; } }
-.sc-end { width: min(440px, 92vw); padding: 34px 30px 28px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 12px; background: rgba(10,16,24,.97); border: 1px solid #c8a050; border-radius: 12px; box-shadow: 0 0 60px rgba(0,0,0,.8); animation: sc-pop .4s cubic-bezier(.2,1.2,.4,1); }
+.sc-end { width: min(440px, 1766.4px); padding: 34px 30px 28px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 12px; background: rgba(10,16,24,.97); border: 1px solid #c8a050; border-radius: 12px; box-shadow: 0 0 60px rgba(0,0,0,.8); animation: sc-pop .4s cubic-bezier(.2,1.2,.4,1); }
 @keyframes sc-pop { from { transform: scale(.85); opacity: 0; } }
 .sc-end h1 { margin: 0; font-size: 44px; letter-spacing: 3px; font-weight: 800; color: #f5d27a; text-shadow: 0 0 24px rgba(245,210,122,.5); }
 .sc-end.lose { border-color: #8a3a34; } .sc-end.lose h1 { color: #ff8a7a; text-shadow: 0 0 24px rgba(240,116,104,.45); }
@@ -68,7 +68,7 @@
 .sc-sum div { display: flex; justify-content: space-between; padding: 6px 12px; background: #0e1520; border: 1px solid #2a3040; border-radius: 6px; font-size: 13px; }
 .sc-sum dt { color: #9a9aa3; } .sc-sum dd { margin: 0; color: #f5d27a; font-weight: 700; font-variant-numeric: tabular-nums; }
 
-@media (max-height: 800px) {
+@container game-canvas (max-height: 800px) {
     .sc-draft { padding: 10px 18px; gap: 8px; }
     .sc-head h1 { font-size: 22px; }
     .sc-grid { grid-template-columns: repeat(auto-fill, minmax(128px, 1fr)); gap: 8px; }
@@ -111,7 +111,7 @@
 .sc-pill.turn.mine.ban { border-color: #e05a4a; color: #ffb0a0; background: #2a1010; }
 .sc-btn.red { background: linear-gradient(#a8382c, #7a2018); border-color: #e05a4a; color: #fff; }
 @keyframes sc-pulse { 50% { box-shadow: 0 0 2px rgba(245,210,122,.1); } }
-@media (max-width: 1200px) { .sc-bp-body { grid-template-columns: 150px 1fr 150px; } .sc-pickslot b { display: none; } }
+@container game-canvas (max-width: 1200px) { .sc-bp-body { grid-template-columns: 150px 1fr 150px; } .sc-pickslot b { display: none; } }
 
 /* ---- Hover brief + trinh sát địch ---- */
 .sc-center { min-height: 0; display: flex; flex-direction: column; gap: 8px; }
@@ -171,4 +171,4 @@
 .bf-skill b s { text-decoration: none; color: #9a9aa3; font-weight: 400; font-size: 10.5px; margin-left: auto; }
 .bf-skill span { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; color: #b8b4a8; font-size: 11px; }
 .bf-rel { margin-top: 8px; padding-top: 6px; border-top: 1px solid #2a3040; }
-@media (max-width: 1200px) { .sc-scout-h small, .sc-col .sc-chiprow em { display: none; } }
+@container game-canvas (max-width: 1200px) { .sc-scout-h small, .sc-col .sc-chiprow em { display: none; } }

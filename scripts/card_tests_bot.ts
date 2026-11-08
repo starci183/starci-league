@@ -164,30 +164,32 @@ test("Thùng úp của đối thủ: bí mật lấy mẫu theo tiên nghiệm, 
         g.summonToken("B",
             {
                 id: "keg", name: "Powder Keg", hp: 1, ownerId: "B:gangplank", soak: false, hidden: true, secret: {
-                    real: 1
-                }, card: g.skillCard("gangplank",
-                    "B",
-                    "Q"), turns: 3
+                    powder: 9
+                }, card: g.supportCard("gold"), turns: 3
             })
         const seen = new Set<number>()
+        const cards = new Set<string>()
         for (let k = 0; k < 24; k++) {
             const v = cg.determinize(s,
                 "A",
                 k)
             const tok = Object.values(v.units).find((u) => u.token?.id === "keg")!
-            seen.add(Number(tok.token!.secret!.real))
-            assert.notEqual(tok.token!.card?.id,
-                "gangplank_q")
+            seen.add(Number(tok.token!.secret!.powder))
+            cards.add(String(tok.token!.card?.id))
         }
-        assert.deepEqual([...seen].sort(),
-            [0,
-                1])
+        // Thuốc Súng thật = 9 không bao giờ lộ; mẫu nằm trong 0..3 (bộ đếm của chủ), lá úp lấy mẫu từ kho lá thường gặp
+        assert.ok(!seen.has(9),
+            "không chép Thuốc Súng thật")
+        assert.ok([...seen].every((x) => x >= 0 && x <= 3) && seen.size > 1,
+            [...seen].join(","))
+        assert.ok(cards.size > 1,
+            [...cards].join(","))
         // phe chủ thùng thì thấy bí mật của mình
         const own = cg.determinize(s,
             "B",
             1)
-        assert.equal(Object.values(own.units).find((u) => u.token?.id === "keg")!.token!.secret!.real,
-            1)
+        assert.equal(Object.values(own.units).find((u) => u.token?.id === "keg")!.token!.secret!.powder,
+            9)
     })
 
 // ======================================================================
@@ -259,12 +261,11 @@ test("Dấu chờ kích nổ (gợi ý HeroDef.bot) có giá trị: Bỏng của
         const base = cg.evaluate(s,
             "A")
         const t = cloneDeep(s)
-        t.units["B:darius"].statuses.burn = {
-            until: t.turnNo + 3, v: 3, src: "A:brand"
-        }
+        // Bỏng mới là bộ đếm đặt trên tướng địch (carrierStacks), giá trị khai ở bot.carrierStackValue
+        t.units["B:darius"].stacks.burn = 3
         assert.ok(cg.evaluate(t,
-            "A") > base + 50)
-        assert.ok(cg.getHero("brand")?.bot?.markValue?.burn)
+            "A") > base + 20)
+        assert.ok(cg.getHero("brand")?.bot?.carrierStackValue?.burn)
     })
 
 // ======================================================================
@@ -319,8 +320,8 @@ test("Combo trong lượt: Brand gắn Bỏng (Q) rồi nhân đôi (R chỉ có
                 "R")
         s.players.A.hand = [r,
             q]
-        // đủ mana cho Q (10) + R (50)
-        s.units["A:brand"].mana = 100
+        // đủ mana bể đội cho Q + R
+        s.teamMana.A = 200
         const plan = cg.planTurn(s,
             "A").map((x) => x.action)
         const iq = plan.findIndex((a) => a.t === "play" && a.uid === q.uid)
@@ -379,7 +380,7 @@ test("Tất định: cùng state cho cùng hành động",
             b)
     })
 
-test("Xác suất đối thủ có lá Quick chỉ tính từ thành phần bài (Braum trên sân > 0; không có tướng Quick = 0)",
+test("Xác suất đối thủ có lá Quick chỉ tính từ thành phần bài (Braum trên sân > 0; Ashe không có chiêu Quick = 0)",
     () => {
         const s = mk({
             darius: 2
@@ -397,7 +398,7 @@ test("Xác suất đối thủ có lá Quick chỉ tính từ thành phần bài
             darius: 2
         },
         {
-            garen: 2
+            ashe: 2
         })
         t.players.B.hand = t.players.B.deck.splice(0,
             4)

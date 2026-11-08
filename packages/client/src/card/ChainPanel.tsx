@@ -9,6 +9,12 @@ import {
     ReserveRoster
 } from "./ui/ReserveRoster"
 import {
+    GameIcon
+} from "./ui/GameIcon"
+import {
+    ScrollArea
+} from "./ui/ScrollArea"
+import {
     cardActions, gameOf, useCard, type CardView, type LogEntry
 } from "./store"
 import {
@@ -132,9 +138,9 @@ function Prompt({ v, g, lang }: { v: CardView; g: cg.Game; lang: Lang }) {
     } as Action : null)
     const hand = me ? v.players[me].hand ?? [] : []
     return (
-        <div className="ch-prompt">
-            <div className="ch-prompt-q">{t.askChain}</div>
-            <div className="ch-prompt-hint">{t.askHint}</div>
+        <div className={`ch-prompt${groups.length ? " can-react" : ""}`}>
+            <div className="ch-prompt-q"><GameIcon name="chain" />{t.askChain}</div>
+            <div className="ch-prompt-hint">{groups.length ? (lang === "en" ? `${groups.length} eligible response${groups.length > 1 ? "s" : ""}` : `${groups.length} lá đủ điều kiện phản ứng`) : t.askHint}</div>
             <div className="ch-cards">
                 {groups.map(([uid,
                     acts]) => {
@@ -172,14 +178,14 @@ function ChainStack({ v, lang }: { v: CardView; lang: Lang }) {
         [v])
     const live = v.chain
     const links = anim ? anim.links : live ? linksOf(live) : []
-    if (!links.length) return <div className="ch-current-empty">{lang === "en" ? "No active chain" : "Chưa có chuỗi"}</div>
+    if (!links.length) return <div className="ch-current-empty"><GameIcon name="chain" /><span>{lang === "en" ? "No active chain" : "Chưa có chuỗi"}</span></div>
     const asking = !anim && v.phase === "chain" && !!live && live.priority === v.you
     const waiting = !anim && v.phase === "chain" && !!live && live.priority !== v.you && v.you !== null
     return (
-        <section className={`ch-chain ${anim ? "resolving" : ""}`}>
+        <ScrollArea className={`ch-chain ${anim ? "resolving" : ""}`} label={lang === "en" ? "Skill chain" : "Chuỗi kỹ năng"}>
             <div className="ch-chain-title">
                 <span>{t.chain}</span>
-                <small>{links.length} {t.links}</small>
+                <small>{links.length}/{cg.RULES.maxChain} · {t.links}</small>
                 {anim ? <em>{t.resolving}</em> : null}
             </div>
             <ol className="ch-stack">
@@ -194,9 +200,10 @@ function ChainStack({ v, lang }: { v: CardView; lang: Lang }) {
                     />
                 ))}
             </ol>
+            <div className="ch-resolve-order" aria-label={lang === "en" ? "Resolution order" : "Thứ tự giải quyết"}><span>{lang === "en" ? "Resolve" : "Giải quyết"}</span>{[...links].reverse().map((link, index) => <span key={link.n} className={anim?.resolving === link.n ? "active" : ""}>{index ? <GameIcon name="arrow" /> : null}<b>{link.n}</b></span>)}</div>
             {asking ? <Prompt v={v} g={g} lang={lang} /> : null}
             {waiting ? <div className="ch-wait"><i className="ch-dot" />{t.oppThinking}</div> : null}
-        </section>
+        </ScrollArea>
     )
 }
 
@@ -214,14 +221,17 @@ function usePrizeToasts(v: CardView | null, lang: Lang): Toast[] {
         if (!tick || !view) return
         const add: Toast[] = []
         for (const e of lastEvents) {
-            if (e.t !== "prize") continue
+            if (e.t !== "prize" && e.t !== "freeCard") continue
             const mine = e.side === view.you
             const t = TXT[lang]
             const nm = isHidden(e.card) ? "" : cardName(gameOf(view),
                 e.card,
                 lang)
+            const text = e.t === "freeCard"
+                ? mine ? `${lang === "en" ? "Reward received:" : "Quà vừa nhận:"} ${nm}`.trim() : lang === "en" ? "Opponent receives a reward" : "Đối thủ nhận quà"
+                : mine ? `${t.prizeYou} ${nm}`.trim() : t.prizeOpp
             add.push({
-                id: ++seq.current, side: e.side, text: mine ? `${t.prizeYou} ${nm}`.trim() : t.prizeOpp,
+                id: ++seq.current, side: e.side, text,
             })
         }
         if (!add.length) return
@@ -383,7 +393,7 @@ function BattleLog({ v, lang }: { v: CardView; lang: Lang }) {
                 <span>{t.log}</span>
                 <button className={`ch-chip ${detail ? "on" : ""}`} onClick={toggle}>{t.detail}</button>
             </div>
-            <div className="ch-log-list" ref={box} onScroll={onScroll} tabIndex={0} aria-label={t.log}
+            <ScrollArea className="ch-log-list" viewportRef={box} onScroll={onScroll} label={t.log}
                 onWheel={() => markIntent()}
                 onPointerDown={() => { pointerActive.current = true; userIntentUntil.current = Number.POSITIVE_INFINITY }}
                 onKeyDown={(e) => { if (["ArrowUp",
@@ -399,7 +409,7 @@ function BattleLog({ v, lang }: { v: CardView; lang: Lang }) {
                             r.side)} k-${r.kind}${r.minor ? " minor" : ""}`}>{r.text}</div>
                     )) : <div className="ch-empty">{t.empty}</div>}
                 </div>
-            </div>
+            </ScrollArea>
             {away ? <button className="ch-latest" onClick={toEnd}>↓ {t.latest}</button> : null}
         </section>
     )
@@ -423,7 +433,7 @@ export function ChainPanel() {
             <ReserveRoster />
             <div className="ch-toasts">
                 {toasts.map((x) => <div key={x.id} className={`ch-toast ${sideCls(view,
-                    x.side)}`}>{x.text}</div>)}
+                    x.side)}`} role="status"><GameIcon name="cards" /><span>{x.text}</span></div>)}
             </div>
         </section>
     )

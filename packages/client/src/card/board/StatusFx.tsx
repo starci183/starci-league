@@ -7,19 +7,13 @@ import {
     cg
 } from "@starci/shared"
 import {
-    cardIcon, cardLabel, elapsedPct, groupBySource, isEn, statusIcon, statusInfo, statusKind, TAG_STATUSES, tr, turnsLeft, type SourceGroup
+    cardIcon, cardLabel, groupBySource, isEn, statusIcon, statusInfo, TAG_STATUSES, tr, turnsLeft
 } from "./helpers"
 
-/** Ảnh thử lần lượt các nguồn (icon lá -> icon nội tại -> icon trạng thái), hết thì hiện chữ */
-function Img(p: { srcs: (string | undefined)[]; fallback: string }) {
-    const [i,
-        setI] = useState(0)
-    const list = p.srcs.filter((x): x is string => !!x)
-    if (i >= list.length) return <span>{p.fallback}</span>
-    return <img src={list[i]} alt="" draggable={false} onError={() => setI(i + 1)} />
-}
+import {
+    EffectIconRow, type EffectIconEntry
+} from "../ui/EffectIconRow"
 
-const MAX_CELLS = 6
 const MAX_TAGS = 2
 
 /** Nhãn chữ ngắn cho các trạng thái chung, đặt cạnh tên tướng */
@@ -48,53 +42,28 @@ const passiveIconOf = (unitId: string): string | undefined => {
 export interface ExtraCell { key: string; icons: string[]; num: string; tip: string; letter: string; cls?: string }
 
 export function StatusRow(p: { u: cg.Unit; turnNo: number; unitOf?(id: string): string | undefined; extra?: ExtraCell[] }) {
-    const { u } = p
     const t = tr()
-    const groups = groupBySource(u.statuses)
-    const extra = p.extra ?? []
-    // luôn giữ chỗ hàng icon (kể cả khi trống) để ảnh tướng không bị đẩy xuống khi có hiệu ứng
-    if (!groups.length && !extra.length) return <div className="bd-srow" />
-    const shown = groups.slice(0,
-        Math.max(0,
-            MAX_CELLS - extra.length))
-    const more = groups.slice(MAX_CELLS)
-    const effName = (g: SourceGroup) => g.ids.map((id) => statusInfo(id).name).join(" + ")
-    return (
-        <div className="bd-srow">
-            {shown.map((g) => {
-                const left = turnsLeft(g.until,
-                    p.turnNo)
-                const from = cardLabel(g.card)
-                const who = g.src ? p.unitOf?.(g.src) : undefined
-                const tip = [`${from ?? (who ? `${who} (${isEn() ? "Passive" : "Nội tại"})` : effName(g))}: ${effName(g)} - ${left} ${t.turnsUnit}`,
-                    from && who ? who : ""].filter(Boolean).join("\n")
-                const kind = g.ids.some((id) => statusKind(id) === "debuff") ? "debuff" : statusKind(g.ids[0])
-                return (
-                    <span key={g.key} className={`bd-sc ${kind} ${g.ids.map((id) => `st-${id}`).join(" ")}`} title={tip}>
-                        <Img srcs={[cardIcon(g.card),
-                            passiveIconOf(g.src ?? u.id),
-                            statusIcon(g.ids[0])]} fallback={effName(g).slice(0,
-                            2)} />
-                        <i className="cd-sweep" style={{
-                            "--p": elapsedPct(g.until,
-                                g.at,
-                                p.turnNo)
-                        } as CSSProperties} />
-                        {g.v > 1 ? <em>{Math.round(g.v)}</em> : null}
-                    </span>
-                )
-            })}
-            {extra.map((c) => (
-                <span key={c.key} className={`bd-sc stack ${c.cls ?? ""}`} title={c.tip}>
-                    <Img srcs={c.icons} fallback={c.letter} />
-                    <em>{c.num}</em>
-                </span>
-            ))}
-            {more.length ? <span className="bd-sc more" title={more.map(effName).join(", ")}>{`+${more.length}`}</span> : null}
-        </div>
-    )
+    const effects: EffectIconEntry[] = groupBySource(p.u.statuses).map((group) => {
+        const name = group.ids.map((id) => statusInfo(id).name).join(" + ")
+        const from = cardLabel(group.card)
+        const who = group.src ? p.unitOf?.(group.src) : undefined
+        const source = from ?? (who ? `${who} (${isEn() ? "Passive" : "Nội tại"})` : name)
+        const duration = `${turnsLeft(group.until,
+            p.turnNo)} ${t.turnsUnit}`
+        return {
+            id: group.key, name,
+            icon: cardIcon(group.card) ?? passiveIconOf(group.src ?? p.u.id) ?? statusIcon(group.ids[0]),
+            count: group.v > 1 ? Math.round(group.v) : undefined,
+            description: `${source} · ${duration}${from && who ? ` · ${who}` : ""}`,
+            details: <>{group.ids.map((id) => <p key={id}><b>{statusInfo(id).name}</b>: {statusInfo(id).desc}</p>)}</>
+        }
+    })
+    effects.push(...(p.extra ?? []).map((cell) => ({
+        id: cell.key, icon: cell.icons[0] ?? statusIcon("shield"),
+        name: cell.tip.split(/[:\n]/)[0], count: cell.num || undefined, description: cell.tip
+    })))
+    return <EffectIconRow className="bd-srow" effects={effects} />
 }
-
 const STARS = [0,
     1,
     2,

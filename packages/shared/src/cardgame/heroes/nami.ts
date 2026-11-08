@@ -1,236 +1,218 @@
-// Nami (Trợ thủ, phép): máu 420 · AD 67 · AP gốc 0 · giáp/kháng 25/29. Bản cân bằng starci-33 (support v7).
-// CHẤT: "Thuỷ triều nuôi bài". Mỗi hành động gốc hữu ích của phe (gây mất Máu/Khiên cho địch hoặc thực hồi Máu cho phe mình) = 1 Nhịp; 3 Nhịp rút 1 lá.
-// Nội tại: đếm 1 lần cho mỗi hành động gốc (lá chiêu/đòn đánh của phe mình), không đếm proc đồ đứng riêng, DoT, hồi thừa, buff,
-//   hay hành động bị địch ép (Renata R). Tối đa 2 lá mỗi chu kỳ (đặt lại ở Draw Phase của Nami); Nhịp dang dở giữ qua lượt.
-// Q: sát thương phép + Choáng phân số (phần lẻ roll 1 lần). E: chi 20 hoặc 30 mana, hồi người chọn + 1 người thiếu máu khác ngẫu nhiên (M = mana thực chi).
-// R: sát thương phép mọi địch → Cường Hoá cả đội 1 đơn vị → hồi 1 tướng mình có tỉ lệ máu thấp nhất.
+// Nami (Trợ thủ, phép): bộ chiêu chốt 31/10 - 01/11/2026 (docs/heroes/KITS.md). Số ở balance/heroes/nami.json.
+// P Dậy Sóng: sát thương phe gây lên tướng địch đổi thành Dậy Sóng (AP cho cả đội, bội số 20 thì rút). Q nảy hồi - đánh, E Khiên + Phước Lành, R choáng + Dễ Tổn Thương.
+import {
+    kit, lockedAlly, when
+} from "../balance"
 import type {
     Game
 } from "../game"
 import {
     defineHero
 } from "../registry"
-import {
-    otherSide, type Unit
+import type {
+    Unit
 } from "../types"
 
-export const RHYTHM = "nami_rhythm"
-/** Số Nhịp đổi 1 lá */
-export const RHYTHM_PER_DRAW = 3
-/** Trần số lá rút từ nội tại mỗi chu kỳ của Nami */
-export const DRAW_CAP = 2
-const K_CYCLE = "tc:nami_cycle"
-const K_DRAWS = "tc:nami_draws"
+const k = kit("nami"), { p } = k
+/** Dậy Sóng (trên Nami): mất một nửa khi Nami chết, giữ khi đang chết nhưng AP tắt */
+export const WAVE = "nami_wave"
+/** Phước Lành (trên tướng mang): không hết hạn, không mất khi tướng mang bị hạ */
+export const BLESS = "nami_bless"
+/** Dễ Tổn Thương: nhận thêm v sát thương (engine đọc trong g.damage) */
+export const VULNERABLE = "vulnerable"
+/** Sát thương phe gây lên tướng địch chưa đủ X (kỹ thuật, không hiện) */
+const ACC = "tc:nami_dmg"
 
-export const F_Q = "60 + 30% AD + 35% AP"
-/** Choáng phân số của Q (đơn vị thời gian), tối đa STUN_CAP */
-export const F_Q_STUN = "0,35 + 0,1% AD + 0,2% AP"
-export const STUN_CAP = 1.5
-/** E: phần hồi gốc; cộng thêm M = mana thực chi cho lá E này (20 hoặc 30) */
-export const F_E = "35 + 30% AD + 55% AP"
-export const E_COSTS = [20,
-    30] as const
-export const F_R = "50 + 25% AD + 40% AP"
-export const F_R_HEAL = "65 + 25% AD + 50% AP"
+const F_HEAL = k.x("q1 + q2·AP"), EN_HEAL = k.xe("q1 + q2·AP")
+const F_DMG = k.x("q3 + q4·AP"), EN_DMG = k.xe("q3 + q4·AP")
+const F_SHIELD = k.x("e1 + e2·AP"), EN_SHIELD = k.xe("e1 + e2·AP")
+const F_BLESS = k.x("e4 + e5·AD + e6·AP"), EN_BLESS = k.xe("e4 + e5·AD + e6·AP")
+const F_R = k.x("r1 + r2·AP"), EN_R = k.xe("r1 + r2·AP")
+const F_STUN = k.x("r3 + r4·AP"), EN_STUN = k.xe("r3 + r4·AP")
+const F_VULN = k.x("r6 + r7·AP"), EN_VULN = k.xe("r6 + r7·AP")
 
-/** Chu kỳ hiện tại của phe (đếm lượt của phe; lượt đối thủ chen giữa vẫn thuộc chu kỳ đó) */
-const cycleOf = (g: Game, u: Unit) => (g.s.ownTurns?.[u.side] ?? 0) + 1
-/** Số lá nội tại đã rút trong chu kỳ này */
-export function namiDrawsThisCycle(g: Game, me: Unit): number {
-    return g.stackOf(me,
-        K_CYCLE) === cycleOf(g,
-        me) ? g.stackOf(me,
-            K_DRAWS) : 0
-}
+/** Phước Lành đã tiêu cho lá nào, và tướng địch nào đã nhận phần thêm (mỗi Game = một lần applyAction) */
+const blessed = new WeakMap<Game, { cards: Set<string>; hit: Set<string> }>()
 
-/** Các hành động gốc đã được tính Nhịp, theo từng đối tượng Game (một lần applyAction) */
-const counted = new WeakMap<Game, Set<string>>()
-
-/**
- * Hành động gốc đang giải quyết (lá chiêu / lá Đánh thường / đòn không cần lá) và tướng làm chủ hành động.
- * Lá hỗ trợ khác, phép bổ trợ, hiệu ứng đầu/cuối lượt (DoT, nội tại đồ) không phải hành động gốc hợp lệ.
- */
-function rootAction(g: Game, d: { src?: Unit; tag: string }): { key: string; actor: Unit } | undefined {
-    const cur = g.cur as { src?: string; card?: string; uid?: string; actionId?: string }
-    const isSkill = !!cur.card && /_[qer]$/.test(cur.card)
-    if (cur.src && (isSkill || cur.card === "basic")) {
-        const actor = g.unit(cur.src)
-        if (!actor) return undefined
-        return {
-            key: cur.actionId ?? cur.uid ?? `${g.s.turnNo}:${g.s.actionsThisTurn}:${cur.card}:${cur.src}`, actor
-        }
-    }
-    // đòn không cần lá của Đấu sĩ: engine không đặt cur, chủ hành động là người ra đòn
-    if (!cur.src && !cur.card && d.tag === "attack" && d.src) return {
-        key: `${g.s.turnNo}:${g.s.actionsThisTurn}:cardless:${d.src.id}`, actor: d.src
-    }
-    return undefined
-}
-
-/** Một kết quả hữu ích của hành động gốc phe Nami: +1 Nhịp (1 lần mỗi hành động), đủ 3 Nhịp rút 1 lá (tối đa 2 lá/chu kỳ) */
-function rhythm(g: Game, me: Unit, d: { src?: Unit; tag: string }) {
-    if (me.status !== "board" || d.tag === "dot") return
-    const root = rootAction(g,
-        d)
-    if (!root || root.actor.side !== me.side) return
-    let done = counted.get(g)
-    if (!done) counted.set(g,
-        done = new Set())
-    const key = `${me.id}|${root.key}`
-    if (done.has(key)) return
-    if (namiDrawsThisCycle(g,
-        me) >= DRAW_CAP) return // đã chạm trần: không nhận thêm Nhịp trong chu kỳ này
-    done.add(key)
-    const r = g.stack(me,
-        RHYTHM,
-        1)
-    if (r < RHYTHM_PER_DRAW) return
-    g.setStack(me,
-        RHYTHM,
-        r - RHYTHM_PER_DRAW)
-    const n = namiDrawsThisCycle(g,
-        me) + 1
-    g.setStack(me,
-        K_CYCLE,
-        cycleOf(g,
-            me))
-    g.setStack(me,
-        K_DRAWS,
+/** Cộng n Dậy Sóng; mỗi lần số tầng vượt một bội của p3 thì rút 1 lá */
+function addWave(g: Game, me: Unit, n: number) {
+    const before = g.stackOf(me,
+        WAVE)
+    const after = g.stack(me,
+        WAVE,
         n)
-    g.log(`Nami: đủ ${RHYTHM_PER_DRAW} Nhịp, rút 1 lá (${n}/${DRAW_CAP} trong chu kỳ)`)
-    g.draw(me.side,
-        1,
+    const draws = Math.floor(after / p.p3) - Math.floor(before / p.p3)
+    if (draws > 0) g.draw(me.side,
+        draws,
         {
             reason: "effect", by: me.id
         })
 }
 
-/** Thời hạn Choáng d kẹp [0, cap]; phần lẻ (xác suất thêm 1 đơn vị) do engine tung 1 lần trong g.status */
-export function stunDuration(d: number, cap = Infinity): number {
-    return Math.max(0,
-        Math.min(cap,
-            d))
-}
-
-const wounded = (u: Unit) => u.status === "board" && !u.token && u.hp < u.maxHp
-
 export default defineHero({
-    id: "nami", name: "Nami", role: "support", damage: "magic", hp: 360, atk: 67, armor: 25, mr: 29,
-    bot: {
-        stackValue: {
-            nami_rhythm: 12,
-        },
-    },
-    desc: "Thuỷ triều nuôi bài: mỗi hành động hữu ích của cả đội là một Nhịp, đủ Nhịp thì rút bài; Q khống chế, E hồi hai người, R đánh cả bàn địch rồi Cường Hoá cả đội.",
+    id: "nami", name: "Nami", role: "support", damage: "magic", ...k.base,
+    deathHalf: [WAVE],
+    // Phước Lành của tướng mang vẫn nổ khi Nami đã chết; phần cộng Dậy Sóng tự kiểm tra Nami còn trên sân
+    offBoardHooks: ["onDamage"],
+    bot: k.bot,
+    desc: "Thuỷ triều nuôi cả đội: sát thương của phe thành Dậy Sóng cộng AP và rút bài; Q nảy hồi máu rồi đánh địch, E che Khiên và nạp Phước Lành, R choáng và làm cả bàn địch dễ tổn thương.",
     passive: {
-        name: "Triều Bài",
-        desc: `Sau khi một hành động gốc của phe Nami (lá chiêu hoặc đòn đánh) gây mất Máu/Khiên cho địch hoặc thực hồi Máu cho phe mình: Nami nhận 1 Nhịp (1 lần mỗi hành động). Khi đủ ${RHYTHM_PER_DRAW} Nhịp: mất ${RHYTHM_PER_DRAW} Nhịp, rồi rút 1 lá. Tối đa ${DRAW_CAP} lá trong mỗi chu kỳ của bạn; khi đã đạt trần, không nhận thêm Nhịp trong chu kỳ đó. Nhịp chưa đủ được giữ qua lượt.`,
+        name: "Dậy Sóng",
+        desc: `Mỗi khi các tướng phe bạn gây tổng cộng ${p.p1} sát thương lên tướng địch, Nami nhận 1 Dậy Sóng, cộng dồn vô hạn. Mỗi Dậy Sóng giúp mọi đồng minh (cả Nami) tăng ${p.p2} AP, và khi số Dậy Sóng đạt bội của ${p.p3}, bạn rút 1 lá. Khi Nami bị hạ, mất một nửa số Dậy Sóng. Khi Nami đang chết, các tầng còn giữ nhưng phần AP tắt.`,
+    },
+    allyBonusStats(g, owner) {
+        return {
+            ap: g.stackOf(owner,
+                WAVE) * p.p2
+        }
     },
     hooks: {
-        onTurnStart(g, me, d) {
-            // Draw Phase của Nami: chỉ đặt lại trần rút (giữ Nhịp dang dở)
-            if (d.side !== me.side) return
-            g.setStack(me,
-                K_DRAWS,
-                0)
-            g.setStack(me,
-                K_CYCLE,
-                cycleOf(g,
-                    me))
-        },
         onDamage(g, me, d) {
-            if (!d.src || d.src.side !== me.side || d.target.side === me.side || d.target.token) return
-            if (d.hpLost + d.absorbed <= 0) return
-            rhythm(g,
-                me,
-                d)
-        },
-        onHeal(g, me, d) {
-            if (d.target.side !== me.side || d.amount <= 0) return
-            rhythm(g,
-                me,
+            // Dậy Sóng: chỉ khi Nami còn trên sân; tính sát thương thật (Khiên + Máu) tướng phe gây lên tướng địch
+            if (me.status === "board" && d.src && !d.src.token && d.src.side === me.side && d.target.side !== me.side && !d.target.token) {
+                const dealt = d.hpLost + d.absorbed
+                if (dealt > 0) {
+                    const acc = g.stackOf(me,
+                        ACC) + dealt
+                    const n = Math.floor(acc / p.p1)
+                    g.setStack(me,
+                        ACC,
+                        acc - n * p.p1)
+                    if (n > 0) addWave(g,
+                        me,
+                        n)
+                }
+            }
+            // Phước Lành: lá chiêu của tướng mang gây sát thương lên địch tiêu 1 Phước Lành; mỗi tướng địch trúng chịu thêm D
+            const src = d.src
+            if (!src || d.tag !== "skill" || src.token || d.target.token || src.side === d.target.side || g.cur.src !== src.id) return
+            let st = blessed.get(g)
+            if (!st) blessed.set(g,
+                st = {
+                    cards: new Set(), hit: new Set()
+                })
+            const card = `${src.id}|${g.cur.uid ?? g.cur.card}`
+            if (!st.cards.has(card)) {
+                if (g.stackOf(src,
+                    BLESS) <= 0) return
+                g.setStack(src,
+                    BLESS,
+                    g.stackOf(src,
+                        BLESS) - 1)
+                st.cards.add(card)
+            }
+            const key = `${card}|${d.target.id}`
+            if (st.hit.has(key)) return
+            st.hit.add(key)
+            g.damage(src,
+                d.target,
+                g.f(src,
+                    F_BLESS),
+                g.hero(src).damage,
                 {
-                    src: d.src, tag: "heal"
+                    tag: "effect"
                 })
         },
     },
     skills: {
         Q: {
-            key: "Q", name: "Thuỷ Ngục", target: "enemy", mana: 10, usesPerCycle: 1,
-            desc: `Chọn 1 tướng địch; gây {${F_Q}} sát thương phép cho nó. Sau đó, gắn Choáng {${F_Q_STUN}} đơn vị, tối đa ${String(STUN_CAP).replace(".",
-                ",")} đơn vị (phần lẻ là xác suất thêm 1 đơn vị).`,
+            key: "Q", name: "Thuỷ Triều", target: "ally", mana: p.q0,
+            desc: `Chỉ định 1 đồng minh; nó hồi {${F_HEAL}} Máu, rồi 1 tướng địch ngẫu nhiên nhận {${F_DMG}} sát thương phép. Sau đó, 1 đồng minh ngẫu nhiên chưa được hồi hồi {${F_HEAL}} Máu, rồi 1 tướng địch ngẫu nhiên chưa bị đánh nhận {${F_DMG}} sát thương phép. Tối đa ${p.q5} lượt nảy; hết mục tiêu thì dừng.`,
             resolve(c) {
-                const t = c.target!
-                c.g.damage(c.self,
-                    t,
-                    c.f(F_Q),
-                    "magic",
-                    {
-                        tag: "skill"
-                    })
-                if (t.status !== "board") return
-                const d = stunDuration(c.f(F_Q_STUN),
-                    STUN_CAP)
-                if (d > 0) c.g.status(t,
-                    "stun",
-                    d,
-                    {
-                        of: otherSide(c.side)
-                    })
+                const g = c.g, me = c.self
+                const heal = c.f(F_HEAL), dmg = c.f(F_DMG)
+                const healed = new Set<string>(), hit = new Set<string>()
+                let prev = me.id
+                let ally: Unit | undefined = c.target
+                for (let hop = 0; hop < p.q5 && ally && ally.status === "board"; hop++) {
+                    g.heal(me,
+                        ally,
+                        heal,
+                        {
+                            via: prev
+                        })
+                    healed.add(ally.id)
+                    prev = ally.id
+                    const foe = g.pick(g.targetableEnemies(me).filter((x) => !x.token && !hit.has(x.id)))
+                    if (!foe) break
+                    g.damage(me,
+                        foe,
+                        dmg,
+                        "magic",
+                        {
+                            tag: "skill", via: prev
+                        })
+                    hit.add(foe.id)
+                    prev = foe.id
+                    ally = g.pick(g.heroes(me.side).filter((x) => !healed.has(x.id)))
+                }
             },
         },
         E: {
-            key: "E", name: "Nước Hồi Sinh", target: "ally", usesPerCycle: 1,
-            // chi đúng 20 hoặc 30 (args.manaSpent); mặc định 20
-            mana: (c) => (c.args?.manaSpent === 30 ? 30 : 20),
-            desc: `Chi ${E_COSTS[0]} hoặc ${E_COSTS[1]} mana từ bể đội và chọn 1 tướng mình đang thiếu Máu; hồi {${F_E}} + M Máu cho nó (M = số mana thực chi cho lá này). Sau đó, hồi cùng lượng gốc cho 1 tướng mình khác đang thiếu Máu được chọn ngẫu nhiên. Không có người thứ hai hợp lệ thì chỉ hồi người đầu.`,
-            options(c) {
-                const pool = c.g.manaOf(c.self)
-                return c.g.allies(c.self).filter(wounded).flatMap((u) => E_COSTS.filter((m) => pool >= m).map((m) => ({
-                    target: u.id, manaSpent: m
-                })))
-            },
+            key: "E", name: "Phước Lành Thuỷ Triều", target: "ally", mana: p.e0, quick: true,
+            quickWhen: when.targetsAlly,
+            options: (c) => lockedAlly(c),
+            desc: `Quick. Khi địch nhắm đúng 1 tướng mình, bạn có thể dùng lá này; mục tiêu là tướng đó (dùng chủ động thì chọn 1 tướng mình). Nó nhận {${F_SHIELD}} Khiên và ${p.e3} Phước Lành, cộng dồn vô hạn. Phước Lành: mỗi khi lá chiêu của tướng mang gây sát thương lên địch, tiêu 1 Phước Lành; mỗi tướng địch trúng chịu thêm {${F_BLESS}} sát thương theo AD/AP của tướng mang. Không hết hạn, không mất khi tướng mang bị hạ.`,
             resolve(c) {
                 const t = c.target!
-                const m = c.manaPaid === 30 ? 30 : c.manaPaid >= 20 ? 20 : c.manaPaid
-                const amount = c.f(F_E) + m
-                c.g.heal(c.self,
+                c.g.shield(c.self,
                     t,
-                    amount)
-                const second = c.g.pick(c.g.allies(c.self).filter((u) => u.id !== t.id && wounded(u)))
-                if (second) c.g.heal(c.self,
-                    second,
-                    amount)
+                    c.f(F_SHIELD))
+                c.g.stack(t,
+                    BLESS,
+                    p.e3)
             },
         },
         R: {
-            key: "R", name: "Sóng Thần", target: "all_enemies", mana: 25, usesPerCycle: 1,
-            desc: `Gây {${F_R}} sát thương phép lên mọi tướng địch trên sân. Sau đó, mọi tướng mình trên sân nhận Cường Hoá trong 1 đơn vị. Cuối cùng, hồi {${F_R_HEAL}} Máu cho 1 tướng mình có tỉ lệ Máu thấp nhất.`,
+            key: "R", name: "Sóng Thần", target: "all_enemies", mana: p.r0,
+            desc: `Mọi tướng địch nhận {${F_R}} sát thương phép. Sau đó, mỗi tướng địch bị Choáng {${F_STUN}} đơn vị và nhận Dễ Tổn Thương trong ${p.r5} đơn vị. Dễ Tổn Thương: nhận thêm {${F_VULN}}% sát thương.`,
             resolve(c) {
-                const g = c.g
+                const g = c.g, me = c.self
+                const foes = g.enemies(me).filter((x) => !x.token)
                 const dmg = c.f(F_R)
-                for (const t of g.heroes(otherSide(c.side))) g.damage(c.self,
+                for (const t of foes) g.damage(me,
                     t,
                     dmg,
                     "magic",
                     {
                         tag: "skill"
                     })
-                const foe = otherSide(c.side)
-                for (const a of g.heroes(c.side)) g.status(a,
-                    "empower",
-                    1,
-                    {
-                        until: g.turnsUntil(foe,
-                            1)
-                    })
-                const mates = g.heroes(c.side)
-                if (!mates.length) return
-                const low = Math.min(...mates.map((u) => u.hp / u.maxHp))
-                const pick = g.pick(mates.filter((u) => u.hp / u.maxHp - low < 1e-9))
-                if (pick) g.heal(c.self,
-                    pick,
-                    c.f(F_R_HEAL))
+                const stun = c.f(F_STUN), vul = c.f(F_VULN) / 100
+                for (const t of foes) {
+                    if (t.status !== "board") continue
+                    g.timed(me,
+                        t,
+                        "stun",
+                        stun)
+                    g.timed(me,
+                        t,
+                        VULNERABLE,
+                        p.r5,
+                        {
+                            v: vul
+                        })
+                }
+            },
+        },
+    },
+    en: {
+        desc: "Tide that feeds the whole team: team damage becomes Surging Tide (AP and cards); Q bounces heals and hits, E shields and loads Blessings, R stuns and exposes the whole enemy board.",
+        passive: {
+            name: "Surging Tides",
+            desc: `Each time your champions deal a total of ${p.p1} damage to enemy champions, Nami gains 1 Surging Tide, stacking without limit. Each Surging Tide gives every ally (Nami too) ${p.p2} AP, and when the count reaches a multiple of ${p.p3} you draw 1 card. When Nami is taken down she loses half her Surging Tides. While she is dead the stacks are kept but the AP is off.`,
+        },
+        skills: {
+            Q: {
+                name: "Ebb and Flow",
+                desc: `Choose 1 ally; it heals {${EN_HEAL}} HP, then 1 random enemy champion takes {${EN_DMG}} magic damage. Then 1 random ally not yet healed heals {${EN_HEAL}} HP, then 1 random enemy champion not yet hit takes {${EN_DMG}} magic damage. Up to ${p.q5} bounces; stop when targets run out.`,
+            },
+            E: {
+                name: "Tidecaller's Blessing",
+                desc: `Quick. When an enemy targets exactly 1 of your champions, you may play this card; the target is that champion (played proactively, choose 1 of your champions). It gains {${EN_SHIELD}} Shield and ${p.e3} Blessings, stacking without limit. Blessing: whenever the bearer's skill card damages an enemy, spend 1 Blessing; each enemy champion hit takes an extra {${EN_BLESS}} damage based on the bearer's AD/AP. Never expires, kept when the bearer is taken down.`,
+            },
+            R: {
+                name: "Tidal Wave",
+                desc: `Every enemy champion takes {${EN_R}} magic damage. Then each enemy champion is Stunned for {${EN_STUN}} units and gains Vulnerable for ${p.r5} unit. Vulnerable: takes {${EN_VULN}}% more damage.`,
             },
         },
     },

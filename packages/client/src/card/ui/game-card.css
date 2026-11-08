@@ -1,0 +1,27 @@
+/* The printed face is the approved chain card, uniformly scaled at every destination. */
+.game-card.cv { position:relative; display:block; width:100%; height:auto; aspect-ratio:190/250; box-sizing:border-box; padding:0; border:0; border-image:none; border-radius:0; background:none; box-shadow:none; isolation:isolate; container-type:inline-size; }
+.game-card.cv::before,.game-card.cv::after { content:none; }
+.game-card.cv > .game-card-frame { position:absolute; inset:0; width:100%; height:100%; }
+.game-card .game-card-surface { background:#041b14 !important; }
+.game-card .game-card-surface :is(.af-art,.haf-art) { object-fit:cover; object-position:center; }
+.game-card .game-card-shade { position:absolute; inset:0; background:linear-gradient(#041b1455,transparent 32%,#03160fd9 65%,#03160ff7); pointer-events:none; }
+.game-card :is(.af-safe-content,.haf-safe).game-card-content { display:flex; flex-direction:column; justify-content:space-between; align-items:center; gap:0; text-align:center; padding:0; box-sizing:border-box; color:#fff0c4; }
+.game-card .game-card-actor { align-self:center; width:100%; max-width:100%; color:var(--cm-team,#d2c695); font:700 8.95cqw/1.2 var(--font-game-title); text-shadow:0 2px 3px #000; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.game-card .game-card-top-spacer { flex:1; }
+.game-card .game-card-copy { display:flex; flex:none; width:100%; flex-direction:column; gap:2.64cqw; color:#fff0c4; text-shadow:0 2px 3px #000; }
+.game-card b.game-card-name { display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:4; overflow:hidden; margin:0; padding:0; width:100%; font:700 10.53cqw/1.05 var(--font-game-title); color:#fff0c4; text-align:center; text-transform:none; letter-spacing:0; overflow-wrap:normal; }
+.game-card .game-card-detail { display:flex; flex-direction:column; gap:2.64cqw; font:400 7.37cqw/1.15 var(--font-game-text); color:#e0ce9c; }
+.game-card .game-card-detail > strong { font:700 7.89cqw/1.1 var(--font-game-text); color:#d5e8ce; }
+.game-card .game-card-fallback { position:absolute; inset:15% 8% 35%; display:grid; place-items:center; color:#c4bf8a; font:700 40cqw/1 var(--font-game-title); background:radial-gradient(ellipse,#194b37,#041b14); }
+/* Hand state and cost markers stay outside the printed face. */
+.forest-game.cg-root .hd-face > .game-card.cv { width:100%; height:auto; aspect-ratio:190/250; }
+.forest-game.cg-root .hd-face .hd-qtag { top:7px; left:auto; right:8px; max-width:70%; padding:2px 5px; font:700 10px/1 var(--font-game-text); background:#0b4538ec; border:1px solid #d1b35d; color:#e0f9d6; border-radius:3px; }
+.forest-game.cg-root .hd-face .hd-gem { top:7px; left:8px; width:25px; height:25px; font-size:13px; }
+.forest-game.cg-root .hd-face .hd-dead.rsv { top:38%; bottom:auto; padding:4px 2px; color:#e9dfb4; background:#05281fdf; border-block:1px solid #9d8c4f88; font-size:12px; }
+.forest-game.cg-root .hd-face.temp > .game-card.cv { outline:1px dashed #bfa66a; outline-offset:2px; border-radius:0; }
+
+.game-card .game-card-detail > small { font:inherit; }
+.forest-game.cg-root .hd-face.dead { filter:none; }
+.forest-game.cg-root .hd-face.dead .game-card-image { filter:grayscale(1) brightness(.6); }
+.forest-game.cg-root .hd-face.nomana { filter:brightness(.9) saturate(.85); }
+.game-card .game-card-status { align-self:center; max-width:100%; padding:1px 5px; color:#d2d4b7; background:#092c21bb; border:1px solid #94845366; border-radius:2px; font:600 7.37cqw/1.1 var(--font-game-text); }

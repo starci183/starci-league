@@ -36,3 +36,9 @@ body.vfx-example-page { background: #08160f; color: #e4e5ce; font-family: Nunito
 .example-chapters select { min-width: 0; flex: 1; max-width: 100%; padding: 7px; }
 .example-error { position: fixed; z-index: 95; bottom: 12px; left: 50%; transform: translateX(-50%); max-width: calc(100vw - 24px); padding: 10px 14px; border-radius: 5px; background: #632d2d; color: #ffe2d2; }
 @media (max-width: 520px) { .example-chapters label { flex-basis: 100%; } }
+
+.example-showcase { position: fixed; right: 16px; bottom: 16px; z-index: 60; padding: 10px 16px; border: 1px solid #c8b271; border-radius: 8px; background: #17465f; color: #e8fbff; font-weight: 800; cursor: pointer; }
+.example-showcase:disabled { opacity: .45; cursor: default; }
+.example-beat { position: fixed; top: 16px; left: 50%; transform: translateX(-50%); z-index: 60; padding: 8px 18px; border-radius: 8px; background: rgba(6, 30, 44, .82); color: #d8fbff; font-size: 20px; font-weight: 800; pointer-events: none; }
+/* Demo Lissandra diễn trên tay đối thủ ở mép trên nên chú thích xuống dưới */
+[data-example="lissandra-kit"] .example-beat { top: auto; bottom: 74px; }

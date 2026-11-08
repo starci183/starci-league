@@ -1,0 +1,201 @@
+{
+  "source": "Riot Data Dragon default champion tiles",
+  "metadataVersion": "16.21.1",
+  "assets": [
+    {
+      "id": "aatrox",
+      "url": "https://ddragon.leagueoflegends.com/cdn/img/champion/tiles/Aatrox_0.jpg",
+      "bytes": 48472
+    },
+    {
+      "id": "ahri",
+      "url": "https://ddragon.leagueoflegends.com/cdn/img/champion/tiles/Ahri_0.jpg",
+      "bytes": 47651
+    },
+    {
+      "id": "annie",
+      "url": "https://ddragon.leagueoflegends.com/cdn/img/champion/tiles/Annie_0.jpg",
+      "bytes": 41241
+    },
+    {
+      "id": "ashe",
+      "url": "https://ddragon.leagueoflegends.com/cdn/img/champion/tiles/Ashe_0.jpg",
+      "bytes": 41002
+    },
+    {
+      "id": "azir",
+      "url": "https://ddragon.leagueoflegends.com/cdn/img/champion/tiles/Azir_0.jpg",
+      "bytes": 41038
+    },
+    {
+      "id": "blitzcrank",
+      "url": "https://ddragon.leagueoflegends.com/cdn/img/champion/tiles/Blitzcrank_0.jpg",
+      "bytes": 48250
+    },
+    {
+      "id": "brand",
+      "url": "https://ddragon.leagueoflegends.com/cdn/img/champion/tiles/Brand_0.jpg",
+      "bytes": 50185
+    },
+    {
+      "id": "braum",
+      "url": "https://ddragon.leagueoflegends.com/cdn/img/champion/tiles/Braum_0.jpg",
+      "bytes": 27646
+    },
+    {
+      "id": "darius",
+      "url": "https://ddragon.leagueoflegends.com/cdn/img/champion/tiles/Darius_0.jpg",
+      "bytes": 42411
+    },
+    {
+      "id": "gangplank",
+      "url": "https://ddragon.leagueoflegends.com/cdn/img/champion/tiles/Gangplank_0.jpg",
+      "bytes": 53418
+    },
+    {
+      "id": "garen",
+      "url": "https://ddragon.leagueoflegends.com/cdn/img/champion/tiles/Garen_0.jpg",
+      "bytes": 48096
+    },
+    {
+      "id": "janna",
+      "url": "https://ddragon.leagueoflegends.com/cdn/img/champion/tiles/Janna_0.jpg",
+      "bytes": 34610
+    },
+    {
+      "id": "jayce",
+      "url": "https://ddragon.leagueoflegends.com/cdn/img/champion/tiles/Jayce_0.jpg",
+      "bytes": 31565
+    },
+    {
+      "id": "jinx",
+      "url": "https://ddragon.leagueoflegends.com/cdn/img/champion/tiles/Jinx_0.jpg",
+      "bytes": 41029
+    },
+    {
+      "id": "katarina",
+      "url": "https://ddragon.leagueoflegends.com/cdn/img/champion/tiles/Katarina_0.jpg",
+      "bytes": 54777
+    },
+    {
+      "id": "khazix",
+      "url": "https://ddragon.leagueoflegends.com/cdn/img/champion/tiles/Khazix_0.jpg",
+      "bytes": 34443
+    },
+    {
+      "id": "kogmaw",
+      "url": "https://ddragon.leagueoflegends.com/cdn/img/champion/tiles/KogMaw_0.jpg",
+      "bytes": 38036
+    },
+    {
+      "id": "leona",
+      "url": "https://ddragon.leagueoflegends.com/cdn/img/champion/tiles/Leona_0.jpg",
+      "bytes": 46386
+    },
+    {
+      "id": "lissandra",
+      "url": "https://ddragon.leagueoflegends.com/cdn/img/champion/tiles/Lissandra_0.jpg",
+      "bytes": 34372
+    },
+    {
+      "id": "lux",
+      "url": "https://ddragon.leagueoflegends.com/cdn/img/champion/tiles/Lux_0.jpg",
+      "bytes": 50220
+    },
+    {
+      "id": "malphite",
+      "url": "https://ddragon.leagueoflegends.com/cdn/img/champion/tiles/Malphite_0.jpg",
+      "bytes": 33274
+    },
+    {
+      "id": "mel",
+      "url": "https://ddragon.leagueoflegends.com/cdn/img/champion/tiles/Mel_0.jpg",
+      "bytes": 38102
+    },
+    {
+      "id": "missfortune",
+      "url": "https://ddragon.leagueoflegends.com/cdn/img/champion/tiles/MissFortune_0.jpg",
+      "bytes": 48384
+    },
+    {
+      "id": "nami",
+      "url": "https://ddragon.leagueoflegends.com/cdn/img/champion/tiles/Nami_0.jpg",
+      "bytes": 41703
+    },
+    {
+      "id": "ornn",
+      "url": "https://ddragon.leagueoflegends.com/cdn/img/champion/tiles/Ornn_0.jpg",
+      "bytes": 36398
+    },
+    {
+      "id": "qiyana",
+      "url": "https://ddragon.leagueoflegends.com/cdn/img/champion/tiles/Qiyana_0.jpg",
+      "bytes": 46606
+    },
+    {
+      "id": "renata",
+      "url": "https://ddragon.leagueoflegends.com/cdn/img/champion/tiles/Renata_0.jpg",
+      "bytes": 43009
+    },
+    {
+      "id": "rumble",
+      "url": "https://ddragon.leagueoflegends.com/cdn/img/champion/tiles/Rumble_0.jpg",
+      "bytes": 45563
+    },
+    {
+      "id": "sona",
+      "url": "https://ddragon.leagueoflegends.com/cdn/img/champion/tiles/Sona_0.jpg",
+      "bytes": 35873
+    },
+    {
+      "id": "soraka",
+      "url": "https://ddragon.leagueoflegends.com/cdn/img/champion/tiles/Soraka_0.jpg",
+      "bytes": 44730
+    },
+    {
+      "id": "sylas",
+      "url": "https://ddragon.leagueoflegends.com/cdn/img/champion/tiles/Sylas_0.jpg",
+      "bytes": 38914
+    },
+    {
+      "id": "teemo",
+      "url": "https://ddragon.leagueoflegends.com/cdn/img/champion/tiles/Teemo_0.jpg",
+      "bytes": 39974
+    },
+    {
+      "id": "tristana",
+      "url": "https://ddragon.leagueoflegends.com/cdn/img/champion/tiles/Tristana_0.jpg",
+      "bytes": 36642
+    },
+    {
+      "id": "twistedfate",
+      "url": "https://ddragon.leagueoflegends.com/cdn/img/champion/tiles/TwistedFate_0.jpg",
+      "bytes": 39586
+    },
+    {
+      "id": "vayne",
+      "url": "https://ddragon.leagueoflegends.com/cdn/img/champion/tiles/Vayne_0.jpg",
+      "bytes": 54706
+    },
+    {
+      "id": "velkoz",
+      "url": "https://ddragon.leagueoflegends.com/cdn/img/champion/tiles/Velkoz_0.jpg",
+      "bytes": 46743
+    },
+    {
+      "id": "viktor",
+      "url": "https://ddragon.leagueoflegends.com/cdn/img/champion/tiles/Viktor_0.jpg",
+      "bytes": 36247
+    },
+    {
+      "id": "yorick",
+      "url": "https://ddragon.leagueoflegends.com/cdn/img/champion/tiles/Yorick_0.jpg",
+      "bytes": 30606
+    },
+    {
+      "id": "zed",
+      "url": "https://ddragon.leagueoflegends.com/cdn/img/champion/tiles/Zed_0.jpg",
+      "bytes": 44167
+    }
+  ]
+}

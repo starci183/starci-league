@@ -1,6 +1,6 @@
 :root {
     --font-game-title: "Alegreya", Georgia, serif;
-    --font-game-text: "Alegreya Sans", "Segoe UI", sans-serif;
+    --font-game-text: "Alegreya", Georgia, serif;
 }
 
 #lobby, .cg-host, body.vfx-example-page, body.vfx-page,

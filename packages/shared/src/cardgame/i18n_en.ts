@@ -4,6 +4,7 @@
 // lá đặc biệt, vai, trạng thái, nhật ký) tra qua các bảng *_EN bên dưới hoặc hàm cardInfoL / eventText.
 // Công thức {…} giữ nguyên ý nghĩa; chỉ đổi tên chỉ số sang token tiếng Anh mà formula.ts đọc được
 // (max HP, bonus HP, Armor, MR) — hàm checkTranslations() kiểm tra EN và VI có cùng công thức.
+import "./heroes"
 import {
     formulaText
 } from "./formula"
@@ -26,7 +27,7 @@ import {
     LOL_EN
 } from "../i18n/lol_en"
 import {
-    cardInfo, itemStatText
+    cardInfo, itemStatText, specialSuffix
 } from "./engine"
 import {
     HERO_EN_V2_G1, SPECIAL_V2_G1, STACK_V2_G1, STATUS_V2_G1
@@ -46,6 +47,24 @@ import {
 import {
     HERO_EN_V3_NEW, SPECIAL_V3_NEW, STACK_V3_NEW, STATUS_V3_NEW
 } from "./i18n/v3_new"
+import {
+    STACK_KITS_TANK, STATUS_KITS_TANK
+} from "./i18n/kits_tank"
+import {
+    STACK_KITS_ASSASSIN, STATUS_KITS_ASSASSIN
+} from "./i18n/kits_assassin"
+import {
+    STACK_KITS_MARKSMAN, STATUS_KITS_MARKSMAN
+} from "./i18n/kits_marksman"
+import {
+    STACK_KITS_SUPMAGE, STATUS_KITS_SUPMAGE
+} from "./i18n/kits_supmage"
+import {
+    STACK_KITS_FIGHTER, STATUS_KITS_FIGHTER
+} from "./i18n/kits_fighter"
+import {
+    SPECIAL_KITS_MAGE, STACK_KITS_MAGE, STATUS_KITS_MAGE
+} from "./i18n/kits_mage"
 
 export type CardLang = "vi" | "en";
 let current: CardLang = "vi"
@@ -64,6 +83,12 @@ export const STATUS_V2: Record<string, BiText> = {
     ...STATUS_V2_G4V,
     ...STATUS_V2_G5V,
     ...STATUS_V3_NEW,
+    ...STATUS_KITS_TANK,
+    ...STATUS_KITS_ASSASSIN,
+    ...STATUS_KITS_MARKSMAN,
+    ...STATUS_KITS_SUPMAGE,
+    ...STATUS_KITS_FIGHTER,
+    ...STATUS_KITS_MAGE,
 }
 /** Bộ đếm V2 hiện trên tướng (khoá = stack key) */
 export const STACK_V2: Record<string, BiText> = {
@@ -73,6 +98,12 @@ export const STACK_V2: Record<string, BiText> = {
     ...STACK_V2_G4V,
     ...STACK_V2_G5V,
     ...STACK_V3_NEW,
+    ...STACK_KITS_TANK,
+    ...STACK_KITS_ASSASSIN,
+    ...STACK_KITS_MARKSMAN,
+    ...STACK_KITS_SUPMAGE,
+    ...STACK_KITS_FIGHTER,
+    ...STACK_KITS_MAGE,
 }
 /** Lá đặc biệt V2 do chiêu/nội tại tạo ra (khoá = id lá) */
 export const SPECIAL_V2: Record<string, BiText> = {
@@ -154,6 +185,7 @@ export const WILD_EN: Record<"Q" | "E" | "R", { name: string; desc: string }> = 
 export const SPECIAL_EN: Record<string, { name: string; desc: string }> = {
     ...enOf(SPECIAL_V2),
     ...SPECIAL_V3_NEW,
+    ...SPECIAL_KITS_MAGE,
     pick_card: {
         name: "Pick a card", desc: "Take this card from the graveyard to your hand; the other pick cards vanish. Temporary: disappears at the end of the turn if unused."
     },
@@ -262,7 +294,6 @@ export const RULES_EN: string[] = [
     "Summon phase (start of every round): both players pick their summons face-down at the same time, then they are revealed together. One new lane opens each round (lane 3, then 2, 4, 1, 5); each side summons at most 1 champion per phase.",
     "Each turn you draw 1 card (your first turn draws none); every turn you also get a free Basic Attack card and every 3rd turn a free item component. Hand limit is 10: extra cards are burned into the graveyard. If you must draw and your deck is empty, you lose immediately.",
     "Two ways to win: take down 7 enemy champions (each side has 7 lives), or make the opponent run out of cards.",
-    "Attack limit: at most 3 attacks per player per turn, counting Strike cards and Fighter cardless attacks. Attacks made inside skills do not count.",
     "Fighters may attack without a card once per turn (a Quick action, usable in the opponent's turn to respond to a chain) for 50% damage.",
     "Support champions fetch their Q and E from the deck into your hand when first summoned. Mages pay mana (x10 scale, +10 per turn) to play skill cards.",
     "Skill cards go to the graveyard after use. Support cards are gone after use.",
@@ -292,6 +323,8 @@ export const HERO_EN: Record<string, HeroTextEn> = {
     ...HERO_EN_V2_G5V,
     ...HERO_EN_V3_NEW,
 }
+// Tướng dùng JSON cân bằng tự mang chữ EN (HeroDef.en), dựng từ cùng số liệu
+for (const h of allHeroes()) if (h.en) HERO_EN[h.id] = h.en
 /** Tên các stack hiện trên tướng (UI) */
 export const STACK_EN: Record<string, string> = Object.fromEntries(Object.entries(STACK_V2).map(([k,
     v]) => [k,
@@ -372,6 +405,8 @@ const TOKEN_EN_TO_VI: [RegExp, string][] = [[/target max HP/gi,
     "máu tối đa mục tiêu"],
 [/target missing HP/gi,
     "máu đã mất mục tiêu"],
+[/missing HP/gi,
+    "máu đã mất"],
 [/max HP/gi,
     "máu tối đa"],
 [/\bper point of\b/g,
@@ -383,7 +418,9 @@ const TOKEN_EN_TO_VI: [RegExp, string][] = [[/target max HP/gi,
 [/\bArmor\b/g,
     "Giáp"],
 [/\bMR\b/g,
-    "Kháng phép"]]
+    "Kháng phép"],
+[/attack speed/gi,
+    "Tốc Đánh"]]
 const normFormula = (f: string) => TOKEN_EN_TO_VI.reduce((s, [re,
     to]) => s.replace(re,
     to),
@@ -449,7 +486,11 @@ export function cardInfoL(g: Game, card: Card, unit?: Unit): { name: string; des
             unit) : "", type: "support"
     } }
     if (card.kind === "special" && !card.copyOf) { const t = SPECIAL_EN[card.id]; const sp = getSpecialCard(card.id); return {
-        name: t?.name ?? sp?.name ?? card.id, desc: formulaText(t?.desc ?? sp?.desc ?? "",
+        name: `${t?.name ?? sp?.name ?? card.id}${specialSuffix(g,
+            card,
+            "en") ? `: ${specialSuffix(g,
+                card,
+                "en")}` : ""}`, desc: formulaText(t?.desc ?? sp?.desc ?? "",
             g,
             unit), type: "special"
     } }
@@ -464,7 +505,8 @@ export function cardInfoL(g: Game, card: Card, unit?: Unit): { name: string; des
     }
     const base = cardInfo(g,
         card,
-        unit) // tên tướng/chiêu và mô tả đã được applyCardLocale đổi sang EN
+        unit,
+        "en") // tên tướng/chiêu và mô tả đã được applyCardLocale đổi sang EN
     if (card.copyOf) return {
         ...base, name: `${SPECIAL_EN[card.id]?.name ?? "Shadow"}: ${base.name}`, type: "special"
     }
@@ -509,7 +551,7 @@ export function eventText(e: GameEvent, g?: Game): string | undefined {
     case "tempExpired": return `${cname(e.card)} (temporary) fades away from ${side(e.side)}'s hand.`
     case "manaChange": return `${uname(e.unit)} ${e.delta >= 0 ? "gains" : "spends"} ${Math.abs(e.delta)} mana (${e.mana}/${e.max}).`
     case "teamManaChange": return `${side(e.side)} ${e.delta >= 0 ? "gains" : "spends"} ${Math.abs(e.delta)} shared mana (${e.mana}/${e.max}).`
-    case "attackCount": return `${side(e.side)} has made ${e.used}/${e.limit} attacks this turn.`
+    case "attackCount": return `${side(e.side)} has made ${e.used} attacks this turn.`
     case "unequip": return `${uname(e.unit)} unequips ${itemText(e.item,
         "en")?.name ?? e.item} (the card returns to ${side(e.side)}'s hand).`
     case "freeCard": return `${side(e.side)} receives a free ${e.kind === "basic" ? "Basic Attack card" : e.kind === "gold" ? "Gold card" : e.kind === "skill" ? "skill card" : "item component"}.`

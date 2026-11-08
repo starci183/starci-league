@@ -1,0 +1,17 @@
+# PostgreSQL cho StarCi League (thay Supabase). Chạy: docker compose up -d db
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: starci-league-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: starci_league
+      POSTGRES_USER: starci
+      POSTGRES_PASSWORD: starci_local
+    ports:
+      - "127.0.0.1:55432:5432"
+    volumes:
+      - starci-league-db:/var/lib/postgresql/data
+
+volumes:
+  starci-league-db:

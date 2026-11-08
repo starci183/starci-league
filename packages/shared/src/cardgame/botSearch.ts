@@ -7,7 +7,7 @@ import {
     chooseActionGreedy
 } from "./botGreedy"
 import {
-    evaluate, summonLaneFit, summonValue
+    evaluate, fateBury, summonLaneFit, summonValue
 } from "./botEval"
 import {
     determinize, fingerprint, seesHand
@@ -18,6 +18,9 @@ import {
 import {
     Game
 } from "./game"
+import {
+    getHero
+} from "./registry"
 import {
     otherSide,
     type Action, type Card, type GameState, type Side
@@ -155,6 +158,10 @@ class Sim {
             {
                 t: "draw", side: this.side
             })
+        if (s.phase === "main" && s.active === this.side && s.step === "standby") s = this.apply(s,
+            {
+                t: "step", side: this.side
+            })
         if (s.phase === "main" && s.active === this.side) s = this.apply(s,
             {
                 t: "end", side: this.side
@@ -222,7 +229,7 @@ export function planTurn(real: GameState, side: Side, cfg: SearchConfig = HARD_S
     sim.respondProb = quickResponseProb(real,
         side)
     const finishAction = (s: GameState): Action => ({
-        t: s.phase === "summon" ? "draw" : "end", side
+        t: s.phase === "summon" ? "draw" : s.step === "standby" ? "step" : "end", side
     })
     const leaves: { n: Node; v: number; end?: GameState }[] = []
     const leafValue = (n: Node): number => {
@@ -448,7 +455,10 @@ function blindDecision(real: GameState, side: Side): Action {
         const v = sum / views.length + summonLaneFit(real,
             side,
             hero,
-            a.lane)
+            a.lane) + (a.mode ? getHero(hero)?.bot?.modeValue?.(new Game(real),
+            side,
+            a.lane,
+            a.mode) ?? 0 : 0)
         if (v > bestVal) { bestVal = v; best = a }
     }
     return best
@@ -463,6 +473,12 @@ export function chooseActionSearch(real: GameState, side: Side, cfg: SearchConfi
     const key = `${real.seed}:${side}`
     const legal = legalActions(real,
         side)
+    if (real.phase === "main") {
+        const bury = fateBury(real,
+            side,
+            legal)
+        if (bury) return bury
+    }
     const plan = plans.get(key)
     if (plan && plan.turnNo === real.turnNo) {
         const fp = fingerprint(real,

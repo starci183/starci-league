@@ -12,6 +12,9 @@ import {
 import {
     Player, authenticate
 } from "./auth"
+import {
+    db
+} from "./db"
 
 type Side = cg.Side;
 type BotLevel = "easy" | "hard";
@@ -155,6 +158,9 @@ export class CardRoom extends Room<CardRoomState> {
     maxClients = 2
     private gs: cg.GameState | null = null
     private sides = new Map<string, Side>() // sessionId -> phe (người chơi)
+    private ranked = false
+    private userIds: Partial<Record<Side, string>> = {
+    }
     private names: Record<Side, string> = {
         A: "", B: ""
     }
@@ -162,6 +168,8 @@ export class CardRoom extends Room<CardRoomState> {
     }
     private picks: Partial<Record<Side, string[]>> = {
     }
+    private rig: string[] = []
+    private stage?: cg.Stage
     private preset: Partial<Record<Side, string[]>> = {
     }
     private pool: string[] = []
@@ -193,13 +201,18 @@ export class CardRoom extends Room<CardRoomState> {
         A: new Set(), B: new Set()
     }
 
-    onCreate(options: { private?: boolean; bot?: BotLevel; fast?: boolean; sim?: boolean; seed?: number }) {
+    onCreate(options: { private?: boolean; bot?: BotLevel; fast?: boolean; sim?: boolean; seed?: number; rig?: string[]; stage?: cg.Stage; ranked?: boolean }) {
         this.setState(new CardRoomState())
+        // Xếp hạng chỉ giữa hai người thật, ghép ngẫu nhiên (không phòng riêng, không máy)
+        this.ranked = !!options?.ranked && !options?.private && !options?.bot && !options?.sim
         this.fast = !!options?.fast
         this.pace = this.fast ? 0 : 2500
         this.sim = !!options?.sim
         this.state.sim = this.sim
         this.seed = Number.isFinite(options?.seed) ? Number(options!.seed) >>> 0 : Math.floor(Math.random() * 2 ** 31)
+        // Dàn xếp bài rút: chỉ bật khi server chạy với CARD_RIG=1, không bao giờ có ở trận thường
+        if (process.env.CARD_RIG === "1" && Array.isArray(options?.rig)) this.rig = options.rig.map(String)
+        if (process.env.CARD_RIG === "1") this.stage = options?.stage
         if (options?.private || options?.bot || options?.sim) this.setPrivate(true)
         this.pool = cg.implementedHeroes().map((h) => h.id)
         this.teamSize = Math.min(5,
@@ -284,6 +297,7 @@ export class CardRoom extends Room<CardRoomState> {
             side)
         this.names[side] = player.name.slice(0,
             20)
+        if (player.userId) this.userIds[side] = player.userId
         if (side === "A") this.state.nameA = this.names.A; else this.state.nameB = this.names.B
         if (options?.team && !this.checkTeam(options.team)) this.preset[side] = options.team
         // bộ gốc tự xếp: hợp lệ thì dùng, không thì bộ mặc định
@@ -434,7 +448,10 @@ export class CardRoom extends Room<CardRoomState> {
         const { state, events } = cg.newGameEx(this.seed,
             this.picks.A!,
             this.picks.B!,
-            this.decks)
+            this.decks,
+            this.rig)
+        if (this.stage) cg.applyStage(state,
+            this.stage)
         this.gs = state
         this.state.phase = "playing"
         this.broadcastEvents(events)
@@ -559,6 +576,7 @@ export class CardRoom extends Room<CardRoomState> {
             {
                 winner, reason
             })
+        if (this.ranked && winner) void this.rate(winner)
         if (this.sim) {
             const gs = this.gs
             this.broadcast("cg:simStats",
@@ -571,6 +589,38 @@ export class CardRoom extends Room<CardRoomState> {
                     deaths: gs ? Object.fromEntries(Object.values(gs.units).map((u) => [u.id,
                         u.deaths])) : null,
                 })
+        }
+    }
+
+    /** Elo K=32 cho trận xếp hạng giữa hai tài khoản; thoát giữa trận tính thua. Gửi điểm mới cho cả hai bên. */
+    private async rate(winner: Side) {
+        const w = this.userIds[winner], l = this.userIds[other(winner)]
+        if (!db || !w || !l || w === l) return
+        try {
+            const { rows } = await db.query<{ id: string; rating: number }>("select id, rating from profiles where id = any($1)",
+                [[w,
+                    l]])
+            const rw = rows.find((r) => r.id === w)?.rating, rl = rows.find((r) => r.id === l)?.rating
+            if (rw === undefined || rl === undefined) return
+            const expect = 1 / (1 + 10 ** ((rl - rw) / 400))
+            const gain = Math.max(1,
+                Math.round(32 * (1 - expect)))
+            await db.query("update profiles set rating = rating + $2, wins = wins + 1 where id = $1",
+                [w,
+                    gain])
+            await db.query("update profiles set rating = greatest(0, rating - $2), losses = losses + 1 where id = $1",
+                [l,
+                    gain])
+            this.broadcast("cg:rating",
+                {
+                    winner, delta: gain, ratings: {
+                        [winner]: rw + gain, [other(winner)]: Math.max(0,
+                            rl - gain)
+                    }
+                })
+        } catch (e) {
+            console.error("Không ghi được điểm xếp hạng",
+                e)
         }
     }
 
@@ -606,17 +656,16 @@ export class CardRoom extends Room<CardRoomState> {
             toMove: s.phase === "blind" && viewer && !s.blind?.ready[viewer] ? viewer : cg.whoseMove(s),
             blind: s.phase === "blind" ? this.blindFor(s,
                 viewer) : undefined,
-            actionsThisTurn: s.actionsThisTurn, openLanes: g.openLanes(), players, units: unitsFor(s,
-                viewer), lanes: s.lanes, markers: s.markers,
+            actionsThisTurn: s.actionsThisTurn, step: s.step, openLanes: g.openLanes(), players, units: unitsFor(s,
+                viewer), lanes: s.lanes, laneStacks: s.laneStacks, markers: s.markers, laneElements: s.laneElements,
             chain: chainFor(s.chain,
                 viewer), extra: s.extra, prizes: s.prizes, winner: s.winner, endReason: s.endReason, stats: s.stats,
             // V2: số đòn đã đánh (công khai) của phe có lượt và phe kia (đòn Quick ngoài lượt), cùng giới hạn cứng
             turnAttacks: g.turnAttacks(s.active),
             offTurnAttacks: g.turnAttacks(other(s.active)),
-            attackLimit: g.attackLimit(s.active),
             names: this.names, bots: this.bots, rules: {
                 lives: cg.RULES.lives, handMax: cg.RULES.handMax, laneOpenRound: cg.RULES.laneOpenRound, summonRounds: cg.RULES.summonRounds,
-                attackLimit: cg.RULES.attackLimit, drawPerTurn: cg.RULES.drawPerTurn, fighterCardlessMult: cg.RULES.fighterCardlessMult,
+                drawPerTurn: cg.RULES.drawPerTurn, fighterCardlessMult: cg.RULES.fighterCardlessMult,
                 teamManaMax: cg.RULES.teamManaMax, teamManaStart: cg.RULES.teamManaStart,
                 mage: {
                     manaMax: cg.RULES.mage.manaMax

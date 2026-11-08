@@ -1,0 +1,31 @@
+{
+  "mode": "built-in image_gen",
+  "reference": "outputs/game-ui-kit/01-battlefield-final.png",
+  "open": {
+    "initial": "Use case: stylized-concept. Asset type: ONE transparent modular lane marker sprite for Starci forest card-game battlefield, displayed at72x72referencepixels. Reference image1 is STYLEONLY: match pale warm sandstone, rich jade, moss and aged warm gold from its top-down fantasy board, not its layout. Create one small symmetrical DIAMOND-shaped shallow stone medallion seen straight from overhead, orthographic. Low relief, quietly carved peripheral rune grooves and a very thin agedgold outer rim. EMPTY CENTRAL PALE SANDSTONE FACE: no symbol in middle, no text, letters or digits. Dark jade and tiny moss accents ONLY around stone edges. Crisp hand-painted fantasy game material, readable simple silhouette atsmallsize, restrained shading no glow or highcontrast UIbutton. Centered with equal transparent margins around all4sides; isolated true transparent alpha outside physical medallion. Entire object occupies about80percent square imagewidthandheight. No floor rectangle, no checkerboard painted, no shadow plane, no background, no card, no characters, no board, no interface panels. Output one square native highresolutionPNG.",
+    "refinement": "Precise object edit for a SMALL QUIET lane marker sprite. Preserve squarecanvas, truealphaoutside, centereddiamondfootprint, top-downorthographic viewpoint, pale sandstone/jade/moss materials. Reduce decorative border to ONE thin agedgold rim: remove nested thickgoldinnerdiamond and the broad ornamental band, reducebusyouterrunes. Pale clean sandstone central face shouldoccupy75percentofdiamondarea, empty withno symbol. Only subtleperipheralcarvedlines and two tiny touchesofmoss atcorners. Make gold gentlyaged andmatte, notbrightjewelry. Thiswillrender at72x72 pixels andmustbequietbackgroundmarker. Keepidenticalsymmetricalsilhouette and margins. Noletters/numbers/characters/background/text.",
+    "native": "C:/Users/Hi/.codex/generated_images/01a19851-9aea-7ab3-994a-cdbfd9f69612/exec-747cddf0-3ddf-4c10-b3d9-d68b9b63a4b1.png",
+    "file": "lane-marker-v1.png"
+  },
+  "locked": {
+    "prompt": "Precise object edit: turn this exact lane marker into its CLOSED/LOCKED variant. Preserve pixelcanvas size, transparentouteralpha, diamond outline and margins EXACTLY; preserve thinagedgoldouterrim, peripheralcarving, corner moss andtop-downorthographic perspective. Change only the empty central stoneface: tint it muted deep jade/mossystone and carve ONE clearly readable CLOSED PADLOCK symbol in low-relief agedwarmgold into itscenter. Lock is conventional closedroundedshackle above solidbody, simple largeform readable at72x72sprite; no key/letters/digits/numbers. Lock occupiesabout40percentofdiamondwidth, centered symmetrically. Quietgameboardmaterial, no glowingbuttonframe, noadditional ornament. Truealphaoutside physicaldiamond. NO fullboard, no UIpanels, no cards, no characters, no background. Exactmatchingfootprintwithreferenceopenmarker.",
+    "native": "C:/Users/Hi/.codex/generated_images/01a19851-9aea-7ab3-994a-cdbfd9f69612/exec-64d61957-5fb5-49a3-bd45-e25fe5c8a44a.png",
+    "file": "lane-locked-v1.png"
+  },
+  "render": {
+    "width": 72,
+    "height": 72,
+    "anchor": "center",
+    "laneCenters": [
+      0.1,
+      0.3,
+      0.5,
+      0.7,
+      0.9
+    ],
+    "teamRowCenters": [
+      0.24,
+      0.76
+    ]
+  }
+}

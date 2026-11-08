@@ -1,0 +1,59 @@
+/* Sculpted game surfaces. Layout coordinates are authored on the 1920 x 1080 canvas. */
+.game-canvas-stage .action-dialog { background:linear-gradient(#00291fef,#001711f7),url('/map/board5.jpg') center/cover; background-clip:padding-box; border-image:url('/ui/forest-v2/panel-frame-v4.png') 20% stretch; border-width:30px; box-shadow:0 22px 70px #000c,inset 0 0 60px #0b735018; }
+.game-canvas-stage .action-dialog > header { position:relative; isolation:isolate; min-height:112px; box-sizing:border-box; padding:27px 40px 18px; border:0; align-items:center; }
+.game-canvas-stage .action-dialog > header::before { content:''; position:absolute; pointer-events:none; inset:-68px -20px auto; height:225px; z-index:-1; background:url('/ui/forest-v2/title-crest.png') center/100% 100% no-repeat; }
+.game-canvas-stage .action-dialog > header h2 { text-align:center; font-size:40px; letter-spacing:.035em; line-height:1.1; margin:0; color:#ffe4a3; text-shadow:0 2px 0 #38240c,0 3px 9px #000; }
+.game-canvas-stage .action-dialog > header small { display:none; }
+.game-canvas-stage .action-dialog > header p { margin:22px 0 0; text-align:center; font-size:18px; letter-spacing:0; color:#c1d1ba; }
+.game-canvas-stage .action-dialog > header > div { flex:1; }
+.game-canvas-stage .action-dialog .action-close { position:absolute; right:4px; top:6px; box-sizing:border-box; width:46px; height:46px; padding:0; border:8px solid transparent; border-image:url('/ui/forest-v2/panel-frame-v4.png') 22% stretch; background:#082e21; background-clip:padding-box; color:#efd89d; font-size:27px; line-height:1; text-shadow:0 1px 4px #000; }
+.game-canvas-stage :is(.forest-game.cg-root,.action-dialog,.dna-screen) :is(.action-primary,.action-secondary,.hd-end,.hd-step,.hd-btn,.sc-btn,.ch-btn) { position:relative; isolation:isolate; border:0; border-image:none; border-radius:0; padding:14px 30px; color:#fff0c3; background:linear-gradient(120deg,#7d5523,#ffe9a6 18%,#b17c2e 48%,#ffe3a0 78%,#8d5b1f); clip-path:polygon(16px 0,calc(100% - 16px) 0,100% 50%,calc(100% - 16px) 100%,16px 100%,0 50%); box-shadow:none; font-family:var(--font-game-title); text-shadow:0 2px 3px #00120d; }
+.game-canvas-stage :is(.forest-game.cg-root,.action-dialog,.dna-screen) :is(.action-primary,.action-secondary,.hd-end,.hd-step,.hd-btn,.sc-btn,.ch-btn)::before { content:''; position:absolute; inset:3px; z-index:-1; pointer-events:none; clip-path:inherit; background:linear-gradient(#07553f,#158569 12%,#063b2b 55%,#03271e 86%,#149273); box-shadow:inset 0 0 0 2px #57c398,inset 0 0 14px #0009; }
+.game-canvas-stage :is(.forest-game.cg-root,.action-dialog,.dna-screen) :is(.action-primary,.hd-end,.hd-step,.sc-btn.gold,.ch-btn):hover:not(:disabled)::before { background:linear-gradient(#15856b,#07654d 35%,#063e2d 80%,#2bbd94); }
+.game-canvas-stage :is(.forest-game.cg-root,.action-dialog,.dna-screen) :is(.action-secondary,.hd-btn,.sc-btn:not(.gold))::before { background:linear-gradient(#263a2c,#09241b 50%,#0b2f22); }
+.game-canvas-stage .dna-screen .sc-btn.red::before { background:linear-gradient(#803b26,#471b17); }
+.game-canvas-stage :is(.forest-game.cg-root,.action-dialog,.dna-screen) :is(.action-primary,.action-secondary,.hd-end,.hd-step,.hd-btn,.sc-btn,.ch-btn):disabled { opacity:.6; filter:grayscale(.7); cursor:not-allowed; }
+.game-canvas-stage :is(.forest-game.cg-root,.action-dialog,.dna-screen) :is(.action-primary,.action-secondary,.hd-end,.hd-step,.hd-btn,.sc-btn,.ch-btn):disabled::before { background:linear-gradient(#33443a,#15261e); }
+.game-canvas-stage :is(.forest-game.cg-root,.action-dialog,.dna-screen) :is(.action-primary,.action-secondary,.hd-end,.hd-step,.hd-btn,.sc-btn,.ch-btn):focus-visible { outline:none; filter:brightness(1.22) drop-shadow(0 0 5px #74ffe1); }
+.game-canvas-stage .action-dialog > footer { border-top:1px solid #a4874359; background:linear-gradient(transparent,#001b12aa); }
+
+/* One continuous weapon sheet rather than two framed web comparison boxes. */
+.game-canvas-stage .action-dialog.mode-dialog { width:1100px; max-height:1020px; }
+.game-canvas-stage .mode-dialog .mode-cards { gap:86px; }
+.game-canvas-stage .mode-dialog .mode-card { border:1px solid #40735355; background:linear-gradient(90deg,#001a12,#06312550,#001a12); padding:0 0 10px; box-shadow:none; }
+.game-canvas-stage .mode-dialog .mode-card.selected { box-shadow:inset 0 0 22px #47c49914; border-color:#5f9e7277; }
+.game-canvas-stage .mode-dialog .mode-art { border:12px solid transparent; border-image:url('/ui/forest-v2/panel-frame-v4.png') 20% stretch; margin:-5px -5px 0; aspect-ratio:1.75; background-clip:padding-box; }
+.game-canvas-stage .mode-dialog .mode-art > img { object-fit:contain; }
+.game-canvas-stage .mode-dialog .mode-name { display:flex; height:40px; box-sizing:border-box; padding:3px 15px; margin:-16px 10px 6px; border:0; clip-path:polygon(14px 0,calc(100% - 14px) 0,100% 50%,calc(100% - 14px) 100%,14px 100%,0 50%); background:linear-gradient(#d8bb72 0 2px,#00190f 2px calc(100% - 2px),#a78640 calc(100% - 2px)); font-size:22px; text-transform:uppercase; }
+.game-canvas-stage .mode-dialog .mode-name small { font-size:14px; color:#f0dfb1; }
+.game-canvas-stage .mode-dialog .mode-name .game-icon { width:28px; height:28px; }
+.game-canvas-stage .mode-dialog .mode-hp { border-radius:0; clip-path:polygon(9px 0,calc(100% - 9px) 0,100% 50%,calc(100% - 9px) 100%,9px 100%,0 50%); margin:0 8px 9px; height:26px; }
+.game-canvas-stage .mode-dialog .mode-skill { padding:8px 9px; min-height:58px; }
+.game-canvas-stage .mode-dialog .mode-skill strong { font-size:21px; }
+.game-canvas-stage .mode-dialog .mode-skill small { font-size:18px; line-height:1.24; }
+.game-canvas-stage .mode-dialog .mode-switch-emblem { top:21%; width:196px; gap:8px; }
+.game-canvas-stage .mode-dialog .mode-switch-emblem > .forest-icon { width:130px; height:92px; }
+.game-canvas-stage .mode-dialog .mode-confirm { width:196px; min-height:82px; font-size:27px; padding:16px 17px; filter:drop-shadow(0 0 9px #29ffd695); }
+.game-canvas-stage .mode-dialog .mode-confirm > small { font-size:15px; }
+.game-canvas-stage .mode-dialog .mode-passive { margin-top:15px; border-width:12px; }
+.game-canvas-stage .mode-dialog .mode-passive h3 { margin:0 0 9px; font-size:22px; }
+.game-canvas-stage .mode-dialog .mode-standby { border:1px solid #a8ce8555; border-radius:0; clip-path:polygon(0 0,calc(100% - 12px) 0,100% 50%,calc(100% - 12px) 100%,0 100%); padding:8px 13px; }
+.game-canvas-stage .mode-dialog .mode-standby strong { font-size:20px; }
+.game-canvas-stage .mode-dialog .mode-standby small { font-size:17px; }
+.game-canvas-stage .mode-dialog .mode-standby .forest-icon { width:45px; height:45px; }
+.game-canvas-stage .mode-dialog > footer { padding-top:12px; }
+.game-canvas-stage .mode-dialog .mode-phases span { border:0; position:relative; isolation:isolate; background:#918157; clip-path:polygon(8px 0,calc(100% - 8px) 0,100% 50%,calc(100% - 8px) 100%,8px 100%,0 50%); padding:10px 4px; }
+.game-canvas-stage .mode-dialog .mode-phases span::before { content:''; position:absolute; inset:1px; z-index:-1; clip-path:inherit; background:linear-gradient(#1a2921,#071a12); }
+.game-canvas-stage .mode-dialog .mode-phases span.active { background:#8affe4; filter:drop-shadow(0 0 6px #2bdeb4); }
+.game-canvas-stage .mode-dialog .mode-phases span.active::before { background:radial-gradient(ellipse,#0c8061,#054431); }
+.game-canvas-stage .mode-dialog .mode-phases :is(b,small) { font-size:16px; }
+.game-canvas-stage .mode-dialog .mode-current { font-size:12px; clip-path:polygon(5px 0,100% 0,100% 100%,0 100%); }
+
+.game-canvas-stage .discard-dialog { width:1430px; }
+.game-canvas-stage .discard-dialog .game-scroll-content { background:linear-gradient(90deg,#021f17ee,#021f1700),url('/heroes/viktor.jpg') left center/240px auto no-repeat; padding:26px 25px 26px 255px; min-height:400px; }
+.game-canvas-stage .discard-dialog .action-discard-grid { grid-template-columns:repeat(4,minmax(0,1fr)); gap:18px; }
+.game-canvas-stage .discard-dialog .action-option { position:relative; padding:8px; border-width:12px; }
+.game-canvas-stage .discard-dialog .action-option.selected { filter:drop-shadow(0 0 7px #5aeec0); }
+.game-canvas-stage .discard-dialog .action-check { width:38px; height:38px; font-size:26px; border-radius:50%; border:2px solid #ead18e; background:#0b5a3d; }
+.game-canvas-stage .discard-dialog footer > b { margin-right:auto; color:#ffe6a3; font-size:28px; }
+@media(prefers-reduced-motion:reduce) { .game-canvas-stage .mode-dialog .mode-confirm { filter:none; } }

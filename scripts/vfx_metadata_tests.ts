@@ -69,17 +69,17 @@ assert.deepEqual(target.statuses.burn.visuals,
         "burn"],
     "refresh preserves source appearance")
 
-// Same gameplay status/tag, different presentation chosen at the source.
-g.status(target,
-    "burn",
+// Same gameplay tag (dot), different presentation chosen at the source.
+const hpBeforePoison = target.hp
+g.damage(brand,
+    target,
     3,
+    "magic",
     {
-        v: 1, visuals: [], tickVisuals: ["poisonHit"]
+        tag: "dot", visuals: ["poisonHit"]
     })
-burnTick(g,
-    brand,
-    target)
 const poisonTick = g.events.at(-1)!
+assert.ok(target.hp < hpBeforePoison)
 assert.equal(poisonTick.t,
     "damage")
 assert.deepEqual(poisonTick.t === "damage" && poisonTick.visuals,
@@ -88,26 +88,26 @@ assert.deepEqual(poisonTick.t === "damage" && effectVfxNames(poisonTick,
     "brand"),
 ["poisonHit"],
 "metadata beats hero inference")
+// Brand: Bỏng là bộ đếm (không phải trạng thái), gắn im lặng; mỗi tick riêng có hiệu ứng lửa
+const eventsBeforeIgnite = g.events.length
 ignite(g,
     target,
     1)
-assert.deepEqual(target.statuses.burn.visuals,
-    [],
+assert.equal(target.stacks.burn,
+    1)
+assert.ok(!g.events.slice(eventsBeforeIgnite).some((e) => e.t === "status" || e.t === "damage"),
     "Brand application is silent")
-assert.deepEqual(target.statuses.burn.tickVisuals,
-    ["burn"],
-    "tick keeps its separate recipe")
 burnTick(g,
     brand,
     target)
 assert.deepEqual(g.events.at(-1)?.t === "damage" && (g.events.at(-1) as Extract<cg.GameEvent, { t: "damage" }>).visuals,
     ["burn"])
-g.status(target,
+g.stack(target,
     "bleed",
-    2,
-    {
-        v: 1, visuals: ["bleedTick"]
-    })
+    1) // Chảy Máu của Darius: bộ đếm + đồng hồ bleed_t
+g.status(target,
+    "bleed_t",
+    2)
 g.hook("onTurnStart",
     {
         side: "B"

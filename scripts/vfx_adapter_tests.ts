@@ -71,12 +71,15 @@ assert.deepEqual(getCard().log.filter((x) => x.e.t === "chainResolve").map((x) =
         3,
         2,
         1])
+// Mel reflects Leona's hit; Leona stuns Blitz before link 2 resolves, so it cannot steal.
+assert.equal(game.state.units["B:blitzcrank"].stacks.blitz_parts ?? 0,
+    0)
 assert.equal(game.state.units["B:blitzcrank"].shield,
-    82)
+    0)
 game.fork(0)
 assert.equal(game.history.length,
     1)
-assert.equal(game.state.units["B:blitzcrank"].shield,
+assert.equal(game.state.units["B:blitzcrank"].stacks.blitz_parts ?? 0,
     0)
 assert.equal(getCard().log.length,
     0,
@@ -179,3 +182,93 @@ for (const slug of ["blitz-steal",
     theft.stop()
 }
 console.log("Blitz theft presentation: one receipt, no duplicated card or transient enemy skill in hand PASS")
+
+// Resignation is a room message, not an engine Action. Local binding must still finish the game.
+const queued: (() => void)[] = []
+const oldTimer = window.setTimeout, oldClear = window.clearTimeout
+Object.assign(window,
+    {
+        setTimeout: (callback: () => void) => { queued.push(callback); return queued.length }, clearTimeout: () => {}
+    })
+try {
+    const resigned = new LocalExampleGame("chain-four",
+        710)
+    resigned.prepare()
+    setDisplayLag(false)
+    resigned.start()
+    resigned.setAuto(true)
+    assert.ok(queued.length > 0,
+        "a bot callback is already queued")
+    cardActions.resign()
+    assert.equal(resigned.state.phase,
+        "over")
+    assert.equal(resigned.state.winner,
+        "B")
+    assert.equal(getCard().stage,
+        "ended")
+    assert.deepEqual(getCard().end,
+        {
+            winner: "B", reason: "resign"
+        })
+    assert.deepEqual(getCard().legal,
+        [])
+    assert.equal(resigned.auto,
+        false)
+    assert.equal(resigned.paused,
+        true)
+    const endedAt = resigned.history.length
+    queued.forEach(callback => callback())
+    cardActions.resign()
+    assert.equal(resigned.history.length,
+        endedAt,
+        "queued bot callback and repeated resign cannot act after the result")
+    resigned.fork(endedAt - 1)
+    assert.deepEqual(getCard().end,
+        {
+            winner: "B", reason: "resign"
+        },
+        "resignation checkpoint keeps its reason")
+    resigned.fork(0)
+    assert.equal(getCard().stage,
+        "playing")
+    assert.equal(getCard().end,
+        null)
+    resigned.stop()
+} finally { Object.assign(window,
+    {
+        setTimeout: oldTimer, clearTimeout: oldClear
+    }) }
+
+const interrupted = new LocalExampleGame("chain-four",
+    710)
+interrupted.prepare()
+interrupted.setPaused(true)
+setDisplayLag(false)
+interrupted.start()
+setDisplayLag(true)
+let stale: PresentationBatch | undefined
+const stopInterrupted = subscribePresentations(batch => { stale = batch })
+interrupted.playRecommended()
+assert.ok(stale)
+startPresentation(stale)
+assert.equal(getCard().presenting,
+    true)
+cardActions.resign()
+assert.equal(getCard().presenting,
+    false)
+assert.equal(interrupted.state.chain,
+    null)
+finishPresentation(stale)
+assert.equal(getCard().stage,
+    "ended",
+    "a stale animation completion cannot reopen the game")
+assert.deepEqual(getCard().end,
+    {
+        winner: "B", reason: "resign"
+    })
+assert.deepEqual(getCard().legal,
+    [])
+stopInterrupted()
+interrupted.stop()
+setDisplayLag(false)
+console.log("Local resignation: actual result, queued bot/presentation cancellation, idempotence and fork cleanup PASS")

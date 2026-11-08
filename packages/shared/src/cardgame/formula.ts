@@ -8,7 +8,7 @@ import type {
 } from "./types"
 
 // Thứ tự liệt kê: cụm dài trước cụm ngắn ("máu tối đa mục tiêu" trước "máu tối đa")
-const STAT = "AD|AP|máu tối đa mục tiêu|target max HP|máu đã mất mục tiêu|target missing HP|Giáp mục tiêu|target armor|máu tối đa|max HP|máu đã mất|missing HP|máu cộng thêm|bonus HP|Giáp|Armor|Kháng phép|MR"
+const STAT = "AD|AP|máu tối đa mục tiêu|target max HP|máu đã mất mục tiêu|target missing HP|Giáp mục tiêu|target armor|máu tối đa|max HP|máu đã mất|missing HP|máu cộng thêm|bonus HP|Giáp|Armor|Kháng phép|MR|Tốc Đánh|attack speed"
 const TERM = new RegExp(String.raw`^([+-]?\d+(?:[.,]\d+)?)\s*(%)?\s*(${STAT})?$`,
     "i")
 /** Số hạng tỉ lệ (công thức xác suất): "1% mỗi 100 AD", "0.05% mỗi điểm AP", "1% per 10 Armor", "0.05% per point of AD" */
@@ -32,7 +32,8 @@ function statOf(g: Game, u: Unit, stat: string, target?: Unit): number | undefin
                     target!.maxHp - target!.hp)
                     : stat === "giáp mục tiêu" || stat === "target armor" ? g.armor(target!)
                         : stat === "máu cộng thêm" || stat === "bonus hp" ? g.bonusHp(u)
-                            : stat === "giáp" || stat === "armor" ? g.armor(u) : g.mr(u)
+                            : stat === "giáp" || stat === "armor" ? g.armor(u)
+                                : stat === "tốc đánh" || stat === "attack speed" ? g.attackSpeed(u) : g.mr(u)
 }
 
 /** Công thức xác suất/tỉ lệ (có số hạng "mỗi"/"per"): giá trị tính bằng % */
@@ -92,11 +93,10 @@ export function tryEvalExpr(g: Game, u: Unit, expr: string, target?: Unit, o: { 
     return sum
 }
 
-/** Số hiển thị: tối đa 1 chữ số thập phân, bỏ ".0" (44.5, 120) */
-export const fmtNum = (v: number) => {
-    const r = Math.round(v * 10) / 10
-    return Number.isInteger(r) ? `${r}` : r.toFixed(1)
-}
+/** Làm tròn số hiển thị: 2 chữ số thập phân khi < 10 (thời hạn X.Y), còn lại 1 chữ số */
+const roundShown = (v: number) => (Math.abs(v) < 10 ? Math.round(v * 100) / 100 : Math.round(v * 10) / 10)
+/** Số hiển thị: bỏ phần thập phân thừa (44.5, 120, 1.26) */
+export const fmtNum = (v: number) => `${roundShown(v)}`
 
 export type FormulaPart = string | { expr: string; value?: number; pct?: boolean; rest?: string[] };
 /**
@@ -119,7 +119,7 @@ export function formulaParts(text: string, g?: Game, u?: Unit, target?: Unit): F
             }) : undefined
         const pct = isPercentExpr(m[1])
         out.push({
-            expr: m[1].trim(), value: v === undefined || (rest.length && rest.length === m[1].split("+").length) ? undefined : Math.round(v * 10) / 10, ...(pct ? {
+            expr: m[1].trim(), value: v === undefined || (rest.length && rest.length === m[1].split("+").length) ? undefined : roundShown(v), ...(pct ? {
                 pct
             } : {
             }), ...(rest.length ? {

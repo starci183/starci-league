@@ -171,3 +171,257 @@
 .db-view .cgc { font-size: 15px; }
 .db-row .cgc, .lb-mini .cgc { padding-top: 0; height: auto; }
 .cgc-n { top: 14%; z-index: 3; }
+
+/* The same 1920 × 1080 forest hall and gold material as the live card game. */
+#lobby { --lb-frame:url('/ui/forest-v2/panel-frame-v4.png'); overflow:hidden; background:linear-gradient(#04190dcc,#04190de8),url('/map/board5.jpg') center/cover; color:#e7e7cb; font-family:var(--font-game-text); font-size:22px; }
+#lobby * { box-sizing:border-box; }
+#lobby .lb-canvas { position:absolute; left:50%; top:50%; width:1920px; height:1080px; transform:translate(-50%,-50%) scale(var(--lobby-scale,1)); transform-origin:center; background:radial-gradient(ellipse at 50% 18%,#4d69402b,transparent 65%),linear-gradient(#021a1199,#02190fd9),url('/ui/examples/forest-duel-underlay.png') center/cover; }
+#lobby :is(h1,h2,h3,button) { font-family:var(--font-game-title); }
+#lobby :is(button,input,select,[tabindex]):focus-visible { outline:2px solid #83f5cd; outline-offset:3px; }
+#lobby :is(.lb-card,.lb-panel,.lb-bar) { border:24px solid transparent; border-image:var(--lb-frame) 20% stretch; border-radius:0; background:linear-gradient(#0b3325ed,#001c15f2); background-clip:padding-box; box-shadow:0 12px 38px #0005; }
+#lobby .lb-home { height:1080px; min-height:0; padding:22px 28px; gap:4px; }
+#lobby .lb-bar { height:132px; min-height:132px; padding:6px 22px; gap:14px; }
+#lobby .lb-logo { color:#ffe4a1; font:600 56px/1 var(--font-game-title); letter-spacing:.07em; text-shadow:0 3px 4px #000; display:grid; place-items:center; width:650px; height:126px; padding-top:26px; background:url('/ui/forest-v2/title-crest.png') center 53%/100% auto no-repeat; white-space:nowrap; }
+#lobby .lb-user { gap:18px; font-size:23px; }
+#lobby .lb-user > div { min-width:0; max-width:280px; }
+#lobby .lb-user > div > b { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+#lobby .lb-user small { color:#b3c7a4; font-size:17px; max-width:250px; overflow:hidden; text-overflow:ellipsis; }
+#lobby .lb-avatar { width:56px; height:56px; background:radial-gradient(#3a6341,#0b3021); border:2px solid #c8a75a; color:#ffe1a0; font-size:28px; }
+#lobby .lb-canvas select.lb-lang { font-size:18px; padding:7px 12px; color:#c9d7bd; width:auto; min-width:170px; }
+#lobby .lb-menu { grid-template-columns:930px 630px; gap:30px; padding:24px; align-content:center; }
+#lobby .lb-panel { padding:20px 26px; min-width:0; }
+#lobby .lb-panel h2 { font-size:39px; color:#f7dda3; letter-spacing:.025em; margin-bottom:12px; line-height:1.1; }
+#lobby .lb-panel h2 small { font-size:23px; margin-left:12px; color:#abd5b0; }
+#lobby .lb-new { font-size:15px !important; background:#234b32; color:#f2d389; border:1px solid #ae904c; border-radius:0; padding:2px 9px; }
+#lobby .lb-hint { color:#b8c9aa; font-size:21px; line-height:1.35; margin-bottom:16px; }
+#lobby :is(.lb-btn,.lb-tile,.lb-tabs button) { border:10px solid transparent; border-image:var(--lb-frame) 20% stretch; border-radius:0; color:#f1dfac; background:linear-gradient(#1c5d40,#062c20); background-clip:padding-box; font-family:var(--font-game-title); cursor:pointer; transition:filter .15s,box-shadow .15s,transform .15s; }
+#lobby :is(.lb-btn,.lb-tile,.lb-tabs button):hover:not(:disabled) { background:linear-gradient(#276c4a,#0b3c28); background-clip:padding-box; filter:brightness(1.12); box-shadow:0 0 18px #48d99d22; }
+#lobby :is(.lb-btn,.lb-tile,.lb-tabs button):active:not(:disabled) { transform:translateY(1px); }
+#lobby .lb-btn { font-size:23px; padding:8px 18px; min-height:54px; }
+#lobby .lb-btn.gold { background:linear-gradient(#228b62,#06412e); background-clip:padding-box; color:#fff0bd; font-weight:700; }
+#lobby .lb-btn:disabled { background:#183124; background-clip:padding-box; filter:saturate(.2); opacity:.45; }
+#lobby .lb-tile { position:relative; padding:14px 20px; gap:5px; margin-bottom:16px; min-height:100px; overflow:hidden; }
+#lobby .lb-tile b { font-size:33px; line-height:1.1; font-weight:600; }
+#lobby .lb-tile small { color:#bcd2b0; font-size:21px; line-height:1.2; }
+#lobby .lb-tile:has(.lb-choice-art) { grid-template-columns:86px minmax(0,1fr); grid-template-rows:auto auto; min-height:164px; }
+#lobby .lb-tile:has(.lb-choice-art) > b,#lobby .lb-tile:has(.lb-choice-art) > small { grid-column:2; }
+#lobby .lb-tile.gold { grid-template-columns:190px minmax(0,1fr); min-height:194px; background:radial-gradient(ellipse at 30% 20%,#386b3c,#072f24); background-clip:padding-box; }
+#lobby .lb-tile.gold b { font-size:47px; color:#ffe2a3; }
+#lobby .lb-choice-art { position:relative; grid-column:1; grid-row:1/span 2; width:82px; height:116px; display:block; }
+#lobby .lb-choice-art > img { width:100%; height:100%; object-fit:cover; object-position:50% 15%; border:6px solid transparent; border-image:var(--lb-frame) 20% stretch; }
+#lobby .lb-choice-cards { width:170px; height:150px; }
+#lobby .lb-choice-cards img { position:absolute; width:90px; height:135px; left:44px; top:8px; object-fit:cover; border:0; transform:rotate(-18deg); transform-origin:bottom center; filter:drop-shadow(0 0 5px #dbce7677); }
+#lobby .lb-choice-cards img:nth-child(2) { transform:rotate(0); }
+#lobby .lb-choice-cards img:nth-child(3) { transform:rotate(18deg); }
+#lobby .lb-bots { gap:18px; }
+#lobby .lb-bots .lb-tile b { font-size:31px; }
+#lobby .lb-code { gap:14px; margin-top:12px; }
+#lobby .lb-canvas :is(input,select) { border:8px solid transparent; border-image:var(--lb-frame) 20% stretch; border-radius:0; padding:10px 14px; background:#042419; background-clip:padding-box; color:#eee6c5; font:inherit; }
+#lobby .lb-code input { font-size:24px; min-height:60px; }
+#lobby .lb-msg { min-height:24px; font-size:20px; line-height:1.2; color:#e5b294; }
+#lobby .lb-msg.ok { color:#9dddb8; }
+#lobby .lb-mini { height:286px; max-height:286px; border-top:1px solid #967a3d66; border-bottom:1px solid #967a3d66; padding:10px 0; margin:18px 0; }
+#lobby .lb-mini.game-scroll { flex-wrap:nowrap; }
+#lobby .lb-mini .game-scroll-content { display:flex; flex-wrap:wrap; gap:9px; padding:5px; }
+#lobby .lb-mini .game-scroll-viewport { scroll-snap-type:y mandatory; scroll-padding-top:5px; }
+#lobby .lb-mini .cgc { scroll-snap-align:start; }
+#lobby .lb-mini .cgc { width:86px; font-size:14px; }
+#lobby .lb-mini .cv { width:100%; }
+#lobby .lb-link { font-size:23px; color:#e0c88c; margin-top:18px; text-decoration:underline; text-underline-offset:5px; }
+#lobby .lb-center { height:1080px; min-height:0; }
+#lobby .lb-card { width:690px; padding:24px 44px 36px; }
+#lobby .lb-card .lb-head { flex-direction:column; position:relative; gap:0; }
+#lobby .lb-card .lb-logo { width:560px; height:132px; margin:0; font-size:44px; letter-spacing:.035em; padding-top:20px; }
+#lobby .lb-card .lb-lang { align-self:flex-end; font-size:17px; margin-top:-4px; margin-bottom:10px; }
+#lobby .lb-tabs { gap:10px; margin-bottom:20px; }
+#lobby .lb-tabs button { font-size:24px; padding:7px 14px; color:#b0c3a2; }
+#lobby .lb-tabs button.on { color:#fff0b4; background:linear-gradient(#2c714b,#10432c); background-clip:padding-box; box-shadow:inset 0 0 0 1px #91dba1; }
+#lobby label { font-size:23px; color:#d0d9bb; margin-bottom:18px; }
+#lobby .lb-card input { height:64px; font-size:24px; margin-top:8px; }
+#lobby .lb-card .lb-btn.wide { font-size:31px; min-height:72px; }
+#lobby .db { height:1080px; padding:16px; }
+#lobby .db .lb-bar { height:112px; min-height:112px; border-width:20px; padding:8px 12px; gap:10px; }
+#lobby .db .lb-bar .lb-btn { font-size:19px; min-height:44px; padding:5px 11px; border-width:8px; }
+#lobby .db .lb-bar #db-pick { width:300px; max-width:300px; flex:none; font-size:17px; }
+#lobby .db .lb-bar .lb-msg { font-size:18px; max-width:260px; }
+#lobby .db-body { grid-template-columns:340px minmax(0,1fr) 420px; gap:18px; padding:18px 6px 6px; }
+#lobby .db-body > .lb-panel { overflow:hidden; min-height:0; padding:12px; border-width:20px; }
+#lobby .db-body > .game-scroll { flex-direction:row; }
+#lobby .db-body .game-scroll-content { padding:3px 5px 12px; }
+#lobby .db-view .cgc { width:220px; max-width:100%; font-size:19px; margin:10px auto; }
+#lobby .db-view h3 { font-size:29px; color:#f8d993; line-height:1.1; }
+#lobby .db-desc { font-size:22px; color:#c3d2b5; line-height:1.35; }
+#lobby .db-type { font-size:20px; margin:8px 0 16px; }
+#lobby .db-actions { margin-top:16px; flex-wrap:wrap; gap:8px; }
+#lobby .db-actions .lb-btn { font-size:21px; padding:5px 9px; }
+#lobby .db-deck h2 { font-size:31px; }
+#lobby .db-deck h2 > span { font-size:26px; }
+#lobby .db-chip { font-size:18px; border-radius:0; padding:4px 8px; }
+#lobby .db-grid { grid-template-columns:repeat(auto-fill,minmax(116px,1fr)); gap:16px 12px; padding:12px 4px; }
+#lobby .db-grid .cgc { width:100%; font-size:16px; }
+#lobby .db-slot { min-height:150px; border:7px solid transparent; border-image:var(--lb-frame) 20% stretch; opacity:.35; }
+#lobby .db-row { border:8px solid transparent; border-image:var(--lb-frame) 20% stretch; border-radius:0; background:#0c3224; background-clip:padding-box; padding:4px; gap:10px; }
+#lobby .db-row.on { box-shadow:inset 0 0 0 1px #82deb2; background:#1c5136; background-clip:padding-box; }
+#lobby .db-row > div:not(.cgc) { min-width:0; }
+#lobby .db-row > div:not(.cgc) > b { font-size:22px; font-weight:600; line-height:1.15; color:#e9dcb3; }
+#lobby .db-row small { font-size:18px; color:#afc6a5; }
+#lobby .db-row .cgc { width:56px; }
+#lobby .db-row .cv { width:56px; }
+#lobby #db-pool .lb-tabs { gap:5px; }
+#lobby #db-pool .lb-tabs button { font-size:18px; border-width:6px; padding:5px 3px; }
+#lobby .cv-name { font-family:var(--font-game-title); }
+#lobby .cv .cv-in { border-image-source:var(--lb-frame); border-image-slice:20%; }
+#lobby .game-scroll-rail { width:18px; margin-left:6px; }
+#lobby .game-scroll-thumb,#lobby .game-scroll-arrow { border-image-source:var(--lb-frame); border-image-slice:20%; }
+@media(prefers-reduced-motion:reduce) { #lobby * { transition:none !important; animation:none !important; } }
+
+/* Command plaques match the shared in-match buttons; mode tiles remain portrait cards. */
+#lobby .lb-canvas :is(.lb-btn,.lb-tabs button) { position:relative; isolation:isolate; border:0; border-image:none; padding:14px 26px; color:#fff0c3; background:linear-gradient(120deg,#7d5523,#ffe9a6 18%,#b17c2e 48%,#ffe3a0 78%,#8d5b1f); clip-path:polygon(16px 0,calc(100% - 16px) 0,100% 50%,calc(100% - 16px) 100%,16px 100%,0 50%); text-shadow:0 2px 3px #00120d; box-shadow:none; }
+#lobby .lb-canvas :is(.lb-btn,.lb-tabs button)::before { content:''; position:absolute; inset:3px; z-index:-1; pointer-events:none; clip-path:inherit; background:linear-gradient(#07553f,#158569 12%,#063b2b 55%,#03271e 86%,#149273); box-shadow:inset 0 0 0 2px #57c398,inset 0 0 14px #0009; }
+#lobby .lb-canvas :is(.lb-btn,.lb-tabs button):hover:not(:disabled) { background:linear-gradient(120deg,#9b712d,#fff1bb 18%,#c19440 48%,#ffedb8 78%,#ac762a); filter:brightness(1.08); }
+#lobby .lb-canvas :is(.lb-btn,.lb-tabs button):disabled { opacity:.5; filter:saturate(.1); }
+#lobby .lb-canvas :is(.lb-btn,.lb-tabs button):disabled::before { background:linear-gradient(#34483e,#172a20); box-shadow:inset 0 0 0 1px #7f8d7f; }
+#lobby .lb-canvas .lb-tabs button:not(.on)::before { background:linear-gradient(#1e3f30,#09261b); box-shadow:inset 0 0 0 1px #9a9a64; }
+
+/* The guest entry is a secondary game command, with the same safe text inset. */
+#lobby .lb-card .lb-link { position:relative; isolation:isolate; display:grid; place-items:center; width:100%; min-height:58px; margin-top:16px; padding:12px 28px; color:#e9dcae; text-decoration:none; font-size:24px; line-height:1.15; background:linear-gradient(120deg,#78603a,#e8d18d 20%,#927847 50%,#e6ce8a 80%,#78603a); clip-path:polygon(14px 0,calc(100% - 14px) 0,100% 50%,calc(100% - 14px) 100%,14px 100%,0 50%); }
+#lobby .lb-card .lb-link::before { content:''; position:absolute; inset:2px; z-index:-1; clip-path:inherit; background:linear-gradient(#234534,#09271d); }
+#lobby .lb-card .lb-link:hover { filter:brightness(1.18); }
+
+/* Deck workbench: fixed commands and cut-corner labels retain real safe insets. */
+#lobby .lb-canvas .db > .lb-bar .lb-btn { border:0; min-height:54px; padding:12px 26px; }
+#lobby .lb-canvas .db #db-pool .lb-tabs { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:7px; position:sticky; top:0; z-index:4; padding:6px 0 10px; background:#082b20; }
+#lobby .lb-canvas .db #db-pool .lb-tabs button { min-width:0; border:0; min-height:46px; padding:10px 18px; font-size:18px; line-height:1.1; }
+#lobby .lb-canvas .db #db-pool .lb-tabs button:first-child { grid-column:1/-1; }
+#lobby .db-body > .db-view.game-scroll { display:grid; grid-template-columns:minmax(0,1fr) 18px; grid-template-rows:minmax(0,1fr) auto; column-gap:6px; }
+#lobby .db-view > .game-scroll-viewport { grid-column:1; grid-row:1; }
+#lobby .db-view > .game-scroll-rail { grid-column:2; grid-row:1; margin-left:0; }
+#lobby .db-view > .db-actions { grid-column:1/-1; grid-row:2; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; margin:10px 0 0; padding:14px 2px 0; border-top:1px solid #a88b4c88; }
+#lobby .lb-canvas .db-view > .db-actions .lb-btn { min-width:0; min-height:54px; padding:12px 24px; font-size:21px; }
+#lobby .db-owned { grid-column:1/-1; padding:9px 15px; border:1px solid #9d844b; background:linear-gradient(#123b2a,#08251a); text-align:center; color:#f6df9f; font-size:22px; line-height:1; }
+#lobby .db-search .db-row > span { flex:none; min-width:50px; font-size:21px; }
+#lobby .db-search .db-row > div:not(.cgc) { padding-right:4px; }
+#lobby .db .db-cap { flex:none; min-width:88px; padding:12px; border:1px solid #a28c50; background:linear-gradient(#1a4030,#07271b); text-align:center; font-size:22px; line-height:1; }
+#lobby .db .db-cap.bad { color:#ffb095; border-color:#bb7256; }
+#lobby .db-owned { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+#lobby .db-owned > span { font-size:18px; font-weight:500; color:#b6c9a7; }
+#lobby .db-body > .db-search.game-scroll { display:grid; grid-template-columns:minmax(0,1fr) 18px; grid-template-rows:auto minmax(0,1fr); column-gap:6px; }
+#lobby .db-search > .game-scroll-viewport { grid-column:1; grid-row:2; }
+#lobby .db-search > .game-scroll-rail { grid-column:2; grid-row:2; margin-left:0; }
+#lobby .db-search > .lb-tabs { grid-column:1/-1; grid-row:1; }
+#lobby .db-search > .game-scroll-viewport { scroll-snap-type:y mandatory; scroll-padding-top:3px; }
+#lobby .db-search .db-row { scroll-snap-align:start; }
+#lobby .db-search .db-list { padding-bottom:85px; }
+
+/* Whole-PNG lobby modules. Native outer bounds and masks are supplied by artFrameHtml. */
+#lobby .lb-auth-screen { position:relative; display:block; }
+#lobby .lb-auth-title { position:absolute; left:560px; top:3px; width:800px; height:198px; margin:0; color:#ffe1a0; font-size:52px; text-shadow:0 2px 3px #00130b; }
+#lobby .lb-auth-panel { position:absolute; left:210px; top:95px; width:1500px; height:969px; padding:0; border:0; border-image:none; background:none; box-shadow:none; }
+#lobby .lb-auth-grid { width:100%; height:100%; display:grid; grid-template-columns:380px 420px; gap:100px; align-items:center; justify-content:center; }
+#lobby .lb-auth-illustration { text-align:center; }
+#lobby .lb-auth-portrait { width:340px; height:414px; margin:0 auto 18px; }
+#lobby .lb-auth-illustration h2 { color:#f4dba0; font-size:31px; line-height:1.1; }
+#lobby .lb-auth-illustration p { margin:10px 0 0; color:#b4c8a6; font-size:22px; line-height:1.25; }
+#lobby .lb-auth-form { width:420px; min-width:0; }
+#lobby .lb-auth-tools { display:flex; justify-content:flex-end; height:49px; }
+#lobby .lb-lang-frame { display:block; width:210px; height:44px; }
+#lobby .lb-auth-form .lb-tabs { gap:12px; height:52px; margin:0 0 7px; }
+#lobby .lb-auth-form .lb-tabs button { flex:1; width:204px; height:44px; min-height:0; padding:0; font-size:23px; }
+#lobby .lb-auth-form label { font-size:20px; margin-bottom:3px; }
+#lobby .lb-input-frame { display:block; width:420px; height:88px; }
+#lobby .lb-auth-form .lb-msg { font-size:18px; min-height:22px; margin:2px 0; }
+#lobby .lb-auth-form #lb-form>.lb-btn,#lobby .lb-auth-form #lb-guest { display:block; width:420px; height:88px; min-height:0; margin:0; padding:0; font-size:27px; }
+#lobby .lb-auth-form #lb-guest { font-size:23px; }
+#lobby .lb-auth-screen :is(button,[data-html-art]),#lobby .lb-auth-screen :is(button,[data-html-art]):hover { border:0; border-image:none; border-radius:0; background:none; box-shadow:none; clip-path:none; }
+#lobby .lb-auth-screen button::before,#lobby .lb-auth-screen button::after { display:none; }
+#lobby .lb-auth-screen .lb-tabs button:not(.on) { filter:saturate(.25) brightness(.75); }
+#lobby .lb-auth-screen .lb-tabs button.on { filter:drop-shadow(0 0 6px #62d9af66); }
+#lobby .lb-auth-screen :is(input,select) { width:100%; height:100%; min-height:0; margin:0; padding:0 5px; border:0; border-image:none; border-radius:0; background:transparent; font-size:22px; color:#eee4bf; box-shadow:none; }
+#lobby .lb-auth-screen select.lb-lang { width:100%; min-width:0; height:100%; margin:0; padding:0; font-size:17px; line-height:1; }
+#lobby .lb-auth-screen button:hover:not(:disabled) { filter:brightness(1.15); }
+#lobby .lb-auth-title { z-index:5; }
+#lobby .lb-auth-screen .lb-auth-form :is(button,[data-html-art]),#lobby .lb-auth-screen .lb-auth-form :is(button,[data-html-art]):hover { background:none; border:0; border-image:none; clip-path:none; padding:0; box-shadow:none; }
+#lobby .lb-auth-form .lb-tabs button { font-size:19px; line-height:1; }
+
+#lobby .lb-modular-home { position:relative; display:block; padding:0; }
+#lobby .lb-modular-home .lb-home-header { position:absolute; left:70px; right:70px; top:16px; width:auto; height:190px; min-height:0; padding:0; border:0; border-image:none; background:none; box-shadow:none; }
+#lobby .lb-home-title { display:block; flex:none; width:720px; height:178px; font-size:51px; color:#ffe1a0; text-shadow:0 2px 3px #00130b; }
+#lobby .lb-modular-home .lb-user { gap:10px; }
+#lobby .lb-modular-home .lb-avatar { display:block; width:70px; height:70px; border:0; border-image:none; border-radius:0; background:none; box-shadow:none; font-size:28px; }
+#lobby .lb-modular-home .lb-avatar>.haf-frame-box>.haf-safe { display:grid; place-items:center; }
+#lobby .lb-home-name { display:block; width:260px; height:60px; font-size:23px; }
+#lobby .lb-modular-home #lb-out { width:210px; height:80px; min-height:0; margin:0; padding:0; font-size:24px; }
+#lobby .lb-modular-home .lb-menu { position:absolute; left:70px; right:70px; top:230px; bottom:40px; padding:0; display:grid; grid-template-columns:900px 860px; gap:20px; align-items:center; justify-content:center; }
+#lobby .lb-modular-home .lb-menu>.lb-panel { width:860px; height:555px; min-height:0; padding:0; border:0; border-image:none; background:none; box-shadow:none; }
+#lobby .lb-modular-home .lb-menu>.lb-card-mode { width:900px; height:581px; }
+#lobby .lb-modular-home .lb-panel h2 { font-size:34px; line-height:1.1; margin:0 0 6px; }
+#lobby .lb-modular-home .lb-panel h2 small { font-size:25px; }
+#lobby .lb-modular-home .lb-panel>.haf-frame-box>.haf-safe>.lb-hint { font-size:19px; line-height:1.25; margin:0 0 6px; }
+#lobby .lb-modular-home .lb-deck-description { display:none; }
+#lobby .lb-modular-home .lb-tile { display:block; min-height:0; margin:0; padding:0; border:0; border-image:none; background:none; box-shadow:none; overflow:visible; }
+#lobby .lb-modular-home .lb-tile .haf-label { display:grid; grid-template-columns:60px minmax(0,1fr); column-gap:12px; grid-template-rows:auto auto; text-align:left; }
+#lobby .lb-modular-home #lb-cg-quick { width:650px; height:136px; margin:0 auto 6px; }
+#lobby .lb-modular-home #lb-cg-quick b { grid-column:2; font-size:33px; line-height:1; }
+#lobby .lb-modular-home #lb-cg-quick small { grid-column:2; font-size:18px; line-height:1.1; }
+#lobby .lb-modular-home .lb-choice-art { width:26px; height:32px; grid-row:1/span 2; grid-column:1; }
+#lobby .lb-modular-home .lb-choice-cards { width:60px; height:62px; }
+#lobby .lb-modular-home .lb-choice-cards img { width:40px; height:60px; left:10px; top:0; }
+#lobby .lb-modular-home .lb-bots { display:flex; justify-content:center; gap:16px; }
+#lobby .lb-modular-home .lb-bots .lb-tile { width:310px; height:65px; }
+#lobby .lb-modular-home .lb-bots .haf-label { display:flex; flex-direction:row; gap:9px; }
+#lobby .lb-modular-home .lb-bots .lb-tile b { font-size:23px; line-height:1; }
+#lobby .lb-modular-home .lb-code { margin:0; gap:10px; align-items:center; }
+#lobby .lb-modular-home .lb-code-frame { display:block; width:430px; height:90px; }
+#lobby .lb-modular-home .lb-code .lb-btn { display:block; width:210px; height:90px; min-height:0; padding:0; font-size:22px; }
+#lobby .lb-modular-home .lb-msg { min-height:20px; font-size:18px; margin:0; }
+#lobby .lb-modular-home .lb-home-deck .lb-mini { height:132px; max-height:132px; margin:6px 0; padding:0; border:0; border-image:none; }
+#lobby .lb-modular-home .lb-home-deck .lb-mini .game-scroll-content { justify-content:center; gap:8px; padding:3px 0; }
+#lobby .lb-modular-home .lb-mini .lb-home-card { width:100px; height:122px; flex:none; margin:0; padding:0; font-size:12px; border:0; border-image:none; background:none; }
+#lobby .lb-preview-name { position:absolute; left:0; right:0; bottom:0; color:#ffedc4; background:linear-gradient(transparent,#002117 20%); font-size:12px; line-height:1.1; min-height:27px; padding:3px 0 0; display:grid; place-items:center; text-align:center; }
+#lobby .lb-preview-count { position:absolute; top:2px; right:0; font-size:12px; line-height:1; padding:3px; color:#ffe3a0; background:#05271c; font-style:normal; }
+#lobby .lb-modular-home #lb-deck { width:400px; height:84px; margin:0 auto; }
+#lobby .lb-modular-home #lb-deck .haf-label { display:block; }
+#lobby .lb-modular-home #lb-deck b { font-size:29px; line-height:1; }
+#lobby .lb-modular-home :is(button,[data-html-art]),#lobby .lb-modular-home :is(button,[data-html-art]):hover { border:0; border-image:none; border-radius:0; background:none; box-shadow:none; clip-path:none; }
+#lobby .lb-modular-home button::before,#lobby .lb-modular-home button::after { display:none; }
+#lobby .lb-modular-home :is(input,select) { display:block; width:100%; height:100%; min-width:0; min-height:0; border:0; border-image:none; margin:0; padding:0 4px; background:transparent; box-shadow:none; font-size:22px; }
+#lobby .lb-modular-home select.lb-lang { width:100%; min-width:0; height:100%; padding:0; font-size:18px; }
+#lobby .lb-modular-home button:hover:not(:disabled) { filter:brightness(1.16); }
+#lobby .lb-modular-home.lb-home [data-html-art],#lobby .lb-modular-home.lb-home [data-html-art]:hover { border:0; border-image:none; border-radius:0; background:none; box-shadow:none; clip-path:none; }
+#lobby .lb-modular-home .game-scroll-thumb { border:1px solid #cbb879; border-image:none; background:linear-gradient(90deg,#063b28,#35a27e,#063b28); }
+#lobby .lb-modular-home .game-scroll-arrow { border:1px solid #947f4c; border-image:none; background:#0a3c2b; }
+#lobby .lb-modular-home .lb-panel>.haf-frame-box>.haf-safe { box-sizing:border-box; padding-top:8px; }
+#lobby .lb-modular-home .lb-preview-name { bottom:3px; }
+#lobby .lb-modular-home #lb-out { width:260px; }
+#lobby .lb-modular-home .lb-code-frame { width:360px; }
+#lobby .lb-modular-home .lb-code .lb-btn { width:280px; }
+
+/* Local deck decisions use the same intact gold/jade assets as in-match dialogs. */
+#lobby .lb-choice-veil { position:absolute; inset:0; z-index:80; display:grid; place-items:center; background:#00130de8; backdrop-filter:blur(5px); }
+#lobby .lb-choice-dialog { width:1110px; height:740px; outline:none; }
+#lobby .lb-choice-content { width:100%; height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:22px; margin:0; }
+#lobby .lb-choice-content h2 { width:800px; height:140px; flex:none; color:#ffe2a0; font:700 35px/1 var(--font-game-title); }
+#lobby .lb-choice-content>p { max-width:750px; margin:0; text-align:center; color:#cfdbc2; font-size:24px; line-height:1.35; }
+#lobby .lb-choice-content .lb-choice-label { display:flex; flex-direction:column; gap:6px; width:650px; margin:0; color:#e6d6ac; font-size:22px; }
+#lobby .lb-choice-input { display:block; width:650px; height:100px; }
+#lobby .lb-choice-input input { width:100%; height:100%; margin:0; padding:0 10px; border:0; border-image:none; background:transparent; box-shadow:none; font-size:25px; color:#fff0cd; }
+#lobby .lb-choice-actions { display:flex; gap:24px; justify-content:center; margin-top:10px; }
+#lobby .lb-choice-actions button { width:320px; height:90px; padding:0; border:0; border-image:none; border-radius:0; background:none; clip-path:none; color:#ffe6b5; font-size:25px; }
+#lobby .lb-choice-actions button::before,#lobby .lb-choice-actions button::after { display:none; }
+#lobby .lb-choice-actions button.danger { color:#ffc2ad; filter:hue-rotate(325deg) saturate(.9); }
+#lobby .lb-choice-actions button:hover { filter:brightness(1.2); }#lobby .lb-choice-dialog .lb-choice-input input { outline:none; border:0; border-image:none; background:transparent; box-shadow:none; }
+#lobby .lb-choice-input:focus-within { filter:drop-shadow(0 0 5px #67e4ba77); }
+#lobby .lb-choice-actions button:focus-visible { outline:2px solid #83f5cd; outline-offset:-9px; }
+/* Context sizes only: card materials, native gold frame, gradients and copy are shared with the chain. */
+#lobby .game-card.cgc { padding:0; border:0; border-image:none; border-radius:0; background:none; position:relative; aspect-ratio:190/250; height:auto; container-type:inline-size; }
+#lobby .game-card .game-card-frame { width:100%; height:100%; }
+#lobby .game-card .game-card-content { display:flex; flex-direction:column; justify-content:space-between; }
+#lobby .game-card .game-card-copy { margin-top:auto; }
+#lobby .db-grid .game-card.cgc { width:100%; margin:0; }
+#lobby .db-view .game-card.cgc { width:220px; max-width:100%; margin:10px auto; }
+#lobby .db-row .game-card.cgc { width:56px; height:auto; flex:none; padding:0; }
+#lobby .db-row .game-card .haf-frame-box { display:block; flex:none; }
+#lobby .db-row .game-card .haf-surface { display:block; flex:none; }
+#lobby .db-row .game-card .game-card-copy { display:flex; flex:none; }
+#lobby .lb-modular-home .lb-mini .game-card.cgc { width:94px; height:auto; flex:none; margin:0; padding:0; }
+#lobby .game-card.cgc .cgc-n { position:absolute; top:9%; right:9%; z-index:8; padding:3px 5px; font:700 12px/1 var(--font-game-text); color:#ffe4a4; background:#04231de8; border:1px solid #b99b51; border-radius:0; }

@@ -12,7 +12,7 @@ const B = "https://ddragon.leagueoflegends.com", V = "16.21.1"
 const KEY: Record<string, string> = {
     kogmaw: "KogMaw", ashe: "Ashe", lux: "Lux", lissandra: "Lissandra", blitzcrank: "Blitzcrank", braum: "Braum", khazix: "Khazix",
     aatrox: "Aatrox", janna: "Janna", katarina: "Katarina", ahri: "Ahri", darius: "Darius", leona: "Leona", jinx: "Jinx",
-    thresh: "Thresh", zed: "Zed", annie: "Annie", vayne: "Vayne", malphite: "Malphite", soraka: "Soraka",
+    rumble: "Rumble", sylas: "Sylas", mel: "Mel", azir: "Azir", sona: "Sona", jayce: "Jayce", thresh: "Thresh", zed: "Zed", annie: "Annie", vayne: "Vayne", malphite: "Malphite", soraka: "Soraka",
 }
 /** Phần JSON Data Dragon mà script đọc tới */
 interface DDragonChampion { name: string; title: string; passive: { name: string }; spells: { name: string }[] }

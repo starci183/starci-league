@@ -63,9 +63,11 @@ assert.equal(draw.out.state.players.A.hand.length,
     draw.before.players.A.hand.length + 1)
 
 // Real Teemo receipts must preserve each explosion and the compensating draw.
+// Số Nấm Q gài đọc từ kit (q1), không còn cố định ba như bản cũ.
+const mushrooms = cg.kit("teemo").p.q1
 const planted = play("teemo-mushrooms")
 assert.equal(planted.out.events.filter(e => e.t === "create" && e.card.id === "mushroom").length,
-    3)
+    mushrooms)
 assert.equal(planted.out.events.find(e => e.t === "mushroom")?.phase,
     "plant")
 const teemoScenario = createScenario("teemo-mushrooms")
@@ -76,7 +78,8 @@ assert.ok(detonate)
 const detonated = cg.applyAction(planted.out.state,
     detonate)
 assert.equal(detonated.events.filter(e => e.t === "mushroom" && e.phase === "burst").length,
-    3)
+    Math.min(mushrooms,
+        cg.kit("teemo").p.r1))
 assert.ok(!detonated.state.players.B.deck.some(c => c.id === "mushroom"))
 const trap = play("teemo-draw-mushroom")
 assert.equal(trap.out.events.filter(e => e.t === "drawAuto").length,
@@ -100,7 +103,7 @@ for (const events of [detonated.events,
         p.end).filter(e => e.t === "damage").length,
     1)
 }
-console.log("PASS Teemo: three separate detonations, public trap receipt and compensating draw")
+console.log(`PASS Teemo: ${mushrooms} planted, each detonates separately, public trap receipt and compensating draw`)
 
 for (const slug of ["blitz-steal",
     "blitz-steal-skill"]) {
@@ -117,12 +120,14 @@ for (const slug of ["blitz-steal",
         5)
     assert.equal(theft.out.state.players.A.hand.length,
         1)
-    assert.ok(theft.out.state.units["A:blitzcrank"].shield > 0)
+    // Nội tại Thu Gom: mỗi lá cướp cho 1 Phụ Tùng (bản cũ trả Khiên)
+    assert.equal(theft.out.state.units["A:blitzcrank"].stacks.blitz_parts,
+        1)
     if (slug === "blitz-steal") {
         assert.equal(theft.out.state.players.A.hand[0].uid,
             stolen.card.uid)
-        assert.equal(theft.out.events.some((e) => e.t === "damage"),
-            false)
+        // Q Bàn Tay Hoả Tiễn luôn gây sát thương phép lên người bị chọn; cướp lá thường chỉ giữ nguyên lá
+        assert.ok(theft.out.events.some((e) => e.t === "damage" && e.src === "A:blitzcrank" && e.tag === "skill"))
     } else {
         assert.equal(theft.out.state.players.A.hand[0].hero,
             "blitzcrank")
@@ -146,8 +151,13 @@ for (const slug of ["chain-shield",
     assert.deepEqual(result.events.filter((e) => e.t === "chainResolve").map((e) => e.t === "chainResolve" ? e.n : 0),
         [2,
             1])
-    if (slug === "chain-shield") assert.ok(result.events.findIndex((e) => e.t === "shield") < result.events.findIndex((e) => e.t === "damage"))
-    else assert.ok(result.events.some((e) => e.t === "damage" && e.src === "B:jinx" && e.target === "A:ashe" && e.kind === "true"))
+    // Annie E (Lá Chắn Cháy) vừa gây phép lên kẻ nhắm vừa tạo Khiên: điều cần giữ là Khiên có trước đòn gốc của Darius
+    if (slug === "chain-shield") assert.ok(result.events.findIndex((e) => e.t === "shield") < result.events.findIndex((e) => e.t === "damage" && e.src === "A:darius" && e.tag === "attack"))
+    // Renata E (Hoả Lực Yểm Trợ): Jinx bị nhắm bắn trả kẻ nhắm bằng AD của chính nó rồi nhận Khiên; bản cũ phản sát thương chuẩn
+    else {
+        assert.ok(result.events.some((e) => e.t === "damage" && e.src === "B:jinx" && e.target === "A:ashe" && e.tag === "skill"))
+        assert.ok(result.events.some((e) => e.t === "shield" && e.src === "B:renata" && e.target === "B:jinx"))
+    }
 }
 
 const armor = play("armor-and-mr")
@@ -174,31 +184,45 @@ assert.deepEqual(fourEvents.filter((e) => e.t === "chainResolve").map((e) => e.t
         2,
         1])
 assert.deepEqual(fourEvents.filter((e) => e.t === "chainCancel").map((e) => e.t === "chainCancel" ? e.n : 0),
-    [3,
-        1])
-assert.equal(fourEvents.filter((e) => e.t === "damage").length,
-    0,
-    "chiêu bị giật không gây sát thương giả")
+    [2])
+assert.ok(fourEvents.some((e) => e.t === "damage" && e.src === "B:mel" && e.target === "A:leona"),
+    "Mel phản lại chiêu nhắm đồng minh bằng chiêu thật")
+assert.ok(fourEvents.some((e) => e.t === "damage" && e.src === "A:annie"),
+    "Blitz bị Choáng trước mắt xích 2 nên không giật được Annie Q")
 assert.equal(fourEvents.filter((e) => e.t === "shield").length,
-    2,
-    "nội tại Blitz trả Khiên cho hai lần giật")
+    0,
+    "nội tại Blitz không còn trả Khiên")
+assert.equal(fourEvents.filter((e) => e.t === "steal").length,
+    0,
+    "mắt xích bị Choáng không cướp bài")
+assert.equal(chain4.units["B:blitzcrank"].stacks.blitz_parts ?? 0,
+    0,
+    "không cướp được lá thì không nhận Phụ Tùng")
 const armorBefore = new cg.Game(armor.before)
 const armorAfter = new cg.Game(armor.out.state)
-assert.equal(armorAfter.armor(armor.out.state.units["A:leona"]) - armorBefore.armor(armor.before.units["A:leona"]),
-    60)
+// Leona E (Nhật Thực) chỉ cộng Giáp: e5 + e6·Giáp gốc, rồi nội tại Giáp Mặt Trời nhân thêm p1% tổng Giáp. Kháng Phép không đổi (bản cũ +60/+60 cố định)
+const leonaKit = cg.kit("leona").p
+const armorUp = armor.out.state.units["A:leona"].statuses.armor_up
+assert.ok(armorUp,
+    "Leona E tạo trạng thái armor_up, không phải Khiên")
+const armorGain = armorAfter.armor(armor.out.state.units["A:leona"]) - armorBefore.armor(armor.before.units["A:leona"])
+assert.ok(Math.abs(armorUp.v - (leonaKit.e5 + leonaKit.e6 * armorBefore.armor(armor.before.units["A:leona"]))) < 1e-9)
+assert.ok(Math.abs(armorGain - armorUp.v * (1 + leonaKit.p1 / 100)) <= 1)
 assert.equal(armorAfter.mr(armor.out.state.units["A:leona"]) - armorBefore.mr(armor.before.units["A:leona"]),
-    60)
+    0)
 assert.equal(armor.out.events.some((e) => e.t === "shield"),
     false)
 const lux = play("spell-shield-mana")
+const luxKit = cg.kit("lux").p
+// Điểm kiểm tra đứng sau một E hợp lệ (tiêu e0). Q Lăng Kính nay tốn q0 từ quỹ chung (bản cũ hoàn mana) và vừa gây phép vừa tạo Khiên cho Lux
 assert.equal(lux.before.teamMana.A,
-    cg.RULES.teamManaStart - 30)
-assert.ok(lux.out.state.teamMana.A > lux.before.teamMana.A)
+    cg.RULES.teamManaStart - luxKit.e0)
+assert.equal(lux.out.state.teamMana.A,
+    lux.before.teamMana.A - luxKit.q0)
 assert.equal(lux.out.state.teamMana.B,
     lux.before.teamMana.B)
-assert.ok(lux.out.events.some((e) => e.t === "shield"))
-assert.equal(lux.out.events.some((e) => e.t === "damage"),
-    false)
+assert.ok(lux.out.events.some((e) => e.t === "shield" && e.target === "A:lux"))
+assert.ok(lux.out.events.some((e) => e.t === "damage" && e.src === "A:lux" && e.tag === "skill"))
 const manaScenario = createScenario("mana-spend")
 assert.deepEqual(manaScenario.state.teamMana,
     {
@@ -305,8 +329,11 @@ forceGame.summon("B",
     1)
 forceGame.tutor("A",
     (card) => card.id === "renata_r")
-// Renata R: each enemy makes ONE attack action at a random teammate; hits = floor(AS/100) (+ fractional chance).
-// Darius gets +100 attack speed (200 -> exactly 2 hits); Garen stays at base 100 (exactly 1 hit).
+// Renata R: each enemy makes ONE attack action at its nearest target; hits = floor(AS/100) (+ fractional chance).
+// R gives Frenzy: attack_speed = max(current bonus, r2). Darius already has +100 and Garen gets r2 from R, so both reach floor((100 + max(bonus, r2)) / 100) hits.
+const frenzyAs = cg.kit("renata").p.r2
+const frenzyHits = (bonus: number) => Math.floor((100 + Math.max(bonus,
+    frenzyAs)) / 100)
 const forcedDarius = forceGame.heroes("B").find((unit) => unit.hero === "darius")!
 const forcedGaren = forceGame.heroes("B").find((unit) => unit.hero === "garen")!
 forceGame.status(forcedDarius,
@@ -326,13 +353,13 @@ const forcedEvents = cg.applyAction(forced,
     forceAction).events
 const actualAttacks = forcedEvents.filter((event) => event.t === "attack")
 assert.equal(actualAttacks.filter((event) => event.t === "attack" && event.attacker === forcedDarius.id && event.target === forcedGaren.id).length,
-    2,
-    "Renata R: Darius (200 attack speed) makes one attack action of 2 hits at Garen")
+    frenzyHits(100),
+    "Renata R: Darius makes one attack action of floor(AS/100) hits at Garen")
 assert.equal(actualAttacks.filter((event) => event.t === "attack" && event.attacker === forcedGaren.id && event.target === forcedDarius.id).length,
-    1,
-    "Renata R: Garen (100 attack speed) makes one attack action of 1 hit at Darius")
+    frenzyHits(0),
+    "Renata R: Garen makes one attack action of floor(AS/100) hits at Darius, now with Frenzy attack speed")
 assert.equal(actualAttacks.length,
-    3,
+    frenzyHits(100) + frenzyHits(0),
     "Renata R: one attack action per enemy hero, hit count by attack speed")
 const noDom: Fx = {
     spawn: async () => { throw new Error("planning must not need DOM") }, drop: () => {}, t: (ms) => ms
@@ -363,7 +390,8 @@ for (const role of ["assassin",
         1)
 }
 const brand = play("brand-effects")
-assert.deepEqual(brand.out.events.filter(event => event.t === "damage" || event.t === "status").map(event => event.t === "status" ? event.id : event.t),
+// Bỏng nay là stack "burn" (sự kiện stack), Choáng vẫn là trạng thái: thứ tự damage → burn → stun giữ nguyên
+assert.deepEqual(brand.out.events.filter(event => event.t === "damage" || event.t === "status" || event.t === "stack" && event.key === "burn").map(event => event.t === "status" ? event.id : event.t === "stack" ? "burn" : event.t),
     ["damage",
         "burn",
         "stun"])

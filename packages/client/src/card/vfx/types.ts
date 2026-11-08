@@ -58,6 +58,12 @@ export interface SkillVfx {
     travel: string;
     /** Tên hiệu ứng khi trúng mỗi mục tiêu (vd "burst", "slashHit", "frostBurst", "explosion", "heal", "shield") */
     impact: string;
+    /** Hiệu ứng riêng cho cú nhận Khiên của chiêu này, thay cho hiệu ứng Khiên chung */
+    shield?: string;
+    /** Hiệu ứng khi Khiên của chiêu này đỡ đòn */
+    block?: string;
+    /** Hiệu ứng phụ cùng nhịp với `impact` (vd Soraka tự hồi ở Q, bản hồi gấp đôi ở R) */
+    extra?: string;
     /** Hiệu ứng tại chỗ caster trước khi bay (vd "charge", "none") */
     cast?: string;
     color: number;

@@ -1,0 +1,8 @@
+{
+    "heal": { "base": 100, "pctMax": 0.1 },
+    "ignite": { "perTurn": 40, "turns": 2 },
+    "exhaust": { "cut": 0.4, "turns": 1 },
+    "barrier": { "base": 80, "pctMax": 0.1 },
+    "smite": { "token": 150, "champion": 0 },
+    "teleport": { "hpPct": 0.5 }
+}

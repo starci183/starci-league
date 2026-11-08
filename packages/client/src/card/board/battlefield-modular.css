@@ -1,0 +1,76 @@
+/* A complete top-down map, uniformly fitted once. All lane anchors live in this image's space. */
+.forest-game.cg-root .cg-main { background:radial-gradient(ellipse at 50% 45%,#103e29,#031a13 80%); }
+.forest-game.cg-root .modular-battlefield { position:relative; display:flex; flex-direction:column; min-height:0; }
+.forest-game.cg-root .modular-battlefield .bd-duel-hud { height:92px; min-height:92px; box-sizing:border-box; }
+.forest-game.cg-root .modular-battlefield .bd-board-body { position:relative; height:auto; flex:1; min-height:0; display:grid; grid-template-columns:minmax(0,1fr) 76px; gap:6px; align-items:center; padding:0 2px 10px; box-sizing:border-box; }
+.forest-game.cg-root .modular-battlefield .bd-artboard { position:relative; width:100%; aspect-ratio:1280 / 820; min-width:0; isolation:isolate; }
+.modular-battlefield :is(.bd-ground-art,.bd-border-art) { position:absolute; inset:0; width:100%; height:100%; object-fit:contain; pointer-events:none; user-select:none; }
+.modular-battlefield .bd-ground-art { z-index:0; filter:brightness(.65) saturate(.70); }
+.modular-battlefield .bd-border-art { z-index:8; }
+.modular-battlefield .bd-aux-plate { position:absolute; width:193px; height:193px; object-fit:contain; top:50%; transform:translate(-50%,-50%); pointer-events:none; z-index:1; }
+.modular-battlefield .bd-aux-plate.foe { left:8%; }
+.modular-battlefield .bd-aux-plate.me { left:92%; }
+.forest-game.cg-root .modular-battlefield .bd-playfield { --road-1:10%; --road-2:30%; --road-3:50%; --road-4:70%; --road-5:90%; position:absolute; inset:0; width:100%; height:100%; z-index:3; }
+.forest-game.cg-root .modular-battlefield .bd-row { position:absolute; inset:0; width:100%; height:100%; display:block; pointer-events:none; }
+.forest-game.cg-root .modular-battlefield .bd-row > .bd-slot { position:absolute; top:24%; width:164px; height:280px; transform:translate(-50%,-50%); margin:0; border:0; border-radius:0; box-shadow:none; background:none; pointer-events:auto; }
+.forest-game.cg-root .modular-battlefield .bd-row.me > .bd-slot { top:76%; }
+.forest-game.cg-root .modular-battlefield .bd-row > .bd-slot.extra { top:50%; width:164px; height:180px; }
+.forest-game.cg-root .modular-battlefield .bd-row.foe > .bd-slot.extra { left:8%; }
+.forest-game.cg-root .modular-battlefield .bd-row.me > .bd-slot.extra { left:92%; }
+.forest-game.cg-root .modular-battlefield .bd-slot.empty:not(.extra)::before,.forest-game.cg-root .modular-battlefield .bd-slot.closed::before { content:''; position:absolute; left:50%; top:50%; width:72px; height:72px; transform:translate(-50%,-50%); background:url('/ui/battlefield-modular-v1/lane-marker-v1.png') center/contain no-repeat; pointer-events:none; }
+.forest-game.cg-root .modular-battlefield .bd-slot.closed::before { background-image:url('/ui/battlefield-modular-v1/lane-locked-v1.png'); }
+.forest-game.cg-root .modular-battlefield .bd-slot.closed { opacity:1; }
+.forest-game.cg-root .modular-battlefield .bd-slot.closed .bd-lock { display:none; }
+.forest-game.cg-root .modular-battlefield .bd-lane-caption { position:absolute; left:50%; top:calc(50% + 40px); transform:translateX(-50%); color:#efdda6; font:600 14px/1 var(--font-game-title); }
+.forest-game.cg-root .modular-battlefield .bd-pend-img { position:relative; width:132px; height:132px; aspect-ratio:1; object-fit:cover; flex:none; }
+.forest-game.cg-root .modular-battlefield .bd-slot.empty:not(.extra) > :is(.bd-slot-label,.bd-slot-sub),.forest-game.cg-root .modular-battlefield .bd-slot.closed > .bd-slot-sub { position:absolute; left:50%; top:calc(50% + 44px); transform:translateX(-50%); width:132px; padding:6px; box-sizing:border-box; color:#ecd89b; text-align:center; font:600 13px/1.1 var(--font-game-title); background:#06271de8; border:1px solid #8f7946; }
+.forest-game.cg-root .modular-battlefield .bd-slot.extra.empty { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:5px; color:#17382a; text-shadow:0 1px #fff2bf; }
+.forest-game.cg-root .modular-battlefield .bd-slot.extra.empty .bd-slot-label { font:700 15px/1.15 var(--font-game-title); color:#17382a; }
+.forest-game.cg-root .modular-battlefield .bd-slot.extra.empty .bd-slot-sub { font-size:12px; color:#25442f; }
+.forest-game.cg-root .modular-battlefield .bd-mid { top:57%; }
+.forest-game.cg-root .modular-battlefield .bd-mid > span { display:none; }
+.forest-game.cg-root .modular-battlefield .bd-mid > span:has(.bd-lane-el) { display:block; font-size:0; }
+.forest-game.cg-root .modular-battlefield .bd-mid .bd-lane-el { font-size:12px; }
+
+/* Portrait, name, HP, counters and equipment are separate modules, never a sliced whole-card painting. */
+.forest-game.cg-root .bd-unit.modular-unit { flex:none; width:164px; height:auto; aspect-ratio:auto; max-width:none; min-height:0; display:flex; align-items:center; padding:0; gap:0; border:0; border-image:none; border-radius:0; background:none; box-shadow:none; }
+.forest-game.cg-root .bd-unit.modular-unit::before,.forest-game.cg-root .bd-unit.modular-unit::after { display:none; }
+.forest-game.cg-root .bd-unit.modular-unit .bd-art { position:relative; flex:none; width:148px; height:148px; aspect-ratio:1; min-height:0; overflow:visible; background:none; border-radius:0; }
+.forest-game.cg-root .bd-unit.modular-unit .bd-art::after { display:none; }
+.forest-game.cg-root .bd-unit.modular-unit .bd-srow { position:absolute; left:8px; top:-23px; width:148px; height:22px; min-height:0; margin:0; justify-content:center; gap:3px; }
+.forest-game.cg-root .bd-unit.modular-unit .bd-name-module { color:#fff0b9; font:700 18px/1 var(--font-game-title); }
+.forest-game.cg-root .bd-unit.modular-unit .bd-role { top:23px; left:19px; padding:2px 4px; max-width:110px; box-sizing:border-box; font-size:10px; }
+.forest-game.cg-root .bd-unit.modular-unit :is(.bd-form,.bd-weapon-state) { left:19px; bottom:22px; max-width:110px; padding:3px 5px; font-size:11px; }
+.forest-game.cg-root .bd-unit.modular-unit .bd-cardless { bottom:18px; right:18px; }
+.forest-game.cg-root .bd-unit.modular-unit > .bd-hp { width:144px; height:18px; min-height:18px; border:1px solid #c5a455; border-radius:3px; margin:0; flex:none; }
+.forest-game.cg-root .bd-unit.modular-unit > .bd-hp > span { font-size:12px; line-height:16px; }
+.forest-game.cg-root .bd-unit.modular-unit .bd-stats { width:144px; height:20px; gap:2px; }
+.forest-game.cg-root .bd-unit.modular-unit .bd-stats span { min-height:18px; font-size:11px; line-height:18px; }
+.forest-game.cg-root .bd-unit.modular-unit .bd-items { display:flex; justify-content:center; gap:4px; padding-top:2px; height:32px; }
+.forest-game.cg-root .bd-unit.modular-unit .bd-item { width:30px; height:30px; border:0; border-radius:0; background:none; }
+.forest-game.cg-root .bd-unit.modular-unit .bd-item img { object-fit:contain; }
+.forest-game.cg-root .bd-unit.modular-unit.dead .bd-dead-l { width:148px; box-sizing:border-box; padding:8px; text-align:center; background:#09251e; color:#d4bd90; }
+.forest-game.cg-root .bd-unit.modular-unit.stunned .bd-art .af-art { filter:grayscale(.7) brightness(.7); }
+.forest-game.cg-root .bd-unit.modular-unit.silenced .bd-art .af-art { filter:saturate(.5) hue-rotate(40deg) brightness(.85); }
+.forest-game.cg-root .bd-unit.modular-unit.dead .bd-art .af-art { filter:grayscale(1); opacity:.6; }
+.forest-game.cg-root .bd-unit.modular-unit:is(.sel,.attack-source,.tg) { filter:drop-shadow(0 0 7px #ffdc76); outline:none; }
+.forest-game.cg-root .bd-unit.modular-unit.foe.ctarget { filter:drop-shadow(0 0 8px #f06d49); }
+.forest-game.cg-root .bd-unit.modular-unit.token { width:112px; }
+.forest-game.cg-root .bd-unit.modular-unit.token .bd-art { width:84px; height:84px; }
+.forest-game.cg-root .bd-unit.modular-unit.token > .bd-hp,.forest-game.cg-root .bd-unit.modular-unit.token .bd-stats { width:108px; }
+.forest-game.cg-root .bd-unit.modular-unit.token .bd-role { display:none; }
+
+/* Each live pile count sits on its own native-ratio stone plinth. */
+.forest-game.cg-root .modular-battlefield .bd-deck-rail { position:relative; inset:auto; width:76px; height:100%; max-height:740px; min-width:0; box-sizing:border-box; display:flex; flex-direction:column; align-items:center; justify-content:space-between; padding:0; gap:12px; }
+.forest-game.cg-root .modular-battlefield .bd-player-piles { display:flex; flex-direction:column; width:76px; gap:4px; }
+.forest-game.cg-root .modular-battlefield .bd-pile { position:relative; display:block; width:76px; height:117px; min-height:117px; box-sizing:border-box; padding:0; margin:0; border:0; border-image:none; border-radius:0; background:url('/ui/battlefield-modular-v1/deck-plinth-v1.png') center/contain no-repeat; box-shadow:none; }
+.forest-game.cg-root .modular-battlefield .bd-pile.grave { background-image:url('/ui/battlefield-modular-v1/grave-plinth-v1.png'); }
+.forest-game.cg-root .modular-battlefield .bd-pile .bd-pile-art { position:absolute; left:23%; top:17%; width:54%; height:47%; max-width:none; overflow:hidden; display:block; }
+.forest-game.cg-root .modular-battlefield .bd-pile.grave .bd-pile-art { top:24%; height:43%; }
+.forest-game.cg-root .modular-battlefield .bd-pile .bd-pile-back { width:100%; height:100%; object-fit:contain; }
+.forest-game.cg-root .modular-battlefield .bd-pile .bd-pile-label { position:absolute; left:10%; right:10%; top:63%; display:block; font:600 10px/1 var(--font-game-title); color:#deca99; text-align:center; }
+.forest-game.cg-root .modular-battlefield .bd-pile .bd-pile-count { position:absolute; left:23%; top:72%; width:54%; height:11%; display:grid; place-items:center; color:#fff0be; font:700 14px/1 var(--font-game-title); }
+.forest-game.cg-root .modular-battlefield .bd-pile.grave .bd-pile-label { top:68%; }
+.forest-game.cg-root .modular-battlefield .bd-pile.grave .bd-pile-count { top:76%; height:10%; }
+.forest-game.cg-root .modular-battlefield .bd-pile-prizes { width:76px; gap:2px; }
+.forest-game.cg-root .modular-battlefield .bd-pile-prizes :is(.bd-pile-label,.bd-pile-count) { font-size:10px; }

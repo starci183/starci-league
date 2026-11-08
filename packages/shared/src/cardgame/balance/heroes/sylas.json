@@ -1,0 +1,41 @@
+{
+    "id": "sylas",
+    "stats": {
+        "hp": 345,
+        "atk": 70,
+        "armor": 26,
+        "mr": 28
+    },
+    "params": {
+        "p1": 3,
+        "p2": 25,
+        "p3": 0.2,
+        "p4": 2,
+        "q0": 25,
+        "q1": 50,
+        "q2": 0.5,
+        "q3": 130,
+        "e0": 25,
+        "e1": 45,
+        "e2": 0.45,
+        "e3": 30,
+        "e4": 0.3,
+        "e5": 12,
+        "r0": 35
+    },
+    "flags": {
+        "keepCC": 1,
+        "stealOnlyR": true,
+        "stealToHand": false
+    },
+    "bot": {
+        "stackValue": {
+            "sylas_shackle": 10
+        }
+    },
+    "limits": {
+        "Q": 2,
+        "E": 1,
+        "R": 1
+    }
+}

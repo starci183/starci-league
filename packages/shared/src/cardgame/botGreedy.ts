@@ -5,7 +5,7 @@ import {
     applyAction, legalActions
 } from "./engine"
 import {
-    summonLaneFit, summonValue
+    cardWorth, fateBury, summonLaneFit, summonValue
 } from "./botEval"
 import {
     Game
@@ -77,11 +77,11 @@ function scoreEvents(events: GameEvent[], before: GameState, after: GameState, s
             break
         }
         case "tempExpired": if (e.side === side) sc -= 2; break
-        case "create": if (e.side !== side) sc += e.card.id === "mushroom" ? (e.zone === "deck" ? 30 : 8) : 8; else if (e.card.copyOf) sc += 20; else if (e.zone === "hand" && e.card.kind === "support") sc += 12; break
+        case "create": if (e.side !== side) sc += e.card.id === "mushroom" ? (e.zone === "deck" ? 30 : 8) : 8; else if (e.card.copyOf || e.card.data?.recycled) sc += 20; else if (e.zone === "hand" && e.card.kind === "support") sc += 12; break
         case "summonToken": if (e.side === side) sc += 80; break
         case "equip": {
             const u = before.units[e.unit]
-            const role = u ? getHero(u.hero)?.role : undefined
+            const role = u ? new Game(before).role(u) : undefined
             if (e.side === side) sc += 200 - 10 * (u?.items.length ?? 0) + (role === "mage" || role === "marksman" || role === "assassin" ? 20 : 0)
             break
         }
@@ -136,6 +136,12 @@ export function chooseActionGreedy(state: GameState, side: Side): Action {
     const legal = legalActions(state,
         side)
     if (!legal.length) throw new Error("Không có hành động hợp lệ")
+    if (state.phase === "main" && state.active === side) {
+        const bury = fateBury(state,
+            side,
+            legal)
+        if (bury) return bury
+    }
     let h = (state.seed ^ (state.turnNo * 2654435761) ^ (state.actionsThisTurn * 40503)) >>> 0
     const noise = () => { h = Math.imul(h ^ (h >>> 15),
         2246822519) >>> 0; return (h % 1000) / 2000 }
@@ -156,7 +162,14 @@ export function chooseActionGreedy(state: GameState, side: Side): Action {
     const dead = new Game(state)
     for (const a of legal) {
         let sc: number
-        if (a.t === "end" || a.t === "pass" || a.t === "draw" || a.t === "ready" || a.t === "unequip" || a.t === "discard") continue
+        if (a.t === "end" || a.t === "step" || a.t === "pass" || a.t === "draw" || a.t === "ready" || a.t === "unequip" || a.t === "discard") continue
+        if (a.t === "ability" && state.step === "standby") { // nút Standby (Jayce đổi dạng): theo điểm của nút
+            const u = state.units[a.unit]
+            sc = (getHero(u?.hero ?? "")?.abilities?.find((x) => x.id === a.id)?.botValue?.(dead,
+                u) ?? 0)
+            if (sc > 0 && sc > bestScore) { bestScore = sc; best = a; chosen = true }
+            continue
+        }
         if (a.t === "summon") {
             // chọn tướng theo tay bài (summonValue: chỉ tay mình + sân công khai, không nhìn lựa chọn úp của địch);
             // đường chỉ phân thứ hạng giữa các đường của CÙNG một tướng
@@ -165,7 +178,10 @@ export function chooseActionGreedy(state: GameState, side: Side): Action {
                 a.hero) + 0.01 * summonLaneFit(state,
                 side,
                 a.hero,
-                a.lane) - 0.001 * LANE_ORDER.indexOf(a.lane)
+                a.lane) - 0.001 * LANE_ORDER.indexOf(a.lane) + (a.mode ? 0.01 * (getHero(a.hero)?.bot?.modeValue?.(dead,
+                side,
+                a.lane,
+                a.mode) ?? 0) : 0)
             if (sc > bestScore) { bestScore = sc; best = a; chosen = true }
             continue
         } else if (a.t === "craft") {
@@ -197,12 +213,20 @@ export function chooseActionGreedy(state: GameState, side: Side): Action {
                     state,
                     r.state,
                     side)
+                // nút hành động úp 1 lá tay thành vật triệu hồi (Gangplank Úp Lá): giá trị = giá trị vật + chút mưu, trừ giá lá đã úp
+                if (a.t === "ability" && a.args?.pick) {
+                    const hand = state.players[side].hand.find((x) => x.uid === a.args!.pick)
+                    if (r.events.some((e) => e.t === "summonToken" && e.side === side)) sc -= 80
+                    sc += (getHero(state.units[a.unit]?.hero ?? "")?.bot?.tokenValue ?? 0) + 8 - (hand ? cardWorth(state,
+                        side,
+                        hand) : 0)
+                }
             }
         }
         sc += noise()
         if (sc > bestScore) { bestScore = sc; best = a; chosen = true }
     }
     // nhóm discard: có thể đã chọn nhầm nhóm khi lá tốt hơn xuất hiện sau; chấp nhận (heuristic)
-    if (!chosen) return legal.find((a) => a.t === "end" || a.t === "pass" || a.t === "draw" || a.t === "ready") ?? best
+    if (!chosen) return legal.find((a) => a.t === "step") ?? legal.find((a) => a.t === "end" || a.t === "pass" || a.t === "draw" || a.t === "ready") ?? best
     return best
 }

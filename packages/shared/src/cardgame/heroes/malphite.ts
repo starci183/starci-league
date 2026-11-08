@@ -1,161 +1,161 @@
-// Malphite (Đỡ đòn, phép): máu 500 · AD 63 · AP gốc 0 · giáp/kháng 35/30.
-// CHẤT: "Núi đá, giáp là vũ khí": càng cứng đánh càng đau.
-// Nội tại: đầu lượt bạn nhận Khiên theo máu tối đa + Giáp (không cộng dồn). Q: sát thương phép theo Giáp, lấy 15 Giáp của địch đến hết lượt sau.
-// E (Quick): bị đánh thì +Giáp đến hết lượt và phạt kẻ đánh theo Giáp. R: sát thương phép theo Giáp lên mọi địch, may thì Choáng.
-// Cơ chế engine dùng: hook onTurnStart, HeroDef.bonusStats (Giáp tạm từ status), HeroDef.ap (AP gốc), status "armor_down" (địch mất Giáp phẳng).
+// Malphite (Đỡ đòn, phép): "Núi đá". Không có khống chế: biến cả đội thành đá (Giáp, Máu), nối sát thương địch bằng Liên Kết Đá, giáp nát địch bằng R.
+// Số liệu: balance/heroes/malphite.json. Chiêu chỉ scale Giáp.
+// Engine dùng: allyBonusStats (Giáp), g.setAuraMaxHp (Máu), status "stone_link" (g.damage chia sát thương), g.timed "armor_up"/"armor_down", hook onDeath.
+import {
+    kit, when
+} from "../balance"
 import {
     defineHero
 } from "../registry"
+import type {
+    Game
+} from "../game"
 import {
-    otherSide
+    FOREVER, otherSide, type PlayArgs, type Unit
 } from "../types"
-import {
-    ccApply, ccDuration
-} from "./braum"
 
-/** Trên địch: lượng Giáp bị Malphite lấy (v) */
-const STOLEN = "malphite_stolen"
-/** Trên Malphite: Giáp lấy được từ Q (v), đến hết lượt sau */
-const LOOT = "malphite_loot"
-/** Trên Malphite: Giáp cộng thêm của Sấm Động (v), đến hết lượt */
-const THUNDER = "malphite_e"
-/** Lượng Khiên Đá (lớp riêng của nội tại) còn lại sau lần làm mới gần nhất */
+const k = kit("malphite"), { p } = k
+const LINK = "stone_link"
 const STONE = "malphite_stone"
-const Q_STEAL = 15
-/** R: Choáng 1 + 0,1% Giáp + 0,1% AP đơn vị (law.md §4; không còn roll xác suất riêng) */
-export const R_STUN = {
-    base: 1, armor: 0.001, ap: 0.001
-}
-export const F_SHIELD = "5% máu tối đa + 100% Giáp"
-export const F_Q = "65 + 35% AD + 40% AP + 50% Giáp"
-export const F_E_ARMOR = "10 + 30% Giáp"
-export const F_E_DMG = "35 + 60% Giáp + 20% AP"
-export const F_R = "115 + 35% AD + 50% AP + 100% Giáp"
+const F_Q = k.x("q1 + q2·Giáp"), EN_Q = k.xe("q1 + q2·Giáp")
+const F_Q_ARMOR = k.x("q3 + q4·Giáp"), EN_Q_ARMOR = k.xe("q3 + q4·Giáp")
+const F_R = k.x("r1 + r2·Giáp"), EN_R = k.xe("r1 + r2·Giáp")
+const F_R_SHRED = k.x("r3 + r4·Giáp"), EN_R_SHRED = k.xe("r3 + r4·Giáp")
+const PCT_ARMOR = `${Math.round(p.p1 * 1000) / 10}%`, PCT_HP = `${Math.round(p.p2 * 1000) / 10}%`
 
+/** Máu cộng từ Thân Đá cho mọi tướng mình (kể cả chính Malphite): theo Máu tối đa gốc của Malphite (không tính phần Thân Đá của chính nó) */
+function syncStone(g: Game, me: Unit) {
+    const own = me.stacks[`aura:${STONE}`] ?? 0
+    const bonus = me.status === "board" ? Math.round(p.p2 * (me.maxHp - own)) : 0
+    for (const u of Object.values(g.s.units)) if (u.side === me.side && !u.token) g.setAuraMaxHp(u,
+        STONE,
+        bonus)
+}
+const linkable = (g: Game, me: Unit) => g.allies(me,
+    false).filter((u) => !u.token && !g.has(u,
+    LINK))
 
 export default defineHero({
-    id: "malphite", name: "Malphite", role: "tank", damage: "magic", hp: 500, atk: 63, armor: 35, mr: 30,
-    bot: {
-        markValue: {
-            malphite_stolen: 4,
-        },
-        buffValue: {
-            malphite_loot: 4, malphite_e: 4,
-        },
-    },
-    desc: "Ngọn núi biết đi: Giáp là vũ khí, vừa là Khiên, vừa là sát thương; lấy Giáp của địch, phạt kẻ đánh mình và mở giao tranh bằng Không Thể Cản Phá.",
+    id: "malphite", name: "Malphite", role: "tank", damage: "magic", ...k.base,
+    bot: k.bot,
+    desc: "Ngọn núi biết đi: biến cả đội thành đá, nối sát thương địch vào cùng một khối, nghiền nát Giáp địch. Không có khống chế.",
     passive: {
-        name: "Lá Chắn Đá",
-        desc: `Đầu lượt mình thay riêng phần Khiên Đá còn lại bằng Khiên trắng {${F_SHIELD}} hiện tại. Không cộng dồn Khiên Đá, không trừ hay xóa Khiên ngoài.`,
+        name: "Thân Đá",
+        desc: `Khi Malphite ở trên sân, mọi tướng mình có thêm ${PCT_ARMOR} Giáp và ${PCT_HP} Máu tối đa của Malphite.`,
     },
-    bonusStats(g, me) {
+    // Giáp: aura cho đồng minh (g.armor an toàn trong lúc tính aura). Máu: g.setAuraMaxHp qua syncStone.
+    allyBonusStats(g, owner, target) {
+        void target
         return {
-            armor: g.statusV(me,
-                LOOT) + g.statusV(me,
-                THUNDER)
+            armor: p.p1 * g.armor(owner)
         }
     },
     hooks: {
-        onTurnStart(g, me, d) {
-            if (d.side !== me.side) return
-            // thay riêng lớp Khiên Đá: gỡ phần đá còn lại (sát thương coi như ăn Khiên ngoài trước), rồi đặt lớp mới
-            const left = Math.min(me.stacks[STONE] ?? 0,
-                me.shield)
-            me.shield -= left
-            const before = me.shield
-            g.shield(me,
-                me,
-                g.f(me,
-                    F_SHIELD))
-            me.stacks[STONE] = me.shield - before
+        onSummon(g, me) { syncStone(g,
+            me) },
+        onRespawn(g, me) { syncStone(g,
+            me) },
+        onEquip(g, me, d) { if (d.side === me.side) syncStone(g,
+            me) },
+        onUnequip(g, me, d) { if (d.side === me.side) syncStone(g,
+            me) },
+        onTurnStart(g, me) { syncStone(g,
+            me) },
+        onDeath(g, me, d) {
+            if (d.victim.id !== me.id) return
+            // Malphite chết: mất mọi Liên Kết Đá và phần Thân Đá của đội
+            for (const u of g.heroes(me.side)) g.removeStatus(u,
+                LINK)
+            syncStone(g,
+                me)
         },
     },
     skills: {
         Q: {
-            key: "Q", mana: 10, name: "Mảnh Vỡ Địa Chấn", target: "enemy",
-            desc: `Chọn một tướng địch hợp lệ bất kể đường; gây {${F_Q}} sát thương phép. Sau đó chuyển tối đa 15 Giáp thực có của nó sang Malphite tới hết lượt địch kế tiếp; giảm nguồn thành công mới cộng đúng lượng đó.`,
+            key: "Q", name: "Mảnh Vỡ Địa Chấn", target: "enemy", mana: p.q0,
+            desc: `Chọn 1 tướng địch; gây {${F_Q}} sát thương phép. Mọi tướng mình nhận {${F_Q_ARMOR}} Giáp trong ${p.q5} đơn vị.`,
             resolve(c) {
-                const t = c.target!
-                const g = c.g
-                g.damage(c.self,
-                    t,
-                    c.f(F_Q),
-                    "magic",
+                c.g.damage(c.self,
+c.target!,
+c.f(F_Q),
+"magic",
+{
+    tag: "skill"
+})
+                const v = c.f(F_Q_ARMOR)
+                for (const u of c.g.heroes(c.side)) c.g.timed(c.self,
+                    u,
+                    "armor_up",
+                    p.q5,
                     {
-                        tag: "skill"
-                    })
-                if (t.status !== "board") return
-                // g.armor đã trừ armor_down hiện có: chỉ lấy phần Giáp thực còn lại
-                const take = Math.min(Q_STEAL,
-                    g.armor(t))
-                if (take <= 0) return
-                const foe = otherSide(c.side)
-                // Giảm Giáp thật: status "armor_down" (engine trừ phẳng, còn khi Malphite chết); dấu STOLEN giữ để hiển thị
-                g.status(t,
-                    "armor_down",
-                    1,
-                    {
-                        of: foe, v: take, add: true
-                    })
-                g.status(t,
-                    STOLEN,
-                    1,
-                    {
-                        of: foe, v: take, add: true
-                    })
-                g.status(c.self,
-                    LOOT,
-                    1,
-                    {
-                        of: foe, v: take, add: true
+                        v
                     })
             },
         },
         E: {
-            key: "E", mana: 20, name: "Sấm Động", target: "none", quick: true, chainOnly: true,
-            desc: `Khi địch đánh thường Malphite, bạn có thể dùng lá này: nhận {${F_E_ARMOR}} Giáp (đọc trước khi tăng) tới hết lượt hiện tại, rồi gây {${F_E_DMG}} sát thương phép (Giáp mới) lên kẻ đánh. Không tạo đòn thật.`,
-            quickWhen: (c) => c.trigger.side !== c.side && c.trigger.kind === "attack" && !!c.trigger.single && c.trigger.target === c.self.id,
+            key: "E", name: "Mạch Đá", target: "ally_other", mana: p.e0, quick: true,
+            quickWhen: when.attackOrSkill,
+            canPlay: (c) => linkable(c.g,
+                c.self).length > 0,
+            options: (c): PlayArgs[] => linkable(c.g,
+                c.self).map((u) => ({
+                target: u.id
+            })),
+            desc: "Quick. Khi địch đánh hoặc dùng chiêu, bạn có thể dùng lá này. Chọn 1 tướng mình khác; nó và Malphite nhận Liên Kết Đá, không hết hạn, nối được nhiều tướng: sát thương địch lên 1 tướng liên kết được chia đều cho mọi tướng liên kết, sát thương cả phe không chia. Malphite bị hạ thì mất hết liên kết; tướng bị hạ mất liên kết của nó.",
             resolve(c) {
-                c.g.status(c.self,
-                    THUNDER,
+                const t = c.target
+                if (!t) return
+                for (const u of [c.self,
+                    t]) c.g.status(u,
+                    LINK,
                     1,
                     {
-                        of: otherSide(c.side), v: c.f(F_E_ARMOR), add: true
-                    })
-                const foe = c.g.unit(c.trigger?.actor)
-                if (foe && foe.status === "board" && foe.side !== c.side) c.g.damage(c.self,
-                    foe,
-                    c.f(F_E_DMG),
-                    "magic",
-                    {
-                        tag: "skill"
+                        until: FOREVER, src: c.self.id
                     })
             },
         },
         R: {
-            key: "R", mana: 35, name: "Không Thể Cản Phá", target: "all_enemies",
-            desc: `Mọi tướng địch chịu {${F_R}} sát thương phép và thử Choáng 1 + 0,1% Giáp + 0,1% AP đơn vị. Nếu có quyền chiêu chí mạng, một kết quả dùng chung cho sát thương gốc cả bàn.`,
+            key: "R", name: "Không Thể Cản Phá", target: "all_enemies", mana: p.r0,
+            desc: `Mọi tướng địch nhận {${F_R}} sát thương phép và mất {${F_R_SHRED}} Giáp trong ${p.r5} đơn vị.`,
             resolve(c) {
-                const g = c.g
-                const dmg = c.f(F_R)
-                const d = ccDuration(g,
-                    c.self,
-                    R_STUN)
-                for (const t of g.heroes(otherSide(c.side))) {
-                    g.damage(c.self,
+                const dmg = c.f(F_R), shred = c.f(F_R_SHRED)
+                for (const t of c.g.heroes(otherSide(c.side))) {
+                    c.g.damage(c.self,
                         t,
                         dmg,
                         "magic",
                         {
                             tag: "skill"
                         })
-                    ccApply(g,
-                        c.self,
+                    if (t.status === "board") c.g.timed(c.self,
                         t,
-                        "stun",
-                        d,
-                        `Malphite R (${g.nameOf(t)})`)
+                        "armor_down",
+                        p.r5,
+                        {
+                            v: shred
+                        })
                 }
+            },
+        },
+    },
+    en: {
+        desc: "The walking mountain: turn the whole team to stone, bind the damage enemies deal into one block and grind their Armor down. No crowd control.",
+        passive: {
+            name: "Granite Body",
+            desc: `While Malphite is on the board, every allied champion gains ${PCT_ARMOR} of Malphite's Armor and ${PCT_HP} of Malphite's max HP.`,
+        },
+        skills: {
+            Q: {
+                name: "Seismic Shard",
+                desc: `Choose 1 enemy champion; deal {${EN_Q}} magic damage. Every allied champion gains {${EN_Q_ARMOR}} Armor for ${p.q5} units.`,
+            },
+            E: {
+                name: "Stone Vein",
+                desc: "Quick. When the enemy attacks or casts a skill, you may play this card. Choose 1 allied champion other than Malphite; it and Malphite gain Stone Link, which never expires and can join many champions: damage an enemy deals to 1 linked champion is split equally among all linked champions, team-wide damage is not split. When Malphite is taken down all links vanish; a champion taken down loses its own link.",
+            },
+            R: {
+                name: "Unstoppable Force",
+                desc: `Every enemy champion takes {${EN_R}} magic damage and loses {${EN_R_SHRED}} Armor for ${p.r5} units.`,
             },
         },
     },

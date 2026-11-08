@@ -1,0 +1,9 @@
+/* CanvasScaler: physical viewport changes scale, never rearrange the game scene. */
+.game-canvas-viewport { position:fixed; inset:0; overflow:hidden; background:linear-gradient(#04170ed9,#04170eed),url('/map/board5.jpg') center/cover; }
+.game-canvas-stage { position:absolute; left:50%; top:50%; width:1920px; height:1080px; transform:translate(-50%,-50%) scale(var(--game-canvas-scale,1)); transform-origin:center; container-name:game-canvas; container-type:size; isolation:isolate; }
+.game-canvas-stage > .cg-viewport,.game-canvas-stage .cg-root.forest-game { width:1920px; height:1080px; max-width:none; max-height:none; min-width:1920px; min-height:1080px; aspect-ratio:16/9; }
+.game-canvas-stage > .cg-viewport { display:block; overflow:hidden; }
+.game-canvas-overlays { position:absolute; inset:0; width:1920px; height:1080px; z-index:1000; pointer-events:none; container-type:size; }
+.game-canvas-overlays > .action-veil { position:absolute; inset:0; pointer-events:auto; --play-w:1920px; --play-h:1080px; }
+.game-canvas-overlays > .mode-veil { --play-w:1920px; --play-h:1080px; padding-left:23.04px; padding-right:23.04px; }
+.game-canvas-stage .cg-center { width:100%; height:100%; font-family:var(--font-game-text); }

@@ -1,0 +1,99 @@
+{
+  "metadataUrls": [
+    "https://ddragon.leagueoflegends.com/cdn/16.21.1/data/en_US/champion/Jinx.json",
+    "https://ddragon.leagueoflegends.com/cdn/16.21.1/data/en_US/champion/Jayce.json"
+  ],
+  "retrievedAt": "2026-11-02",
+  "assets": [
+    {
+      "file": "jinx-minigun.png",
+      "stackValue": 0,
+      "slot": "Q",
+      "state": "minigun",
+      "hero": "jinx",
+      "url": "https://raw.communitydragon.org/latest/game/assets/characters/jinx/hud/icons2d/jinx_q2.png",
+      "nativeWidth": 64,
+      "nativeHeight": 64,
+      "bytes": 4784
+    },
+    {
+      "file": "jinx-rocket.png",
+      "stackValue": 1,
+      "slot": "Q",
+      "state": "rocket",
+      "hero": "jinx",
+      "url": "https://raw.communitydragon.org/latest/game/assets/characters/jinx/hud/icons2d/jinx_q1.png",
+      "nativeWidth": 64,
+      "nativeHeight": 64,
+      "bytes": 4527
+    },
+    {
+      "file": "jayce-hammer.png",
+      "stackValue": 0,
+      "slot": "R",
+      "state": "hammer",
+      "hero": "jayce",
+      "url": "https://raw.communitydragon.org/latest/game/assets/characters/jayce/hud/icons2d/jaycer_melee.png",
+      "nativeWidth": 64,
+      "nativeHeight": 64,
+      "bytes": 6596
+    },
+    {
+      "file": "jayce-cannon.png",
+      "stackValue": 1,
+      "slot": "R",
+      "state": "cannon",
+      "hero": "jayce",
+      "url": "https://raw.communitydragon.org/latest/game/assets/characters/jayce/hud/icons2d/jaycer_ranged.png",
+      "nativeWidth": 64,
+      "nativeHeight": 64,
+      "bytes": 4517
+    },
+    {
+      "file": "jayce-hammer-q.png",
+      "stackValue": 0,
+      "slot": "Q",
+      "state": "hammer",
+      "hero": "jayce",
+      "url": "https://raw.communitydragon.org/latest/game/assets/characters/jayce/hud/icons2d/jayceq_melee.png",
+      "nativeWidth": 64,
+      "nativeHeight": 64,
+      "bytes": 4480
+    },
+    {
+      "file": "jayce-hammer-e.png",
+      "stackValue": 0,
+      "slot": "E",
+      "state": "hammer",
+      "hero": "jayce",
+      "url": "https://raw.communitydragon.org/latest/game/assets/characters/jayce/hud/icons2d/jaycee_melee.png",
+      "nativeWidth": 64,
+      "nativeHeight": 64,
+      "bytes": 4209
+    },
+    {
+      "file": "jayce-cannon-q.png",
+      "stackValue": 1,
+      "slot": "Q",
+      "state": "cannon",
+      "hero": "jayce",
+      "url": "https://raw.communitydragon.org/latest/game/assets/characters/jayce/hud/icons2d/jayceq_ranged.png",
+      "nativeWidth": 64,
+      "nativeHeight": 64,
+      "bytes": 4049
+    },
+    {
+      "file": "jayce-cannon-e.png",
+      "stackValue": 1,
+      "slot": "E",
+      "state": "cannon",
+      "hero": "jayce",
+      "url": "https://raw.communitydragon.org/latest/game/assets/characters/jayce/hud/icons2d/jaycee_ranged.png",
+      "nativeWidth": 64,
+      "nativeHeight": 64,
+      "bytes": 5235
+    }
+  ],
+  "source": "Original League of Legends game spell icons distributed by CommunityDragon; native files preserved without raster resizing",
+  "metadataVersion": "16.21.1"
+}

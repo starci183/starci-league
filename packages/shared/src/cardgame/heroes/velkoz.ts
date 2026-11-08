@@ -1,8 +1,9 @@
-// Vel'Koz (Pháp sư, phép) V3: máu 330 · AD 60 · giáp/kháng 25/28 · AP gốc 0.
-// CHẤT: "Phân rã". Mỗi tia chiêu gốc trúng tướng địch +1 Phân Rã; đủ 3 tiêu đúng 3 và nổ sát thương chuẩn (không chí mạng, không tự sinh dấu).
-// Phân Rã = stack "velkoz_decay" trên địch. Trúng không đòi mất Máu/Khiên (miễn riêng sát thương/Guard vẫn tính), miễn toàn lá/trượt thì không tích.
-// Mục tiêu chết: Phân Rã về 0 (hook onDeath khi Vel'Koz trên sân; thêm khoá theo số lần chết của mục tiêu để dấu cũ không sống lại khi Vel'Koz vắng mặt).
-// Mana bể chung (starci-33 tuning v1, giữ nguồn): Q 20 (1 chính + 1 phụ ngẫu nhiên) · E 30 (hai nhịp, nhịp hai cuối lượt hiện tại) · R 60 (6 tia vào 1 mục tiêu chọn).
+// Vel'Koz (Pháp sư, phép): plasma hư không. Mọi con số nằm trong balance/heroes/velkoz.json (docs/heroes/KITS.md).
+// Phân Rã = stack "velkoz_decay" đặt trên ĐỊCH (carrierStacks): mỗi tia trúng +1, đủ p1 thì tiêu p1 và nổ sát thương chuẩn.
+// Tướng mang chết mất một nửa (engine); Vel'Koz chết không đổi gì.
+import {
+    kit
+} from "../balance"
 import type {
     Game
 } from "../game"
@@ -13,46 +14,27 @@ import type {
     Unit
 } from "../types"
 
+const k = kit("velkoz"), {
+    p
+} = k
 export const DECAY = "velkoz_decay"
-/** Khoá ẩn: số lần chết của mục tiêu lúc Phân Rã được ghi (dấu cũ trước khi chết không còn hiệu lực) */
-const DECAY_LIFE = "aura:velkoz_decay_life"
-/** Đủ bấy nhiêu Phân Rã thì rã */
-export const DECAY_MAX = 3
-/** Số tia của R */
-export const RAYS = 6
-/** Số tia phụ của Q */
-export const Q_SIDE_TARGETS = 1
-export const F_DECAY = "60 + 10% AD + 40% AP + 5% máu tối đa mục tiêu"
-export const F_Q_MAIN = "135 + 20% AD + 130% AP + 4% máu đã mất mục tiêu"
-export const F_Q_SIDE = "70 + 9% AD + 65% AP + 2% máu đã mất mục tiêu"
-export const F_E = "60 + 9% AD + 40% AP + 4% máu đã mất mục tiêu"
-/** Phần E không phụ thuộc mục tiêu: chụp lúc E giải quyết, dùng cho cả nhịp trễ */
-const F_E_BASE = "70 + 10% AD + 50% AP"
-/** Phần E theo máu đã mất mục tiêu, tính lại ngay trước mỗi nhịp */
-const E_MISSING = 0.04
-export const F_R = "25 + 4% AD + 10% AP + 3% máu đã mất mục tiêu"
+const F_DECAY = k.x("p2 + p3·AP + p4% máu tối đa mục tiêu"), EN_DECAY = k.xe("p2 + p3·AP + p4% máu tối đa mục tiêu")
+const F_Q = k.x("q1 + q2·AP"), EN_Q = k.xe("q1 + q2·AP")
+const F_Q2 = k.x("q3 + q4·AP"), EN_Q2 = k.xe("q3 + q4·AP")
+const F_E = k.x("e1 + e2·AP"), EN_E = k.xe("e1 + e2·AP")
+const F_E2 = k.x("e3 + e4·AP"), EN_E2 = k.xe("e3 + e4·AP")
+const F_R = k.x("r2 + r3·AP + r4% máu đã mất mục tiêu"), EN_R = k.xe("r2 + r3·AP + r4% máu đã mất mục tiêu")
 
-/** Phân Rã hiện có trên t (bỏ dấu cũ ghi trước lần chết gần nhất) */
-export function decayOf(g: Game, t: Unit): number {
-    if ((t.stacks[DECAY_LIFE] ?? t.deaths) !== t.deaths) return 0
-    return g.stackOf(t,
-        DECAY)
-}
-
-/** +1 Phân Rã lên t; đủ DECAY_MAX thì tiêu đúng DECAY_MAX và nổ sát thương chuẩn */
+/** +1 Phân Rã lên t; đủ p1 thì tiêu đúng p1 và nổ sát thương chuẩn (không chí mạng, không tự sinh dấu) */
 function addDecay(g: Game, me: Unit, t: Unit) {
     if (t.token || t.status !== "board") return
-    if ((t.stacks[DECAY_LIFE] ?? t.deaths) !== t.deaths) g.setStack(t,
-        DECAY,
-        0)
-    t.stacks[DECAY_LIFE] = t.deaths
     const n = g.stack(t,
         DECAY,
         1)
-    if (n < DECAY_MAX) return
+    if (n < p.p1) return
     g.setStack(t,
         DECAY,
-        n - DECAY_MAX)
+        n - p.p1)
     g.damage(me,
         t,
         g.f(me,
@@ -64,9 +46,9 @@ function addDecay(g: Game, me: Unit, t: Unit) {
         })
 }
 
-/** Một tia chiêu lên t với sát thương thô raw: trúng (không bị miễn toàn lá/đóng băng bản thân) thì +1 Phân Rã */
+/** Một tia chiêu lên t, sát thương thô raw: trúng (không bị miễn toàn lá/đóng băng bản thân) thì +1 Phân Rã */
 function ray(g: Game, me: Unit, t: Unit, raw: number) {
-    if (t.status !== "board") return
+    if (t.status !== "board" || t.token) return
     if (g.has(t,
         "stasis") || g.has(t,
         "invulnerable") || g.s.immune?.includes(t.id)) return
@@ -81,7 +63,7 @@ function ray(g: Game, me: Unit, t: Unit, raw: number) {
         me,
         t)
 }
-/** Một tia theo công thức expr (tính lại máu đã mất của chính mục tiêu ngay trước tia) */
+/** Một tia theo công thức expr (tính lại theo mục tiêu ngay trước tia) */
 const hit = (g: Game, me: Unit, t: Unit, expr: string) => ray(g,
     me,
     t,
@@ -89,74 +71,64 @@ const hit = (g: Game, me: Unit, t: Unit, expr: string) => ray(g,
         expr,
         t))
 
-const foes = (g: Game, me: Unit) => g.targetableEnemies(me).filter((u) => !u.token)
-
 export default defineHero({
-    id: "velkoz", name: "Vel'Koz", role: "mage", damage: "magic", hp: 330, atk: 60, armor: 25, mr: 28,
-    desc: "Phân rã: mỗi tia chiêu trúng là một Phân Rã, đủ 3 thì rã chuẩn. Q chia tia sang một địch khác, E đánh hai nhịp, R dồn 6 tia vào một mục tiêu.",
+    id: "velkoz", name: "Vel'Koz", role: "mage", damage: "magic", ...k.base,
+    carrierStacks: [DECAY],
+    bot: k.bot,
+    desc: "Phân rã: mỗi tia chiêu trúng là một Phân Rã, đủ số thì nổ sát thương chuẩn. Sát thủ ngẫu nhiên: mục tiêu chọn chỉ bị chạm nhẹ, đòn nặng rơi vào các địch ngẫu nhiên hoặc đường kề. Q tách 2 tia, E cắt ngang 3 đường và đánh hai nhịp, R bắn ngẫu nhiên nhiều tia.",
     passive: {
-        name: "Phân Rã Hữu Cơ",
-        desc: `Mỗi tia chiêu gốc trúng tướng địch thêm 1 Phân Rã; đủ ${DECAY_MAX} thì tiêu đúng ${DECAY_MAX} và nổ {${F_DECAY}} sát thương chuẩn. Trúng không đòi mất Máu/Khiên: miễn riêng sát thương hay Hộ vệ vẫn tính; miễn toàn lá/trượt không tích. Nổ không chí mạng và không tự sinh dấu. Mục tiêu chết thì mất Phân Rã.`,
-    },
-    hooks: {
-        onDeath(g, me, d) {
-            // địch chết thì Phân Rã về 0
-            if (d.victim.side !== me.side && g.stackOf(d.victim,
-                DECAY)) g.setStack(d.victim,
-                DECAY,
-                0)
-        },
-        onDelayed(g, me, d) {
-            if (d.key !== "rift") return
-            const t = g.unit(String(d.data?.target ?? ""))
-            if (!t || t.status !== "board" || t.deaths !== Number(d.data?.life ?? t.deaths)) return
-            const base = Number(d.data?.base ?? g.f(me,
-                F_E_BASE))
-            ray(g,
-                me,
-                t,
-                base + E_MISSING * Math.max(0,
-                    t.maxHp - t.hp))
-        },
+        name: "Phân Rã",
+        desc: `Mỗi tia chiêu trúng tướng địch cho nó 1 Phân Rã; đủ ${p.p1} thì tiêu ${p.p1} và nổ {${F_DECAY}} sát thương chuẩn. Tướng mang Phân Rã chết thì mất một nửa.`,
     },
     skills: {
         Q: {
-            key: "Q", name: "Phân Hạch Plasma", target: "enemy", mana: 20,
-            desc: `Chọn 1 tướng địch: nó chịu {${F_Q_MAIN}} sát thương phép; 1 tướng địch khác ngẫu nhiên hợp lệ chịu {${F_Q_SIDE}} sát thương phép theo Máu đã mất của chính nó. Mỗi tia trúng thêm 1 Phân Rã.`,
+            key: "Q", name: "Phân Hạch Plasma", target: "enemy", mana: p.q0,
+            desc: `Chọn 1 tướng địch: {${F_Q}} sát thương phép (nhẹ). Sau đó tách sang tối đa 2 tướng địch khác NGẪU NHIÊN: mỗi tướng {${F_Q2}} sát thương phép (nặng hơn nhiều).`,
             resolve(c) {
                 const t = c.target!
-                const others = c.g.shuffle(foes(c.g,
-                    c.self).filter((u) => u.id !== t.id)).slice(0,
-                    Q_SIDE_TARGETS)
-                if (others.length) c.g.log(`Vel'Koz Q: tia phụ ngẫu nhiên trúng ${others.map((u) => c.g.nameOf(u)).join(", ")}`)
                 hit(c.g,
                     c.self,
                     t,
-                    F_Q_MAIN)
-                for (const u of others) hit(c.g,
-                    c.self,
-                    u,
-                    F_Q_SIDE)
+                    F_Q)
+                // 2 tia phụ vào 2 địch còn lại, chọn ngẫu nhiên không lặp
+                const rest = c.g.targetableEnemies(c.self).filter((u) => !u.token && u.id !== t.id)
+                for (let i = 0; i < 2 && rest.length; i++) {
+                    const other = c.g.pick(rest)!
+                    rest.splice(rest.indexOf(other),
+                        1)
+                    c.g.log(`Vel'Koz Q: tia phụ ngẫu nhiên trúng ${c.g.nameOf(other)}`)
+                    hit(c.g,
+                        c.self,
+                        other,
+                        F_Q2)
+                }
             },
         },
         E: {
-            key: "E", name: "Khe Nứt Hư Không", target: "enemy", mana: 30,
-            desc: `Chọn 1 tướng địch: nó chịu {${F_E}} sát thương phép ngay và một lần nữa vào cuối lượt hiện tại nếu còn sống. Hai nhịp cùng một lá, AD/AP chụp lúc E giải quyết; mỗi nhịp trúng tích 1 Phân Rã và tính lại Máu đã mất tại nhịp đó.`,
+            key: "E", name: "Khe Nứt Hư Không", target: "enemy", mana: p.e0,
+            desc: `Chọn 1 tướng địch làm tâm: khe nứt cắt ngang qua tâm và 2 đường kề. Tâm nhận {${F_E}} sát thương phép (nhẹ), mỗi đường kề nhận {${F_E2}} (nặng); cuối lượt hiện tại, ai còn sống nhận lại một lần nữa.`,
             resolve(c) {
                 const t = c.target!
-                const base = c.f(F_E_BASE)
-                ray(c.g,
-                    c.self,
-                    t,
-                    base + E_MISSING * Math.max(0,
-                        t.maxHp - t.hp))
-                if (t.status === "board") {
-                    c.g.delay(c.self,
+                const foe = t.side
+                const raw = c.f(F_E), rawSide = c.f(F_E2)
+                // 3 đường: tâm nhận nhẹ, hai đường kề nhận nặng (bỏ ô trống, bỏ vật triệu hồi)
+                for (const lane of [t.lane - 1,
+                    t.lane,
+                    t.lane + 1]) {
+                    const u = lane >= 0 && lane <= 4 ? c.g.at(foe,
+                        lane) : undefined
+                    if (!u || u.token || !c.g.targetable(u)) continue
+                    const dmg = lane === t.lane ? raw : rawSide
+                    ray(c.g,
+                        c.self,
+                        u,
+                        dmg)
+                    if (u.status === "board") c.g.delay(c.self,
                         "rift",
                         "turnEnd",
                         c.g.s.active,
                         {
-                            target: t.id, base, life: t.deaths
+                            target: u.id, base: dmg, life: u.deaths
                         },
                         {
                             surviveOwnerDeath: true // nhịp hai đã cam kết vẫn bắn khi Vel'Koz đã ngã
@@ -165,19 +137,59 @@ export default defineHero({
             },
         },
         R: {
-            key: "R", name: "Tia Phân Rã Sự Sống", target: "enemy", mana: 60,
-            desc: `Chọn 1 tướng địch, bắn liên tiếp tối đa ${RAYS} tia trong cùng một lần giải quyết; mỗi tia gây {${F_R}} sát thương phép theo Máu đã mất hiện tại và tích 1 Phân Rã nếu trúng. Mục tiêu chết thì dừng, không đổi đích. Cả ${RAYS} tia trúng là hoàn tất 2 chu kỳ Phân Rã.`,
+            key: "R", name: "Tia Phân Rã Sự Sống", target: "none", mana: p.r0,
+            desc: `Bắn ngẫu nhiên tổng cộng ${p.r1} tia: mỗi tia chọn 1 tướng địch bất kỳ đang trên sân, {${F_R}} sát thương phép.`,
+            options(c) {
+                return c.g.targetableEnemies(c.self).some((u) => !u.token) ? [{
+                }] : []
+            },
             resolve(c) {
-                const t = c.target!
-                let n = 0
-                for (let i = 0; i < RAYS && t.status === "board"; i++) {
+                const hitCount: Record<string, number> = {
+                }
+                for (let i = 0; i < p.r1; i++) {
+                    const pool = c.g.targetableEnemies(c.self).filter((u) => !u.token && u.status === "board")
+                    const t = c.g.pick(pool)
+                    if (!t) break
                     hit(c.g,
                         c.self,
                         t,
                         F_R)
-                    n++
+                    hitCount[c.g.nameOf(t)] = (hitCount[c.g.nameOf(t)] ?? 0) + 1
                 }
-                c.g.log(`Vel'Koz R: ${n}/${RAYS} tia vào ${c.g.nameOf(t)}`)
+                c.g.log(`Vel'Koz R: ${p.r1} tia ngẫu nhiên (${Object.entries(hitCount).map(([n,
+                    v]) => `${n} ${v}`).join(", ")})`)
+            },
+        },
+    },
+    hooks: {
+        onDelayed(g, me, d) {
+            if (d.key !== "rift") return
+            const t = g.unit(String(d.data?.target ?? ""))
+            if (!t || t.status !== "board" || t.deaths !== Number(d.data?.life ?? t.deaths)) return
+            ray(g,
+                me,
+                t,
+                Number(d.data?.base ?? 0))
+        },
+    },
+    en: {
+        desc: "Disintegration: every skill beam that hits is one Decay, enough of it unravels the target in true damage. A random-kill burster: the chosen target is only grazed, the heavy hits land on random enemies or adjacent lanes. Q splits 2 beams, E cuts across 3 lanes and hits twice, R fires random beams.",
+        passive: {
+            name: "Organic Deconstruction",
+            desc: `Each skill beam that hits an enemy champion gives it 1 Decay; at ${p.p1} it spends ${p.p1} and blows up for {${EN_DECAY}} true damage. A Decay bearer that dies loses half of it.`,
+        },
+        skills: {
+            Q: {
+                name: "Plasma Fission",
+                desc: `Choose 1 enemy champion: {${EN_Q}} magic damage (light). Then it splits onto up to 2 other RANDOM enemy champions: {${EN_Q2}} magic damage each (much heavier).`,
+            },
+            E: {
+                name: "Void Rift",
+                desc: `Choose 1 enemy champion as the centre: a rift cuts across it and the 2 adjacent lanes. The centre takes {${EN_E}} magic damage (light), each adjacent lane {${EN_E2}} (heavy); at the end of the current turn, survivors take it once more.`,
+            },
+            R: {
+                name: "Life Form Disintegration Ray",
+                desc: `Fire ${p.r1} beams in total, each at a random enemy champion on the board, {${EN_R}} magic damage each.`,
             },
         },
     },

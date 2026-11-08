@@ -1,9 +1,10 @@
-// Teemo (Xạ thủ, phép): máu 320 · AD 77 · AP gốc 0 · giáp/kháng 25/26. Chất: NẤM TRONG BỘ BÀI ĐỊCH, địch rút trúng là nổ vào đứa yếu nhất.
-// Nấm = lá đặc biệt "mushroom" (SpecialCardDef.onDraw). Lá Nấm nhớ phe Teemo (card.side). Nấm nổ rồi biến mất, địch vẫn rút bù 1 lá.
-// Kho Nấm không trần, giữ qua chết; Nấm rút trúng dùng chỉ số đơn vị Teemo (kể cả khi Teemo đã chết), là hiệu ứng (không chí mạng).
-// E: chủ động chọn 1 tướng địch bất kỳ; phản ứng chỉ khi đòn đánh địch trên cùng chỉ định Teemo và tự khoá kẻ đánh. Mù = đòn thật kế của kẻ đó trượt rồi tiêu.
-// R: chọn số Nấm N (PlayArgs.amount) để tiêu, giữ phần dư; kho trống thì tự gài 3 trước. Phí 35 cố định.
-// Tuning v1: mana Q/E/R = 10/15/35.
+// Teemo (Xạ thủ). Chất: NẤM TRONG BỘ BÀI ĐỊCH. Nấm là lá đặc biệt "mushroom" (SpecialCardDef.onDraw) xáo vào bộ đối thủ.
+// Rút trúng: tướng tỉ lệ Máu thấp nhất của người rút nhận sát thương vật lý theo chỉ số Teemo (có thể chí mạng), rồi người rút bù 1 lá.
+// Cờ halveMushroomsOnDeath (JSON): Teemo chết thì kho Nấm trong bộ đối thủ mất một nửa (chờ thầy chốt, hiện tắt).
+// Client vẽ Nấm qua sự kiện "mushroom" (phase plant / burst): giữ nguyên hình dạng sự kiện.
+import {
+    kit, actorOrEnemy, when
+} from "../balance"
 import type {
     Game
 } from "../game"
@@ -11,16 +12,30 @@ import {
     defineHero, defineSpecialCard
 } from "../registry"
 import {
-    otherSide, type PlayArgs, type Side, type Unit
+    otherSide, RULES, type PlayArgs, type Side, type Unit
 } from "../types"
 
-const F_MUSH = "100 + 40% AD + 35% AP"
-const F_E = "70 + 45% AD + 40% AP"
-/** Sát thương E thêm mỗi Nấm trong bộ bài địch */
-const F_E_PER = "15 + 10% AD + 10% AP"
-const Q_MUSH = 3
-/** R: kho trống thì tự gài bấy nhiêu Nấm trước khi tiêu */
-const R_EMPTY_PLANT = 3
+const k = kit("teemo"), {
+    p
+} = k
+
+const F_MUSH = k.x("p2 + p3·AD + p4·Tốc Đánh"), EN_MUSH = k.xe("p2 + p3·AD + p4·Tốc Đánh")
+const F_Q = k.x("q2 + q3·AD"), EN_Q = k.xe("q2 + q3·AD")
+const F_E = k.x("e1 + e2·AD"), EN_E = k.xe("e1 + e2·AD")
+const F_E_BLIND = k.x("e4 + e5·AD"), EN_E_BLIND = k.xe("e4 + e5·AD")
+const F_E_PER = String(p.e3)
+const F_R = k.x("r2 + r3·AD + r4·Tốc Đánh"), EN_R = k.xe("r2 + r3·AD + r4·Tốc Đánh")
+
+/** Chí mạng của sát thương tính tay: tung theo Chí mạng hiện có, hệ số như đòn đánh */
+function rollCrit(g: Game, u: Unit): { crit: boolean; m: number } {
+    const st = g.stats(u)
+    const crit = g.statusV(u,
+        "alwaysCrit") > 0 || (st.crit > 0 && g.rand() < Math.min(1,
+        st.crit))
+    return {
+        crit, m: crit ? RULES.critBase + st.critDmg : 1
+    }
+}
 
 /** Tướng sống có tỉ lệ Máu thấp nhất của `side` (hoà thì theo thứ tự đơn vị ổn định) */
 function lowestRatio(g: Game, side: Side): Unit | undefined {
@@ -29,28 +44,29 @@ function lowestRatio(g: Game, side: Side): Unit | undefined {
     return best
 }
 
-/** Nấm nổ lên tướng có tỉ lệ Máu thấp nhất của `side` (sát thương theo chỉ số Teemo `teemo`) */
+/** Nấm nổ lên tướng có tỉ lệ Máu thấp nhất của `side` (sát thương theo chỉ số Teemo `teemo`, có thể chí mạng) */
 function explode(g: Game, teemo: Unit | undefined, side: Side, tag: "effect" | "skill") {
     const t = lowestRatio(g,
         side)
-    if (teemo && t) {
-        g.emit({
-            t: "mushroom", side, source: teemo.id, phase: "burst", count: 1, target: t.id, drawn: tag === "effect"
+    if (!teemo || !t) return
+    g.emit({
+        t: "mushroom", side, source: teemo.id, phase: "burst", count: 1, target: t.id, drawn: tag === "effect"
+    })
+    const cr = rollCrit(g,
+        teemo)
+    g.damage(teemo,
+        t,
+        g.f(teemo,
+            F_MUSH) * cr.m,
+        "physical",
+        {
+            tag, crit: cr.crit, visuals: ["poisonHit"]
         })
-        g.damage(teemo,
-            t,
-            g.f(teemo,
-                F_MUSH),
-            "magic",
-            {
-                tag, visuals: ["poisonHit"]
-            })
-    }
 }
 
 defineSpecialCard({
     id: "mushroom", name: "Nấm",
-    desc: `Lá nằm trong bộ bài bạn. Rút trúng thì nổ: tướng sống có tỉ lệ Máu thấp nhất của bạn nhận {${F_MUSH}} sát thương phép (theo Teemo), rồi bạn rút bù 1 lá. Nấm không vào tay.`,
+    desc: `Lá nằm trong bộ bài bạn. Rút trúng thì nổ: tướng sống có tỉ lệ Máu thấp nhất của bạn nhận {${F_MUSH}} sát thương vật lý (theo Teemo, có thể chí mạng), rồi bạn rút bù 1 lá. Nấm không vào tay.`,
     onDraw(g, card, side) {
         explode(g,
             g.unit(`${card.side ?? otherSide(side)}:teemo`),
@@ -89,104 +105,125 @@ export function plant(g: Game, side: Side, n: number) {
 }
 
 export default defineHero({
-    id: "teemo", name: "Teemo", role: "marksman", damage: "magic", hp: 340, atk: 77, armor: 25, mr: 26,
+    id: "teemo", name: "Teemo", role: "marksman", damage: "magic", ...k.base,
     desc: "Không cần giết ai: gài Nấm vào bộ bài địch, rút trúng là nổ vào đứa yếu nhất; ai đánh Teemo thì bị Mù.",
     passive: {
         name: "Nấm Độc",
-        desc: `Mỗi đòn thật Teemo trúng tướng địch gài 1 Nấm vào bộ địch, không trần và giữ qua chết. Rút Nấm tiêu chính lá đó, gây {${F_MUSH}} sát thương phép vào tướng sống có tỉ lệ Máu thấp nhất rồi rút bù 1 lá; Nấm không vào tay.`,
+        desc: `Mỗi đòn trúng tướng địch xáo ${p.p1} Nấm vào bộ đối thủ, không trần. Địch rút trúng Nấm: tướng có tỉ lệ Máu thấp nhất của họ nhận {${F_MUSH}} sát thương vật lý, có thể chí mạng, rồi họ rút bù 1 lá. Nấm không vào tay.${k.flag("halveMushroomsOnDeath") ? " Teemo bị hạ: kho Nấm trong bộ đối thủ mất một nửa." : ""}`,
     },
     hooks: {
         onAttackHit(g, me, d) {
             if (d.attacker.id !== me.id || d.info.miss || d.target.token || d.target.side === me.side) return
             plant(g,
                 me.side,
-                1)
+                p.p1)
+        },
+        onDeath(g, me, d) {
+            if (d.victim.id !== me.id || !k.flag("halveMushroomsOnDeath")) return
+            const foe = otherSide(me.side)
+            const cards = g.deckCards(foe,
+                isMushroom)
+            for (const m of cards.slice(0,
+                Math.floor(cards.length * p.p5))) g.takeFromDeck(foe,
+                m.uid)
         },
     },
     skills: {
         Q: {
-            key: "Q", mana: 5, name: "Gài Nấm", target: "self",
-            desc: `Xáo ${Q_MUSH} Nấm của Teemo vào bộ đối phương; không cần có sẵn Nấm hoặc quyền đánh.`,
+            key: "Q", name: "Gài Nấm", target: "enemy", mana: p.q0,
+            desc: `Chọn 1 tướng địch; gây {${F_Q}} sát thương vật lý rồi xáo ${p.q1} Nấm vào bộ đối thủ.`,
             resolve(c) {
+                c.g.damage(c.self,
+                    c.target!,
+                    c.f(F_Q),
+                    "physical",
+                    {
+                        tag: "skill"
+                    })
                 plant(c.g,
                     c.side,
-                    Q_MUSH)
+                    p.q1)
             },
         },
         E: {
-            key: "E", mana: 10, name: "Phi Tiêu Mù", target: "enemy", quick: true,
-            desc: `Quick. Chủ động chọn 1 tướng địch hợp lệ bất kỳ đường; khi địch đánh Teemo, phản ứng chỉ đáp đòn địch trên cùng đang chỉ định Teemo và tự khóa kẻ đánh. Gây {${F_E}} + số Nấm hiện có × ({${F_E_PER}}) sát thương phép; Mù làm đòn thật kế của kẻ đó trượt rồi tiêu.`,
-            quickWhen: (c) => c.trigger.side !== c.side && c.trigger.kind === "attack" && !!c.trigger.single && c.trigger.target === c.self.id && !!c.trigger.actor,
-            options(c): PlayArgs[] {
-                if (c.trigger) {
-                    // phản ứng: mục tiêu khoá vào kẻ đánh của mắt xích trên cùng
-                    const foe = c.g.unit(c.trigger.actor ?? "")
-                    return foe && foe.side !== c.side && foe.status === "board" && !foe.token && c.g.targetable(foe) ? [{
-                        target: foe.id
-                    }] : []
-                }
-                return c.g.targetableEnemies(c.self).filter((u) => !u.token).map((u) => ({
-                    target: u.id
-                }))
-            },
+            key: "E", name: "Phi Tiêu Mù", target: "enemy", mana: p.e0, quick: true, quickWhen: when.attacksSelf,
+            desc: `Quick. Khi địch đánh Teemo, bạn có thể dùng lá này; mục tiêu là kẻ đó (dùng chủ động thì chọn 1 tướng địch). Gây {${F_E}} + ${F_E_PER} mỗi Nấm trong bộ đối thủ sát thương vật lý và gây Mù {${F_E_BLIND}} đơn vị (phần lẻ là xác suất thêm 1 đơn vị).`,
+            options: (c): PlayArgs[] => actorOrEnemy(c),
             resolve(c) {
-                const foe = c.trigger ? c.g.unit(c.trigger.actor ?? "") : c.target
+                const foe = c.target
                 if (!foe || foe.status !== "board" || foe.side === c.side) return
-                // Mù 1 đòn thật (làm mới, không cộng dồn): chủ động → hết lượt địch kế; phản ứng trong lượt địch → hết chính lượt đó
-                c.g.status(foe,
-                    "blind",
-                    1,
-                    {
-                        v: 1, visuals: ["blindHit"]
-                    })
                 c.g.damage(c.self,
                     foe,
-                    c.f(F_E) + c.f(F_E_PER) * mushroomsIn(c.g,
+                    c.f(F_E) + p.e3 * mushroomsIn(c.g,
                         c.side),
-                    "magic",
+                    "physical",
                     {
-                        tag: "skill", visuals: ["poisonHit"]
+                        tag: "skill", visuals: ["blindHit"]
+                    })
+                if (foe.status !== "board") return
+                const d = c.f(F_E_BLIND)
+                if (d > 0) c.g.timed(c.self,
+                    foe,
+                    "blind",
+                    d,
+                    {
+                        visuals: ["blindHit"]
                     })
             },
         },
         R: {
-            key: "R", mana: 30, name: "Kích Nổ", target: "all_enemies",
-            desc: `Chọn số Nấm nguyên N từ 1 tới toàn kho hiện có để tiêu, giữ phần dư. Nếu kho trống khi giải quyết, tự gài ${R_EMPTY_PLANT} Nấm trước rồi dùng N đã chọn trong 1–${R_EMPTY_PLANT}. Từng Nấm gây {${F_MUSH}} sát thương phép vào tướng sống có tỉ lệ Máu thấp nhất lúc đó; một lá tốn 35 mana dù N bao nhiêu.`,
-            options(c): PlayArgs[] {
-                const stock = mushroomsIn(c.g,
-                    c.side)
-                const max = stock > 0 ? stock : R_EMPTY_PLANT
-                return Array.from({
-                    length: max
-                },
-                (_, i) => ({
-                    // pick (chuỗi số) để giao diện/argsKey phân biệt các lựa chọn N; amount là giá trị số
-                    amount: i + 1, pick: String(i + 1)
-                }))
-            },
+            key: "R", name: "Kích Nổ", target: "all_enemies", mana: p.r0,
+            canPlay: (c) => mushroomsIn(c.g,
+                c.side) > 0,
+            desc: `Nổ tối đa ${p.r1} Nấm trong bộ đối thủ. Mỗi Nấm gây {${F_R}} sát thương vật lý lên tướng có tỉ lệ Máu thấp nhất lúc đó, có thể chí mạng, không rút bù.`,
             resolve(c) {
                 const g = c.g
                 const foe = otherSide(c.side)
-                if (mushroomsIn(g,
-                    c.side) <= 0) plant(g,
-                    c.side,
-                    R_EMPTY_PLANT)
-                const want = Math.max(1,
-                    Math.floor(Number(c.args.amount ?? c.args.pick ?? 1)) || 1)
-                const stock = g.deckCards(foe,
-                    isMushroom)
-                const take = stock.slice(0,
-                    Math.min(want,
-                        stock.length))
+                const take = g.deckCards(foe,
+                    isMushroom).slice(0,
+                    p.r1)
                 for (const m of take) {
                     if (g.s.phase === "over") break
                     g.takeFromDeck(foe,
                         m.uid)
-                    explode(g,
-                        c.self,
-                        foe,
-                        "skill")
+                    const teemo = c.self
+                    const t = lowestRatio(g,
+                        foe)
+                    if (!t) break
+                    g.emit({
+                        t: "mushroom", side: foe, source: teemo.id, phase: "burst", count: 1, target: t.id, drawn: false
+                    })
+                    const cr = rollCrit(g,
+                        teemo)
+                    g.damage(teemo,
+                        t,
+                        c.f(F_R) * cr.m,
+                        "physical",
+                        {
+                            tag: "skill", crit: cr.crit, visuals: ["poisonHit"]
+                        })
                 }
+            },
+        },
+    },
+    en: {
+        desc: "Never needs to kill: plant Mushrooms in the enemy deck and let them blow up on the weakest champion when drawn; anyone who hits Teemo gets Blinded.",
+        passive: {
+            name: "Toxic Shot",
+            desc: `Each hit on an enemy champion shuffles ${p.p1} Mushroom into the opponent's deck, unlimited. When they draw a Mushroom, their champion with the lowest HP ratio takes {${EN_MUSH}} physical damage, which can crit, then they draw 1 replacement card. Mushrooms never reach the hand.${k.flag("halveMushroomsOnDeath") ? " Teemo being taken down halves the Mushrooms in the opponent's deck." : ""}`,
+        },
+        skills: {
+            Q: {
+                name: "Noxious Trap",
+                desc: `Choose 1 enemy champion; deal {${EN_Q}} physical damage, then shuffle ${p.q1} Mushrooms into the opponent's deck.`,
+            },
+            E: {
+                name: "Blinding Dart",
+                desc: `Quick. When the enemy attacks Teemo, you may play this card; the target is that attacker (played proactively, choose 1 enemy champion). Deal {${EN_E}} + ${F_E_PER} per Mushroom in the opponent's deck as physical damage and Blind for {${EN_E_BLIND}} units (the fraction is the chance of 1 extra unit).`,
+            },
+            R: {
+                name: "Detonate",
+                desc: `Blow up at most ${p.r1} Mushrooms in the opponent's deck. Each deals {${EN_R}} physical damage to the champion with the lowest HP ratio at that moment, can crit, no replacement draw.`,
             },
         },
     },

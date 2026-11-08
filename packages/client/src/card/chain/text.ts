@@ -251,7 +251,7 @@ export function viText(e: GameEvent, v: CardView, g: cg.Game | null): string | u
     case "tempExpired": return `${cn(e.card)} (tạm) tan biến.`
     case "manaChange": return `${un(e.unit)} ${e.delta >= 0 ? "+" : "−"}${Math.abs(e.delta)} mana (${e.mana}/${e.max}).`
     case "teamManaChange": return `${sd(e.side)} ${e.delta < 0 ? "tiêu hao" : "hồi"} ${Math.abs(e.delta)} Mana đội (${e.mana}/${e.max})${e.unit ? ` · ${un(e.unit)}` : ""}.`
-    case "attackCount": return `${sd(e.side)} đã đánh ${e.used}/${e.limit}.`
+    case "attackCount": return `${sd(e.side)} đã đánh ${e.used} đòn.`
     case "chainCancel": return `Mắt xích ${e.n} bị huỷ${e.card ? `: ${cn(e.card)}` : ""}.`
     case "cardFrozen": return `${cn(e.card)} của ${sd(e.side)} bị Hoá Băng, không đánh được.`
     case "cardThawed": return `${cn(e.card)} của ${sd(e.side)} tan băng.`
@@ -334,6 +334,8 @@ export function cardArt(c: Card | undefined, actor?: string): string | null {
     }
     if (c.kind === "special" && c.id === "mushroom") return "cards/nam_teemo.jpg"
     if (c.kind === "special" && c.id === "velkoz_decay") return "card_skills/velkoz_p.png"
+    if (c.kind === "special" && c.id === "rumble_pick") return "card_skills/rumble_p.png"
+    if (c.kind === "special" && c.id === "tf_fate") return "card_skills/twistedfate_p.png"
     if (c.kind === "support") return SUPPORT_ART[c.id] ?? null
     return null
 }

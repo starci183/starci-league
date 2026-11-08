@@ -2,6 +2,9 @@
 import {
     cg
 } from "@starci/shared"
+import {
+    gameCanvasScale
+} from "../ui/GameCanvas"
 
 export type Side = cg.Side
 
@@ -181,7 +184,7 @@ export function shake(el: Element | null, ms: number): Promise<void> {
 /** Nhấn tới (lao) về phía `to` rồi trở lại */
 export function lunge(el: Element | null, from: Pt, to: Pt, ms: number): Promise<void> {
     if (!el) return Promise.resolve()
-    const dx = to.x - from.x, dy = to.y - from.y
+    const scale = gameCanvasScale(el), dx = (to.x - from.x) / scale, dy = (to.y - from.y) / scale
     const d = Math.hypot(dx,
         dy) || 1
     const k = Math.min(26,

@@ -1,0 +1,35 @@
+/* Every surface is one PNG overlay with alpha-derived masked contents. No sliced borders. */
+.action-dialog.sylas-dialog { width:1600px; max-height:1020px; }
+.sylas-stage { display:grid; grid-template-columns:320px minmax(0,1fr) 280px; gap:22px; align-items:start; }
+.sylas-portrait-column { display:flex; flex-direction:column; align-items:center; gap:4px; padding-top:110px; }
+.sylas-portrait-art .af-art { object-position:center; }
+.sylas-dialog .af-art { display:block; width:100%; height:100%; object-fit:cover; border:0; border-radius:0; }
+.sylas-nameplate .af-safe-content { flex-direction:column; color:#ffe2a0; text-align:center; font:700 22px/1 var(--font-game-title); }
+.sylas-nameplate small { display:block; margin-top:5px; font:400 16px/1.1 var(--font-game-text); letter-spacing:0; color:#afdbca; }
+.sylas-spell-choice { min-width:0; }
+.sylas-dialog .action-enemies { justify-content:center; align-items:flex-start; gap:12px; margin-bottom:12px; }
+.sylas-dialog .action-enemies button { box-sizing:border-box; display:flex; flex-direction:column; align-items:center; gap:0; padding:0; min-width:100px; background:none; border:0; border-image:none; color:#d5dcbf; font-size:19px; }
+.sylas-enemy-portrait .af-safe-content { align-items:flex-end; }
+.sylas-enemy-name { display:block; box-sizing:border-box; width:100%; padding:4px 3px; background:#001b16d9; color:#ffe7b4; text-align:center; font-size:15px; line-height:1.1; font-weight:700; }
+.sylas-dialog .action-enemies button[aria-pressed=true] { box-shadow:none; color:#ffe9a6; background:none; }
+.sylas-dialog .action-enemies button[aria-pressed=true] .af-frame-image { filter:drop-shadow(0 0 7px #3decd0); }
+.sylas-dialog .action-grid.single .action-option { display:flex; align-items:stretch; border:0; border-image:none; background:none; box-shadow:none; gap:8px; padding:0; min-width:0; }
+.sylas-dialog .action-option.selected { border:0; background:none; box-shadow:none; }
+.sylas-spell-heading { display:grid; grid-template-columns:128px minmax(0,1fr); align-items:center; gap:10px; }
+.sylas-spell-heading b { font-size:24px; line-height:1.15; text-align:center; color:#ffe3a7; overflow-wrap:anywhere; }
+.sylas-spell-copy { flex-direction:column; gap:14px; text-align:left; }
+.sylas-dialog .action-cost { color:#9bdfff; font-size:23px; font-weight:700; }
+.sylas-dialog .action-copy { font-size:21px; line-height:1.4; color:#d3dfca; }
+.sylas-cast-mode { color:#b5f0d4; font-size:16px; font-weight:700; line-height:1.2; text-align:center; letter-spacing:.04em; }
+.sylas-cast-mode.temporary { color:#e7ceff; }
+.sylas-rule-stack { display:flex; flex-direction:column; align-items:center; gap:10px; padding-top:60px; }
+.sylas-rule-content { flex-direction:column; text-align:center; gap:5px; }
+.sylas-rule-stack .game-icon { width:20px; height:20px; color:#e9c879; }
+.sylas-rule-stack b { font-size:19px; line-height:1.1; color:#f4e2b3; }
+.sylas-rule-stack span { font-size:16px; color:#bfceb9; line-height:1.2; }
+.sylas-rule-stack strong { color:#98e7ff; font-size:20px; line-height:1.1; font-weight:700; }
+.sylas-picked { margin:14px 0 0; text-align:center; color:#f0d99f; }
+.sylas-team-mana { display:flex; align-items:center; gap:12px; margin-right:auto; color:#b4dddf; }
+.sylas-team-mana b { color:#d7f6f5; font-size:28px; }
+.game-canvas-stage .sylas-dialog .action-art-button.action-primary { width:400px; height:90px; min-height:90px; }
+

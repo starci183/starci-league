@@ -1,0 +1,15 @@
+// Nhóm 2: import file VFX của từng tướng được giao (mỗi file đăng ký registerSkillVfx cho P/Q/E/R và đánh thường).
+// Đồ nghề dùng chung của nhóm nằm ở g2_helpers.ts.
+import "./gangplank"
+import "./leona"
+import "./malphite"
+import "./ornn"
+import "./katarina"
+import "./khazix"
+import "./qiyana"
+import "./ahri"
+import "./annie"
+import "./lissandra"
+import "./lux"
+import "./ashe"
+import "./jinx"

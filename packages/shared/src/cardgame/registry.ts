@@ -1,3 +1,9 @@
+import type {
+    SkillKey
+} from "./types"
+import {
+    balanceHeroIds, kit
+} from "./balance"
 // Đăng ký tướng và lá đặc biệt của chế độ thẻ bài.
 import type {
     Game
@@ -25,10 +31,43 @@ export function defineTokenBehavior(def: TokenBehavior): TokenBehavior {
 export const getTokenBehavior = (id: string) => tokenBehaviors.get(id)
 
 const heroes = new Map<string, HeroDef>()
+const LIMIT_VI: Record<number, string> = {
+    1: "Mỗi lượt 1 lần.", 2: "Mỗi lượt 2 lần."
+}
+const LIMIT_EN: Record<number, string> = {
+    1: "Once per turn.", 2: "Twice per turn."
+}
+/** Ghi giới hạn lượt dùng vào cuối chữ lá, cả lá đổi chữ theo dạng */
+function limitText(def: HeroDef) {
+    if (!balanceHeroIds().includes(def.id)) return // tướng giả trong test
+    for (const key of ["Q",
+        "E",
+        "R"] as SkillKey[]) {
+        const s = def.skills[key], n = kit(def.id).limit(key)
+        if (!s || !n) continue
+        const vi = LIMIT_VI[n] ?? `Mỗi lượt ${n} lần.`, en = LIMIT_EN[n] ?? `${n} times per turn.`
+        s.desc = `${s.desc} ${vi}`
+        const e = def.en?.skills[key]
+        if (e) e.desc = `${e.desc} ${en}`
+        const variant = s.variant
+        if (variant) s.variant = (u, card) => {
+            const v = variant(u,
+                card)
+            return {
+                vi: {
+                    ...v.vi, desc: `${v.vi.desc} ${vi}`
+                }, en: {
+                    ...v.en, desc: `${v.en.desc} ${en}`
+                }
+            }
+        }
+    }
+}
 const specials = new Map<string, SpecialCardDef>()
 
 export function defineHero(def: HeroDef): HeroDef {
     if (heroes.has(def.id)) throw new Error(`Trùng tướng: ${def.id}`)
+    limitText(def)
     // V2: số lá chiêu cố định 4Q/4E/1R (RULES.skillCopies); HeroDef.skillCopies/supportCopies bị bỏ qua
     // Luật chủ (30/10): AP gốc = 0 cho mọi tướng (AP chỉ từ đồ)
     if (def.ap) def = {
@@ -42,6 +81,8 @@ export const getHero = (id: string) => heroes.get(id)
 export const allHeroes = () => [...heroes.values()]
 /** Tướng đã viết xong (không còn todo): dùng cho bot/selfplay */
 export const implementedHeroes = () => allHeroes().filter((h) => !h.todo)
+/** Mọi khoá stack mà tướng đặt lên địch (HeroDef.carrierStacks): tướng mang chết mất một nửa */
+export const carrierStackKeys = () => allHeroes().flatMap((h) => h.carrierStacks ?? [])
 
 export function defineSpecialCard(def: SpecialCardDef): SpecialCardDef {
     specials.set(def.id,

@@ -1,0 +1,10 @@
+{
+    /* Cocos Creator sinh temp/tsconfig.cocos.json khi mở project lần đầu */
+    "extends": "./temp/tsconfig.cocos.json",
+    "compilerOptions": {
+        "strict": true,
+        /* shared (luật dùng chung với server) dùng Object.entries, Array.flatMap...: cần lib ES2022 */
+        "target": "ES2020",
+        "lib": ["ES2022", "DOM"]
+    }
+}

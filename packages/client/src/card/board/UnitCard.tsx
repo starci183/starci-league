@@ -20,6 +20,17 @@ import {
 import {
     GameIcon
 } from "../ui/GameIcon"
+import {
+    ArtFrame
+} from "../ui/ArtFrame"
+import {
+    GAME_CANVAS_HEIGHT, GAME_CANVAS_WIDTH, viewportToCanvasPoint
+} from "../ui/GameCanvas"
+import {
+    executeLine, GLOW
+} from "@starci/shared/src/cardgame/heroes/mel"
+
+import "./state-badges.css"
 
 /** Số nổi: dmg kèm loại sát thương (vật lý đỏ, phép xanh dương, chuẩn trắng), crit thêm biểu tượng chí mạng */
 export interface Float { id: number; kind: "dmg" | "crit" | "heal" | "shield" | "kill" | "block" | "mana" | "tag"; text: string; dmg?: "physical" | "magic" | "true" }
@@ -41,7 +52,7 @@ export function Img(p: { src: string; alt?: string; className?: string; fallback
 }
 
 /** Khoá kỹ thuật của engine/đồ, không phải bộ đếm cho người chơi */
-const HIDDEN_STACK = /^(once:|aura:|tc:|item:|itemT|lissFrozen$|frenzyLow$)/
+const HIDDEN_STACK = /^(once:|aura:|tc:|item:|itemT|azir:|lissFrozen$|frenzyLow$)/
 /** Chữ viết tắt của tên bộ đếm/dấu: chữ đầu mỗi từ, tối đa 2 (Song Giáp -> SG) */
 const initials = (name: string) => name.split(/\s+/).filter(Boolean).map((w) => w[0]).join("").slice(0,
     2).toUpperCase()
@@ -116,6 +127,8 @@ export function HpBar(p: { u: cg.Unit; big?: boolean }) {
     const total = Math.max(u.maxHp,
         u.hp + shieldTotal,
         1)
+    const radiance = u.stacks[GLOW] ?? 0
+    const executionLine = !u.token && radiance > 0 ? executeLine(radiance) : 0
     let left = u.hp / total
     return (
         <div className={`bd-hp ${p.big ? "big" : ""} ${u.hp / u.maxHp < 0.3 ? "low" : ""}`}>
@@ -131,6 +144,9 @@ export function HpBar(p: { u: cg.Unit; big?: boolean }) {
                     left: clampPct(at), width: clampPct(v / total)
                 }} />
             })}
+            {executionLine > 0 ? <em className="bd-execution-line" style={{
+                left: clampPct(executionLine / total)
+            }} role="img" aria-label={`Chói Lọi ${radiance} · Ngưỡng hạ ${Math.round(executionLine)} Máu`} title={`Chói Lọi ${radiance} · Ngưỡng hạ ${Math.round(executionLine)} Máu`} /> : null}
             <span>
                 {Math.ceil(u.hp)}
                 /
@@ -161,13 +177,12 @@ export function DeadCard(p: { u: cg.Unit; round: number; onClick(): void }) {
     const left = Math.max(0,
         u.respawnRound - p.round)
     return (
-        <div data-unit-id={u.id} className="bd-unit dead" onClick={p.onClick}>
+        <div data-unit-id={u.id} className="bd-unit modular-unit dead" onClick={p.onClick}>
             <div className="bd-art">
-                <Img src={portrait(u)} className="bd-img" fallback={unitName(u).slice(0,
-                    1)} />
+                <ArtFrame kind="icon" width={148} height={148} image={`/heroes-square/${u.hero}.jpg`} />
                 <span className="bd-skull" aria-hidden="true">☠</span>
-                <div className="bd-name">{unitName(u)}</div>
             </div>
+            <ArtFrame kind="name" className="bd-name-module" width={164} height={34}><b>{unitName(u)}</b></ArtFrame>
             <div className="bd-dead-l">
                 <b>{t.deadLabel}</b>
                 <small>{left > 0 ? `${t.respawnIn} ${left} ${t.roundUnit}` : isEn() ? "Reviving soon" : "Sắp hồi sinh"}</small>
@@ -192,6 +207,20 @@ export interface UnitCardProps {
     onClick(): void
 }
 
+/** Vật triệu hồi úp (Thùng của Gangplank): chủ thấy lá đã úp và Thuốc Súng, đối thủ chỉ thấy dấu "?" (server đã bỏ card/secret khỏi bản gửi cho đối thủ) */
+function KegCard(p: { u: cg.Unit; g: cg.Game; mine: boolean }) {
+    const tk = p.u.token!
+    let name = ""
+    if (p.mine && tk.card) {
+        try { name = cg.cardInfoL(p.g,
+            tk.card).name } catch { name = tk.card.id }
+    }
+    const powder = p.mine && tk.secret && "powder" in tk.secret ? Number(tk.secret.powder) : undefined
+    const label = p.mine ? [name,
+        powder !== undefined ? `${powder}` : ""].filter(Boolean).join(" · ") : "?"
+    return <span className={`bd-keg-card ${p.mine ? "mine" : "foe"}`} title={p.mine ? (isEn() ? "Your face-down card" : "Lá bạn đã úp") : (isEn() ? "Face-down card" : "Lá úp")}>{label || "?"}</span>
+}
+
 export function UnitCard(p: UnitCardProps) {
     const { u, g } = p
     const t = tr()
@@ -199,17 +228,25 @@ export function UnitCard(p: UnitCardProps) {
     const silenced = !!u.statuses.silence
     const role = g.role(u)
     const stacks = Object.entries(u.stacks).filter(([k,
-        v]) => v > 0 && k !== "element" && !HIDDEN_STACK.test(k)) // khoá kỹ thuật không hiện; nguyên tố có huy hiệu riêng
+        v]) => v > 0 && k !== "jinx_gun" && k !== "jayce_form" && k !== "element" && k !== "azir_soldiers" && !HIDDEN_STACK.test(k)) // trạng thái vũ khí có nhãn riêng trong ảnh, không ép tên vào ô số đếm
+    const weaponState = !u.token && (u.hero === "jinx" || u.hero === "jayce") ? stackValueText(u.hero === "jinx" ? "jinx_gun" : "jayce_form",
+        u.stacks[u.hero === "jinx" ? "jinx_gun" : "jayce_form"] ?? 0) : undefined
+    const weaponIcon = weaponState ? u.hero === "jinx" ? `jinx-${u.stacks.jinx_gun ? "rocket" : "minigun"}` : `jayce-${u.stacks.jayce_form ? "cannon" : "hammer"}` : undefined
+    const weaponLabel = weaponState ? `${u.hero === "jinx" ? "Q" : "R"} · ${weaponState}` : undefined
     const element = u.stacks.element ?? 0
     const marks = (u.marks ?? []).filter((m) => m.hits > 0)
     return (
         <div
             data-unit-id={u.id}
-            className={`bd-unit ${p.mine ? "mine" : "foe"} role-${role} ${u.token ? "token" : ""} ${stunned ? "stunned" : ""} ${silenced ? "silenced" : ""} ${u.statuses.stealth ? "stealthed" : ""} ${u.statuses.stasis ? "stasis" : ""} ${u.transform ? `transformed tf-${u.transform.id}` : ""} ${p.cls}`}
+            role="button"
+            tabIndex={0}
+            aria-label={unitName(u)}
+            className={`bd-unit modular-unit ${p.mine ? "mine" : "foe"} role-${role} ${u.token ? "token" : ""} ${stunned ? "stunned" : ""} ${silenced ? "silenced" : ""} ${u.statuses.stealth ? "stealthed" : ""} ${u.statuses.stasis ? "stasis" : ""} ${u.transform ? `transformed tf-${u.transform.id}` : ""} ${p.cls}`}
             onMouseEnter={p.onEnter}
             onMouseMove={p.onMove}
             onMouseLeave={p.onLeave}
             onClick={p.onClick}
+            onKeyDown={(e) => { if ((e.key === "Enter" || e.key === " ") && e.target === e.currentTarget) { e.preventDefault(); p.onClick() } }}
         >
             <StatusRow
                 u={u}
@@ -251,17 +288,17 @@ ${info.desc}`,
                 }}
             />
             <div className="bd-art">
-                <Img src={portrait(u)} className="bd-img" fallback={unitName(u).slice(0,
-                    1)} />
+                <ArtFrame kind="icon" className="bd-portrait-module" width={u.token ? 84 : 148} height={u.token ? 84 : 148} image={u.token ? portrait(u) : `/heroes-square/${u.hero}.jpg`} />
                 <span className={`bd-role r-${role}`}>{roleName(role)}</span>
                 {u.transform ? <span className="bd-form" title={formName(u.transform.id)}>{formName(u.transform.id)}</span> : null}
+                {weaponIcon ? <span className="bd-weapon-icon" role="img" aria-label={weaponLabel} title={weaponLabel} data-weapon-state={weaponIcon}><img src={`/ui/state-icons/${weaponIcon}.png`} alt="" draggable={false} /></span> : null}
                 {element > 0 ? (
-                    <span className={`bd-elem el-${ELEMENT_CLS[element - 1] ?? "red"}`} title={stackInfoV2("element")?.desc}>{elementName(element)}</span>
+                    <span className={`bd-elem el-${ELEMENT_CLS[element - 1] ?? "earth"}`} title={stackInfoV2("element")?.desc}>{elementName(element)}</span>
                 ) : null}
                 {p.soaked ? <span className="bd-soak" title={t.soakFor} /> : null}
+                {u.token?.hidden ? <KegCard u={u} g={g} mine={p.mine} /> : null}
                 {u.nextAttack.length ? <span className="bd-next" title={t.next}>{u.nextAttack.length}</span> : null}
                 <StatusTags u={u} />
-                <div className="bd-name">{unitName(u)}</div>
                 {p.cardless ? (
                     <button
                         className={`bd-cardless ${p.cardless.used ? "used" : ""} ${p.cardless.ready ? "ready" : ""}`}
@@ -277,6 +314,7 @@ ${info.desc}`,
                     </button>
                 ) : null}
             </div>
+            <ArtFrame kind="name" className="bd-name-module" width={u.token ? 112 : 164} height={u.token ? 26 : 34}><b>{unitName(u)}</b></ArtFrame>
             <HpBar u={u} />
             <div className="bd-stats">
                 <span className="ad" title={t.ad}><GameIcon name="sword" />{g.atk(u)}</span>
@@ -286,7 +324,7 @@ ${info.desc}`,
             </div>
             {u.token ? (
                 <div className="bd-owner">
-                    {t.soakFor}
+                    {u.token.soak ? t.soakFor : t.tokenOf}
                     {" "}
                     <b>{p.ownerName ?? "?"}</b>
                 </div>
@@ -297,8 +335,8 @@ ${info.desc}`,
                         2].map((i) => {
                         const id = u.items[i]
                         return (
-                            <span key={i} className={`bd-item ${id ? "full" : ""}`}>
-                                {id ? <Img src={itemIcon(id)} fallback={itemEmoji(id)} /> : null}
+                            <span key={i} className={`bd-item ${id ? "full" : ""}`} title={id ? itemName(id) : isEn() ? "Empty equipment slot" : "Ô trang bị trống"}>
+                                <ArtFrame kind="icon" width={30} height={30} image={id ? itemIcon(id) : undefined} />
                             </span>
                         )
                     })}
@@ -323,10 +361,18 @@ export function UnitTip(p: { u: cg.Unit; g: cg.Game; turnNo: number; x: number; 
     const passive = passiveOf(u,
         g)
     const W = 280
-    const left = p.x + 18 + W > window.innerWidth ? p.x - 18 - W : p.x + 18
+    const point = viewportToCanvasPoint({
+        x: p.x, y: p.y
+    })
+    const staged = !!document.querySelector(".game-canvas-stage")
+    const width = staged ? GAME_CANVAS_WIDTH : window.innerWidth
+    const height = staged ? GAME_CANVAS_HEIGHT : window.innerHeight
+    const left = Math.max(8,
+        Math.min(point.x + 18 + W > width ? point.x - 18 - W : point.x + 18,
+            width - W - 8))
     const top = Math.max(8,
-        Math.min(p.y - 20,
-            window.innerHeight - 380))
+        Math.min(point.y - 20,
+            height - 380))
     const fx = buildEffects(u,
         p.turnNo,
         (id) => g.unit(id))
@@ -335,8 +381,7 @@ export function UnitTip(p: { u: cg.Unit; g: cg.Game; turnNo: number; x: number; 
             left, top, width: W
         }}>
             <div className="bd-tip-h">
-                <Img src={portrait(u)} className="bd-tip-img" fallback={unitName(u).slice(0,
-                    1)} />
+                <ArtFrame kind="icon" width={56} height={56} image={u.token ? portrait(u) : `/heroes-square/${u.hero}.jpg`} />
                 <div>
                     <b>{unitName(u)}</b>
                     <small>

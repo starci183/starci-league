@@ -38,7 +38,7 @@ npm run selfplay -- 1000  # bot tự đánh 1000 trận, in tỉ lệ thắng th
 Chạy `npm run dev:client`, mở **http://localhost:5180/vfx**. Trang độc lập, không cần đăng nhập hoặc server trận đấu; giữ nền bàn `map/board5.jpg`.
 
 - Xem toàn bộ hiệu ứng theo nhóm vũ khí, nguyên tố, phép, khống chế, hỗ trợ và bài/trận đấu.
-- Tab Tướng có đòn thường và P/Q/E/R của đủ 33 tướng; tab Bổ trợ có các phép chung.
+- Tab Tướng có đòn thường và P/Q/E/R của đủ 34 tướng; tab Bổ trợ có các phép chung.
 - Đổi hướng, 1/3 mục tiêu, cường độ, chí mạng; phát lại, phát lần lượt hoặc dừng ngay.
 - Trang dùng cùng registry và chuỗi niệm → bay → trúng với game. Kiểm tra mapping: `npx tsx scripts/vfx_tests.ts`.
 

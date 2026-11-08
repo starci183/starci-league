@@ -1,85 +1,124 @@
-// Kha'Zix (Sát thủ, vật lý): máu 320 · AD 79 · giáp/kháng 27/26 · mana Q15/E20/R35 (bể đội).
-// CHẤT: "Săn con mồi bị đánh dấu". Cô Lập là TRẠNG THÁI chỉ Kha'Zix gắn (chủ 30/10: bỏ luật vị trí "không có đồng minh ở đường kề");
-// địch đang Cô Lập ăn thêm sát thương từ đòn đánh và Q của Kha'Zix.
-// Q săn tướng đối diện. E chọn một con mồi, swap với người giữ ô đối diện nó (đồng minh sống hoặc đã chết), rồi gắn Cô Lập và gây sát thương.
-// R tự động: Tàng Hình, Cô Lập địch đối diện hợp lệ (không có thì bỏ phần dấu, không chọn tay/không ngẫu nhiên), nhận 1 lá Q.
-// Engine: g.isolated (status "isolated"), hook onAttack (info.bonus), g.giveSkillToHand, status "stealth".
-// Đối thủ trả lời: Thanh Tẩy gỡ Cô Lập, Janna Q huỷ đòn, đòn diện rộng (vẫn trúng khi Tàng Hình), Khiêu Khích kéo đòn sang tướng không Cô Lập.
+// Kha'Zix (Sát thủ, vật lý): bắt tướng thiếu buff. Tung Cô Lập lên địch đối diện đầu lượt và mỗi lần đổi đường, rồi săn nó.
+// Số liệu: balance/heroes/khazix.json. Đặc tả: docs/heroes/KITS.md.
+// Engine: hook onTurnStart + onMove (đổi đường, kể cả bị hoán đổi), g.timed (Cô Lập, Tàng Hình theo đơn vị), onAttack (info.bonus),
+//         Tàng Hình làm đòn đang nhắm trượt (resolveCardInner: mục tiêu không còn chọn được), g.tempSkillCard (Q miễn phí), g.insertTopN (xáo R).
+import {
+    kit, when
+} from "../balance"
+import {
+    CC_STATUSES
+} from "../game"
 import {
     defineHero
 } from "../registry"
 import type {
-    OptCtx, SkillDef, Unit
+    Game
+} from "../game"
+import type {
+    Unit
 } from "../types"
-import {
-    skillArgs
-} from "../engine"
 
+const k = kit("khazix"), { p } = k
 const ISO = "isolated"
-export const F_Q = "55 + 200% AD + 20% AP"
-export const F_E = "30 + 95% AD + 10% AP"
-/** Nội tại: đòn đánh lên tướng Cô Lập */
-export const F_ATK = "20 + 80% AD + 10% AP"
-/** Nội tại: Q lên tướng Cô Lập */
-export const F_Q_ISO = "40 + 145% AD + 15% AP"
-export const MANA = {
-    Q: 10, E: 20, R: 35
-} as const
 
-// Reuse canonical enemy selection, including targetability and global Taunt;
-// custom E options only add reachability, never bypass those targeting rules.
-const ENEMY_SELECTION: SkillDef = {
-    key: "E", name: "", desc: "", target: "enemy", resolve: () => {}
-}
-const enemyOptions = (c: OptCtx) => skillArgs(c.g,
-    c.side,
-    c.self,
-    c.card,
-    ENEMY_SELECTION)
-const validPrey = (c: OptCtx, target: Unit | undefined) => !!target && enemyOptions(c).some(args => args.target === target.id)
-/** Tới được ô đối diện con mồi: đã đối diện, hoặc Kha'Zix dời sang đường của nó (đường có con mồi nên đã mở)
- *  bằng swap nguyên tử với người giữ ô: đồng minh sống hoặc đã chết chờ hồi sinh. */
-const canSwapToPrey = (c: OptCtx, target: Unit) => {
-    if (c.g.opposite(c.self)?.id === target.id) return true
-    return c.g.canFace(c.self,
-        target)
+const F_P = k.x("p4 + p5·AD"), EN_P = k.xe("p4 + p5·AD")
+const F_Q = k.x("q1 + q2·AD"), EN_Q = k.xe("q1 + q2·AD")
+const F_Q2 = k.x("q3 + q4·AD"), EN_Q2 = k.xe("q3 + q4·AD")
+const F_E = k.x("e1 + e2·AD"), EN_E = k.xe("e1 + e2·AD")
+
+/** Trạng thái có lợi (Cô Lập "thiếu buff"): các buff có tên, cộng thêm Khiên */
+const BUFFS = new Set(["empower",
+    "stealth",
+    "stasis",
+    "guard",
+    "dmgCut",
+    "attackCut",
+    "armor_up",
+    "see_hand",
+    "frenzy",
+    "alwaysCrit",
+    "ad_up",
+    "ap_up",
+    "crit_up",
+    "mr_up",
+    "attack_speed"])
+/** Trạng thái bất lợi ngoài nhóm khống chế */
+const DEBUFFS = new Set(["chill",
+    "shred",
+    "exhaust",
+    "grievous",
+    "noheal",
+    "bleed",
+    "guilt",
+    "sun",
+    "burn",
+    "frost",
+    "ignite",
+    "ad_down",
+    "armor_down",
+    "mr_down"])
+const hasBuff = (g: Game, u: Unit) => g.totalShield(u) > 0 || Object.keys(u.statuses).some((id) => BUFFS.has(id))
+const hasDebuff = (g: Game, u: Unit) => Object.keys(u.statuses).some((id) => CC_STATUSES.has(id) || DEBUFFS.has(id))
+
+/** Tung Cô Lập lên địch đối diện. Địch Tàng Hình đối diện bị lộ và luôn Cô Lập. */
+function throwIsolation(g: Game, me: Unit) {
+    const foe = g.opposite(me)
+    if (!foe || foe.token || me.status !== "board") return
+    const hidden = g.has(foe,
+        "stealth")
+    if (hidden) {
+        g.removeStatus(foe,
+            "stealth")
+        g.log(`${g.nameOf(foe)} bị Kha'Zix làm lộ Tàng Hình.`)
+        g.timed(me,
+            foe,
+            ISO,
+            p.p6)
+        return
+    }
+    const chance = (p.p1 + (hasBuff(g,
+        foe) ? 0 : p.p2) + (hasDebuff(g,
+        foe) ? p.p3 : 0)) / 100
+    if (g.rollLog(chance,
+        (hit, pct) => `Cô Lập ${g.nameOf(foe)} (${pct}): ${hit ? "trúng" : "trượt"}`)) g.timed(me,
+        foe,
+        ISO,
+        p.p6)
 }
 
 export default defineHero({
-    id: "khazix", name: "Kha'Zix", role: "assassin", damage: "physical", hp: 320, atk: 79, armor: 27, mr: 26,
-    bot: {
-        markValue: {
-            isolated: 20,
-        },
-    },
-    desc: "Mối Họa Hư Không: đánh dấu con mồi Cô Lập rồi săn nó. Lặn đi rồi nạp thêm một nhát săn.",
+    id: "khazix", name: "Kha'Zix", role: "assassin", damage: "physical", ...k.base,
+    bot: k.bot,
+    desc: "Mối Họa Hư Không: Cô Lập con mồi thiếu buff rồi săn nó, lặn đi và nạp thêm một nhát Q.",
     passive: {
-        name: "Thú Săn Mồi",
-        desc: `Đòn thường thật trúng tướng có Cô Lập (trạng thái do Kha'Zix gắn) cộng {${F_ATK}} sát thương vật lý, không tự chí mạng. Q lên tướng Cô Lập cộng riêng {${F_Q_ISO}} vào sát thương của chính lá Q.`,
+        name: "Sát Thủ Hư Không",
+        desc: `Đầu mỗi lượt của bạn và mỗi lần Kha'Zix đổi đường, tướng địch đối diện có ${p.p1}% bị Cô Lập trong ${p.p6} đơn vị; thêm ${p.p2}% nếu nó không có hiệu ứng có lợi nào (kể cả Khiên), thêm ${p.p3}% nếu nó có hiệu ứng bất lợi. Địch đối diện đang Tàng Hình bị lộ và luôn bị Cô Lập. Đòn đánh của Kha'Zix lên tướng Cô Lập gây thêm {${F_P}} sát thương vật lý.`,
     },
     hooks: {
+        onTurnStart(g, me, d) {
+            if (d.side === me.side) throwIsolation(g,
+                me)
+        },
+        onMove(g, me, d) {
+            if (d.unit.id === me.id || d.with?.id === me.id) throwIsolation(g,
+                me)
+        },
         onAttack(g, me, d) {
             if (d.attacker.id !== me.id || d.info.miss || !g.isolated(d.target)) return
             d.info.bonus.push({
                 raw: g.f(me,
-                    F_ATK), kind: "physical"
+                    F_P), kind: "physical"
             })
         },
     },
     skills: {
         Q: {
-            key: "Q", mana: MANA.Q, name: "Nếm Mùi Sợ Hãi", target: "opposite",
-            desc: `Đâm tướng địch đối diện đang chọn được, gây {${F_Q}} sát thương vật lý; nếu nó Cô Lập cộng {${F_Q_ISO}}. Không nhân số nhát theo tốc đánh.`,
-            options(c) {
-                return validPrey(c,
-                    c.g.opposite(c.self)) ? [{
-                    }] : []
-            },
+            key: "Q", name: "Nếm Thử Nỗi Sợ", target: "opposite", mana: p.q0,
+            desc: `Tướng địch đối diện nhận {${F_Q}} sát thương vật lý; nếu nó đang Cô Lập, nhận thêm {${F_Q2}}.`,
             resolve(c) {
                 const t = c.target
-                if (!t || !validPrey(c,
-                    t) || c.g.opposite(c.self)?.id !== t.id) return
-                const extra = c.g.isolated(t) ? c.f(F_Q_ISO) : 0
+                if (!t || t.side === c.side) return
+                const extra = c.g.isolated(t) ? c.f(F_Q2) : 0
                 c.g.damage(c.self,
                     t,
                     c.f(F_Q) + extra,
@@ -90,32 +129,15 @@ export default defineHero({
             },
         },
         E: {
-            key: "E", mana: MANA.E, name: "Nhảy Vào Bầy", target: "enemy",
-            desc: `Chọn một tướng địch hợp lệ; khác đường thì Kha'Zix swap với đồng minh đang giữ ô đối diện nó (kể cả đồng minh đã chết), đã đối diện thì giữ chỗ. Sau khi xác nhận đã đối diện, mục tiêu Cô Lập tới hết lượt này của bạn và nhận {${F_E}} sát thương vật lý. Mục tiêu/swap không hợp lệ: không đặt dấu, không gây sát thương.`,
-            options(c) {
-                return enemyOptions(c).filter(args => {
-                    const target = c.g.unit(args.target)
-                    return !!target && canSwapToPrey(c,
-                        target)
-                })
-            },
+            key: "E", name: "Vồ Mồi", target: "enemy", mana: p.e0,
+            desc: `Chọn 1 tướng địch bất kỳ đường; Kha'Zix đổi chỗ sang đường đối diện nó rồi gây {${F_E}} sát thương vật lý.`,
             resolve(c) {
-                const foe = c.target
-                if (!foe || !validPrey(c,
-                    foe) || !canSwapToPrey(c,
-                    foe)) return
-                // swap nguyên tử: Kha'Zix vào ô đối diện con mồi, người giữ ô (sống hoặc đã chết) về ô cũ của Kha'Zix
-                if (c.g.opposite(c.self)?.id !== foe.id && !c.g.faceEnemy(c.self,
-                    foe)) return
-                if (c.g.opposite(c.self)?.id !== foe.id) return
-                c.g.status(foe,
-                    ISO,
-                    1,
-                    {
-                        of: c.side
-                    })
+                const t = c.target
+                if (!t || t.side === c.side || t.token || t.status !== "board") return
+                if (c.g.opposite(c.self)?.id !== t.id && !c.g.faceEnemy(c.self,
+                    t)) return
                 c.g.damage(c.self,
-                    foe,
+                    t,
                     c.f(F_E),
                     "physical",
                     {
@@ -124,27 +146,54 @@ export default defineHero({
             },
         },
         R: {
-            key: "R", mana: MANA.R, name: "Lặn Săn", target: "none",
-            desc: "Kha'Zix Tàng Hình tới hết lượt kế tiếp của đối thủ và nhận 1 lá Q Kha'Zix. Tự đặt Cô Lập lên tướng địch đối diện hợp lệ tới hết lượt kế tiếp của bạn; không có địch đối diện hợp lệ thì chỉ bỏ phần đặt dấu (không chọn tay, không chọn ngẫu nhiên, không đổi chỗ).",
+            key: "R", name: "Tấn Công Hư Không", target: "none", mana: p.r0, quick: true, quickWhen: when.targetsSelf,
+            desc: `Quick. Kha'Zix Tàng Hình ${p.r1} đơn vị và né đòn đang nhắm vào mình, nhận 1 lá Q miễn phí tồn tại tới hết lượt đối phương; lá này biến mất và 1 lá R mới được xáo vào ${p.r2} lá trên cùng bộ bài. Dùng được khi địch nhắm đúng Kha'Zix.`,
             resolve(c) {
                 const g = c.g
-                // Tàng Hình tới hết lượt kế tiếp của đối thủ (đang lượt đối thủ thì tính luôn lượt đó)
-                g.stealth(c.self)
-                // chỉ địch đối diện hợp lệ (chọn được); không có thì bỏ riêng phần dấu
-                const opp = g.opposite(c.self)
-                const foe = opp && !opp.token && g.targetable(opp) ? opp : undefined
-                // "hết lượt kế tiếp của bạn": đang lượt mình thì là lượt sau (n = 2), đang lượt đối thủ thì là lượt tới (n = 1)
-                if (foe) g.status(foe,
-                    ISO,
-                    1,
-                    {
-                        until: g.turnsUntil(c.side,
-                            g.s.active === c.side ? 2 : 1)
-                    })
-                g.giveSkillToHand(c.side,
-                    "khazix",
+                c.vanish()
+                g.timed(c.self,
+                    c.self,
+                    "stealth",
+                    p.r1)
+                // Dùng trong lượt địch thì phần còn lại của lượt đó đã tính 1 đơn vị: cờ freeQSpansNextTurn kéo lá Q miễn phí sang lượt kế của địch
+                const spans = k.flag("freeQSpansNextTurn") && g.s.active !== c.side
+                const q = g.tempSkillCard("khazix",
+                    c.side,
                     "Q",
-                    "effect")
+                    {
+                        manaOff: p.q0
+                    })
+                if (spans) q.until = g.unitsUntil(c.side,
+                    2)
+                g.giveCard(c.side,
+                    q,
+                    "hand")
+                g.insertTopN(c.side,
+                    g.skillCard("khazix",
+                        c.side,
+                        "R"),
+                    p.r2)
+            },
+        },
+    },
+    en: {
+        desc: "Void Reaver: Isolate prey that lacks buffs and hunt it, vanish and load another Q.",
+        passive: {
+            name: "Void Assassin",
+            desc: `At the start of each of your turns and each time Kha'Zix changes lane, the enemy champion opposite has a ${p.p1}% chance to become Isolated for ${p.p6} units; +${p.p2}% if it has no beneficial effect (Shields included), +${p.p3}% if it has a harmful effect. A Stealthed enemy opposite is revealed and always Isolated. Kha'Zix's attacks on an Isolated champion deal {${EN_P}} extra physical damage.`,
+        },
+        skills: {
+            Q: {
+                name: "Taste Their Fear",
+                desc: `The enemy champion opposite takes {${EN_Q}} physical damage; if it is Isolated, it takes {${EN_Q2}} more.`,
+            },
+            E: {
+                name: "Leap",
+                desc: `Choose 1 enemy champion on any lane; Kha'Zix swaps to the lane opposite it and deals {${EN_E}} physical damage.`,
+            },
+            R: {
+                name: "Void Assault",
+                desc: `Quick. Kha'Zix gains Stealth for ${p.r1} units and dodges the action targeting him, and receives 1 free Q card that lasts until the end of the opponent's turn; this card disappears and a new R is shuffled into the top ${p.r2} cards of your deck. Can be played when an enemy targets exactly Kha'Zix.`,
             },
         },
     },

@@ -1,10 +1,16 @@
+import {
+    unitSkillIcon
+} from "../anim/cardArt"
 // Bảng chỉ số bên phải: tướng đang chọn (đồ, chỉ số, kỹ năng, hiệu ứng). Chỉ đọc từ store.
 import {
-    useEffect, useMemo, useState, type ReactNode
+    useEffect, useId, useMemo, useRef, useState, type ReactNode
 } from "react"
 import {
     cg, getItem
 } from "@starci/shared"
+import {
+    createPortal
+} from "react-dom"
 import {
     cardActions, gameOf, useCard, type CardView
 } from "../store"
@@ -22,8 +28,21 @@ import {
     CardInspector
 } from "../ui/CardInspector"
 import {
+    ScrollArea
+} from "../ui/ScrollArea"
+import {
+    useGameOverlay, viewportToCanvasPoint
+} from "../ui/GameCanvas"
+import {
+    GameIcon
+} from "../ui/GameIcon"
+import {
     inspectionActions, useInspection
 } from "../ui/inspection"
+import {
+    ArtFrame
+} from "../ui/ArtFrame"
+import "../ui/inspector-dna.css"
 
 type Side = cg.Side
 type Unit = cg.Unit
@@ -155,20 +174,13 @@ function HpRow(p: { u: Unit }) {
     const total = Math.max(u.maxHp,
         u.hp + u.shield,
         1)
-    return (
-        <div className={`us-hp ${u.hp / u.maxHp < 0.3 ? "low" : ""}`}>
-            <i className="hp" style={{
-                width: clampPct(u.hp / total)
-            }} />
-            {u.shield > 0 ? <i className="sh" style={{
-                left: clampPct(u.hp / total), width: clampPct(u.shield / total)
-            }} /> : null}
-            <span>
-                {`${Math.ceil(u.hp)} / ${u.maxHp}`}
-                {u.shield > 0 ? <b>{` +${Math.ceil(u.shield)}`}</b> : null}
-            </span>
-        </div>
-    )
+    return <div className="us-hp-module"><span className="us-hp-counter">{Math.ceil(u.hp)} / {u.maxHp}{u.shield > 0 ? <b> +{Math.ceil(u.shield)}</b> : null}</span>
+        <ArtFrame kind="meter" height={34} className={`us-hp-frame ${u.hp / u.maxHp < 0.3 ? "low" : ""}`} fill={<div className="us-hp-fill"><i className="hp" style={{
+            width: clampPct(u.hp / total)
+        }} />{u.shield > 0 ? <i className="sh" style={{
+            left: clampPct(u.hp / total), width: clampPct(u.shield / total)
+        }} /> : null}</div>} />
+    </div>
 }
 
 function Effects(p: { u: Unit; view: CardView }) {
@@ -183,7 +195,7 @@ function Effects(p: { u: Unit; view: CardView }) {
     return (
         <>
             <section className="us-sec">
-                <h4>{en ? "Effects by source" : "Nguồn hiệu ứng đang chịu"}</h4>
+                <h4>{en ? "Active effects" : "Hiệu ứng đang chịu"}</h4>
                 {m.cells.length ? (
                     <div className="fxm-grid">
                         {m.cells.map((c) => (
@@ -219,8 +231,8 @@ function ItemSlots(p: { u: Unit; view: CardView; legal: cg.Action[] }) {
                     const it = id ? getItem(id) : undefined
                     if (!id) {
                         return (
-                            <div key={i} className="us-item empty">
-                                <span>{t.emptySlot}</span>
+                            <div key={i} className="us-item empty" aria-label={`${t.items} ${i + 1}: ${t.emptySlot}`}>
+                                <ArtFrame kind="icon" width={70} height={70}><span className="us-slot-index">{i + 1}</span></ArtFrame><span>{t.emptySlot}</span>
                             </div>
                         )
                     }
@@ -230,13 +242,9 @@ function ItemSlots(p: { u: Unit; view: CardView; legal: cg.Action[] }) {
                     const tx = cg.itemText(id,
                         isEn() ? "en" : "vi")
                     return (
-                        <div key={i} className="us-item">
-                            <Pic
-                                srcs={[`/card_items/${id}.png`,
-                                    `/items/${id}.png`]}
-                                cls="us-item-ic"
-                                letter={it?.emoji ?? "?"}
-                            />
+                        <div key={i} className="us-item" tabIndex={0} aria-label={tx?.name ?? it?.name ?? id}>
+                            <ArtFrame kind="icon" width={70} height={70} fill={<Pic srcs={[`/card_items/${id}.png`,
+                                `/items/${id}.png`]} cls="us-item-ic" letter={it?.emoji ?? "?"} />} />
                             <span className="us-item-n">{tx?.name ?? it?.name ?? id}</span>
                             {un ? (
                                 <button
@@ -248,14 +256,14 @@ function ItemSlots(p: { u: Unit; view: CardView; legal: cg.Action[] }) {
                                     {handFull ? " ⚠" : ""}
                                 </button>
                             ) : null}
-                            <div className="us-item-tip">
+                            <div className="us-item-tip" role="tooltip">
                                 <b>{tx?.name ?? it?.name ?? id}</b>
                                 <p>{tx ? tx.stats : it ? cg.itemStatText(it) : ""}</p>
                                 {tx ? (
                                     <p>
                                         <b>{`${tx.passive}: `}</b>
                                         <RichText text={tx.desc} />
-                                        {tx.counter ? ` (${p.u.stacks[`item:${id}`] ?? 0}/${tx.counter.max})` : ""}
+                                        {tx.counter ? ` (${p.u.stacks[`item:${id}`] ?? 0}${tx.counter.max ? `/${tx.counter.max}` : ""})` : ""}
                                     </p>
                                 ) : props.map((x, k) => (
                                     <p key={k}>
@@ -300,6 +308,16 @@ function copiesLine(view: CardView, u: Unit, key: cg.SkillKey, total: number): s
 function Skills(p: { u: Unit; g: cg.Game; view: CardView }) {
     const t = T()
     const { u, g, view } = p
+    const overlay = useGameOverlay()
+    const hintId = useId()
+    const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+    const keepHint = () => { if (hideTimer.current) clearTimeout(hideTimer.current) }
+    const hideHint = () => { keepHint(); hideTimer.current = setTimeout(() => setHint(null),
+        180) }
+    useEffect(() => () => { if (hideTimer.current) clearTimeout(hideTimer.current) },
+        [])
+    const [hint,
+        setHint] = useState<{ key: cg.SkillKey | "P"; x: number; y: number } | null>(null)
     const h = cg.getHero(u.hero)
     if (!h) return null
     const en = isEn() ? cg.HERO_EN[u.hero] : undefined
@@ -314,48 +332,108 @@ function Skills(p: { u: Unit; g: cg.Game; view: CardView }) {
     }
     const pas = en?.passive ?? h.passive
     const role = g.role(u)
+    const showHint = (key: cg.SkillKey | "P", el: HTMLElement) => {
+        keepHint()
+        const rect = el.getBoundingClientRect()
+        const at = viewportToCanvasPoint({
+            x: rect.right, y: rect.top
+        })
+        setHint({
+            key, x: Math.min(1428,
+                Math.max(12,
+                    at.x + 12)), y: Math.max(12,
+                Math.min(748,
+                    at.y))
+        })
+    }
+    const hintCard: cg.Card | undefined = hint && hint.key !== "P" ? {
+        uid: `inspect:${u.id}:${hint.key}`, kind: "skill", id: `${u.hero}_${hint.key.toLowerCase()}`, hero: u.hero, side: u.side
+    } : undefined
+    const hintInfo = hintCard ? cg.cardInfoL(g,
+        hintCard,
+        u) : hint?.key === "P" ? {
+        name: pas.name, desc: text(pas.desc)
+    } : undefined
+    const hintDef = hint && hint.key !== "P" ? h.skills[hint.key] : undefined
+    const hintCost = hintDef ? manaCostOfSkill(g,
+        u,
+        hintDef) : undefined
     return (
         <section className="us-sec">
             <h4>{t.skills}</h4>
             {role === "support" ? <p className="us-note">{t.supportNote}</p> : null}
             <p className="us-note">{t.mageNote}</p>
             {role === "fighter" ? <p className="us-note">{t.fighterNote}</p> : null}
-            <div className="us-skill passive">
-                <Pic srcs={[`/card_skills/${u.hero}_p.png`]} cls="us-sk-ic" letter="P" />
-                <div className="us-sk-b">
-                    <div className="us-sk-h">
-                        <b>{`${t.passive}: ${pas.name}`}</b>
+            <details className="us-skill passive" onMouseEnter={(event) => showHint("P",
+                event.currentTarget)} onMouseLeave={hideHint} onFocus={(event) => showHint("P",
+                event.currentTarget)} onBlur={hideHint}>
+                <summary aria-describedby={hint?.key === "P" ? hintId : undefined}>
+                    <ArtFrame kind="icon" width={56} height={56} fill={<Pic srcs={[`/card_skills/${u.hero}_p.png`]} cls="us-sk-ic" letter="P" />} />
+                    <div className="us-sk-b">
+                        <div className="us-sk-h">
+                            <span className="us-passive-label">{t.passive}</span>
+                            <b>{pas.name}</b>
+                        </div>
+                        <span className="us-expand-hint">{isEn() ? "Inspect passive" : "Xem nội tại"}</span>
                     </div>
-                    <RichText className="us-rich" text={text(pas.desc)} />
-                </div>
-            </div>
+                </summary>
+                <RichText className="us-rich" text={text(pas.desc)} />
+            </details>
             {KEYS.map((k) => {
                 const def = h.skills[k]
                 const e = en?.skills[k]
+                const card: cg.Card = {
+                    uid: `inspect:${u.id}:${k}`, kind: "skill", id: `${u.hero}_${k.toLowerCase()}`, hero: u.hero, side: u.side
+                }
+                const info = cg.cardInfoL(g,
+                    card,
+                    u)
+                const skillName = info.name.startsWith(`${unitName(u)}: `) ? info.name.slice(unitName(u).length + 2) : def.variant?.(u,
+                    card)?.vi.name ?? e?.name ?? def.name
+                const description = info.desc || text(e?.desc ?? def.desc)
                 const total = view.rules.skillCopies[k]
                 const cost = manaCostOfSkill(g,
                     u,
                     def)
                 return (
-                    <div key={k} className="us-skill">
-                        <Pic srcs={[`/card_skills/${u.hero}_${k.toLowerCase()}.png`]} cls="us-sk-ic" letter={k} />
-                        <div className="us-sk-b">
-                            <div className="us-sk-h">
-                                <i className="us-key">{k}</i>
-                                <b>{e?.name ?? def.name}</b>
-                                {def.quick ? <span className="us-tag q">{t.quick}</span> : null}
-                                {def.chainOnly ? <span className="us-tag c">{t.chainOnly}</span> : null}
-                                {cost !== undefined ? <span className="us-tag m">{cost === "all" ? "Toàn bộ mana" : `${t.costMana} ${cost} mana`}</span> : null}
+                    <details key={k} className="us-skill" onMouseEnter={(event) => showHint(k,
+                        event.currentTarget)} onMouseLeave={hideHint} onFocus={(event) => showHint(k,
+                        event.currentTarget)} onBlur={hideHint}>
+                        <summary aria-describedby={hint?.key === k ? hintId : undefined}>
+                            <ArtFrame kind="icon" width={56} height={56} fill={<Pic srcs={[unitSkillIcon(u,
+                                k)]} cls="us-sk-ic" letter={k} />} />
+                            <div className="us-sk-b">
+                                <div className="us-sk-h">
+                                    <i className="us-key">{k}</i>
+                                    <b>{skillName}</b>
+                                    <span className="us-sk-tags">
+                                        {def.quick ? <span className="us-tag q">{t.quick}</span> : null}
+                                        {def.chainOnly ? <span className="us-tag c">{t.chainOnly}</span> : null}
+                                        {cost !== undefined ? <span className="us-tag m">{cost === "all" ? (isEn() ? "All mana" : "Toàn bộ mana") : `${cost} mana`}</span> : null}
+                                    </span>
+                                </div>
+                                <div className="us-copies">{copiesLine(view,
+                                    u,
+                                    k,
+                                    total)}</div>
                             </div>
-                            <div className="us-copies">{copiesLine(view,
-                                u,
-                                k,
-                                total)}</div>
-                            <RichText className="us-rich" text={text(e?.desc ?? def.desc)} />
-                        </div>
-                    </div>
+                        </summary>
+                        <RichText className="us-rich" text={description} />
+                    </details>
                 )
             })}
+            {overlay && hint && hintInfo ? createPortal(<aside id={hintId} className="us-skill-tooltip" role="tooltip" style={{
+                left: hint.x, top: hint.y
+            }} onMouseEnter={keepHint} onMouseLeave={hideHint} onFocus={keepHint} onBlur={hideHint}>
+                <ArtFrame kind="panel" width={480} height={320} contentClassName="us-hint-safe">
+                    <header><ArtFrame kind="icon" width={52} height={52} fill={<Pic srcs={[unitSkillIcon(u,
+                        hint.key)]} cls="us-hint-icon" letter={hint.key} />} /><div><small>{unitName(u)} · {hint.key}</small><h3>{hintInfo.name.replace(`${unitName(u)}: `,
+                        "")}</h3></div>{hintCost !== undefined ? <strong className="us-hint-cost"><GameIcon name="diamond" />{hintCost === "all" ? (isEn() ? "All" : "Toàn bộ") : hintCost}<small>mana</small></strong> : null}</header>
+                    <p className="us-hint-activation">{hint.key === "P" ? t.passive : hintDef?.chainOnly ? (isEn() ? "Response only · Follow the printed condition" : "Chỉ nối chuỗi · Theo điều kiện ghi trên lá") : hintDef?.quick ? (isEn() ? "Skill · Quick when its condition is met" : "Tung chiêu · Quick khi đủ điều kiện") : (isEn() ? "Cast skill" : "Tung chiêu")}</p>
+                    <ScrollArea className="us-hint-scroll" label={isEn() ? "Skill rules" : "Luật kỹ năng"}><RichText className="us-hint-rules" text={hintInfo.desc} /></ScrollArea>
+                </ArtFrame>
+            </aside>,
+            overlay) : null}
         </section>
     )
 }
@@ -384,6 +462,91 @@ function TokenInfo(p: { u: Unit; view: CardView }) {
     )
 }
 
+function supportCards(view: CardView, side: Side) {
+    const entries = new Map<string, { card: cg.Card; source: "hand" | "deck" | "grave"; hand: number; deck: number; grave: number }>()
+    const add = (card: cg.Card, source: "hand" | "deck" | "grave", count = 1) => {
+        if (!card.id.startsWith("spell_")) return
+        const row = entries.get(card.id) ?? {
+            card: {
+                ...card, side
+            }, source, hand: 0, deck: 0, grave: 0
+        }
+        row[source] += count
+        entries.set(card.id,
+            row)
+    }
+    for (const card of view.players[side].hand ?? []) add(card,
+        "hand")
+    for (const entry of view.players[side].deckSummary ?? []) add(entry.card,
+        "deck",
+        entry.count)
+    for (const card of view.players[side].grave) add(card,
+        "grave")
+    return [...entries.values()]
+}
+
+function SupportSheet(p: { u: Unit; g: cg.Game; view: CardView }) {
+    const en = isEn()
+    const cards = supportCards(p.view,
+        p.u.side)
+    const [selected,
+        setSelected] = useState<string | null>(null)
+    const active = cards.find((row) => row.card.id === selected)
+    return <section className="us-sec us-support-sheet">
+        <h4>{en ? "Team summoner cards" : "Phép bổ trợ của đội"}</h4>
+        {active ? <><button type="button" className="us-support-back" onClick={() => setSelected(null)}>{en ? "Back to summoner cards" : "Danh sách bổ trợ"}</button><CardInspector card={active.card} context={{
+            source: active.source, side: p.u.side, actor: p.u.id
+        }} view={p.view} dismissible={false} /></> : <>
+            <p className="us-note">{en ? "Inspect a visible card. Selecting it here does not play it." : "Chọn lá để xem. Thao tác tại đây không đánh lá bài."}</p>
+            <div className="us-support-list">{cards.map((row) => {
+                const info = cg.cardInfoL(p.g,
+                    row.card,
+                    p.u)
+                return <button type="button" className={`us-support-card${row.card.id === selected ? " selected" : ""}`} key={row.card.id} aria-pressed={row.card.id === selected} onClick={() => setSelected(row.card.id)}>
+                    <ArtFrame kind="icon" width={48} height={48} fill={<Pic srcs={[`/card_support/${row.card.id}.png`]} cls="us-support-icon" letter="S" />} />
+                    <span><b>{info.name}</b><small>{en ? "Hand" : "Tay"} {p.view.players[p.u.side].hand ? row.hand : "?"} · {en ? "Deck" : "Bộ"} {p.view.players[p.u.side].deckSummary ? row.deck : "?"} · {en ? "Grave" : "Mộ"} {row.grave}</small></span>
+                </button>
+            })}</div>
+        </>}
+        {!cards.length ? <p className="us-none">{en ? "No visible summoner card. Active sources appear below." : "Chưa có lá bổ trợ công khai. Nguồn đang tác dụng hiển thị bên dưới."}</p> : null}
+    </section>
+}
+
+function ChampionDetails(p: { u: Unit; g: cg.Game; view: CardView; legal: cg.Action[]; grid: ReactNode[] }) {
+    const en = isEn()
+    const id = useId()
+    const [tab,
+        setTab] = useState("skills")
+    const hasSupport = supportCards(p.view,
+        p.u.side).length > 0 || Object.values(p.u.statuses).some((status) => status.card?.startsWith("spell_"))
+    const tabs = [{
+        id: "items", label: en ? "Items" : "Đồ"
+    },
+    {
+        id: "skills", label: en ? "Skills" : "Chiêu"
+    },
+    ...(hasSupport ? [{
+        id: "support", label: en ? "Summoners" : "Bổ trợ"
+    }] : [])]
+    const active = tabs.some((entry) => entry.id === tab) ? tab : "skills"
+    return <>
+        <div className="us-grid">{p.grid}</div>
+        <nav className="us-tabs" role="tablist" aria-label={en ? "Champion details" : "Chi tiết tướng"}><ArtFrame kind="name" height={52} fitLabel={false} contentClassName="us-tab-safe">{tabs.map((entry, index) => <button type="button" key={entry.id} id={`${id}-${entry.id}`} role="tab" aria-selected={active === entry.id} aria-controls={`${id}-panel`} tabIndex={active === entry.id ? 0 : -1} onClick={() => setTab(entry.id)} onKeyDown={(event) => {
+            const next = event.key === "ArrowRight" ? (index + 1) % tabs.length : event.key === "ArrowLeft" ? (index + tabs.length - 1) % tabs.length : event.key === "Home" ? 0 : event.key === "End" ? tabs.length - 1 : undefined
+            if (next === undefined) return
+            event.preventDefault(); setTab(tabs[next].id)
+            const buttons = event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>("button")
+            buttons?.[next].focus()
+        }}>{entry.label}</button>)}</ArtFrame></nav>
+        <ScrollArea className="us-scroll" label={en ? "Champion details" : "Chi tiết tướng"} key={active}>
+            <div id={`${id}-panel`} role="tabpanel" aria-labelledby={`${id}-${active}`}>
+                {active === "items" ? <ItemSlots u={p.u} view={p.view} legal={p.legal} /> : active === "support" ? <SupportSheet u={p.u} g={p.g} view={p.view} /> : <Skills u={p.u} g={p.g} view={p.view} />}
+                <Effects u={p.u} view={p.view} />
+            </div>
+        </ScrollArea>
+    </>
+}
+
 export function UnitPanel() {
     const snap = useCard()
     const hover = useInspection()
@@ -403,8 +566,7 @@ export function UnitPanel() {
         [view])
     if (!view || !g) return <div className="us-root" />
     if (hover?.kind === "card") {
-        const owner = hover.context.actor ? view.units[hover.context.actor] : hover.card.hero ? view.units[`${hover.card.side ?? hover.context.side ?? view.you}:${hover.card.hero}`] : undefined
-        return <div className="us-root ci-active"><div className="us-scroll" key={`card:${hover.context.source}:${hover.card.uid}`}><CardInspector card={hover.card} context={hover.context} view={view} />{owner && !owner.token ? <Skills u={owner} g={g} view={view} /> : null}</div></div>
+        return <div className="us-root ci-active"><ScrollArea className="us-scroll" label="Chi tiết lá bài" key={`card:${hover.context.source}:${hover.card.uid}`}><CardInspector card={hover.card} context={hover.context} view={view} /></ScrollArea></div>
     }
     if (!u) {
         return (
@@ -422,7 +584,7 @@ export function UnitPanel() {
     const faceDown = !!tok?.hidden && !mine
     const art = tok ? [`/card_tokens/${tok.id}.png`,
         `/ui/fx/${tok.id}.png`,
-        `/heroes/${u.hero}.jpg`] : [`/heroes/${u.hero}.jpg`]
+        `/heroes-square/${u.hero}.jpg`] : [`/heroes-square/${u.hero}.jpg`]
     const row = (label: string, value: string | number, cls = "") => (
         <div key={label} className={`us-st ${cls}`}>
             <span>{label}</span>
@@ -489,13 +651,13 @@ export function UnitPanel() {
         <div className={`us-root ${mine ? "mine" : "foe"}`}>
             <header className="us-head">
                 {faceDown ? (
-                    <span className="us-portrait us-back" />
+                    <ArtFrame kind="icon" width={92} height={92} fill={<span className="us-portrait us-back" />} />
                 ) : (
-                    <Pic srcs={art} cls="us-portrait" letter={unitName(u).slice(0,
-                        1)} pos="50% 12%" />
+                    <ArtFrame kind="icon" width={92} height={92} fill={<Pic srcs={art} cls="us-portrait" letter={unitName(u).slice(0,
+                        1)} pos="50% 12%" />} />
                 )}
                 <div className="us-id">
-                    <h3>{faceDown ? t.hidden : unitName(u)}</h3>
+                    <ArtFrame kind="name" height={44}><h3>{faceDown ? t.hidden : unitName(u)}</h3></ArtFrame>
                     {faceDown ? null : (
                         <div className="us-meta">
                             <span className={`us-role r-${role}`}>{roleName(role)}</span>
@@ -503,11 +665,11 @@ export function UnitPanel() {
                             <span className={mine ? "ally" : "enemy"}>{mine ? t.ally : t.enemy}</span>
                         </div>
                     )}
-                    <HpRow u={u} />
                 </div>
+                <HpRow u={u} />
             </header>
-            {faceDown ? null : (
-                <div className="us-scroll" key={`unit:${u.id}`}>
+            {faceDown ? null : !tok ? <ChampionDetails key={u.id} u={u} g={g} view={view} legal={snap.legal} grid={grid} /> : (
+                <ScrollArea className="us-scroll" label="Chi tiết tướng" key={`unit:${u.id}`}>
                     <div className="us-grid">{grid}</div>
                     {tok ? (
                         <>
@@ -521,7 +683,7 @@ export function UnitPanel() {
                             <Skills u={u} g={g} view={view} />
                         </>
                     )}
-                </div>
+                </ScrollArea>
             )}
         </div>
     )

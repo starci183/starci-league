@@ -1,0 +1,77 @@
+{
+  "mode": "built-in image_gen",
+  "sourceImagesUnmodified": true,
+  "referenceCanvas": [
+    1920,
+    1080
+  ],
+  "transparentOutsideVerified": {
+    "pixelFormat": "Format32bppArgb",
+    "cornerAlpha": 0
+  },
+  "notes": "Each is one small battlefield pedestal, not a whole HUD or column. Anchors and safe rectangles are normalized within each native asset, intended for live cardback icon/count overlays. Safe rectangles manually identified conservatively from visual review; not alpha-derived.",
+  "entries": [
+    {
+      "asset": "deck-plinth-v1.png",
+      "native": "C:/Users/Hi/.codex/generated_images/01a1984f-23aa-7fc3-8b48-39012b3f0d32/exec-03dacc27-2eef-41cf-bbe8-9fdb8670d8ed.png",
+      "width": 1009,
+      "height": 1558,
+      "footprint": [
+        110,
+        170
+      ],
+      "iconAnchor": [
+        0.5,
+        0.39
+      ],
+      "countAnchor": [
+        0.5,
+        0.78
+      ],
+      "iconSafeRect": [
+        0.23,
+        0.17,
+        0.54,
+        0.47
+      ],
+      "countSafeRect": [
+        0.23,
+        0.72,
+        0.54,
+        0.11
+      ],
+      "variant": "Rectangular stacked stone ledges, jade gems, moss and aged gold."
+    },
+    {
+      "asset": "grave-plinth-v1.png",
+      "native": "C:/Users/Hi/.codex/generated_images/01a1984f-23aa-7fc3-8b48-39012b3f0d32/exec-aeb8d63e-a931-476d-9c5a-598aca3e221a.png",
+      "width": 1008,
+      "height": 1560,
+      "footprint": [
+        110,
+        170
+      ],
+      "iconAnchor": [
+        0.5,
+        0.4
+      ],
+      "countAnchor": [
+        0.5,
+        0.81
+      ],
+      "iconSafeRect": [
+        0.23,
+        0.24,
+        0.54,
+        0.43
+      ],
+      "countSafeRect": [
+        0.23,
+        0.76,
+        0.54,
+        0.1
+      ],
+      "variant": "Quiet tombstone arch, dark jade stone, moss and restrained gold."
+    }
+  ]
+}

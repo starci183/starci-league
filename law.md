@@ -2,6 +2,17 @@
 
 Các luật được chốt trong quá trình phát triển được ghi tại đây. Khi sửa luật, engine, bot, mô tả lá bài, giao diện và các tình huống `/vfx/examples` phải thống nhất với tài liệu này.
 
+## 0. Trình tự lượt
+
+Chốt ngày 01/11/2026 (chủ game). Mỗi lượt đi qua 7 bước: **Draw, Reward, Standby, Main 1, Battle, Main 2, End** (`GameState.step`). `phase` vẫn là `main` hoặc `chain`, Chuỗi mở được ở mọi bước.
+
+- Hồi sinh và hồi mana đầu lượt chạy trước Draw.
+- **Draw:** rút bài. **Reward:** quà tặng đều đặn và lá tạm Pháp sư.
+- **Standby:** hook đầu lượt (`onTurnStart`, `onStandby`), hành vi vật triệu hồi, hẹn giờ đầu lượt, Thiêu Đốt. Chỉ dừng chờ người chơi khi có nút Standby dùng được (`HeroAbility.standby`, hiện là đổi dạng Jayce); không có thì tự sang Main 1. `onMainStart` chạy khi vào Main 1.
+- **Main 1, Main 2:** lá chiêu, đồ, ghép đồ, Phép, nút tướng.
+- **Battle:** chỉ đòn đánh (lá Đánh Thường, đòn không cần lá). Đòn do chiêu gọi không bị chặn theo bước. Quick nối Chuỗi theo điều kiện cũ ở mọi bước.
+- Hành động `{ t: "step" }`: Standby sang Main 1, Main 1 sang Battle, Battle sang Main 2. Không quay lại bước trước. `end` hợp lệ ở Main 1, Battle, Main 2.
+
 ## 1. Chuỗi phản ứng (Chain)
 
 Chốt ngày 30/10/2026.
@@ -79,6 +90,8 @@ Kết quả: 4 huỷ 3 → 3 bị bỏ qua → 2 vẫn huỷ 1 → 1 bị bỏ q
 - Leona E được nối khi địch tấn công hoặc dùng một lá chiêu; Janna R được nối khi địch tấn công. Điều kiện này hiện ngay trên mô tả VI/EN. Annie E được nối khi một lá hoặc đòn đánh địch chỉ định Annie làm mục tiêu đơn; cần đủ 4 Lửa mới có phần huỷ/phản công.
 - Aatrox E, Braum R, Janna Q/E, Kha'Zix R, Lissandra R, Miss Fortune E và Vayne Q giữ nguyên hiệu ứng chủ động nhưng bỏ quyền Quick vì chưa có điều kiện phản ứng được chốt. Không tự suy diễn một trigger mới cho các lá này.
 
+**Trạng thái 01/11/2026:** hai đoạn về Leona/Janna/Annie và danh sách lá bỏ Quick ở trên là ghi chép của bộ chiêu cũ. Bộ chiêu mới của 34 tướng (`docs/heroes/KITS.md`, `balance/heroes/*.json`) đã thay thế toàn bộ: mỗi lá nói rõ có Quick hay không và điều kiện nối trong chính câu mô tả, mọi lá tạo Khiên là Quick có `quickWhen`. Quy tắc chung của mục này (tối đa 4 mắt xích, đúng điều kiện, giải quyết 4 → 3 → 2 → 1) vẫn giữ nguyên và đã áp dụng.
+
 ## 3. Đòn Miễn Phí và cách ghi thời hạn
 
 Chốt ngày 30/10/2026.
@@ -119,7 +132,7 @@ Chốt ngày 30/10/2026; người dùng xác nhận **mỗi bên có một bể 
 Chốt ngày 30/10/2026: **mọi vai tướng đều được đánh thường đơn vị trong ô Triệu hồi phụ của đối phương**, không phụ thuộc lane của người đánh và không cần có tướng đối diện.
 
 - Áp dụng cho Đấu sĩ, Đỡ đòn, Sát thủ, Xạ thủ, Pháp sư và Trợ thủ. Ô phụ là một lựa chọn mục tiêu riêng, không phải lane thứ sáu.
-- Người đánh vẫn phải đủ điều kiện thực hiện đòn đánh: có thể hành động, có lá/quyền đánh tương ứng và còn giới hạn đòn. Mục tiêu vẫn phải chọn được; Tàng Hình hoặc Đóng Băng bản thân không tự bị bỏ qua.
+- Người đánh vẫn phải đủ điều kiện thực hiện đòn đánh: có thể hành động (không Choáng, không Mù/`disarm`), có lá/quyền đánh tương ứng. Không còn giới hạn số đòn mỗi lượt (xem 11c; dòng này từng ghi "còn giới hạn đòn"). Mục tiêu vẫn phải chọn được; Tàng Hình hoặc Đóng Băng bản thân không tự bị bỏ qua.
 - Quyền này không tự cho mọi tướng đánh đơn vị cùng phe. Ngoại lệ như Gangplank tự đánh Thùng của mình tuân theo chiêu/nội tại riêng.
 - Đây là luật **đòn đánh thường**. Chiêu chỉ định vẫn cần quyền chọn vật triệu hồi được ghi trong dữ liệu chiêu (`targetsTokens`) hoặc cơ chế riêng của lá.
 
@@ -147,10 +160,12 @@ Phần dưới là mốc tích hợp do chat chính chọn theo quyền tự câ
 - **Tốc Đánh:** nền 100 (`RULES.baseAttackSpeed`). Một hành động đánh chốt Tốc Đánh một lần lúc bắt đầu, ra `floor(TĐ/100)` đòn thật cộng 1 đòn với xác suất `(TĐ mod 100)%`. 250 Tốc Đánh là 2 đòn chắc chắn và 50% thêm đòn thứ 3. Tốc Đánh kiếm được giữa hành động không sinh thêm đòn. Nguồn Tốc Đánh gồm chỉ số đồ, trạng thái `attack_speed` và hào quang `HeroDef.attackSpeedAura`.
 - **Chí mạng:** hệ số mặc định ×2,25. Sát thương cộng thêm (nội tại, proc đồ, buff đòn kế) không tự chí mạng.
 - **Khống chế lẻ (mục 4):** engine tung một lần mỗi lần áp, sau khi đã qua kiểm tra miễn/chặn. Lần áp bị chặn không tung lại. Áp lại cùng trạng thái giữ mốc hết hạn muộn hơn, không cộng dồn thời hạn.
-- **Thứ tự cứu chết** (`RULES.lethalOrder`): Soraka P → Renata P → Aatrox R → Giáp Thiên Thần → Áo Choàng Bóng Tối → các nguồn khác. Nguồn đầu tiên cứu được thì dừng; chỉ nguồn đó bị tiêu.
+- **Thứ tự cứu chết** (`RULES.lethalOrder`): Soraka P → Renata P → Aatrox R → Giáp Thiên Thần → Áo Choàng Bóng Tối → các nguồn khác. Nguồn đầu tiên cứu được thì dừng; chỉ nguồn đó bị tiêu. *(Trạng thái 01/11/2026: Soraka không còn nguồn cứu chết; thứ tự đang chạy là Renata P → biến hình (Aatrox R) → Giáp Thiên Thần → Áo Choàng Bóng Tối.)*
 - **Mana trên trang bị (chốt 31/10/2026):** đồ không nới trần bể 200 và không có công thức quy đổi chung. Tùy món, đồ liên quan mana mang một trong hai kiểu: (1) giảm mana chiêu của chính tướng đeo, hoặc (2) hồi bể mana chung của đội (mỗi lượt hoặc theo điều kiện). Manamune: +15 Tốc Đánh, AD = min(40, 20 + 20% điểm mana trên đồ của chính người đeo); sau một chiêu người đeo thực trả ≥ 20 mana, đòn trúng kế tiếp trong lượt mình hồi 15 mana, 1 lần/lượt. Trượng Trường Sinh: +20 AP; cứ 20 mana người đeo thực trả cho chiêu thì +5 AP vĩnh viễn, tối đa +40; không còn đọc bể đội thành AP. Vô Cực Kiếm: không tăng hệ số chí mạng; chí mạng bỏ qua 15 Giáp; sau 2 đòn liên tiếp không chí mạng thì đòn kế chắc chắn chí mạng.
 
 **Trạng thái triển khai 31/10/2026:** đã có trong engine kèm test (`scripts/card_tests_v2.ts`, `card_tests_v3.ts`, `card_tests_items.ts`). Chưa làm: lá chắn cứu nguy của Trượng (v4), các món đồ v4 khác, hiệu ứng đã đặt (bom, dấu) tiếp tục chạy khi người tung chết, và việc chuyển chiêu tướng sang `g.attackAction`.
+
+**Cập nhật 01/11/2026:** thứ tự cứu chết nêu ở trên đã đổi như ghi chú trong dòng đó (Soraka không còn cứu chết); không còn giới hạn đòn mỗi lượt (11c); đồ mana theo 11d.
 
 ## 9. Ranh giới khi cân bằng (buff/nerf)
 
@@ -170,3 +185,72 @@ Chốt ngày 31/10/2026: **luật do chat chính giữ; chat cân bằng buff/ne
 Muốn đổi luật vì lý do cân bằng: gửi chat chính đề xuất kèm số liệu trận; chưa duyệt thì không dùng làm kết quả cân bằng.
 
 **Luật chung đã chốt thêm ngày 31/10/2026 (thầy duyệt):** hồi bể mana đội **20** mỗi lượt của mình từ lượt thứ 2 (`RULES.teamManaRegen`); đòn không cần lá của Đấu sĩ gây **50%** sát thương (`RULES.fighterCardlessMult`).
+
+## 10. Cộng dồn nội tại khi chết
+
+Chốt ngày 31/10/2026.
+
+- Tướng cộng dồn theo nội tại, ví dụ Lux, Janna, Nami (Dậy Sóng), Soraka (Thánh Quang), khi bị hạ thì mất **một nửa** số tầng, phần còn lại giữ tới khi quay lại sân.
+- Bỏng của Brand nằm trên tướng địch: **địch bị hạ thì mất một nửa số Bỏng**. Brand bị hạ thì Bỏng trên địch không đổi.
+
+**Trạng thái 01/11/2026:** đã áp vào engine. `HeroDef.deathHalf` liệt kê khoá stack trên chính tướng (engine giảm một nửa, làm tròn xuống, ở `g.kill`); `HeroDef.carrierStacks` liệt kê khoá stack tướng đặt lên địch (nằm trong `Unit.stacks` của tướng mang, mang chết thì mất một nửa, chủ chết thì không đổi): Ashe Buốt, Brand Bỏng, Darius Chảy Máu, Tristana Bom, Vel'Koz Phân Rã. Tướng nào không khai báo khoá thì giữ nguyên (ngoại lệ có tên, ví dụ stack giữ tới khi quay lại sân theo KITS.md). Có test trong `scripts/card_tests_kits_*.ts` (kiểm chia đôi khi chết).
+
+## 11. Pháp sư và chiêu tạo Khiên
+
+Chốt ngày 31/10/2026.
+
+- Mỗi lượt Pháp sư nhận 1 lá phép tạm. Lá tạm trên tay tồn tại **tới hết lượt đối phương**.
+- Mọi lá chiêu của Pháp sư phải gây sát thương, kể cả E.
+- Chiêu của Pháp sư và Trợ thủ chỉ scale theo AP, không có hệ số AD.
+- Rumble: Lá Tái Chế chuyển hệ số AD theo tỉ lệ `p2` AP đổi 1 AD, mặc định `p2 = 2`.
+- Chiêu của Đỡ đòn chỉ scale theo Máu, Giáp, Kháng phép, không có hệ số AD hay AP.
+
+**Trạng thái 01/11/2026:** đã áp dụng cho cả 38 tướng của bộ chiêu mới. Pháp sư nhận lá phép tạm mỗi lượt (`RULES.mageTempSkill`, `g.giveMageTemps`), lá tạm tồn tại tới hết lượt đối phương (`g.unitsUntil`); mọi chiêu Pháp sư gây sát thương; chiêu Pháp sư và Trợ thủ chỉ scale AP, chiêu Đỡ đòn chỉ scale Máu/Giáp/Kháng phép (chữ và số đều đọc từ `balance/heroes/*.json`). Rumble: Lá Tái Chế đổi hệ số theo `p2` AP = 1 AD (`p2 = 2` trong JSON), nằm trong `card.data` (`recycled`, `apPerAd`, `manaOff`).
+
+- Chiêu tạo Khiên là Quick, để đỡ bất ngờ trong lượt địch. Chiêu đó vẫn ghi rõ điều kiện nối Chuỗi theo mục 1.2.
+
+## 11c. Giới hạn đòn đánh
+
+Chốt ngày 31/10/2026: bỏ giới hạn 3 đòn mỗi lượt (`RULES.attackLimit`). Mỗi lượt đánh bao nhiêu tuỳ số lá Đánh Thường và quyền đánh.
+
+## 11a. Thời hạn hiệu ứng
+
+Chốt ngày 31/10/2026.
+
+- Hiệu ứng trên chiêu ghi thời hạn bằng **đơn vị** theo tham số, ví dụ `q3` đơn vị, hạn chế kiểu "tới hết lượt hiện tại". Áp dụng cho mọi tướng.
+
+## 11b. Khống chế huỷ mắt xích
+
+Chốt ngày 31/10/2026.
+
+- **Choáng:** huỷ mắt xích của tướng đó, cả lá chiêu lẫn đòn đánh.
+- **Câm Lặng:** huỷ lá chiêu của tướng đó.
+- **Mù (cấm đánh):** huỷ đòn đánh của tướng đó.
+
+**Trạng thái 01/11/2026:** đã áp dụng. Choáng huỷ mọi mắt xích của tướng (chiêu lẫn đòn đánh); Câm Lặng huỷ mắt xích chiêu; Mù (`blind`) và `disarm` huỷ mắt xích đòn đánh và chặn đánh (`g.canAttack`). Kiểm tra bằng `scripts/card_tests_kits_*.ts`. Chưa chốt (không tự suy diễn): cách cộng/gia hạn khi nhiều khống chế chồng nhau.
+
+## 11d. Đồ
+
+Chốt ngày 01/11/2026: mỗi món đồ chỉ có **1 nội tại**, sức mạnh tập trung vào chỉ số.
+
+Đồ mana thay phần "Mana trên trang bị" ở mục 8:
+
+- Bỏ cơ chế giảm mana chiêu. Không món nào giảm giá chiêu.
+- Đồ mana hồi bể mana đội và có tỉ lệ nhận 1 lá chiêu miễn phí của tướng đeo. Tỉ lệ nhận lá R thấp hơn lá Q, E.
+
+**Trạng thái 01/11/2026:** đã áp vào `items.ts` và `balance/items.json` (36 món, `docs/heroes/ITEMS.md`): mỗi món 1 nội tại; không món nào giảm mana chiêu (`RULES.itemManaToRegen = 0`, không nới trần bể); đồ mana hồi bể mana đội và có tỉ lệ nhận lá chiêu miễn phí của người đeo (lá tạm, không tốn mana, tồn tại tới hết lượt đối phương), tỉ lệ lá R thấp hơn lá Q/E. Mục "Mana trên trang bị" ở phần 8 (Manamune, Trượng Trường Sinh, Vô Cực Kiếm) được thay bằng ITEMS.md.
+
+## 12. Cách ghi công thức tướng
+
+Chốt ngày 31/10/2026.
+
+- Đặc tả tướng ghi số bằng tham số theo chiêu: nội tại `p1, p2...`, rồi `q1...`, `e1...`, `r1...`. Ví dụ sát thương `r1 + r2·AD + r3·AP`.
+- Không ghi số thẳng trong công thức. Giá trị để riêng trong JSON để cân bằng sau chỉ cần sửa JSON.
+
+
+### Hiệu ứng thuộc ô sân — Lính Cát Azir (chốt 02/11/2026)
+
+- Lính Cát được lưu trên ô sân theo phe và đường, không phải stack hoặc icon trạng thái của tướng. Tướng di chuyển, bị hạ hay hồi sinh không mang theo hoặc xóa Lính.
+- Khi Azir bị hạ, cả phe còn một nửa tổng Lính, làm tròn xuống. Mỗi ô giữ nửa nguyên trước; phần Lính lẻ được giữ thêm theo thứ tự đường số nhỏ, sao cho tổng còn đúng `floor(tổng cũ / 2)`.
+- Không có tướng đứng trên ô mình vẫn giữ Lính. Lính đâm tướng địch đối diện ô; không có địch đối diện thì ô đó không gây sát thương. Q vẫn dồn toàn bộ Lính của phe vào mục tiêu.
+- E hiện chọn một tướng đồng minh đang trên sân để xác định ô đặt Lính; không đổi quyền chọn mục tiêu của lá.

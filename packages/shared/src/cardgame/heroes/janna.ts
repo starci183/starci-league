@@ -1,133 +1,146 @@
-// Janna (Trợ thủ, phép): máu 410 · AD 67 · AP gốc 0 · giáp/kháng 26/29. Bản cân bằng starci-33 (support v7).
-// CHẤT: "Hộ Phong": Khiên của cả đội mạnh hơn, và tướng mình còn Khiên thì đánh nhanh hơn, chịu ít sát thương hơn.
-// P (hào quang khi Janna trên sân): mọi Khiên mới lên tướng mình +20% (HeroDef.shieldGivenMult, áp 1 lần mỗi Khiên mới);
-//   tướng mình còn Khiên: +Tốc Đánh = 50% tổng Khiên hiện tại (tối đa +150; đọc qua jannaAttackSpeedBonus) và giảm 10% sát thương nhận (modifyDamage).
-// Q: Thanh Tẩy 1 tướng mình (CLEANSE_IDS dùng chung với phép Thanh Tẩy). E: Khiên 1 tướng mình.
-// R (Quick khi đòn đánh/lá chiêu của địch nhắm vào tướng mình): Khiên cả đội + giảm 15% sát thương nhận 1 đơn vị (status dmgCut).
-import type {
-    Game
-} from "../game"
+// Janna (Trợ thủ, phép): bộ chiêu chốt 31/10 - 01/11/2026 (docs/heroes/KITS.md). Số ở balance/heroes/janna.json.
+// P Hộ Phong: Khiên phe nhận được đổi thành Gió Thuận (Khiên mới mạnh hơn, tướng còn Khiên đánh nhanh hơn).
+// Q Gió Lốc đánh theo tổng Khiên, E Mắt Bão (Quick) Khiên + AD/AP theo Khiên, R Gió Mùa (Quick khi chiêu địch nhắm nhiều tướng mình, hoặc dùng chủ động).
+import {
+    kit, lockedAlly, when
+} from "../balance"
+import {
+    pct
+} from "../formula"
 import {
     defineHero
 } from "../registry"
 import {
-    CLEANSE_IDS
-} from "../spells"
-import {
-    otherSide, type Unit
+    FOREVER
 } from "../types"
 
-/** P: hệ số Khiên mới nhận của tướng mình */
-export const SHIELD_AMP = 0.2
-/** P: Tốc Đánh cộng thêm mỗi 1 điểm Khiên hiện có */
-export const AS_PER_SHIELD = 0.5
-export const AS_CAP = 150
-/** P: hệ số sát thương nhận khi còn Khiên */
-export const P_DR = 0.1
-export const F_E = "115 + 75% AP + 5% máu tối đa"
-export const F_R = "60 + 25% AP"
-/** R: giảm sát thương nhận trong 1 đơn vị */
-export const R_DR = 0.15
+const k = kit("janna"), { p } = k
+/** Gió Thuận (trên Janna): mất một nửa khi Janna chết */
+export const WIND = "janna_wind"
+/** Mắt Bão (trên tướng nhận E): status v = hệ số, engine cộng AD/AP = hệ số × Khiên đang có (g.stats "shield_power") */
+export const EYE = "shield_power"
+/** Khiên phe nhận được chưa đủ X (kỹ thuật, không hiện) */
+const ACC = "tc:janna_shield"
 
-/** Có Janna của phe `side` đang trên sân không */
-const jannaOn = (g: Game, side: Unit["side"]) => g.heroes(side).some((u) => u.hero === "janna")
-/** Hiệu ứng xấu Thanh Tẩy gỡ được trên u */
-export const cleansable = (g: Game, u: Unit) => CLEANSE_IDS.filter((id) => g.has(u,
-    id))
-/** P: Tốc Đánh cộng thêm cho u từ hào quang Janna (0 nếu không còn Khiên hoặc không có Janna trên sân). Engine đọc qua HeroDef.attackSpeedAura. */
-export function jannaAttackSpeedBonus(g: Game, u: Unit): number {
-    const sh = g.totalShield(u) // mọi loại Khiên (trắng/vật lý/phép)
-    if (u.status !== "board" || u.token || sh <= 0 || !jannaOn(g,
-        u.side)) return 0
-    return Math.min(AS_CAP,
-        sh * AS_PER_SHIELD)
-}
+const F_Q = k.x("q1 + q2·AP"), EN_Q = k.xe("q1 + q2·AP")
+const F_STUN = k.x("q4 + q5·AP"), EN_STUN = k.xe("q4 + q5·AP")
+const F_E = k.x("e1 + e2·AP"), EN_E = k.xe("e1 + e2·AP")
+const F_R = k.x("r1 + r2·AP"), EN_R = k.xe("r1 + r2·AP")
 
 export default defineHero({
-    id: "janna", name: "Janna", role: "support", damage: "magic", hp: 350, atk: 67, armor: 26, mr: 29,
-    bot: {
-        buffValue: {
-            dmgCut: 60,
-        },
-    },
-    desc: "Hiện Thân Bão Tố: Khiên của cả đội dày hơn, tướng còn Khiên đánh nhanh và chịu ít sát thương; Thanh Tẩy đồng minh, che Khiên và nổi Gió Mùa che cả đội.",
+    id: "janna", name: "Janna", role: "support", damage: "magic", ...k.base,
+    deathHalf: [WIND],
+    // Mắt Bão tắt khi Khiên vỡ, kể cả khi Janna đã ngã
+    offBoardHooks: ["onShieldBreak"],
+    desc: "Hộ Phong: Khiên của cả đội dày dần, tướng còn Khiên đánh nhanh; Q lấy Khiên làm sát thương, E cho Khiên và sức mạnh theo Khiên, R che cả đội lúc chiêu địch quét nhiều người.",
     passive: {
         name: "Hộ Phong",
-        desc: `① Trong khi Janna ở trên sân, mọi tướng mình nhận thêm ${SHIELD_AMP * 100}% Khiên từ mọi nguồn. ② Mỗi tướng mình còn Khiên nhận thêm Tốc Đánh bằng ${AS_PER_SHIELD * 100}% tổng Khiên hiện tại, tối đa +${AS_CAP} Tốc Đánh, và giảm ${P_DR * 100}% sát thương nhận. Khi hết Khiên hoặc Janna rời sân, mất phần Tốc Đánh và giảm sát thương này.`,
+        desc: `Mỗi khi các tướng phe bạn nhận tổng ${p.p1} Khiên, Janna nhận 1 Gió Thuận, cộng dồn vô hạn. Mỗi Gió Thuận: Khiên mới của tướng mình tăng ${pct(p.p2)}%, và tướng mình còn Khiên tăng ${p.p3}% Tốc Đánh. Khi Janna bị hạ, mất một nửa số Gió Thuận.`,
     },
-    // ① Khiên mới lên tướng mình (mọi nguồn) nhân 1.2, chỉ 1 lần cho mỗi Khiên mới
-    shieldGivenMult(_g, owner, _source, target) {
-        return owner.status === "board" && target.side === owner.side && !target.token ? 1 + SHIELD_AMP : 1
+    shieldGivenMult(g, owner, _source, target) {
+        return target.side === owner.side && !target.token ? 1 + p.p2 * g.stackOf(owner,
+            WIND) : 1
     },
-    // ② hào quang Tốc Đánh cho tướng mình còn Khiên (kể cả Janna); chỉ 1 Janna mỗi phe cộng (engine cộng aura của mọi tướng trên sân)
     attackSpeedAura(g, me, u) {
-        if (me.status !== "board" || u.side !== me.side) return 0
+        if (u.side !== me.side || u.token || g.totalShield(u) <= 0) return 0
+        // chỉ một Janna cộng cho mỗi phe
         if (g.heroes(me.side).find((x) => x.hero === "janna")?.id !== me.id) return 0
-        return jannaAttackSpeedBonus(g,
-            u)
+        return p.p3 * g.stackOf(me,
+            WIND)
     },
-    // ② giảm 10% sát thương địch gây cho tướng mình đang còn Khiên (nhân với giảm sát thương khác, không cộng)
-    modifyDamage(g, me, d) {
-        const t = d.target
-        if (t.side !== me.side || t.token || g.totalShield(t) <= 0 || !d.src || d.src.side === me.side) return 1
-        return 1 - P_DR
+    hooks: {
+        onShield(g, me, d) {
+            if (d.target.side !== me.side || d.target.token || d.amount <= 0) return
+            const acc = g.stackOf(me,
+                ACC) + d.amount
+            const n = Math.floor(acc / p.p1)
+            g.setStack(me,
+                ACC,
+                acc - n * p.p1)
+            if (n > 0) g.stack(me,
+                WIND,
+                n)
+        },
+        onShieldBreak(g, _me, d) {
+            if (g.has(d.target,
+                EYE)) g.removeStatus(d.target,
+                EYE)
+        },
     },
     skills: {
         Q: {
-            key: "Q", name: "Thanh Tẩy", target: "ally", mana: 10, usesPerCycle: 1,
-            desc: "Chọn 1 tướng mình đang có hiệu ứng bất lợi được Thanh Tẩy; gỡ các hiệu ứng đó khỏi nó.",
-            options(c) {
-                return c.g.allies(c.self).filter((u) => !u.token && cleansable(c.g,
-                    u).length > 0).map((u) => ({
-                    target: u.id
-                }))
-            },
+            key: "Q", name: "Gió Lốc", target: "enemy", mana: p.q0,
+            desc: `Chọn 1 tướng địch; gây {${F_Q}} + ${pct(p.q3)}% tổng Khiên phe bạn sát thương phép, rồi Choáng {${F_STUN}} đơn vị.`,
             resolve(c) {
-                const t = c.target!
-                for (const id of cleansable(c.g,
-                    t)) c.g.removeStatus(t,
-                    id)
-                // chỉ số xấu có thời hạn (nếu engine dùng statModifiers): gỡ phần đánh dấu harmful
-                if (t.statModifiers) for (const [k,
-                    m] of Object.entries(t.statModifiers)) if (m.harmful) delete t.statModifiers[k]
+                const g = c.g, me = c.self, t = c.target!
+                let shields = 0
+                for (const u of g.heroes(c.side)) shields += g.totalShield(u)
+                g.damage(me,
+                    t,
+                    c.f(F_Q) + p.q3 * shields,
+                    "magic",
+                    {
+                        tag: "skill"
+                    })
+                if (t.status === "board") g.timed(me,
+                    t,
+                    "stun",
+                    c.f(F_STUN))
             },
         },
         E: {
-            key: "E", name: "Mắt Bão", target: "ally", mana: 20, usesPerCycle: 1,
-            desc: `Chọn 1 tướng mình; nó nhận Khiên {${F_E}}.`,
+            key: "E", name: "Mắt Bão", target: "ally", mana: p.e0, quick: true,
+            quickWhen: when.targetsAlly,
+            options: (c) => lockedAlly(c),
+            desc: `Quick. Khi địch nhắm đúng 1 tướng mình, bạn có thể dùng lá này; mục tiêu là tướng đó (dùng chủ động thì chọn 1 tướng mình). Nó nhận {${F_E}} Khiên và Mắt Bão trong khi còn Khiên: tăng AD và AP bằng ${pct(p.e3)}% Khiên đang có.`,
             resolve(c) {
+                const t = c.target!
                 c.g.shield(c.self,
-                    c.target!,
+                    t,
                     c.f(F_E))
+                if (c.g.totalShield(t) > 0) c.g.status(t,
+                    EYE,
+                    1,
+                    {
+                        v: p.e3, until: FOREVER
+                    })
             },
         },
         R: {
-            key: "R", name: "Gió Mùa", target: "none", quick: true, mana: 20, usesPerCycle: 1,
-            desc: `Quick. Mọi tướng mình trên sân nhận Khiên {${F_R}} và giảm ${R_DR * 100}% sát thương nhận trong 1 đơn vị. Có thể nối khi địch đánh thường hoặc dùng lá chiêu gây sát thương nhắm vào tướng mình (trên cùng Chuỗi).`,
-            quickWhen(c) {
-                const t = c.g.unit(c.trigger.target)
-                return c.trigger.side !== c.side && (c.trigger.kind === "attack" || c.trigger.kind === "skill")
-                    && !!t && t.side === c.side && !t.token
-            },
+            key: "R", name: "Gió Mùa", target: "all_allies", mana: p.r0, quick: true,
+            quickWhen: when.multi,
+            desc: `Quick. Khi địch dùng lá chiêu nhắm nhiều tướng mình hoặc cả phe, bạn có thể dùng lá này; cũng dùng chủ động được. Mọi tướng mình nhận {${F_R}} Khiên, rồi hồi Máu bằng ${pct(p.r3)}% lượng Khiên đó.`,
             resolve(c) {
-                const g = c.g
                 const amount = c.f(F_R)
-                const until = g.turnsUntil(otherSide(c.side),
-                    1)
-                for (const u of g.heroes(c.side)) {
-                    g.shield(c.self,
+                for (const u of c.g.heroes(c.side)) {
+                    c.g.shield(c.self,
                         u,
                         amount)
-                    g.status(u,
-                        "dmgCut",
-                        1,
-                        {
-                            v: Math.max(R_DR,
-                                g.statusV(u,
-                                    "dmgCut")),
-                            until
-                        })
+                    c.g.heal(c.self,
+                        u,
+                        amount * p.r3)
                 }
+            },
+        },
+    },
+    en: {
+        desc: "Tailwind: team Shields grow thicker and shielded champions attack faster; Q turns Shield into damage, E gives a Shield and power from Shield, R covers the whole team when an enemy skill sweeps several of them.",
+        passive: {
+            name: "Tailwind",
+            desc: `Each time your champions receive a total of ${p.p1} Shield, Janna gains 1 Tailwind, stacking without limit. Each Tailwind: new Shields on your champions are ${pct(p.p2)}% bigger, and your champions that still have a Shield gain ${p.p3} Attack Speed. When Janna is taken down she loses half her Tailwind.`,
+        },
+        skills: {
+            Q: {
+                name: "Howling Gale",
+                desc: `Choose 1 enemy champion; deal {${EN_Q}} + ${pct(p.q3)}% of your team's total Shield as magic damage, then Stun it for {${EN_STUN}} units.`,
+            },
+            E: {
+                name: "Eye of the Storm",
+                desc: `Quick. When an enemy targets exactly 1 of your champions, you may play this card; the target is that champion (played proactively, choose 1 of your champions). It gains {${EN_E}} Shield and Eye of the Storm while it has a Shield: AD and AP increased by ${pct(p.e3)}% of its current Shield.`,
+            },
+            R: {
+                name: "Monsoon",
+                desc: `Quick. When an enemy plays a skill card that targets several of your champions or the whole team, you may play this card; it can also be played proactively. Every ally gains {${EN_R}} Shield, then heals HP equal to ${pct(p.r3)}% of that Shield.`,
             },
         },
     },

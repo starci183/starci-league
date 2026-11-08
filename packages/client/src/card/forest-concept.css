@@ -6,7 +6,7 @@
 .forest-game,.forest-game.log-open {
     --inspector-width: 19%; --journal-width: 17%; --hand-height: 16%;
     --concept-frame: url('/ui/examples/forest-stone-leaf-frame.png');
-    position: relative; width: min(100vw,177.777778dvh); height: min(100dvh,56.25vw);
+    position: relative; width: min(1920px,1920px); height: min(1080px,1080px);
     aspect-ratio: 16/9; max-width: 100%; max-height: 100%; container-type: size;
     display: grid; grid-template-columns: 19% 64% 17%; grid-template-rows: 100%;
     padding: 0; gap: 0; overflow: hidden;
@@ -236,7 +236,7 @@
 .forest-game .cs-pass { min-height: 2cqw; font-size: .75cqw; }
 .forest-game .cs-wait { bottom: 0; font-size: .7cqw; }
 .forest-game .cs-cancelled { font-size: .75cqw; padding: .3cqw 0; }
-.forest-game .bd-modal-box { width: min(1000px,85vw); }
+.forest-game .bd-modal-box { width: min(1000px,1632px); }
 .forest-game .bd-modal-box .ci-root { color: #263c28; font-size: 12px; }
 .forest-game .bd-modal-box .ci-root > h3 { color: #29402c; font-size: 16px; }
 .forest-game .bd-modal-box .ci-context dd { color: #2c472e; }
@@ -275,7 +275,7 @@
 .forest-game .cs-order { margin-top: 1cqw; }
 .forest-game .cs-title { background: url('/ui/examples/forest-title-banner.png') center/100% 100%; border: 0; min-height: 4.1cqw; padding: .8cqw 3.1cqw; margin-top: -3.5cqw; margin-bottom: 1.6cqw; }
 .forest-game .cs-order { background: url('/ui/examples/forest-title-banner.png') center/100% 100%; border: 0; min-height: 2.7cqw; padding: .7cqw 1.8cqw; }
-.forest-game .bd-modal,.forest-game .cd-modal { position: fixed; inset: auto; left: calc((100vw - min(100vw,177.777778dvh))/2); top: calc((100dvh - min(100dvh,56.25vw))/2); width: min(100vw,177.777778dvh); height: min(100dvh,56.25vw); }
+.forest-game .bd-modal,.forest-game .cd-modal { position: fixed; inset: auto; left: calc((1920px - min(1920px,1920px))/2); top: calc((1080px - min(1080px,1080px))/2); width: min(1920px,1920px); height: min(1080px,1080px); }
 .forest-game .bd-modal-box { max-height: 88cqh; }
 .forest-game .cd-dialog { max-height: 90cqh; }
 .forest-game .cs-title,.forest-game .cs-order { background-size: 100% 240%; }

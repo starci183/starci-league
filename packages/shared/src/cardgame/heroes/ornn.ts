@@ -1,116 +1,133 @@
-// Ornn (Đỡ đòn, phép): máu 490 · AD 64 · AP gốc 0 · giáp/kháng 34/34 (V3).
-// CHẤT: "Thần Rèn". Ornn làm mọi món đồ của đội mạnh hơn (đồ mặc càng lâu càng khoẻ) và rèn đồ mới giữa trận.
-// Q Phun Trào mở đường (giảm Giáp), E (Quick) che đồng minh: phạt kẻ đánh bằng sát thương + Choáng, R phát đồ hoàn chỉnh.
-// Engine: HeroDef.itemAura (hào quang đồ theo số vòng đã mặc), status "armor_down" (giảm Giáp phẳng), quickWhen + chainOnly (E), g.grantItem (R).
-// Đối thủ trả lời: Blitzcrank cướp lá đồ, hạ Ornn để tắt cả lò, sát thương chuẩn.
+// Ornn (Đỡ đòn, phép): "Thần Rèn". Đồ của cả đội mạnh hơn theo số vòng đã mặc, rèn Kiệt Tác lên đồ, phát đồ giữa trận.
+// Số liệu: balance/heroes/ornn.json (cờ masterworkKeptOnDeath = quyết định tạm của thầy: Kiệt Tác không mất khi chết). Chiêu chỉ scale Máu tối đa, Giáp. R không gây sát thương (Ornn là Đỡ đòn nên được phép).
+// Engine dùng: HeroDef.itemAura (nội tại), stack "itemAmp" mà g.stats đọc (Kiệt Tác: % chỉ số đồ), g.grantItem, g.createCard.
+import {
+    kit, when
+} from "../balance"
 import {
     defineHero
 } from "../registry"
 import {
-    otherSide, type PlayArgs
+    type PlayArgs, type Unit
 } from "../types"
-import {
-    ccApply, ccDuration
-} from "./braum"
+import type {
+    Game
+} from "../game"
 
-/** Nội tại: đồ +(10% + 2% mỗi 100 AD + 2% mỗi 100 AP của Ornn + 1% mỗi vòng món đó đã mặc) chỉ số */
-export const FORGE_BASE = 12
-export const FORGE_PER_100_AD = 2
-export const FORGE_PER_100_AP = 2
-export const FORGE_PER_ROUND = 1
-/** Q: Phun Trào */
-export const F_Q = "55 + 6% máu tối đa + 50% Giáp + 20% AP"
-export const Q_SHRED = 20
-export const SHRED = "ornn_shred"
-/** E: Lao Húc */
-export const F_E = "20 + 4% máu tối đa + 30% Giáp"
-export const E_PER_ITEM = 10
-/** E: Choáng 1 + 0,2% AP đơn vị (law.md §4) */
-export const E_STUN = {
-    base: 1, ap: 0.002
-}
+const k = kit("ornn"), { p } = k
+/** Tầng Kiệt Tác trên tướng giữ đồ (mỗi món của tướng nhận bằng nhau) */
+const MW = "ornn_mw"
+/** Stack mà g.stats đọc: % chỉ số đồ cộng thêm = tầng Kiệt Tác × p3 */
+const AMP = "itemAmp"
+const F_Q = k.x("q1 + q2·Máu tối đa"), EN_Q = k.xe("q1 + q2·Máu tối đa")
+const F_E = k.x("e2 + e3·Giáp"), EN_E = k.xe("e2 + e3·Giáp")
+
+const withItems = (g: Game, me: Unit) => g.allies(me).filter((u) => !u.token && u.items.length > 0)
+const allAllies = (g: Game, me: Unit) => g.allies(me).filter((u) => !u.token)
 
 export default defineHero({
-    id: "ornn", name: "Ornn", role: "tank", damage: "magic", hp: 490, atk: 64, armor: 34, mr: 34,
-    desc: "Thần Rèn: đồ của cả đội mặc càng lâu càng khoẻ, Ornn che đồng minh và phạt kẻ ra tay; R rèn đồ hoàn chỉnh giữa trận.",
+    id: "ornn", name: "Ornn", role: "tank", damage: "magic", ...k.base,
+    bot: k.bot,
+    desc: "Thần Rèn: đồ của cả đội mặc càng lâu càng mạnh, Ornn rèn Kiệt Tác lên đồ và phát đồ giữa trận.",
     passive: {
         name: "Lò Rèn Sống",
-        desc: "Khi Ornn sống trên sân, Stats nền của đồ cả đội, trừ Máu và phần thích ứng, được nhân 1 + ({12% + 2% mỗi 100 AD + 2% mỗi 100 AP} + 1% mỗi tuổi món), AD/AP tham chiếu của Ornn. Mỗi lượt chủ món bắt đầu Draw khi đang mặc trên sân, món tăng 1 tuổi; không trần, giữ qua tháo/lắp/chết, ghép chuyển tổng tuổi nguồn sang món kết quả.",
+        desc: `Khi Ornn ở trên sân, chỉ số của mọi món đồ cả đội, trừ Máu, tăng ${p.p1}%, và tăng thêm ${p.p2}% cho mỗi vòng món đó đã được mặc.`,
     },
-    itemAura(g, me, _wearer, _item, roundsWorn) {
-        return (FORGE_BASE + FORGE_PER_100_AD * g.atk(me) / 100 + FORGE_PER_100_AP * g.ap(me) / 100 + FORGE_PER_ROUND * roundsWorn) / 100
+    itemAura(_g, _me, _wearer, _item, roundsWorn) {
+        return (p.p1 + p.p2 * roundsWorn) / 100
+    },
+    hooks: {
+        onDeath(g, me, d) {
+            // cờ tạm: nếu thầy chốt Kiệt Tác mất khi tướng giữ đồ chết, mất một nửa
+            if (k.flag("masterworkKeptOnDeath") || d.victim.side !== me.side || d.victim.token) return
+            for (const key of [MW,
+                AMP]) {
+                const v = d.victim.stacks[key]
+                if (v) g.setStack(d.victim,
+                    key,
+                    Math.floor(v * p.p4))
+            }
+        },
     },
     skills: {
         Q: {
-            key: "Q", mana: 10, name: "Phun Trào", target: "enemy",
-            desc: `Chọn một tướng địch hợp lệ từ xa; gây {${F_Q}} sát thương phép và giảm 20 Giáp thực tới hết lượt địch kế tiếp. Giảm Giáp không cộng dồn cùng nguồn, tái dùng làm mới hạn; vẫn còn khi Ornn chết.`,
+            key: "Q", name: "Núi Lửa Trồi", target: "enemy", mana: p.q0,
+            desc: `Chọn 1 tướng địch; gây {${F_Q}} sát thương phép, rồi tạo 1 mảnh đồ ngẫu nhiên lên tay bạn.`,
             resolve(c) {
-                const t = c.target!
                 c.g.damage(c.self,
-                    t,
-                    c.f(F_Q),
-                    "magic",
-                    {
-                        tag: "skill"
-                    })
-                if (t.status !== "board") return
-                // tới hết lượt địch kế tiếp (đang trong lượt địch thì hết chính lượt đó); không cộng dồn, tái dùng làm mới.
-                // Giảm Giáp thật: status "armor_down" (engine trừ phẳng, còn khi Ornn chết); dấu SHRED giữ để hiển thị/không cộng dồn cùng nguồn.
-                const fresh = !c.g.has(t,
-                    SHRED)
-                c.g.status(t,
-                    "armor_down",
-                    1,
-                    {
-                        v: fresh ? Q_SHRED : 0, add: true, of: otherSide(c.side)
-                    })
-                c.g.status(t,
-                    SHRED,
-                    1,
-                    {
-                        v: Q_SHRED, of: otherSide(c.side)
-                    })
+c.target!,
+c.f(F_Q),
+"magic",
+{
+    tag: "skill"
+})
+                c.g.createCard(c.side,
+                    c.g.supportCard("item"))
             },
         },
         E: {
-            key: "E", mana: 20, name: "Lao Húc", target: "none", quick: true, chainOnly: true,
-            desc: `Khi địch đánh thường đơn nhắm một tướng mình, bạn có thể dùng lá này: tự khóa kẻ đánh, gây {${F_E}} + 10 mỗi món đồ đang mặc của người bị nhắm sát thương phép và Choáng 1 + 0,2% AP đơn vị. Choáng thành công ngắt đòn gốc; bị chặn Choáng không tự hủy đòn.`,
-            quickWhen(c) {
-                const target = c.g.unit(c.trigger.target)
-                return c.trigger.side !== c.side && c.trigger.kind === "attack" && !!c.trigger.single && !!c.trigger.actor
-                    && target?.side === c.side && !target.token
-            },
+            key: "E", name: "Rèn Lửa", target: "ally", mana: p.e0, quick: true,
+            quickWhen: when.attackOrSkill,
+            canPlay: (c) => withItems(c.g,
+                c.self).length > 0,
+            options: (c): PlayArgs[] => withItems(c.g,
+                c.self).map((u) => ({
+                target: u.id
+            })),
+            desc: `Quick. Khi địch đánh hoặc dùng chiêu, bạn có thể dùng lá này. Chọn 1 tướng mình đang mang đồ; mỗi món đồ của nó nhận ${p.e1} Kiệt Tác, và nó nhận {${F_E}} Khiên cho mỗi món. Kiệt Tác: mỗi tầng tăng ${p.p3}% chỉ số đồ, không mất khi tướng giữ đồ bị hạ (quyết định tạm, chờ thầy chốt).`,
             resolve(c) {
-                const foe = c.g.unit(c.trigger?.actor)
-                const ally = c.g.unit(c.trigger?.target)
-                if (!foe || !ally || foe.status !== "board") return
-                c.g.damage(c.self,
-                    foe,
-                    c.f(F_E) + E_PER_ITEM * ally.items.length,
-                    "magic",
-                    {
-                        tag: "skill"
-                    })
-                ccApply(c.g,
-                    c.self,
-                    foe,
-                    "stun",
-                    ccDuration(c.g,
-                        c.self,
-                        E_STUN),
-                    "Ornn E Choáng")
+                const t = c.target
+                if (!t || !t.items.length) return
+                const n = t.items.length
+                c.g.stack(t,
+                    MW,
+                    p.e1)
+                c.g.setStack(t,
+                    AMP,
+                    c.g.stackOf(t,
+                        MW) * p.p3)
+                c.g.shield(c.self,
+                    t,
+                    n * c.f(F_E))
             },
         },
         R: {
-            key: "R", mana: 50, name: "Tiếng Gọi Thần Rèn", target: "ally_other",
-            desc: "Chọn một đồng minh khác hợp lệ; Ornn và người đó mỗi người nhận 1 món hoàn chỉnh ngẫu nhiên trong kho 36 đồ v4. Hai lần chọn độc lập. Còn ô thì mặc ngay, hết ô về tay, tay đầy thì cháy; không đổi thành tiền hay món được chọn.",
-            options: (c): PlayArgs[] => c.g.heroes(c.side).filter((u) => u.id !== c.self.id).map((u) => ({
+            key: "R", name: "Tiếng Gọi Thần Rèn", target: "ally", mana: p.r0, quick: true,
+            quickWhen: when.attackOrSkill,
+            options: (c): PlayArgs[] => allAllies(c.g,
+                c.self).map((u) => ({
                 target: u.id
             })),
-            canPlay: (c) => c.g.heroes(c.side).some((u) => u.id !== c.self.id),
+            desc: "Quick. Khi địch đánh hoặc dùng chiêu, bạn có thể dùng lá này. Chọn 1 tướng mình; rèn 1 món đồ hoàn chỉnh ngẫu nhiên cho nó, mặc ngay, đủ ô thì về tay bạn; rồi tạo thêm 1 món đồ hoàn chỉnh ngẫu nhiên lên tay bạn. Không gây sát thương.",
             resolve(c) {
-                c.g.grantItem(c.self)
-                if (c.target) c.g.grantItem(c.target)
+                const t = c.target
+                if (!t) return
+                c.g.grantItem(t)
+                c.g.createCard(c.side,
+                    {
+                        kind: "support", id: "legend", item: c.g.randomFinishedItem()
+                    })
+            },
+        },
+    },
+    en: {
+        desc: "The Forge God: the team's items grow stronger the longer they are worn, Ornn adds Masterworks to items and hands out gear mid-game.",
+        passive: {
+            name: "Living Forge",
+            desc: `While Ornn is on the board, the stats of every item on the team, except HP, are increased by ${p.p1}%, plus another ${p.p2}% for each round that item has been worn.`,
+        },
+        skills: {
+            Q: {
+                name: "Volcanic Rupture",
+                desc: `Choose 1 enemy champion; deal {${EN_Q}} magic damage, then create 1 random item component in your hand.`,
+            },
+            E: {
+                name: "Searing Charge",
+                desc: `Quick. When the enemy attacks or casts a skill, you may play this card. Choose 1 allied champion carrying items; each of its items gains ${p.e1} Masterwork, and it gains {${EN_E}} Shield for each item. Masterwork: each stack adds ${p.p3}% to item stats, and is not lost when the holder is taken down (temporary decision, pending the teacher's ruling).`,
+            },
+            R: {
+                name: "Call of the Forge God",
+                desc: "Quick. When the enemy attacks or casts a skill, you may play this card. Choose 1 allied champion; forge 1 random finished item for it, worn immediately, or to your hand if it has no free slot; then create 1 more random finished item in your hand. Deals no damage.",
             },
         },
     },

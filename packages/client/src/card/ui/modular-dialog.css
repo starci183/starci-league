@@ -1,0 +1,37 @@
+/* Dialogs are assembled game parts, not a stretched image of an entire column. */
+.game-canvas-stage .action-dialog { border:0 !important; border-image:none !important; background:none !important; box-shadow:none !important; padding:0; max-width:1840px; max-height:1020px; }
+.game-canvas-stage .action-veil { background:#02120feb; backdrop-filter:blur(5px); }
+.game-canvas-stage .action-dialog > header { min-height:0; height:auto; padding:0 64px 14px; display:block; flex:none; border:0; }
+.game-canvas-stage .action-dialog > header::before { display:none; }
+.game-canvas-stage .action-dialog .action-heading { width:100%; display:flex; flex-direction:column; align-items:center; }
+.game-canvas-stage .action-dialog .action-heading > .af-asset { flex:none; }
+.game-canvas-stage .action-dialog > header h2 { margin:0; padding:0; color:#ffe4a1; font:700 40px/1.1 var(--font-game-title); white-space:nowrap; }
+.game-canvas-stage .action-dialog > header p { margin:0; padding:0; font-size:19px; line-height:1.3; text-align:center; color:#c4d5bf; }
+.game-canvas-stage .action-dialog .action-art-close { position:absolute; top:36px; right:10px; width:50px; height:50px; padding:0; border:0; border-image:none; background:none; font-size:25px; }
+.game-canvas-stage .action-dialog .action-art-close .af-safe-content { font:700 20px/1 var(--font-game-title); }
+.game-canvas-stage .action-dialog > .action-body { min-height:0; flex:1 1 auto; }
+.game-canvas-stage .action-dialog > footer { background:none; border:0; padding:12px 24px 0; flex:none; gap:16px; }
+.game-canvas-stage .action-dialog .action-art-button { position:relative; width:300px; height:76px; min-height:76px; padding:0 !important; border:0 !important; border-image:none !important; background:none !important; clip-path:none !important; box-shadow:none !important; font-size:24px; }
+.game-canvas-stage .action-dialog .action-art-button::before { display:none !important; }
+.game-canvas-stage .action-dialog .action-art-button.action-secondary { width:210px; }
+.game-canvas-stage .action-dialog .action-art-button:disabled { opacity:.45; filter:grayscale(.65); }
+.game-canvas-stage .action-dialog .action-art-button:hover:not(:disabled) { filter:brightness(1.18) drop-shadow(0 0 5px #48d6aa55); }
+/* A thin perimeter binds the separate modules into one deliberate game window. */
+.game-canvas-stage .action-dialog { isolation:isolate; padding:18px 24px 22px; background:radial-gradient(ellipse at 50% 0,#123f31f7,#031b14fa 75%) !important; box-shadow:0 20px 70px #000b !important; }
+.action-perimeter { position:absolute; inset:0; z-index:-1; pointer-events:none; border:2px solid #ba9049; box-shadow:inset 0 0 0 3px #06271e,inset 0 0 0 4px #6c6438,0 0 0 1px #17382a; }
+.action-perimeter > i { position:absolute; width:17px; height:17px; background:linear-gradient(135deg,#ffe49a,#b78632 45%,#4b3619 50%,#e9bb56); border:1px solid #ffe1a0; transform:rotate(45deg); box-shadow:0 0 0 3px #16382b; }
+.action-perimeter > i::after { content:''; position:absolute; inset:4px; background:linear-gradient(135deg,#86ffce,#128c71 50%,#04483d); border:1px solid #d3f7a9; }
+.action-perimeter > i:nth-child(1) { left:-7px; top:-7px; }
+.action-perimeter > i:nth-child(2) { right:-7px; top:-7px; }
+.action-perimeter > i:nth-child(3) { left:-7px; bottom:-7px; }
+.action-perimeter > i:nth-child(4) { right:-7px; bottom:-7px; }
+.game-canvas-stage .action-dialog .action-art-close { top:26px; right:22px; }
+.game-canvas-stage .action-dialog .action-art-button.action-secondary { width:260px; }
+/* Reduce the stone wall's visual weight without changing the 1920×1080 layout. */
+.game-canvas-stage .forest-game.cg-root :is(.cg-inspector,.cg-side) { border-width:12px; border-image-width:12px; }
+.game-canvas-stage .forest-game.cg-root .cg-chain.ch { border-width:6px; border-image-width:6px; }.game-canvas-stage .forest-game.cg-root .reserve-hero > img { flex:0 0 auto; width:min(100%,64px); height:auto; aspect-ratio:1; object-fit:cover; object-position:center; align-self:center; }
+
+.game-canvas-stage .forest-game.cg-root .reserve-hero { align-items:center; justify-content:center; gap:2px; }
+.game-canvas-stage .forest-game.cg-root .cg-chain.ch .reserve-roster { height:29cqh; }
+.game-canvas-stage .forest-game.cg-root .reserve-hero b { flex:none; width:100%; font-size:13px; line-height:16px; text-align:center; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.game-canvas-stage .forest-game.cg-root .reserve-hero > span { flex:none; max-width:100%; font-size:11px; line-height:14px; text-align:center; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }

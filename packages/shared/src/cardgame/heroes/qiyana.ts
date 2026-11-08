@@ -1,10 +1,10 @@
-// Qiyana (Sát thủ, vật lý): máu 320 · AD 77 · giáp/kháng 27/26 · mana Q15/E20/R35 (bể đội).
-// CHẤT: "Sát thủ nguyên tố". Ra sân, hồi sinh và đầu mỗi lượt của bạn Qiyana nhận ngẫu nhiên công khai Đá / Sông / Cỏ (mỗi loại 1/3).
-// Q, E, R đổi tác dụng theo nguyên tố hiện tại; đối thủ thấy nguyên tố trên tướng và phải đoán.
-// Engine: stack công khai "element" (1 Đỏ/Đá · 2 Xanh/Sông · 3 Lục/Cỏ) đổi bằng g.rollState ở hook onTurnStart/onSummon/onRespawn,
-//         Dấu Đá: status "qiyana_mark" + HeroDef.modifyDamage, E: Quick chỉ nối chuỗi (g.chainFx().cancel),
-//         g.faceEnemy / g.swapWith (swap nguyên tử với người giữ ô, kể cả đồng minh đã chết; không vào đường chưa mở), g.giveSkillToHand. Choáng theo đơn vị thời gian có phần lẻ ngẫu nhiên (law.md §4).
-// Đối thủ trả lời: Renata (phản sát thương), Janna (R miễn đòn đánh), Khiên dày; đoán nguyên tố để biết E Choáng hay né.
+// Qiyana (Sát thủ, vật lý). Bộ chiêu chốt 31/10 – 01/11/2026, số liệu ở balance/heroes/qiyana.json (docs/heroes/KITS.md).
+// CHẤT: "Sát thủ nguyên tố". Đầu trận (HeroDef.setup) 5 đường mang Nguyên Tố công khai ngẫu nhiên, ghi vào GameState.laneElements (một lần cho cả ván).
+// Qiyana hấp thụ nguyên tố của đường đang đứng và áp cho chiêu kế: Đất thêm sát thương, Nước Choáng, Cỏ Tàng Hình (và E nối Chuỗi né chiêu đơn).
+// Nguyên tố tính theo đường lúc chiêu giải quyết (E dùng đường cũ, rồi đường mới áp cho chiêu sau). Stack công khai "element" (1 Đất, 2 Nước, 3 Cỏ) chỉ để hiển thị.
+import {
+    kit, when, actorOrEnemy
+} from "../balance"
 import {
     defineHero
 } from "../registry"
@@ -12,305 +12,201 @@ import {
     skillArgs
 } from "../engine"
 import type {
-    Ctx, OptCtx, PlayArgs, SkillDef, Unit
+    Game
+} from "../game"
+import type {
+    Ctx, PlayArgs, Unit
 } from "../types"
 import {
     otherSide
 } from "../types"
-import type {
-    Game
-} from "../game"
 
-export type Element = "red" | "blue" | "green"
-/** Stack công khai "element": 1 Đỏ (Đá) · 2 Xanh (Sông) · 3 Lục (Cỏ) */
+const k = kit("qiyana"), { p } = k
+export type Element = "earth" | "water" | "grass"
+export const ELEMENTS: Element[] = ["earth",
+    "water",
+    "grass"]
 export const ELEMENT_KEY = "element"
-const ELEMENTS: Element[] = ["red",
-    "blue",
-    "green"]
-/** Dấu Đá trên địch (Q Đá): v = % sát thương Qiyana gây thêm lên nó tới hết lượt */
-const MARK = "qiyana_mark"
-export const MARK_STEP = 15
-export const F_Q_RED = "60 + 230% AD + 20% AP"
-export const F_Q_BLUE = "40 + 155% AD + 15% AP"
-export const F_Q_GREEN = "40 + 155% AD + 15% AP"
-export const F_E_RED = "40 + 155% AD + 15% AP"
-export const F_R_RED = "60 + 195% AD + 20% AP"
-export const F_R_BLUE = "40 + 130% AD + 15% AP"
-export const F_R_GREEN = "40 + 130% AD + 15% AP"
-/** Thời lượng Choáng (đơn vị thời gian, phần lẻ = xác suất thêm 1 đơn vị) */
-export const F_STUN = "1 + 0.2% AD + 0.2% AP"
-export const MANA = {
-    Q: 10, E: 20, R: 35
-} as const
+export const F_EARTH = k.x("p1 + p2·AD + p3% Máu đã mất mục tiêu"), EN_EARTH = k.xe("p1 + p2·AD + p3% Máu đã mất mục tiêu")
+export const F_STUN = k.x("p5 + p6·AD"), EN_STUN = k.xe("p5 + p6·AD")
+export const F_Q = k.x("q1 + q2·AD"), EN_Q = k.xe("q1 + q2·AD")
+export const F_E = k.x("e1 + e2·AD"), EN_E = k.xe("e1 + e2·AD")
+export const F_R = k.x("r1 + r2·AD"), EN_R = k.xe("r1 + r2·AD")
+export const F_R_EARTH = k.x("r4% Máu đã mất mục tiêu"), EN_R_EARTH = k.xe("r4% Máu đã mất mục tiêu")
 
-/** Nguyên tố hiện tại của Qiyana (mặc định Đỏ nếu chưa có, ví dụ ván dựng tay) */
-export function elementOf(g: Game, u: Unit): Element {
-    return ELEMENTS[g.stackOf(u,
-        ELEMENT_KEY) - 1] ?? "red"
-}
-/** Đặt nguyên tố cho Qiyana (dùng khi dựng tình huống thử) */
-export function setElement(g: Game, u: Unit, e: Element) {
-    g.setStack(u,
+/** Nguyên tố công khai của đường `lane` (undefined nếu ván chưa có bảng) */
+export const laneElement = (g: Game, lane: number): Element | undefined => g.s.laneElements?.[lane] as Element | undefined
+/** Nguyên tố Qiyana đang hấp thụ = nguyên tố đường nó đứng */
+export const elementOf = (g: Game, u: Unit): Element | undefined => laneElement(g,
+    u.lane)
+const syncElement = (g: Game, u: Unit) => {
+    const e = elementOf(g,
+        u)
+    const v = e ? ELEMENTS.indexOf(e) + 1 : 0
+    if (u.stacks[ELEMENT_KEY] !== v) g.setStack(u,
         ELEMENT_KEY,
-        ELEMENTS.indexOf(e) + 1)
-}
-/** Tên nguyên tố cho nhật ký */
-const ELEMENT_VI = ["Đá",
-    "Sông",
-    "Cỏ"]
-const rollElement = (g: Game, u: Unit) => {
-    const v = g.rollState(u,
-        ELEMENT_KEY,
-        ELEMENTS.length)
-    g.log(`${g.nameOf(u)} nhận nguyên tố ${ELEMENT_VI[v - 1] ?? "?"}`)
-    return v
+        v)
 }
 
-/** Choáng `u` theo công thức thời lượng của Qiyana: floor(d) đơn vị chắc chắn + Bernoulli(phần lẻ) thêm 1 (engine tung một lần trong g.status) */
-export function stunUnits(g: Game, src: Unit, u: Unit) {
-    if (u.status !== "board" || u.token) return
-    const d = Math.max(0,
-        g.f(src,
-            F_STUN))
-    if (d <= 0) return
-    // 1 đơn vị = tới hết lượt kế của phe bị Choáng (mặc định of = u.side); engine tung phần lẻ 1 lần sau kiểm tra miễn/chặn
-    g.status(u,
+/** Kẻ địch sống ở 2 đường kề của đường `lane` */
+const neighborFoes = (g: Game, me: Unit, lane: number) => [lane - 1,
+    lane + 1].map((l) => g.at(otherSide(me.side),
+    l)).filter((x): x is Unit => !!x && !x.token)
+
+/** Một đòn chiêu kèm nguyên tố `el` lên t: Đất cộng sát thương và hồi khi hạ gục, Nước Choáng, Cỏ Tàng Hình */
+function elementalHit(c: Ctx, el: Element | undefined, t: Unit, base: string) {
+    const g = c.g, me = c.self
+    const raw = c.f(base) + (el === "earth" ? g.f(me,
+        F_EARTH,
+        t) : 0)
+    const before = g.events.length
+    g.damage(me,
+        t,
+        raw,
+        "physical",
+        {
+            tag: "skill"
+        })
+    if (el === "earth" && g.events.slice(before).some((e) => e.t === "kill" && e.target === t.id && e.src === me.id)) g.heal(me,
+        me,
+        p.p4)
+    else if (el === "water") g.timed(me,
+        t,
         "stun",
-        d)
-}
-
-/** Đồng minh khác hợp lệ để E Cỏ swap: tỉ lệ Máu cao nhất, hoà thì theo thứ tự đường ổn định */
-function swapAlly(g: Game, self: Unit): Unit | undefined {
-    return g.allies(self,
-        false).filter((x) => !x.token && x.status === "board").sort((a, b) => g.hpPct(b) - g.hpPct(a))[0]
-}
-/** Tướng địch kích hoạt (kẻ đánh Qiyana) */
-const attackerOf = (c: Ctx) => c.g.unit(c.trigger?.actor)
-
-// Chọn con mồi theo luật chọn mục tiêu chung (Tàng Hình, Khiêu Khích...)
-const ENEMY_SELECTION: SkillDef = {
-    key: "Q", name: "", desc: "", target: "enemy", resolve: () => {}
-}
-const enemyOptions = (c: OptCtx): PlayArgs[] => skillArgs(c.g,
-    c.side,
-    c.self,
-    c.card,
-    ENEMY_SELECTION)
-const validPrey = (c: OptCtx, t: Unit | undefined) => !!t && enemyOptions(c).some((a) => a.target === t.id)
-/** Ô của Qiyana ở đường con mồi (đường có con mồi đứng nên chắc chắn đã mở; không bao giờ là đường khoá). Người giữ ô (đồng minh sống hoặc đã chết đang chờ hồi sinh) bị swap về ô cũ của Qiyana. */
-function canReach(g: Game, self: Unit, foe: Unit): boolean {
-    if (g.opposite(self)?.id === foe.id) return true
-    return g.canFace(self,
-        foe)
-}
-/** Dời Qiyana tới ô đối diện `foe` (swap nguyên tử với người giữ ô). true = sau bước này Qiyana đang đối diện hợp lệ con mồi. */
-function reachFacing(g: Game, self: Unit, foe: Unit): boolean {
-    if (g.opposite(self)?.id === foe.id) return true
-    if (!canReach(g,
-        self,
-        foe) || !g.faceEnemy(self,
-        foe)) return false
-    return g.opposite(self)?.id === foe.id
-}
-/** Đếm một sự kiện gây sát thương dương lên tướng đang mang Dấu Đá: +15 điểm % (không trần) */
-function bumpMark(g: Game, t: Unit) {
-    if (!g.has(t,
-        MARK) || t.status !== "board") return
-    const st = t.statuses[MARK]
-    st.v += MARK_STEP
-    g.emit({
-        t: "status", target: t.id, id: MARK, turns: 0, v: st.v
-    })
+        c.f(F_STUN))
+    else if (el === "grass") g.timed(me,
+        me,
+        "stealth",
+        p.p7)
 }
 
 export default defineHero({
-    id: "qiyana", name: "Qiyana", role: "assassin", damage: "physical", hp: 320, atk: 77, armor: 27, mr: 26,
-    bot: {
-        markValue: {
-            qiyana_mark: 10,
+    id: "qiyana", name: "Qiyana", role: "assassin", damage: "physical", ...k.base,
+    desc: "Nữ Hoàng Nguyên Tố: 5 đường mang nguyên tố công khai, Qiyana hấp thụ nguyên tố đường đang đứng. Đất dồn sát thương, Nước khống chế, Cỏ ẩn thân.",
+    passive: {
+        name: "Thần Khí Ixtal",
+        desc: `Đầu trận, 5 đường mang Nguyên Tố công khai ngẫu nhiên: ${p.lane_earth} Đất, ${p.lane_water} Nước, ${p.lane_grass} Cỏ. Qiyana hấp thụ nguyên tố đường đang đứng và áp cho chiêu kế. Đất: chiêu thêm {${F_EARTH}} sát thương; hạ gục hồi ${p.p4} Máu. Nước: Choáng {${F_STUN}} đơn vị. Cỏ: Tàng Hình ${p.p7} đơn vị, E đứng đường Cỏ né được chiêu đơn nhắm cô.`,
+    },
+    en: {
+        desc: "Queen of the Elements: the 5 lanes carry public elements and Qiyana absorbs the one she stands on. Earth burst, Water control, Grass stealth.",
+        passive: {
+            name: "Ixtal's Regalia",
+            desc: `At the start of the game, the 5 lanes carry public random Elements: ${p.lane_earth} Earth, ${p.lane_water} Water, ${p.lane_grass} Grass. Qiyana absorbs the element of the lane she stands on and applies it to her next skill. Earth: the skill deals {${EN_EARTH}} extra damage; a takedown heals ${p.p4} HP. Water: Stun for {${EN_STUN}} units. Grass: Stealth for ${p.p7} units, and E from a Grass lane dodges a single-target action aimed at her.`,
+        },
+        skills: {
+            Q: {
+                name: "Edge of Ixtal",
+                desc: `The opposite enemy takes {${EN_Q}} physical damage, with the absorbed Element.`,
+            },
+            E: {
+                name: "Audacity",
+                desc: `Quick if Qiyana stands on a Grass lane: when an enemy targets exactly her, it can respond and lock the actor. Choose 1 enemy in any lane; Qiyana swaps to face it and it takes {${EN_E}} physical damage, with the absorbed Element (of the lane she left). From a Grass lane in response, the targeting action is cancelled.`,
+            },
+            R: {
+                name: "Supreme Display of Talent",
+                desc: `The opposite enemy and the 2 adjacent enemies take {${EN_R}} physical damage; the opposite takes ${p.r3}%. Earth: each also takes {${EN_R_EARTH}}. Water: Stun ${p.r5} units, the opposite ${p.r6} units. Grass: your champions in Qiyana's lane and the 2 adjacent lanes gain Stealth for ${p.r7} unit(s).`,
+            },
         },
     },
-    desc: "Nữ Hoàng Nguyên Tố: nguyên tố ngẫu nhiên công khai, Q, E, R đổi theo nó. Đá dồn sát thương, Sông khống chế, Cỏ cơ động.",
-    passive: {
-        name: "Nguyên Tố",
-        desc: `Ra sân, hồi sinh và đầu lượt của bạn, Qiyana nhận ngẫu nhiên công khai Đá/Sông/Cỏ (mỗi loại 1/3), giữ tới lần đổi kế tiếp. Dấu Đá trên địch tăng ${MARK_STEP} điểm phần trăm sau mỗi đòn thật/chiêu gốc của Qiyana thực sự gây sát thương dương vào Máu/Khiên của nó trong lượt; không trần, Q Đá lại không đặt lại.`,
-    },
-    modifyDamage(g, me, d) {
-        if (d.src?.id !== me.id || d.target.side === me.side || (d.tag !== "attack" && d.tag !== "skill")) return 1
-        return 1 + g.statusV(d.target,
-            MARK) / 100
+    setup(g) {
+        if (g.s.laneElements) return
+        const list: Element[] = [
+            ...Array<Element>(p.lane_earth).fill("earth"),
+            ...Array<Element>(p.lane_water).fill("water"),
+            ...Array<Element>(p.lane_grass).fill("grass"),
+        ]
+        g.s.laneElements = g.shuffle(list)
     },
     hooks: {
-        onSummon(g, me, d) {
-            if (d.unit.id === me.id) rollElement(g,
-                me)
-        },
-        onRespawn(g, me, d) {
-            if (d.unit.id === me.id) rollElement(g,
-                me)
-        },
-        onTurnStart(g, me, d) {
-            if (d.side === me.side) rollElement(g,
-                me)
-        },
-        // chiêu gốc: mỗi lần gây sát thương dương (tag "skill"); proc đồ/phần cộng không tính
-        onDamage(g, me, d) {
-            if (d.src?.id !== me.id || d.target.side === me.side || d.tag !== "skill") return
-            if (d.hpLost + d.absorbed <= 0) return
-            bumpMark(g,
-                d.target)
-        },
-        // đòn thật: một lần mỗi hit trúng có sát thương dương
-        onAttackHit(g, me, d) {
-            if (d.attacker.id !== me.id || d.info.miss || d.target.side === me.side || d.dealt <= 0) return
-            bumpMark(g,
-                d.target)
-        },
+        onSummon(g, me, d) { if (d.unit.id === me.id) syncElement(g,
+            me) },
+        onRespawn(g, me, d) { if (d.unit.id === me.id) syncElement(g,
+            me) },
+        onTurnStart(g, me, d) { if (d.side === me.side) syncElement(g,
+            me) },
+        onActionEnd(g, me) { syncElement(g,
+            me) },
     },
     skills: {
         Q: {
-            key: "Q", mana: MANA.Q, name: "Nhát Chém Nguyên Tố", target: "enemy",
-            desc: `Mọi nguyên tố: chọn một tướng địch; khác đường thì Qiyana swap với đồng minh đang giữ ô đối diện nó (kể cả đồng minh đã chết), đã đối diện thì đánh ngay; swap thất bại thì không có hiệu ứng. Đá: {${F_Q_RED}} sát thương vật lý và mở/giữ Dấu Đá tới hết lượt. Sông: {${F_Q_BLUE}} sát thương vật lý và Choáng {${F_STUN}} đơn vị. Cỏ: {${F_Q_GREEN}} sát thương vật lý, Qiyana Tàng Hình tới hết lượt kế tiếp của đối thủ.`,
-            options(c) {
-                return enemyOptions(c).filter((a) => {
-                    const t = c.g.unit(a.target)
-                    return !!t && canReach(c.g,
-                        c.self,
-                        t)
-                })
-            },
+            key: "Q", mana: p.q0, name: "Lưỡi Đao Nguyên Tố", target: "opposite",
+            desc: `Tướng địch đối diện nhận {${F_Q}} sát thương vật lý, kèm Nguyên Tố hấp thụ.`,
             resolve(c) {
-                const t = c.target
-                if (!t || !validPrey(c,
-                    t) || !reachFacing(c.g,
-                    c.self,
-                    t)) return
-                const el = elementOf(c.g,
-                    c.self)
-                if (el === "red") {
-                    // mở dấu nếu chưa có; dấu đang còn hạn giữ nguyên phần đã tích. Chính phát Q này là sự kiện tích đầu tiên.
-                    if (!c.g.has(t,
-                        MARK)) c.g.status(t,
-                        MARK,
-                        1,
-                        {
-                            v: 0, until: c.g.s.turnNo
-                        })
-                    c.g.damage(c.self,
-                        t,
-                        c.f(F_Q_RED),
-                        "physical",
-                        {
-                            tag: "skill"
-                        })
-                } else if (el === "blue") {
-                    c.g.damage(c.self,
-                        t,
-                        c.f(F_Q_BLUE),
-                        "physical",
-                        {
-                            tag: "skill"
-                        })
-                    stunUnits(c.g,
-                        c.self,
-                        t)
-                } else {
-                    c.g.damage(c.self,
-                        t,
-                        c.f(F_Q_GREEN),
-                        "physical",
-                        {
-                            tag: "skill"
-                        })
-                    c.g.stealth(c.self)
-                }
+                elementalHit(c,
+                    elementOf(c.g,
+                        c.self),
+c.target!,
+F_Q)
             },
         },
         E: {
-            key: "E", mana: MANA.E, name: "Phản Ứng Nguyên Tố", target: "none", quick: true, chainOnly: true,
-            desc: `Quick, Chỉ Nối Chuỗi. Khi địch đánh Qiyana (đòn đánh đơn trên cùng), theo nguyên tố hiện tại. Đá: đánh trả kẻ đó {${F_E_RED}} sát thương vật lý, không huỷ đòn. Sông: thử Choáng kẻ đó {${F_STUN}} đơn vị và huỷ đòn (vẫn huỷ dù Choáng bị chặn). Cỏ: Qiyana swap với đồng minh khác hợp lệ có tỉ lệ Máu cao nhất; swap thành công mới huỷ đòn.`,
-            quickWhen: (c) => c.trigger.side !== c.side && c.trigger.kind === "attack" && !!c.trigger.single && c.trigger.target === c.self.id,
-            canPlay: (c: OptCtx) => elementOf(c.g,
-                c.self) !== "green" || !!swapAlly(c.g,
-                c.self),
+            key: "E", mana: p.e0, name: "Vũ Điệu Nguyên Tố", target: "enemy", quick: true,
+            desc: `Quick nếu Qiyana đứng đường Cỏ: khi địch nhắm đúng cô, nối Chuỗi và khoá kẻ đó làm mục tiêu. Chọn 1 địch ở đường bất kỳ; Qiyana đổi chỗ sang đối diện nó và nó nhận {${F_E}} sát thương vật lý, kèm Nguyên Tố của đường cô vừa rời. Từ đường Cỏ nối Chuỗi, hành động nhắm cô bị huỷ.`,
+            quickWhen: (c) => when.targetsSelf(c) && elementOf(c.g,
+                c.self) === "grass",
+            options: (c): PlayArgs[] => (c.trigger
+                ? actorOrEnemy(c)
+                : skillArgs(c.g,
+                    c.side,
+                    c.self,
+                    c.card,
+                    {
+                        key: "E", name: "", desc: "", target: "enemy", resolve() {}
+                    })),
             resolve(c) {
-                const el = elementOf(c.g,
-                    c.self)
-                const foe = attackerOf(c)
-                if (el === "red") {
-                    if (foe && foe.status === "board" && foe.side !== c.side) c.g.damage(c.self,
-                        foe,
-                        c.f(F_E_RED),
+                const g = c.g, me = c.self, t = c.target
+                const el = elementOf(g,
+                    me) // nguyên tố đường đang đứng, trước khi dời
+                if (c.trigger && el === "grass") g.chainFx().cancel = true // né hành động đơn nhắm cô
+                if (!t || t.side === me.side || t.status !== "board") return
+                if (g.opposite(me)?.id !== t.id && !g.faceEnemy(me,
+                    t)) return
+                if (g.opposite(me)?.id !== t.id) return
+                elementalHit(c,
+                    el,
+                    t,
+                    F_E)
+                syncElement(g,
+                    me)
+            },
+        },
+        R: {
+            key: "R", mana: p.r0, name: "Biến Động Tối Thượng", target: "opposite",
+            desc: `Tướng địch đối diện và 2 tướng ở đường kề nhận {${F_R}} sát thương vật lý, đối diện nhận ${p.r3}%. Đất: mỗi tướng nhận thêm {${F_R_EARTH}}. Nước: Choáng ${p.r5} đơn vị, tướng đối diện ${p.r6} đơn vị. Cỏ: tướng mình ở đường Qiyana và 2 đường kề Tàng Hình ${p.r7} đơn vị.`,
+            resolve(c) {
+                const g = c.g, me = c.self, opp = c.target!, el = elementOf(g,
+                    me)
+                const base = c.f(F_R)
+                for (const t of [opp,
+                    ...neighborFoes(g,
+                        me,
+                        me.lane)]) {
+                    const isOpp = t.id === opp.id
+                    g.damage(me,
+                        t,
+                        base * (isOpp ? p.r3 / 100 : 1) + (el === "earth" ? g.f(me,
+                            F_R_EARTH,
+                            t) : 0),
                         "physical",
                         {
                             tag: "skill"
                         })
-                } else if (el === "blue") {
-                    if (foe && foe.status === "board" && foe.side !== c.side) stunUnits(c.g,
-                        c.self,
-                        foe)
-                    c.g.chainFx().cancel = true
-                } else {
-                    const ally = swapAlly(c.g,
-                        c.self)
-                    if (ally && c.g.swapWith(c.self,
-                        ally)) c.g.chainFx().cancel = true
+                    if (el === "water") g.timed(me,
+                        t,
+                        "stun",
+                        isOpp ? p.r6 : p.r5)
                 }
-            },
-        },
-        R: {
-            key: "R", mana: MANA.R, name: "Lệnh Xoá Sổ", target: "all_enemies",
-            desc: `Theo nguyên tố hiện tại. Đá: mọi tướng địch nhận {${F_R_RED}} sát thương vật lý. Sông: chọn một tướng địch; nó và tối đa một tướng địch khác ngẫu nhiên mỗi người nhận {${F_R_BLUE}} sát thương vật lý và Choáng {${F_STUN}} đơn vị. Cỏ: mọi tướng địch nhận {${F_R_GREEN}} sát thương vật lý; Qiyana swap với đồng minh để đối diện tướng địch hợp lệ có Máu hiện tại thấp nhất nếu được, và nhận 1 lá Q Qiyana dù swap thành công hay không.`,
-            options(c) {
-                // chỉ Sông cần chọn tay một mục tiêu; Đá/Cỏ đánh toàn bàn địch
-                if (elementOf(c.g,
-                    c.self) !== "blue") return [{
-                }]
-                return enemyOptions(c)
-            },
-            resolve(c) {
-                const g = c.g
-                const el = elementOf(g,
-                    c.self)
-                const foes = g.heroes(otherSide(c.side))
-                if (el === "blue") {
-                    const first = c.target
-                    if (!first || first.side === c.side || first.status !== "board" || !g.targetable(first)) return
-                    const other = g.pick(g.heroes(otherSide(c.side)).filter((u) => u.id !== first.id && g.targetable(u)))
-                    if (other) g.log(`Qiyana: Sông lan thêm ngẫu nhiên ${g.nameOf(other)}`)
-                    for (const t of other ? [first,
-                        other] : [first]) {
-                        g.damage(c.self,
-                            t,
-                            c.f(F_R_BLUE),
-                            "physical",
-                            {
-                                tag: "skill"
-                            })
-                        stunUnits(g,
-                            c.self,
-                            t)
+                if (el === "grass") {
+                    for (const l of [me.lane - 1,
+                        me.lane,
+                        me.lane + 1]) {
+                        const ally = l >= 0 && l <= 4 ? g.at(me.side,
+                            l) : undefined
+                        if (ally && !ally.token) g.timed(me,
+                            ally,
+                            "stealth",
+                            p.r7)
                     }
-                    return
-                }
-                const f = el === "red" ? F_R_RED : F_R_GREEN
-                for (const t of foes) g.damage(c.self,
-                    t,
-                    c.f(f),
-                    "physical",
-                    {
-                        tag: "skill"
-                    })
-                if (el === "green") {
-                    // địch hợp lệ có Máu hiện tại thấp nhất (hoà: thứ tự đường ổn định)
-                    const prey = [...g.heroes(otherSide(c.side))].filter((u) => g.targetable(u)).sort((a, b) => a.hp - b.hp)[0]
-                    if (prey) reachFacing(g,
-                        c.self,
-                        prey)
-                    g.giveSkillToHand(c.side,
-                        "qiyana",
-                        "Q",
-                        "effect")
                 }
             },
         },

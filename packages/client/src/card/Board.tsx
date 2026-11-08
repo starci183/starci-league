@@ -4,13 +4,13 @@ import {
     useEffect, useMemo, useRef, useState, type ReactNode
 } from "react"
 import {
-    onImpactFloats
+    onImpactFloats, showHpLoss
 } from "./anim/impacts"
 import {
     cg
 } from "@starci/shared"
 import {
-    attacksOf, cardActions, cardlessOptions, gameOf, targetable, useCard, type CardView
+    attackActor, attacksOf, cardActions, cardlessOptions, gameOf, targetable, useCard, type CardView
 } from "./store"
 import {
     DeckModal, GraveModal, PlayerHud, PlayerPiles
@@ -25,7 +25,7 @@ import {
     CritIcon, DeadCard, Img, UnitCard, UnitTip, type Float
 } from "./board/UnitCard"
 import {
-    heroName, isEn, tr, unitName, type Side
+    heroName, isEn, laneElementName, tr, unitName, type Side
 } from "./board/helpers"
 import {
     inspectedUnit
@@ -33,6 +33,18 @@ import {
 import {
     useChainAnim
 } from "./chain/anim"
+import "./ui/hud-dna.css"
+import "./board/battlefield-modular.css"
+import "./board/slot-effects.css"
+import {
+    EffectIconRow
+} from "./ui/EffectIconRow"
+import {
+    TargetGuide
+} from "./ui/TargetGuide"
+import {
+    ArtFrame
+} from "./ui/ArtFrame"
 
 const EXTRA = 5
 const FLOAT_MS = 1100
@@ -41,6 +53,25 @@ interface FloatRec { slot: string; f: Float }
 interface Hover { id: string; x: number; y: number }
 
 const slotKey = (side: Side, lane: number) => `${side}:${lane}`
+
+/** Public effects belong to the physical lane, independent of its current occupant. */
+function SlotEffects(p: { side: Side; lane: number; stacks?: Record<string, number> }) {
+    const en = isEn()
+    const known = [{
+        key: "azir_soldiers", icon: "/card_skills/azir_e.png", name: en ? "Sand Soldiers" : "Lính Cát", detail: en ? "Sand Soldiers placed in this slot. They stay with the slot when its champion moves or dies." : "Lính Cát được đặt tại ô này. Hiệu ứng thuộc ô, không đi theo tướng khi tướng đổi chỗ hoặc bị hạ."
+    },
+    {
+        key: "ivern_brush", icon: "/card_skills/ivern_w.png", name: en ? "Brush" : "Bụi Cỏ", detail: en ? "Brush affecting this slot." : "Bụi Cỏ tác động lên ô này."
+    }]
+    const effects = Object.entries(p.stacks ?? {
+    }).filter(([, value]) => value > 0).map(([key]) => known.find(effect => effect.key === key) ?? {
+        key, icon: "/card_support/basic.png", name: key.replaceAll("_",
+            " "), detail: en ? "Public effect attached to this slot." : "Hiệu ứng công khai gắn với ô này."
+    })
+    return <div className="bd-slot-effects" data-slot-effects={`${p.side}:${p.lane}`}><EffectIconRow effects={effects.map(effect => ({
+        id: effect.key, icon: effect.icon, name: effect.name, count: `×${p.stacks![effect.key]}`, description: effect.detail
+    }))} /></div>
+}
 
 /** Chuyển một lô sự kiện thành số nổi gắn với tướng bị ảnh hưởng */
 function floatsOf(events: cg.GameEvent[]): { unit: string; f: Omit<Float, "id"> }[] {
@@ -97,14 +128,6 @@ function floatsOf(events: cg.GameEvent[]): { unit: string; f: Omit<Float, "id"> 
 
 export function TurnBar(p: { view: CardView; me: Side; hint: boolean; busy: boolean }) {
     const { view, me } = p
-    const { log } = useCard()
-    const lastAction = [...log].reverse().find(({ e }) => ["play",
-        "attack",
-        "draw",
-        "drawAuto",
-        "prize",
-        "turnStart"].includes(e.t))?.e
-    const actionPhase = lastAction?.t === "attack" || lastAction?.t === "play" && lastAction.card.id === "basic" ? "Battle" : lastAction?.t === "draw" || lastAction?.t === "drawAuto" ? "Draw" : lastAction?.t === "prize" ? "Reward" : "Skills"
     const chainAnim = useChainAnim()
     const shownPhase = chainAnim ? "chain" : view.phase
     const chainCount = chainAnim?.links.length ?? view.chain?.links.length ?? 0
@@ -135,11 +158,8 @@ export function TurnBar(p: { view: CardView; me: Side; hint: boolean; busy: bool
         blind: "Gọi tướng úp", summon: "Triệu hồi", main: "Hành động", chain: "Chuỗi", over: "Kết thúc"
     }
     return (
-        <div className={`bd-bar ${cls} ${p.busy ? "busy" : ""}`}>
-            <div className="bd-phase-ribbon" aria-label={isEn() ? "Turn sequence" : "Trình tự lượt"}>{["Draw",
-                "Reward",
-                "Skills",
-                "Battle"].map(name => <span key={name} className={view.phase === "main" && name === actionPhase ? "active" : ""}>{name}</span>)}</div>
+        <div className={`bd-bar ${cls} ${p.busy ? "busy" : ""}`} data-phase={shownPhase}>
+            <div className="bd-phase-ribbon" aria-label={isEn() ? "Turn sequence" : "Trình tự lượt"}>{cg.TURN_STEPS.map((step, index) => <span key={step} data-step={step} className={view.step === step ? "active" : ""} aria-current={view.step === step ? "step" : undefined} title={`${index + 1} · ${STEP_NAME[step]}`}><small>{index + 1}</small>{STEP_NAME[step]}</span>)}</div>
             <span className="bd-phase">{phases[shownPhase]}{shownPhase === "chain" ? ` ${chainCount}/${cg.RULES.maxChain}` : ""}</span>
             <span className="bd-round" title={`${t.turn} ${view.turnNo} · ${view.names[view.active]}`}>
                 {`${t.round} ${view.round}`}
@@ -150,6 +170,11 @@ export function TurnBar(p: { view: CardView; me: Side; hint: boolean; busy: bool
             <span className="bd-hint">{p.hint ? t.targetPick : spectator ? t.spectator : ""}</span>
         </div>
     )
+}
+
+/** Tên 7 bước trong lượt trên dải trình tự */
+const STEP_NAME: Record<cg.TurnStep, string> = {
+    draw: "Draw", reward: "Reward", standby: "Standby", main1: "Main 1", battle: "Battle", main2: "Main 2", end: "End"
 }
 
 export function Board() {
@@ -176,6 +201,11 @@ export function Board() {
     // số nổi: phát khi hoạt ảnh tới nhịp trúng đích (anim/impacts), không phải lúc state tới
     useEffect(() => onImpactFloats((events) => {
         const view = viewRef.current
+        for (const e of events) {
+            const maxHp = e.t === "damage" ? view?.units[e.target]?.maxHp : undefined
+            if (e.t === "damage" && maxHp) showHpLoss(e,
+                maxHp)
+        }
         const made: FloatRec[] = []
         for (const x of floatsOf(events)) {
             const u = view?.units[x.unit]
@@ -274,6 +304,7 @@ export function Board() {
     const slot = (side: Side, lane: number): ReactNode => {
         const key = slotKey(side,
             lane)
+        const slotEffects = lane !== EXTRA ? <SlotEffects side={side} lane={lane} stacks={view.laneStacks?.[side]?.[lane]} /> : null
         const uid = lane === EXTRA ? view.extra[side] : view.lanes[side][lane]
         // view đã là bản hiển thị (store.applyToDisplay): máu/khiên/trạng thái đổi đúng nhịp hoạt ảnh
         const u = uid ? view.units[uid] : undefined
@@ -282,7 +313,8 @@ export function Board() {
         const laneOk = side === me && tg.lanes.has(lane)
         const unitOk = !!u && tg.units.has(u.id)
         const canPick = picking && (unitOk || laneOk)
-        const state = picking ? (canPick ? "tg" : "dim") : ""
+        const attacking = snap.targeting?.step === "target" && !!u && attackActor(snap.targeting.options[0]) === u.id
+        const state = picking ? (canPick ? "tg" : attacking ? "attack-source" : "dim") : ""
         const hit = here.some((f) => f.kind === "dmg" || f.kind === "crit") ? "hit" : ""
         if (u && u.status === "board") {
             const cls = [
@@ -305,11 +337,11 @@ export function Board() {
                     used,
                     ready: !used && opts.length > 0 && !picking,
                     pct: Math.round(view.rules.fighterCardlessMult * 100),
-                    onClick: () => cardActions.beginTargeting(u.id,
+                    onClick: () => cardActions.beginAttack(u.id,
                         opts),
                 }
             })() : undefined
-            const soaked = !u.token && !!view.extra[side] && view.units[view.extra[side]!]?.token?.ownerId === u.id
+            const soaked = !u.token && !!view.extra[side] && view.units[view.extra[side]!]?.token?.ownerId === u.id && !!view.units[view.extra[side]!]?.token?.soak
             return (
                 <div key={key} className={`bd-slot occupied ${lane === EXTRA ? "extra" : ""}`} data-lane={lane + 1} data-move-preview={movePreview(side,
                     lane)}>
@@ -337,6 +369,7 @@ export function Board() {
                             lane,
                             u.id)}
                     />
+                    {slotEffects}
                 </div>
             )
         }
@@ -349,6 +382,7 @@ export function Board() {
                             cardActions.inspect(u.id)
                         }
                     }} />
+                    {slotEffects}
                 </div>
             )
         }
@@ -366,10 +400,11 @@ export function Board() {
         if (mine && open) {
             return (
                 <div key={key} className="bd-slot empty pending" data-lane={lane + 1}>
-                    <Img src={`/heroes/${mine.hero}.jpg`} className="bd-pend-img" fallback={heroName(mine.hero).slice(0,
+                    <Img src={`/heroes-square/${mine.hero}.jpg`} className="bd-pend-img" fallback={heroName(mine.hero).slice(0,
                         1)} />
                     <span className="bd-slot-label">{heroName(mine.hero)}</span>
                     <span className="bd-slot-sub">{view.blind?.ready[me] ? tr().blindPicked : tr().blindDraft}</span>
+                    {slotEffects}
                 </div>
             )
         }
@@ -377,7 +412,8 @@ export function Board() {
             return (
                 <div key={key} className="bd-slot closed" data-lane={lane + 1}>
                     <span className="bd-lock" />
-                    <span className="bd-slot-sub">{`${t.opensRound} ${view.rules.laneOpenRound[lane]}`}</span>
+                    <ArtFrame kind="name" className="bd-lane-caption" width={132} height={30}>{`${t.opensRound} ${view.rules.laneOpenRound[lane]}`}</ArtFrame>
+                    {slotEffects}
                 </div>
             )
         }
@@ -386,7 +422,8 @@ export function Board() {
                 lane)} onClick={() => click(side,
                 lane,
                 null)}>
-                <span className="bd-slot-label">{`${t.lane} ${lane + 1}`}</span>
+                <ArtFrame kind="name" className="bd-lane-caption" width={132} height={30}>{`${t.lane} ${lane + 1}`}</ArtFrame>
+                {slotEffects}
                 {here.map((f) => <span key={f.id} className={`bd-float ${f.kind}${f.dmg ? ` ${f.dmg}` : ""}`}>{f.kind === "crit" ? <CritIcon /> : null}{f.text}</span>)}
             </div>
         )
@@ -406,7 +443,7 @@ export function Board() {
     )
 
     return (
-        <section className={`cg-board ${picking ? "picking" : ""}`} onContextMenu={(e) => {
+        <section className={`cg-board modular-battlefield ${picking ? "picking" : ""}${targeting?.step ? " attack-pick" : ""}`} onContextMenu={(e) => {
             if (picking) {
                 e.preventDefault()
                 cardActions.cancelTargeting()
@@ -415,29 +452,40 @@ export function Board() {
         >
             <div className="bd-duel-hud">
                 <PlayerHud side={foe} view={view} isMe={false} />
-                <div className="bd-hud-spacer" aria-hidden="true" />
+                <div className="bd-hud-command"><TurnBar view={view} me={me} hint={!!targeting} busy={snap.presenting} /></div>
                 <PlayerHud side={me} view={view} isMe />
             </div>
             <OpponentHand view={view} />
             <div className="bd-board-body">
-                <div className="bd-playfield">
-                    {view.phase === "blind" && view.blind?.ready[foe] ? <div className="bd-back picked bd-foe-ready"><b>?</b>{tr().foeLocked}</div> : null}
-                    {row(foe)}
-                    <div className="bd-mid">
-                        {[0,
-                            1,
-                            2,
-                            3,
-                            4].map((lane) => <span key={lane} className={view.openLanes.includes(lane) ? "open" : ""}>{lane + 1}</span>)}
-                        <span className="x">+</span>
+                <div className="bd-artboard" data-battlefield-artboard>
+                    <img className="bd-ground-art" src="/ui/battlefield-modular-v1/ground-v1.png" alt="" draggable={false} />
+                    <img className="bd-border-art" src="/ui/battlefield-modular-v1/frame-v1.png" alt="" draggable={false} />
+                    <img className="bd-aux-plate foe" src="/ui/battlefield-modular-v1/summon-plate-v1.png" alt="" draggable={false} />
+                    <img className="bd-aux-plate me" src="/ui/battlefield-modular-v1/summon-plate-v1.png" alt="" draggable={false} />
+                    <div className="bd-playfield">
+                        {view.phase === "blind" && view.blind?.ready[foe] ? <div className="bd-back picked bd-foe-ready"><b>?</b>{tr().foeLocked}</div> : null}
+                        {row(foe)}
+                        <div className="bd-mid">
+                            {[0,
+                                1,
+                                2,
+                                3,
+                                4].map((lane) => {
+                                const el = view.laneElements?.[lane]
+                                const elName = el ? laneElementName(el) : undefined
+                                return <span key={lane} className={view.openLanes.includes(lane) ? "open" : ""}>{lane + 1}{el && elName ? <em className={`bd-lane-el el-${el}`} title={isEn() ? `Lane element: ${elName}` : `Nguyên Tố đường: ${elName}`}>{elName}</em> : null}</span>
+                            })}
+                            <span className="x">+</span>
+                        </div>
+                        {row(me)}
                     </div>
-                    {row(me)}
                 </div>
                 <aside className="bd-deck-rail" aria-label={isEn() ? "Decks, graveyards and prizes" : "Bộ bài, mộ và lá thưởng"}>
                     <PlayerPiles side={foe} view={view} g={g} isMe={false} onGrave={() => setGrave(foe)} onDeck={() => setDeck(foe)} />
                     <PlayerPiles side={me} view={view} g={g} isMe onGrave={() => setGrave(me)} onDeck={() => setDeck(me)} />
                 </aside>
             </div>
+            {targeting?.step ? <TargetGuide actor={targeting.step === "target" ? attackActor(targeting.options[0]) : undefined} hovered={hover?.id} eligible={[...tg.units].filter(id => targeting.step === "actor" || view.units[id]?.side === foe)} /> : null}
             {hover && hovered ? <UnitTip u={hovered} g={g} turnNo={view.turnNo} x={hover.x} y={hover.y} /> : null}
             {grave ? <GraveModal side={grave} view={view} g={g} onClose={() => setGrave(null)} /> : null}
             {deck ? <DeckModal side={deck} view={view} g={g} onClose={() => setDeck(null)} /> : null}
