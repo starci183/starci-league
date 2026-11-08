@@ -1,5 +1,5 @@
 // VFX Miss Fortune trên Cocos theo docs/VFX_RULES.md: THUỐC SÚNG. Hai khẩu súng lục hai bên người, chớp nòng vàng trắng,
-// vệt đạn nóng mảnh (lõi trắng, quầng vàng cam), tia lửa kim loại văng NGƯỢC hướng bắn, khói súng xám bay lên tan dần,
+// viên đạn tròn nóng (lõi trắng, viền đồng, quầng cam), tia lửa kim loại văng NGƯỢC hướng bắn, khói súng xám bay lên tan dần,
 // bụi đất bắn khi đạn ghim xuống đất. Phát chí mạng: vệt dày và sáng hơn, chớp nòng to, nổ sao vàng ở chỗ trúng.
 // Ô: basic_missfortune, missfortune_q (1x1), missfortune_e (3x3: mưa đạn trút xuống 3 ô theo 3 đợt), missfortune_r (5x5:
 // 5 loạt quạt đạn vào mọi tướng), missfortune_p (đồng xu may mắn tung lên). Mục tiêu và chí mạng lấy từ ctx.hops (engine).
@@ -63,32 +63,6 @@ function flash(layer: Node, at: Pt, dir: number, big: number) {
         color: SMOKE, kind: "glow", additive: false, life: [0.4, 0.8], size: [8, 22 * big], alpha: 0.35, speed: [10, 40],
         angle: [UP - 0.8, UP + 0.8], drag: 1.5, spread: 4
     })
-}
-
-/**
- * Vệt đạn a -> b: đầu đạn sáng bay rất nhanh, kéo theo vệt mảnh (lõi trắng, quầng vàng cam) mờ dần. Xong khi đạn tới đích;
- * vệt tắt chạy nền. `crit` thì vệt dày và sáng hơn.
- */
-async function tracer(layer: Node, a: Pt, b: Pt, secs: number, crit: boolean) {
-    const c = canvas(layer)
-    const w = crit ? 1.9 : 1.3
-    let head = a
-    await over(layer, secs, (t) => {
-        head = mix(a, b, ease.in(t))
-        const tail = mix(a, b, Math.max(0, ease.in(t) - 0.5))
-        c.g.clear()
-        polyline(c.g, [tail, head], 4.5 * w, col(EMBER, 0.35))
-        polyline(c.g, [tail, head], 1.2 * w, col(WHITE, 1))
-        c.g.fillColor = col(FLASH, 1)
-        c.g.circle(head.x, head.y, 1.6 * w)
-        c.g.fill()
-    })
-    void over(layer, 0.2, (t) => {
-        const tail = mix(a, b, lerp(0.5, 1, t))
-        c.g.clear()
-        polyline(c.g, [tail, b], 3 * w * (1 - t), col(EMBER, 0.25 * (1 - t)))
-        polyline(c.g, [tail, b], 0.9 * w, col(WHITE, 0.8 * (1 - t)))
-    }).then(c.done)
 }
 
 /**
@@ -202,7 +176,7 @@ registerSkillVfx("missfortune_q", async (ctx) => {
     })
     aim.done()
     flash(ctx.layer, ctx.from, angleOf(ctx.from, s.to), crit ? 1.6 : 1.3)
-    await bullet(ctx.layer, ctx.from, s.to, Math.min(0.2, 0.09 + dist(ctx.from, s.to) / 3600), crit, 1.35)
+    await bullet(ctx.layer, ctx.from, s.to, Math.min(0.2, 0.09 + dist(ctx.from, s.to) / 3600), crit, 2.1)
     ctx.onBeat?.(0)
     hit(ctx.layer, s.to, ctx.from, crit, 1.3 * k)
 })
@@ -273,28 +247,26 @@ registerSkillVfx("missfortune_r", async (ctx) => {
     const toward = Math.sign(rowY - ctx.from.y) || 1
     const left = Math.min(...xs) - 60, right = Math.max(...xs) + 60
     const total = waves.length * SWEEP + 0.15
-    let gun = 1
     // dòng xả: mỗi khung 2 viên, điểm rơi quét qua lại dọc hàng địch
     const spray = over(ctx.layer, total, (t) => {
         const el = t * total
         const x = left + (right - left) * (0.5 - 0.5 * Math.cos(el / SWEEP * Math.PI))
         for (let i = 0; i < 2; i++) {
-            gun = -gun
             const to = { x: x + rand(-50, 50), y: rowY + toward * rand(-60, 10) }
-            const m = muzzle(ctx.from, gun, to)
+            const m = ctx.from
             emit(ctx.layer, m, { color: [FLASH, BRASS], kind: "glow", life: [0.04, 0.06], size: [18, 8], alpha: 0.9 })
-            void tracer(ctx.layer, m, to, 0.06 + Math.random() * 0.03, false).then(() => { if (Math.random() < 0.6) dirt(ctx.layer, to) })
+            void bullet(ctx.layer, m, to, 0.11 + Math.random() * 0.04, false, 0.8).then(() => { if (Math.random() < 0.6) dirt(ctx.layer, to) })
         }
-        if (Math.random() < 0.25) void burst(ctx.layer, muzzle(ctx.from, gun, { x, y: rowY }), 1, {
+        if (Math.random() < 0.25) void burst(ctx.layer, ctx.from, 1, {
             color: SMOKE, kind: "glow", additive: false, life: [0.4, 0.7], size: [8, 22], alpha: 0.3, speed: [10, 30], angle: [UP - 0.6, UP + 0.6]
         })
     })
     // các loạt thật nằm trong dòng xả: mỗi lượt quét một loạt, chạm là nhịp số
     for (let w = 0; w < waves.length; w++) {
         await wait(ctx.layer, SWEEP * 0.55)
-        await Promise.all(waves[w].map((h, i) => {
-            const m = muzzle(ctx.from, i % 2 ? 1 : -1, h.to)
-            return tracer(ctx.layer, m, h.to, Math.min(0.09, 0.04 + dist(m, h.to) / 9000), !!h.crit).then(() => hit(ctx.layer, h.to, m, !!h.crit, k))
+        await Promise.all(waves[w].map((h) => {
+            const m = ctx.from
+            return bullet(ctx.layer, m, h.to, Math.min(0.14, 0.07 + dist(m, h.to) / 6000), !!h.crit).then(() => hit(ctx.layer, h.to, m, !!h.crit, k))
         }))
         ctx.onBeat?.(w)
         await wait(ctx.layer, Math.max(0, SWEEP * 0.45 - 0.09))
