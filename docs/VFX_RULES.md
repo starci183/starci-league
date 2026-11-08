@@ -52,7 +52,9 @@ một nẻo, hoặc số sát thương bật lệch lúc hình chạm. Cách án
 
 - Hạt dùng `particles.ts` (tối đa 1500 hạt sống). Hình khối vẽ bằng `Graphics` mỗi khung hình và phải gọi `done()` khi
   xong, không để node rò.
-- Viền và đường sáng mảnh (1 đến 3 px lõi, quầng ≤ 8 px), mềm bằng nhiều lớp chồng mờ dần, không dùng một nét dày cứng.
+- **Viền mảnh cho MỌI chiêu và đánh thường** (P, Q, E, R, đánh thường, phép bổ trợ): nét lõi 1 đến 2 px, quầng ≤ 8 px,
+  mềm bằng nhiều lớp chồng mờ dần, không dùng một nét dày cứng. Tia và cột trên sân không rộng quá khoảng 40 px kể cả
+  quầng; đánh thường mảnh hơn chiêu.
 - Không tải ảnh hay âm thanh từ ngoài trong VFX.
 
 ## 7. Kiểm trước khi xong

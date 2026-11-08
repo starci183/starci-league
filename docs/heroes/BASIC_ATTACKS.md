@@ -33,7 +33,7 @@ Theo đòn đánh trong LMHT. Cận chiến không bao giờ ném hay bay vũ kh
 | Tristana | Xa | Bắn | Đại bác | Đạn gang bay vồng, khói nòng | Thuốc nổ | Tia lửa, khói | Cam | Nổ, khói xám |
 | Twisted Fate | Xa | Ném | Lá bài | Lá bài xoay bay thẳng | Vàng phép | Mảnh vàng | Vàng, lam, đỏ | Mảnh vàng toả |
 | Vayne | Xa | Bắn | Nỏ bạc | Mũi nỏ ngắn rất nhanh | Bạc | Mảnh bạc | Bạc tím | Ba cụm bạc tụ lại |
-| Vel'Koz | Xa | Niệm | Xung plasma | Tia dài theo đòn | Plasma | Mảnh tím | Tím hồng | Ba luồng hút vào tâm |
+| Vel'Koz | Xa | Niệm | Tia laser thẳng từ mắt | Tia đứng đốt rồi tắt | Plasma | Mảnh tím | Tím hồng | Ba luồng hút vào tâm |
 | Viktor | Xa | Niệm | Tia hextech | Tia thẳng rất nhanh | Điện hextech | Mảnh điện | Tím, lam | Mảnh điện toả |
 | Yorick | Cận | Xúc | Xẻng | Hai vạch song song ngắn bổ xuống như lưỡi xẻng | Đất, hồn | Đất, bụi lục | Lục xám | Đất văng, hồn bay lên |
 | Zed | Cận | Rạch | Hai lưỡi tay | Hai vạch mảnh chéo chữ X, cực nhanh | Bóng tối | Mảnh đỏ | Đỏ, bạc | Khói đen, mảnh đỏ |

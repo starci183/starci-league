@@ -23,8 +23,8 @@ const F_Q = k.x("q1 + q2·AP"), EN_Q = k.xe("q1 + q2·AP")
 const F_Q2 = k.x("q3 + q4·AP"), EN_Q2 = k.xe("q3 + q4·AP")
 const F_E = k.x("e1 + e2·AP"), EN_E = k.xe("e1 + e2·AP")
 const F_E2 = k.x("e3 + e4·AP"), EN_E2 = k.xe("e3 + e4·AP")
-const F_E3 = k.x("e5% máu đã mất mục tiêu"), EN_E3 = k.xe("e5% máu đã mất mục tiêu")
-const F_R = k.x("r2 + r3·AP + r4% máu đã mất mục tiêu"), EN_R = k.xe("r2 + r3·AP + r4% máu đã mất mục tiêu")
+const F_E3 = k.x("e5 + e6·AP"), EN_E3 = k.xe("e5 + e6·AP")
+const F_R = k.x("r2 + r3·AP"), EN_R = k.xe("r2 + r3·AP")
 
 /** +1 Phân Rã lên t; đủ p1 thì tiêu đúng p1 và nổ sát thương chuẩn (không chí mạng, không tự sinh dấu) */
 function addDecay(g: Game, me: Unit, t: Unit) {
@@ -126,7 +126,7 @@ export default defineHero({
                         lane === t.lane ? raw : rawSide)
                     hitUnits.push(u)
                 }
-                // khe nổ ngay: ai còn đứng nhận thêm theo % máu đã mất (tính sau cú đầu), mỗi cú nổ cũng là một tia
+                // khe nổ ngay: ai còn đứng nhận thêm một cú sát thương phép, mỗi cú nổ cũng là một tia
                 for (const u of hitUnits) if (u.status === "board") hit(c.g,
                     c.self,
                     u,

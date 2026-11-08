@@ -124,7 +124,7 @@ function helix(g: Graphics, a: Pt, b: Pt, amp: number, phase: number, alpha: num
     const n = Math.max(8,
         Math.round(len / 14))
     for (const [off, c] of [[0, PINK], [Math.PI, VIOLET]] as const) {
-        for (const [w, al] of [[6, 0.35], [2.4, 0.95]] as const) {
+        for (const [w, al] of [[3, 0.35], [1.2, 0.95]] as const) {
             g.lineWidth = w
             g.strokeColor = col(al > 0.5 ? CORE : c,
                 al * alpha)
@@ -339,7 +339,7 @@ async function eyeCharge(layer: Node, at: Pt, secs: number, size: number) {
                     size * 0.35,
                     ease.in(t))
                 const a = 0.25 + 0.75 * t
-                c.g.lineWidth = 3 + 3 * t
+                c.g.lineWidth = 1.4 + 1.2 * t
                 c.g.strokeColor = col(MAGENTA,
                     a * 0.9)
                 tri(c.g,
@@ -433,7 +433,7 @@ async function plasmaBolt(layer: Node, a: Pt, b: Pt, secs: number, w: number, ea
                 w * 0.55 * flick)
             c.g.fill()
             // tia điện lách tách quanh cầu: vài đường gãy ngắn đổi mỗi khung
-            c.g.lineWidth = 2
+            c.g.lineWidth = 1.2
             for (let j = 0; j < 3; j++) {
                 const a0 = rand(0,
                     TAU)
@@ -521,13 +521,13 @@ async function fissionFlash(layer: Node, at: Pt, dir: number, k: number) {
             strip(c.g,
                 p1,
                 p2,
-                16 * k * a,
+                7 * k * a,
                 col(MAGENTA,
                     a * 0.7))
             strip(c.g,
                 p1,
                 p2,
-                5 * k * a,
+                2 * k * a,
                 col(CORE,
                     a))
         })
@@ -660,9 +660,9 @@ async function voidEruption(layer: Node, at: Pt, k: number) {
     const h = 120 * k
     const c = canvas(layer)
     emit(layer, foot, { color: [CORE], kind: "glow", life: [0.2, 0.2], size: [60 * k, 150 * k], alpha: 1 })
-    void triBurst(layer, foot, Math.round(14 * k), [240, 520], [UP - 0.6, UP + 0.6], 16 * k)
+    void triBurst(layer, foot, Math.round(12 * k), [220, 480], [UP - 0.6, UP + 0.6], 11 * k)
     void burst(layer, foot, Math.round(12 * k), {
-        color: [CORE, PINK, MAGENTA], kind: "blade", life: [0.2, 0.42], size: [44 * k, 12], alpha: 1, speed: [300, 650],
+        color: [CORE, PINK, MAGENTA], kind: "blade", life: [0.2, 0.42], size: [36 * k, 7], alpha: 1, speed: [300, 650],
         angle: [UP - 0.18, UP + 0.18], drag: 1.8, align: true, stretch: 3.2, spread: 26 * k
     })
     void decayDust(layer, foot, Math.round(36 * k), 40 * k)
@@ -671,8 +671,8 @@ async function voidEruption(layer: Node, at: Pt, k: number) {
         const fade = 1 - ease.in(t)
         const top = { x: foot.x, y: foot.y + h * grow }
         c.g.clear()
-        softBeam(c.g, foot, top, 0.55 * k * fade, fade)
-        helix(c.g, foot, top, 16 * k * fade, t * 30, fade)
+        softBeam(c.g, foot, top, 0.34 * k * fade, fade)
+        helix(c.g, foot, top, 12 * k * fade, t * 30, fade)
     })
     c.done()
 }
@@ -895,7 +895,7 @@ registerSkillVfx("velkoz_r",
                 softBeam(c.g,
                     eye,
                     tip,
-                    0.5 * k * on * flick,
+                    0.32 * k * on * flick,
                     on)
                 const dir = angleOf(eye,
                     tip)
@@ -920,7 +920,7 @@ registerSkillVfx("velkoz_r",
                         pulses[i])
                     const r = 26 * k * on * (1 - pulses[i] * 0.35)
                     const a = on * (1 - pulses[i] * 0.7)
-                    for (const [w, cc, aa] of [[9, MAGENTA, 0.45], [4, PINK, 0.9], [1.6, CORE, 1]] as const) {
+                    for (const [w, cc, aa] of [[4, MAGENTA, 0.4], [2, PINK, 0.9], [0.9, CORE, 1]] as const) {
                         c.g.lineWidth = w
                         c.g.strokeColor = col(cc,
                             aa * a)
@@ -1051,7 +1051,7 @@ registerSkillVfx("velkoz_p",
                                 UP + 0.8]
                         })
                 }
-                c.g.lineWidth = 2
+                c.g.lineWidth = 1.2
                 c.g.strokeColor = col(PINK,
                     0.35 * glow)
                 c.g.circle(at.x,
@@ -1125,7 +1125,7 @@ registerSkillVfx("basic_velkoz", async (ctx) => {
         // mắt loé: tam giác nhỏ co lại
         await over(ctx.layer, 0.08, (t) => {
             c.g.clear()
-            c.g.lineWidth = 2.2
+            c.g.lineWidth = 1.4
             c.g.strokeColor = col(PINK, 1 - t * 0.3)
             tri(c.g, eye, lerp(24, 10, t), t * 4 + UP)
             c.g.stroke()
@@ -1133,7 +1133,7 @@ registerSkillVfx("basic_velkoz", async (ctx) => {
         // tia vươn thẳng tới mục tiêu
         await over(ctx.layer, 0.05, (t) => {
             c.g.clear()
-            softBeam(c.g, eye, mix(eye, to, ease.out(t)), 0.26, 1)
+            softBeam(c.g, eye, mix(eye, to, ease.out(t)), 0.2, 1)
         })
         // chạm: loé nhỏ, tia lửa bắn ngược, tam giác nở ra; tia đứng đốt rồi tắt (chạy nền)
         plasmaHit(ctx.layer, to, 0.6, eye)
@@ -1143,8 +1143,8 @@ registerSkillVfx("basic_velkoz", async (ctx) => {
                 const flick = 0.85 + Math.sin(t * 90) * 0.15
                 const r = ease.out(t)
                 c.g.clear()
-                softBeam(c.g, eye, to, 0.26 * on * flick, on)
-                c.g.lineWidth = 2.6 * (1 - t) + 0.5
+                softBeam(c.g, eye, to, 0.2 * on * flick, on)
+                c.g.lineWidth = 1.6 * (1 - t) + 0.4
                 c.g.strokeColor = col(PINK, 1 - t)
                 tri(c.g, to, lerp(14, 52, r), UP + t * 1.5)
                 c.g.stroke()

@@ -1458,7 +1458,7 @@ test("nội tại: tướng mang chết mất một nửa Phân Rã, Vel'Koz ch�
             "ornn"),
         4)
     })
-test("Q: tia chính nhẹ, 2 tia phụ ngẫu nhiên nặng hơn, mỗi tia +1 Phân Rã",
+test("Q: tia chính nhẹ, 2 tia phụ ngẫu nhiên nặng hơn, sát thương thuần, mỗi tia +1 Phân Rã",
     () => {
         let s = mk({
             A: {
@@ -1530,7 +1530,7 @@ test("Q: tia chính nhẹ, 2 tia phụ ngẫu nhiên nặng hơn, mỗi tia +1 P
             "garen"),
         1)
     })
-test("E: đánh ngay rồi khe nổ ngay, thêm e5% máu đã mất (tính sau cú đầu); cuối lượt không đánh nữa",
+test("E: đánh ngay rồi khe nổ ngay, thêm e5 + e6·AP; cuối lượt không đánh nữa",
     () => {
         let s = mk({
             A: {
@@ -1570,10 +1570,13 @@ test("E: đánh ngay rồi khe nổ ngay, thêm e5% máu đã mất (tính sau c
         near(hits[0],
             one)
         near(hits[1],
-            mit(Math.round(kk.p.e5 / 100 * hits[0]),
-                mr(s,
-                    "B",
-                    "garen")),
+            mit(val(s,
+                "A",
+                "velkoz",
+                "e5 + e6·AP"),
+            mr(s,
+                "B",
+                "garen")),
             2)
         near(hp0 - u(s,
             "B",
@@ -1660,7 +1663,7 @@ test("E: mục tiêu chết vì cú đầu thì không nổ thêm",
         assert.equal(hits.length,
             1)
     })
-test("R: r1 tia ngẫu nhiên (chỉ 1 địch trên sân nên cả r1 tia vào nó), mỗi tia tính lại theo Máu đã mất",
+test("R: r1 tia ngẫu nhiên (chỉ 1 địch trên sân nên cả r1 tia vào nó), mỗi tia sát thương thuần như nhau",
     () => {
         const s = mk({
             A: {
@@ -1685,8 +1688,8 @@ test("R: r1 tia ngẫu nhiên (chỉ 1 địch trên sân nên cả r1 tia vào 
         const rays = (r.ev.filter((e) => e.t === "damage" && e.target === "B:garen" && e.kind === "magic") as Extract<Ev[number], { t: "damage" }>[]).map((e) => e.amount)
         assert.equal(rays.length,
             kk.p.r1)
-        assert.ok(rays[rays.length - 1] > rays[0],
-            "tia sau đau hơn nhờ Máu đã mất")
+        assert.ok(rays.every((x) => Math.abs(x - rays[0]) <= 1),
+            "không còn cộng theo Máu đã mất: các tia bằng nhau")
         near(rays[0],
             mit(val(r.s,
                 "A",

@@ -458,7 +458,7 @@ export function buildHeroGallery(root: Node, nav: Nav, start?: string): () => vo
             for (const d of now) showHit(d)
         } else if (hero.id === "velkoz" && k === "e") {
             // E: cú khe mở và cú nổ hiện số đúng nhịp VFX báo (onBeat), không hẹn giờ đoán
-            note.string = "E: khe rách cắt ngang 3 đường, gây sát thương rồi nổ ngay theo % máu đã mất"
+            note.string = "E: khe rách cắt ngang 3 đường, gây sát thương rồi nổ ngay thêm một cú"
             const beats = riftBeats(now)
             await playSkill(fx, keyOf(k), style, from, targets, { onBeat: (i) => { for (const d of beats[i] ?? []) showHit(d) } })
         } else if (later.length) {
