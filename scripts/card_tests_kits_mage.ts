@@ -1530,7 +1530,7 @@ test("Q: tia chính nhẹ, 2 tia phụ ngẫu nhiên nặng hơn, sát thương 
             "garen"),
         1)
     })
-test("E: đánh ngay rồi khe nổ ngay, thêm e5 + e6·AP; cuối lượt không đánh nữa",
+test("E: đánh ngay rồi khe nổ ngay, thêm e3% máu đã mất (tính sau cú đầu); cuối lượt không đánh nữa",
     () => {
         let s = mk({
             A: {
@@ -1570,13 +1570,10 @@ test("E: đánh ngay rồi khe nổ ngay, thêm e5 + e6·AP; cuối lượt khô
         near(hits[0],
             one)
         near(hits[1],
-            mit(val(s,
-                "A",
-                "velkoz",
-                "e5 + e6·AP"),
-            mr(s,
-                "B",
-                "garen")),
+            mit(Math.round(kk.p.e3 / 100 * hits[0]),
+                mr(s,
+                    "B",
+                    "garen")),
             2)
         near(hp0 - u(s,
             "B",
@@ -1592,7 +1589,7 @@ test("E: đánh ngay rồi khe nổ ngay, thêm e5 + e6·AP; cuối lượt khô
         0,
         "không còn nhịp cuối lượt")
     })
-test("E: khe nứt cắt ngang tâm (nhẹ) và 2 đường kề (nặng), đường xa không dính",
+test("E: khe nứt cắt ngang tâm và 2 đường kề, cú đầu như nhau, đường xa không dính",
     () => {
         const s = mk({
             A: {
@@ -1605,13 +1602,9 @@ test("E: khe nứt cắt ngang tâm (nhẹ) và 2 đường kề (nặng), đư�
             "A",
             "velkoz",
             100)
-        const hpBefore = Object.fromEntries(["garen",
-            "ornn",
-            "leona",
-            "braum"].map((h) => [h,
-            u(s,
-                "B",
-                h).hp]))
+        const hpBefore = u(s,
+            "B",
+            "braum").hp
         const r = cast(s,
             "A",
             sk(s,
@@ -1623,19 +1616,24 @@ test("E: khe nứt cắt ngang tâm (nhẹ) và 2 đường kề (nặng), đư�
             })
         for (const h of ["garen",
             "ornn",
-            "leona"]) assert.ok(u(r.s,
-            "B",
-            h).hp < hpBefore[h],
-        `${h} nằm trong 3 đường`)
-        const lost = (h: string) => hpBefore[h] - u(r.s,
-            "B",
-            h).hp
-        assert.ok(lost("ornn") < lost("garen") && lost("ornn") < lost("leona"),
-            "tâm nhận nhẹ, hai đường kề nhận nặng")
+            "leona"]) {
+            const first = r.ev.find((e) => e.t === "damage" && e.target === `B:${h}` && e.kind === "magic") as Extract<Ev[number], { t: "damage" }>
+            assert.ok(first,
+                `${h} nằm trong 3 đường`)
+            near(first.amount,
+                mit(val(r.s,
+                    "A",
+                    "velkoz",
+                    "e1 + e2·AP"),
+                mr(r.s,
+                    "B",
+                    h)),
+                1)
+        }
         assert.equal(u(r.s,
             "B",
             "braum").hp,
-        hpBefore.braum,
+        hpBefore,
         "đường thứ 4 không dính")
     })
 test("E: mục tiêu chết vì cú đầu thì không nổ thêm",

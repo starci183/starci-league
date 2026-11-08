@@ -8,7 +8,7 @@ import {
     Color, Graphics, Node, UITransform
 } from "cc"
 import {
-    angleOf, burst, dist, ease, emit, lerp, mix, over, rand, stream, wait, type Pt
+    angleOf, burst, dist, ease, emit, lerp, mix, over, pick, rand, stream, wait, type Pt
 } from "./particles"
 import {
     registerSkillVfx, type VfxCtx
@@ -605,53 +605,135 @@ registerSkillVfx("velkoz_q",
 
 // ---------- E Khe Nứt Hư Không ----------
 
-/** Mép khe răng cưa: độ lệch cố định theo vị trí `g` dọc khe (0..1), mỗi khe một `seed` */
-const jag = (g: number, seed: number) => 1 + Math.sin(g * 31 + seed) * 0.28 + Math.sin(g * 83 + seed * 2.3) * 0.16
+/** Số ngẫu nhiên có hạt giống: cùng seed thì cùng chuỗi, để đường nứt đứng yên giữa các khung hình */
+function seeded(seed: number) {
+    let x = Math.floor(seed * 9973) % 2147483647 || 1
+    return () => {
+        x = x * 16807 % 2147483647
+        return (x - 1) / 2147483646
+    }
+}
+
+interface CrackPt { x: number; y: number; u: number; wf: number }
+interface Fork { from: number; pts: Pt[] }
+interface Crack { pts: CrackPt[]; forks: Fork[]; hitU: number }
 
 /**
- * Vẽ khe rách trên mặt đất từ a tới b (đường ngang): lòng tối ở `dark`, viền sáng ở `glow`.
- * `reach` 0..1 là phần đã toạc tính từ giữa ra hai đầu, `open` 0..1 là độ mở, `bright` độ sáng viền (>1 khi sắp nổ).
+ * Đường nứt tự nhiên từ a tới b (gần ngang): các đoạn ngắn gãy góc ngẫu nhiên (bước ngẫu nhiên có kéo về trục), mỗi điểm
+ * một độ mở riêng `wf` (chỗ hẹp chỗ rộng), vài nhánh nứt nhỏ tẽ ra hai bên. `hitX` là chỗ tia cắm xuống: nứt lan từ đó.
  */
-function drawRift(dark: Graphics, glow: Graphics, a: Pt, b: Pt, max: number, open: number, reach: number, bright: number, seed: number, time: number) {
-    dark.clear()
-    glow.clear()
-    if (reach <= 0.01 || open <= 0.01) return
-    const mid = mix(a, b, 0.5)
-    const pa = mix(mid, a, reach)
-    const pb = mix(mid, b, reach)
-    const n = 44
-    const top: Pt[] = [], bot: Pt[] = [], core: Pt[] = []
+function makeCrack(a: Pt, b: Pt, hitX: number, seed: number): Crack {
+    const rnd = seeded(seed)
+    const n = Math.max(18, Math.round((b.x - a.x) / 9))
+    const pts: CrackPt[] = []
+    let off = 0, wf = 1
     for (let i = 0; i <= n; i++) {
         const u = i / n
-        const g = lerp(0.5 - reach / 2, 0.5 + reach / 2, u)
-        const h = max * open * Math.pow(Math.sin(Math.PI * u), 0.55)
-        const p = mix(pa, pb, u)
-        top.push({ x: p.x, y: p.y + h * jag(g, seed) })
-        bot.push({ x: p.x, y: p.y - h * jag(g, seed + 4) })
-        core.push({ x: p.x, y: p.y + Math.sin(g * 40 - time * 20) * h * 0.25 })
+        // lệch dọc: bước ngẫu nhiên, kéo dần về trục, hai đầu về 0
+        off = off * 0.7 + (rnd() - 0.5) * 9
+        const edge = Math.min(1, u * 8, (1 - u) * 8)
+        wf = Math.max(0.25, Math.min(1.35, wf * 0.6 + (0.3 + rnd() * 1.1) * 0.4))
+        pts.push({ x: lerp(a.x, b.x, u), y: lerp(a.y, b.y, u) + off * edge, u, wf })
     }
-    // lòng khe: Hư Không tối
-    dark.fillColor = col(ABYSS, 0.88)
-    dark.moveTo(top[0].x, top[0].y)
-    for (const p of top) dark.lineTo(p.x, p.y)
-    for (let i = bot.length - 1; i >= 0; i--) dark.lineTo(bot[i].x, bot[i].y)
-    dark.close()
-    dark.fill()
-    const line = (pts: Pt[], w: number, c: number, a: number) => {
+    const forks: Fork[] = []
+    const count = 3 + Math.floor(rnd() * 3)
+    for (let f = 0; f < count; f++) {
+        const from = 2 + Math.floor(rnd() * (n - 4))
+        const side = rnd() < 0.5 ? 1 : -1
+        let ang = side * (0.5 + rnd() * 0.7) + (rnd() < 0.5 ? 0 : Math.PI)
+        const len = 14 + rnd() * 22
+        const fp: Pt[] = [{ x: pts[from].x, y: pts[from].y }]
+        for (let s = 1; s <= 3; s++) {
+            ang += (rnd() - 0.5) * 0.6
+            const p = fp[fp.length - 1]
+            fp.push({ x: p.x + Math.cos(ang) * len / 3, y: p.y + Math.sin(ang) * len / 3 })
+        }
+        forks.push({ from, pts: fp })
+    }
+    return { pts, forks, hitU: Math.max(0, Math.min(1, (hitX - a.x) / (b.x - a.x))) }
+}
+
+/**
+ * Vẽ đường nứt. `reach` 0..1: nứt chân tóc đã lan bao xa từ chỗ cắm; `open` 0..1: độ toạc; `bright` độ sáng vách;
+ * `seal` 0..1: khép lại từ hai đầu vào giữa (1 = đã hàn kín, chỉ còn đường hàn sáng mờ dần theo `seam`).
+ * Chiều sâu: lòng khe tối, ánh tím hắt từ đáy (lệch xuống dưới), vách dưới được chiếu sáng, vách trên tối và mảnh.
+ */
+function drawCrack(dark: Graphics, glow: Graphics, c: Crack, max: number, reach: number, open: number, bright: number, seal: number, seam: number) {
+    dark.clear()
+    glow.clear()
+    const far = Math.max(c.hitU, 1 - c.hitU)
+    // độ mở tại điểm: chỉ phần nứt đã lan tới, thon ở mũi nứt, khép theo khoá kéo từ hai đầu
+    const width = (p: CrackPt) => {
+        const d = Math.abs(p.u - c.hitU) / far
+        if (d > reach) return -1
+        const tip = Math.min(1, (reach - d) * 6)
+        const ends = Math.min(1, p.u * 7, (1 - p.u) * 7)
+        const zip = Math.max(0, Math.min(1, ((1 - seal) - Math.abs(p.u - 0.5) * 2 + 0.25) / 0.25))
+        return max * open * p.wf * tip * ends * zip
+    }
+    const vis = c.pts.filter((p) => width(p) >= 0)
+    if (vis.length < 2) return
+    const ws = vis.map(width)
+    const line = (pts: Pt[], w: number, col_: number, a: number) => {
+        if (a <= 0.01 || pts.length < 2) return
         glow.lineWidth = w
-        glow.strokeColor = col(c, a)
+        glow.strokeColor = col(col_, a)
         glow.moveTo(pts[0].x, pts[0].y)
         for (const p of pts) glow.lineTo(p.x, p.y)
         glow.stroke()
     }
-    // viền mảnh: quầng hẹp, viền hồng, chỉ trắng; dòng năng lượng tím lượn trong lòng khe
-    for (const edge of [top, bot]) {
-        line(edge, 7, MAGENTA, 0.18 * bright)
-        line(edge, 2.6, MAGENTA, 0.7 * bright)
-        line(edge, 1.1, bright > 1 ? CORE : PINK, Math.min(1, 0.95 * bright))
+    // nhánh nứt nhỏ: chân tóc, hiện theo phần nứt đã lan, mờ đi khi hàn
+    for (const f of c.forks) {
+        const base = c.pts[f.from]
+        const d = Math.abs(base.u - c.hitU) / far
+        if (d > reach) continue
+        const grow = Math.min(1, (reach - d) * 4)
+        const k = Math.max(1, Math.round((f.pts.length - 1) * grow))
+        const fp = f.pts.slice(0, k + 1)
+        line(fp, 2.4, MAGENTA, 0.3 * bright * (1 - seal))
+        line(fp, 1, PINK, Math.min(1, bright) * (1 - seal))
     }
-    line(core, 2.4, VIOLET, 0.5 * bright)
-    line(core, 0.9, PINK, 0.75 * bright)
+    const top = vis.map((p, i) => ({ x: p.x, y: p.y + ws[i] * 0.45 }))
+    const bot = vis.map((p, i) => ({ x: p.x, y: p.y - ws[i] * 0.55 }))
+    const poly = (g: Graphics, up: Pt[], down: Pt[], color: Color) => {
+        g.fillColor = color
+        g.moveTo(up[0].x, up[0].y)
+        for (const p of up) g.lineTo(p.x, p.y)
+        for (let i = down.length - 1; i >= 0; i--) g.lineTo(down[i].x, down[i].y)
+        g.close()
+        g.fill()
+    }
+    const wide = ws.some((w) => w > 1.2)
+    if (wide) {
+        // đất sẫm quanh miệng khe: vết nứt nằm trên mặt đất chứ không lơ lửng
+        poly(dark,
+            vis.map((p, i) => ({ x: p.x, y: p.y + ws[i] * 0.45 + 3 + ws[i] * 0.5 })),
+            vis.map((p, i) => ({ x: p.x, y: p.y - ws[i] * 0.55 - 3 - ws[i] * 0.4 })),
+            col(ABYSS, 0.28 * Math.min(1, open)))
+        // lòng khe: đen sâu
+        poly(dark, top, bot, col(ABYSS, 0.96))
+        // bóng đổ của vách trên vào lòng khe
+        dark.lineWidth = 2
+        dark.strokeColor = col(0x05010a, 0.9)
+        dark.moveTo(top[0].x, top[0].y - 1)
+        for (const p of top) dark.lineTo(p.x, p.y - 1)
+        dark.stroke()
+        // ánh Hư Không dưới đáy: vệt hẹp nằm sâu, lệch về vách dưới
+        const deep = vis.map((p, i) => ({ x: p.x, y: p.y - ws[i] * 0.3 }))
+        poly(glow,
+            deep.map((p, i) => ({ x: p.x, y: p.y + ws[i] * 0.1 })),
+            deep.map((p, i) => ({ x: p.x, y: p.y - ws[i] * 0.1 })),
+            col(VIOLET, 0.35 * bright))
+        line(deep, 1, MAGENTA, 0.75 * Math.min(1.5, bright))
+        // vách dưới hướng lên, hứng sáng: viền hồng rõ; vách trên chỉ một chỉ mờ
+        line(bot, 3, MAGENTA, 0.4 * bright)
+        line(bot, 1.2, PINK, Math.min(1, 1.05 * bright))
+        line(top, 0.7, PINK, 0.35 * Math.min(1, bright))
+    }
+    // đường chân tóc / đường hàn: một chỉ sáng dọc lõi đường nứt
+    const hair = Math.max(open < 0.15 ? 1 : 0.4, seam)
+    line(vis, 3, MAGENTA, 0.22 * hair * Math.max(bright, seam))
+    line(vis, 1, CORE, hair * Math.max(Math.min(1, bright), seam))
 }
 
 /** Cột Hư Không phụt thẳng lên từ điểm `at` trên khe: cột thon sáng rồi tắt, mảnh tam giác bị hất tung */
@@ -706,9 +788,10 @@ export function riftBeats<T extends { target: string; tag?: string }>(list: T[])
 }
 
 /**
- * E (theo W Khe Nứt Hư Không gốc): mắt tụ, một tia plasma mảnh cắm xuống đất ở tướng bị nhắm (to[0]); mặt đất rách toạc
- * thành một khe NGANG từ đó sang hai bên, phủ mọi mục tiêu (tâm và 2 ô kề). Khe mở hết là cú đầu (onBeat 0); khe thở một
- * nhịp ngắn, hút hạt vào, sáng rực rồi NỔ NGAY dọc cả đường (cột Hư Không ở từng mục tiêu, onBeat 1) và khép lại.
+ * E (theo W Khe Nứt Hư Không gốc): mắt tụ, tia plasma mảnh cắm xuống đất ở tướng bị nhắm (to[0]). Mặt đất nứt chân tóc
+ * lan từ đó sang hai bên qua mọi mục tiêu (tâm và 2 ô kề), tẽ nhánh nhỏ; rồi toạc ra không đều, lòng tối có ánh tím hắt từ
+ * đáy, đá vụn rơi vào. Toạc hết là cú đầu (onBeat 0). Khe sáng dần, NỔ ngay dọc cả đường (cột Hư Không ở từng mục tiêu,
+ * onBeat 1), rồi khép lại từ hai đầu vào giữa như kéo khoá, còn đường hàn sáng nguội dần.
  */
 registerSkillVfx("velkoz_e", async (ctx) => {
     const k = power(ctx)
@@ -719,84 +802,76 @@ registerSkillVfx("velkoz_e", async (ctx) => {
     const a = { x: Math.min(...xs) - 78, y }
     const b = { x: Math.max(...xs) + 78, y }
     const hit = { x: centre.x, y }
-    const seed = rand(0, 10)
-    const MAX = 15 * k
+    const crack = makeCrack(a, b, hit.x, rand(1, 1000))
+    const MAX = 18 * k
     await eyeCharge(ctx.layer, ctx.from, 0.16, 40 * k)
     await plasmaBolt(ctx.layer, ctx.from, hit, 0.14, 8 * k)
-    emit(ctx.layer, hit, { color: [CORE], kind: "glow", life: [0.16, 0.16], size: [50, 140], alpha: 1 })
+    emit(ctx.layer, hit, { color: [CORE], kind: "glow", life: [0.16, 0.16], size: [40, 110], alpha: 1 })
+    void decayDust(ctx.layer, hit, 10, 10)
     const dark = canvas(ctx.layer, false)
     const glow = canvas(ctx.layer)
-    let time = 0
-    const span = b.x - a.x
-    const midX = (a.x + b.x) / 2
-    // khe lệch tâm (tướng ở mép sân) thì phải toạc nhanh hơn để phủ hết đoạn dài
-    const lead = Math.abs(hit.x - midX) / (span / 2)
-    /** Tia sáng nhỏ lấp lánh bám dọc hai mép khe */
-    const edgeSparks = (n: number, open: number) => {
+    /** Đá vụn tối rơi vào lòng khe từ hai mép, hạt sáng nhỏ bắn khỏi mép */
+    const crumbs = (n: number, open: number) => {
         for (let i = 0; i < n; i++) {
-            const x = rand(a.x + 16, b.x - 16)
-            const u = (x - a.x) / span
-            const h = MAX * open * Math.pow(Math.sin(Math.PI * u), 0.55)
+            const p = pick(crack.pts)
             const side = Math.random() < 0.5 ? 1 : -1
-            emit(ctx.layer, { x, y: y + side * h }, {
-                color: [CORE, PINK], kind: "dot", life: [0.14, 0.3], size: [4, 1], alpha: 1, speed: [10, 50],
-                angle: side > 0 ? [UP - 0.6, UP + 0.6] : [-UP - 0.6, -UP + 0.6]
+            emit(ctx.layer, { x: p.x, y: p.y + side * MAX * open * p.wf * 0.8 }, {
+                color: [ABYSS, 0x2a0848], kind: "dot", additive: false, life: [0.2, 0.35], size: [4, 2], alpha: 0.9,
+                speed: [20, 60], angle: side > 0 ? [-UP - 0.3, -UP + 0.3] : [UP - 0.3, UP + 0.3], drag: 1
+            })
+            if (Math.random() < 0.4) emit(ctx.layer, { x: p.x, y: p.y }, {
+                color: [CORE, PINK], kind: "dot", life: [0.12, 0.25], size: [3, 1], alpha: 1, speed: [30, 90],
+                angle: [UP - 0.8, UP + 0.8]
             })
         }
     }
-    // 1) toạc ra từ điểm cắm sang hai bên
-    await over(ctx.layer, 0.4, (t) => {
-        time += 1 / 60
-        const r = ease.out(t)
-        const reach = Math.min(1, r * (1 + lead))
-        drawRift(dark.g, glow.g, a, b, MAX, r, reach, 1.15, seed, time)
-        for (const s of [-1, 1]) emit(ctx.layer, { x: midX + s * (span / 2) * reach, y }, {
-            color: [CORE, PINK], kind: "blade", life: [0.1, 0.2], size: [14, 3], alpha: 1, speed: [100, 260],
-            angle: [UP - 0.7, UP + 0.7], drag: 2, align: true, stretch: 2.4
-        })
+    // 1) nứt chân tóc lan ra từ chỗ cắm, tẽ nhánh
+    await over(ctx.layer, 0.2, (t) => {
+        drawCrack(dark.g, glow.g, crack, MAX, ease.out(t), 0.06, 1, 0, 0)
     })
-    // cú đầu: mỗi mục tiêu loé, mảnh bật lên nhẹ
+    // 2) toạc ra không đều; toạc hết là cú đầu
+    await over(ctx.layer, 0.2, (t) => {
+        const o = ease.out(t)
+        drawCrack(dark.g, glow.g, crack, MAX, 1, 0.06 + 0.94 * o, 1, 0, 0)
+        crumbs(2, o)
+    })
     ctx.onBeat?.(0)
     for (const v of victims) {
         const at = { x: v.x, y }
-        emit(ctx.layer, at, { color: [MAGENTA], kind: "glow", life: [0.22, 0.22], size: [50, 130], alpha: 0.75 })
-        void triBurst(ctx.layer, at, 5, [140, 300], [UP - 0.8, UP + 0.8], 12)
-        void decayDust(ctx.layer, at, 12, 26)
+        emit(ctx.layer, at, { color: [MAGENTA], kind: "glow", life: [0.22, 0.22], size: [40, 110], alpha: 0.7 })
+        void triBurst(ctx.layer, at, 4, [120, 260], [UP - 0.8, UP + 0.8], 9)
+        void decayDust(ctx.layer, at, 10, 22)
     }
-    // 2) khe thở một nhịp ngắn, hút hạt vào lòng khe, sáng dần
+    // 3) khe thở, sáng dần từ đáy
     await over(ctx.layer, 0.26, (t) => {
-        time += 1 / 60
-        drawRift(dark.g, glow.g, a, b, MAX, 0.9 + 0.1 * Math.sin(t * Math.PI * 4), 1, 0.8 + 0.5 * t, seed, time)
-        edgeSparks(2, 0.9)
-        const x = rand(a.x + 20, b.x - 20)
-        const side = Math.random() < 0.5 ? 1 : -1
-        const d = rand(30, 60)
-        emit(ctx.layer, { x, y: y + side * d }, {
-            color: [PINK, VIOLET, CORE], kind: "dot", life: [0.16, 0.2], size: [4, 1.2], alpha: 0.9,
-            speed: [d * 5, d * 5.5], angle: side > 0 ? [-UP - 0.12, -UP + 0.12] : [UP - 0.12, UP + 0.12]
-        })
+        drawCrack(dark.g, glow.g, crack, MAX, 1, 0.92 + 0.08 * Math.sin(t * Math.PI * 4), 0.8 + 0.6 * t, 0, 0)
+        crumbs(1, 1)
     })
-    // 3) phồng lên, viền trắng rực, rồi NỔ dọc cả đường
+    // 4) phồng lên, vách trắng rực, NỔ dọc cả đường
     await over(ctx.layer, 0.1, (t) => {
-        time += 1 / 60
-        drawRift(dark.g, glow.g, a, b, MAX, 1 + 0.4 * t, 1, 1.3 + 0.7 * t, seed, time)
+        drawCrack(dark.g, glow.g, crack, MAX, 1, 1 + 0.35 * t, 1.4 + 0.6 * t, 0, 0)
     })
     ctx.onBeat?.(1)
-    emit(ctx.layer, mix(a, b, 0.5), { color: [CORE], kind: "glow", life: [0.2, 0.2], size: [span * 0.5, span * 1.1], alpha: 0.45 })
-    void stream(ctx.layer, () => ({ x: rand(a.x + 10, b.x - 10), y }), 0.14, 240, {
-        color: [CORE, PINK, MAGENTA], kind: "blade", life: [0.16, 0.32], size: [26 * k, 6], alpha: 1, speed: [280, 600],
+    void stream(ctx.layer, () => { const p = pick(crack.pts); return { x: p.x, y: p.y } }, 0.14, 220, {
+        color: [CORE, PINK, MAGENTA], kind: "blade", life: [0.14, 0.3], size: [24 * k, 5], alpha: 1, speed: [260, 560],
         angle: [UP - 0.25, UP + 0.25], drag: 2, align: true, stretch: 2.8
     })
     for (const v of victims) void voidEruption(ctx.layer, { x: v.x, y }, k)
-    // 4) khe khép lại
-    await over(ctx.layer, 0.3, (t) => {
-        time += 1 / 60
-        drawRift(dark.g, glow.g, a, b, MAX, 1.4 * (1 - ease.in(t)), 1, 2 * (1 - t), seed, time)
-        if (t < 0.5) edgeSparks(3, 1.4 * (1 - t))
+    // 5) hàn lại từ hai đầu vào giữa, còn đường hàn sáng; rồi đường hàn nguội tắt (chạy nền)
+    await over(ctx.layer, 0.34, (t) => {
+        drawCrack(dark.g, glow.g, crack, MAX, 1, 1.35 * (1 - 0.3 * t), 2 - t, ease.inOut(t), t)
+        if (Math.random() < 0.6) {
+            const p = pick(crack.pts)
+            emit(ctx.layer, { x: p.x, y: p.y }, { color: [PINK, CORE], kind: "dot", life: [0.2, 0.4], size: [3, 1], alpha: 1, speed: [10, 40], angle: [UP - 1, UP + 1] })
+        }
     })
-    dark.done()
-    glow.done()
-    await wait(ctx.layer, 0.15)
+    void (async () => {
+        await over(ctx.layer, 0.4, (t) => {
+            drawCrack(dark.g, glow.g, crack, MAX, 1, 0, 0, 1, 1 - t)
+        })
+        dark.done()
+        glow.done()
+    })()
 })
 
 // ---------- R Tia Phân Rã Sự Sống ----------

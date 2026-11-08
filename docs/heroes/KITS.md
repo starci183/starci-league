@@ -110,7 +110,7 @@ Tham số: `balance/heroes/twistedfate.json`.
 Tham số: `balance/heroes/velkoz.json`.
 - **Nội tại Phân Rã** `p1..p4`: Mỗi tia trúng cho 1 Phân Rã, đủ `p1`: nổ `p2 + p3·AP + p4`% Máu tối đa chuẩn. Tướng mang chết mất một nửa.
 - **Q Phân Hạch Plasma** `q0..q4`: 1 địch `q1 + q2·AP`; sau đó tách sang tối đa 2 địch ngẫu nhiên, mỗi tướng `q3 + q4·AP`.
-- **E Khe Nứt Hư Không** `e0..e6`: khe cắt ngang tâm `e1 + e2·AP` (nhẹ) và 2 đường kề `e3 + e4·AP` (nặng), rồi nổ ngay: ai còn đứng nhận thêm `e5 + e6·AP`.
+- **E Khe Nứt Hư Không** `e0..e3`: khe cắt ngang tâm và 2 đường kề, cả 3 nhận `e1 + e2·AP` như nhau, rồi nổ ngay: ai còn đứng nhận thêm `e3`% Máu đã mất (tính sau cú đầu).
 - **R Tia Phân Rã Sự Sống** `r0`: 1 địch `r1` tia, mỗi tia `r2 + r3·AP`.
 
 ### Rumble · phế liệu (tướng mới)

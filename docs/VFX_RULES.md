@@ -42,13 +42,33 @@ một nẻo, hoặc số sát thương bật lệch lúc hình chạm. Cách án
 - Đánh thường luôn có hiệu ứng riêng, khác các chiêu. Nhìn là biết đó là đòn thường hay Q.
 - Chiêu đổi chỗ, hồi máu, khiên, khống chế phải nhìn ra đúng loại: hồi máu không dùng màu hay hình của sát thương.
 
-## 5. Nhịp hình
+## 5. Hợp lý, chân thực, sáng tạo
+
+Hiệu ứng là chất liệu thật đang xảy ra trên sân, không phải hình vẽ kỹ thuật. Sáng tạo được, nhưng phải tin được.
+
+- **Có vòng đời, không bật/tắt cụt:** mọi thứ hình thành, phát triển rồi kết thúc theo cách của nó. Vết nứt bắt đầu
+  là đường chân tóc, lan ra, toạc rộng, rồi khép lại hoặc hàn kín để lại vết; lửa bén rồi bùng rồi tàn thành than; băng
+  kết tinh dần rồi vỡ. Không có hình hiện ra đã to đủ rồi biến mất trong một khung.
+- **Theo vật lý của chất liệu:** đá nứt gãy góc, có đá vụn rơi xuống theo trọng lực; plasma toả sáng và nhấp nháy; nước
+  bắn rồi rơi; khói bay lên và loang. Mảnh vỡ văng ngược hướng lực đánh, không văng đều mọi hướng như pháo hoa.
+- **Không hình học công nghiệp:** tránh đường sin đều, hình thấu kính trơn, đối xứng hoàn hảo, nét đều tăm tắp. Dùng độ
+  bất thường có kiểm soát: gãy khúc ngẫu nhiên, chỗ dày chỗ mỏng, nhánh tẽ, mép lởm chởm. Ngẫu nhiên phải có hạt giống
+  (`seeded`) để hình đứng yên giữa các khung, không rung giật.
+- **Có chiều sâu và ánh sáng:** biết nguồn sáng ở đâu. Lòng khe tối, ánh hắt từ đáy; vách hướng về nguồn sáng thì sáng,
+  vách kia tối; vật ở gần có quầng, vật ở xa mờ hơn. Chồng nhiều lớp (bóng tối, thân, viền sáng, lõi) thay vì một màu
+  phẳng.
+- **Có nguyên nhân rõ:** hiệu ứng xuất phát từ đâu thì nhìn thấy được (tia cắm xuống rồi đất mới nứt; mắt tụ năng lượng
+  rồi mới bắn). Không có gì tự dưng xuất hiện tại mục tiêu khi luật nói nó đến từ người dùng chiêu.
+- **Sáng tạo trong chất tướng:** lấy cảm hứng từ tướng gốc, nhưng được thêm chi tiết riêng hợp với bàn cờ thẻ bài, miễn
+  là vẫn đọc ra đúng chiêu và đúng cơ chế.
+
+## 6. Nhịp hình
 
 - Mỗi cú gồm: tụ (≤ 0,25 s), bay (≤ 0,35 s), chạm (loé, mảnh, rung nhẹ), dư âm (chạy nền).
 - Cả chiêu tối đa khoảng 1,5 s; chiêu nhiều tia tối đa khoảng 2,5 s.
 - Rung màn hình chỉ cho cú nặng; cú nhẹ không rung.
 
-## 6. Kỹ thuật
+## 7. Kỹ thuật
 
 - Hạt dùng `particles.ts` (tối đa 1500 hạt sống). Hình khối vẽ bằng `Graphics` mỗi khung hình và phải gọi `done()` khi
   xong, không để node rò.
@@ -57,10 +77,10 @@ một nẻo, hoặc số sát thương bật lệch lúc hình chạm. Cách án
   quầng; đánh thường mảnh hơn chiêu.
 - Không tải ảnh hay âm thanh từ ngoài trong VFX.
 
-## 7. Kiểm trước khi xong
+## 8. Kiểm trước khi xong
 
 1. Mở preview `http://localhost:7456/?scene=5133e233-b17b-433a-82a9-b545d7f555cc&heroes=<mã tướng>` (Creator đang mở).
 2. Phát từng ô (Nội tại, Q, E, R, Đánh thường). Hoặc tự động: `window.__heroPlay("q", 2)` (chiêu, đường mục tiêu).
 3. Chụp ở tốc độ thật. Đặt `window.__vfxScale = 0.2` chỉ để soi hình, không dùng để duyệt nhịp số.
-4. Kiểm lại từng mục trên: số bật đúng lúc chạm, không che, không vượt bàn, đúng số mục tiêu.
+4. Kiểm lại từng mục trên: số bật đúng lúc chạm, không che, không vượt bàn, đúng số mục tiêu, có vòng đời và không trông như hình học máy móc.
 5. Nếu sửa luật: `npm test`, rồi `node scripts/sync-cocos.mjs` để Cocos nhận bản engine mới.
