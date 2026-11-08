@@ -614,41 +614,61 @@ function seeded(seed: number) {
     }
 }
 
-interface CrackPt { x: number; y: number; u: number; wf: number }
-interface Fork { from: number; pts: Pt[] }
+interface CrackPt { x: number; y: number; u: number; wf: number; jt: number; jb: number }
+/** Nhánh nứt: level 1 nhánh chính, 2 nhánh con, 3 vết nứt chân tóc li ti quanh khe */
+interface Fork { from: number; pts: Pt[]; level: 1 | 2 | 3 }
 interface Crack { pts: CrackPt[]; forks: Fork[]; hitU: number }
 
 /**
- * Đường nứt tự nhiên từ a tới b (gần ngang): các đoạn ngắn gãy góc ngẫu nhiên (bước ngẫu nhiên có kéo về trục), mỗi điểm
- * một độ mở riêng `wf` (chỗ hẹp chỗ rộng), vài nhánh nứt nhỏ tẽ ra hai bên. `hitX` là chỗ tia cắm xuống: nứt lan từ đó.
+ * Đường nứt tự nhiên từ a tới b (gần ngang), dày chi tiết: đoạn rất ngắn (~4 px), lệch hai tầng (uốn lớn chậm + răng cưa
+ * nhỏ) và thỉnh thoảng gãy gập; mỗi điểm một độ mở `wf` và độ sứt mép trên/dưới riêng (`jt`, `jb`). Nhiều nhánh nứt, nhánh
+ * con, và vô số vết nứt chân tóc quanh khe. `hitX` là chỗ tia cắm xuống: nứt lan từ đó.
  */
 function makeCrack(a: Pt, b: Pt, hitX: number, seed: number): Crack {
     const rnd = seeded(seed)
-    const n = Math.max(18, Math.round((b.x - a.x) / 9))
+    const n = Math.max(40, Math.round((b.x - a.x) / 4))
     const pts: CrackPt[] = []
-    let off = 0, wf = 1
+    let big = 0, wf = 1
     for (let i = 0; i <= n; i++) {
         const u = i / n
-        // lệch dọc: bước ngẫu nhiên, kéo dần về trục, hai đầu về 0
-        off = off * 0.7 + (rnd() - 0.5) * 9
-        const edge = Math.min(1, u * 8, (1 - u) * 8)
-        wf = Math.max(0.25, Math.min(1.35, wf * 0.6 + (0.3 + rnd() * 1.1) * 0.4))
-        pts.push({ x: lerp(a.x, b.x, u), y: lerp(a.y, b.y, u) + off * edge, u, wf })
+        big = big * 0.93 + (rnd() - 0.5) * 3.2
+        if (rnd() < 0.06) big += (rnd() - 0.5) * 11
+        const small = (rnd() - 0.5) * 3.4
+        const edge = Math.min(1, u * 10, (1 - u) * 10)
+        wf = Math.max(0.2, Math.min(1.4, wf * 0.7 + (0.25 + rnd() * 1.15) * 0.3))
+        pts.push({ x: lerp(a.x, b.x, u), y: lerp(a.y, b.y, u) + (big + small) * edge, u, wf, jt: 0.7 + rnd() * 0.6, jb: 0.7 + rnd() * 0.6 })
     }
     const forks: Fork[] = []
-    const count = 3 + Math.floor(rnd() * 3)
-    for (let f = 0; f < count; f++) {
-        const from = 2 + Math.floor(rnd() * (n - 4))
-        const side = rnd() < 0.5 ? 1 : -1
-        let ang = side * (0.5 + rnd() * 0.7) + (rnd() < 0.5 ? 0 : Math.PI)
-        const len = 14 + rnd() * 22
-        const fp: Pt[] = [{ x: pts[from].x, y: pts[from].y }]
-        for (let s = 1; s <= 3; s++) {
-            ang += (rnd() - 0.5) * 0.6
+    const branch = (from: number, start: Pt, ang: number, segs: number, seg: number, level: 1 | 2) => {
+        const fp: Pt[] = [start]
+        for (let s = 1; s <= segs; s++) {
+            ang += (rnd() - 0.5) * 0.9
             const p = fp[fp.length - 1]
-            fp.push({ x: p.x + Math.cos(ang) * len / 3, y: p.y + Math.sin(ang) * len / 3 })
+            const l = seg * (0.6 + rnd() * 0.8)
+            fp.push({ x: p.x + Math.cos(ang) * l, y: p.y + Math.sin(ang) * l })
         }
-        forks.push({ from, pts: fp })
+        forks.push({ from, pts: fp, level })
+        return fp
+    }
+    const count = 8 + Math.floor(rnd() * 5)
+    for (let f = 0; f < count; f++) {
+        const from = 3 + Math.floor(rnd() * (n - 6))
+        const side = rnd() < 0.5 ? 1 : -1
+        const ang = side * (0.35 + rnd() * 0.9) + (rnd() < 0.5 ? 0 : Math.PI)
+        const fp = branch(from, { x: pts[from].x, y: pts[from].y }, ang, 4 + Math.floor(rnd() * 3), 5 + rnd() * 4, 1)
+        if (rnd() < 0.5) {
+            const mid = fp[1 + Math.floor(rnd() * (fp.length - 2))]
+            branch(from, mid, ang + side * (0.6 + rnd() * 0.6), 2 + Math.floor(rnd() * 2), 4 + rnd() * 3, 2)
+        }
+    }
+    // vết nứt chân tóc li ti dọc hai mép
+    for (let m = 0; m < 46; m++) {
+        const from = 1 + Math.floor(rnd() * (n - 2))
+        const side = rnd() < 0.5 ? 1 : -1
+        const start = { x: pts[from].x + (rnd() - 0.5) * 6, y: pts[from].y + side * (2 + rnd() * 7) }
+        const ang = side * (0.3 + rnd() * 1.2) + (rnd() < 0.5 ? 0 : Math.PI)
+        const l = 3 + rnd() * 6
+        forks.push({ from, pts: [start, { x: start.x + Math.cos(ang) * l, y: start.y + Math.sin(ang) * l }, { x: start.x + Math.cos(ang + (rnd() - 0.5)) * l * 1.6, y: start.y + Math.sin(ang + (rnd() - 0.5)) * l * 1.6 }], level: 3 })
     }
     return { pts, forks, hitU: Math.max(0, Math.min(1, (hitX - a.x) / (b.x - a.x))) }
 }
@@ -656,13 +676,13 @@ function makeCrack(a: Pt, b: Pt, hitX: number, seed: number): Crack {
 /**
  * Vẽ đường nứt. `reach` 0..1: nứt chân tóc đã lan bao xa từ chỗ cắm; `open` 0..1: độ toạc; `bright` độ sáng vách;
  * `seal` 0..1: khép lại từ hai đầu vào giữa (1 = đã hàn kín, chỉ còn đường hàn sáng mờ dần theo `seam`).
- * Chiều sâu: lòng khe tối, ánh tím hắt từ đáy (lệch xuống dưới), vách dưới được chiếu sáng, vách trên tối và mảnh.
+ * Chiều sâu: đất sẫm quanh miệng khe, lòng tối, ánh tím hắt từ đáy, vách dưới hứng sáng có lấm tấm, vách trên tối và mảnh,
+ * mép sứt từng điểm; nhánh, nhánh con và nứt chân tóc phủ dày quanh khe.
  */
 function drawCrack(dark: Graphics, glow: Graphics, c: Crack, max: number, reach: number, open: number, bright: number, seal: number, seam: number) {
     dark.clear()
     glow.clear()
     const far = Math.max(c.hitU, 1 - c.hitU)
-    // độ mở tại điểm: chỉ phần nứt đã lan tới, thon ở mũi nứt, khép theo khoá kéo từ hai đầu
     const width = (p: CrackPt) => {
         const d = Math.abs(p.u - c.hitU) / far
         if (d > reach) return -1
@@ -682,19 +702,34 @@ function drawCrack(dark: Graphics, glow: Graphics, c: Crack, max: number, reach:
         for (const p of pts) glow.lineTo(p.x, p.y)
         glow.stroke()
     }
-    // nhánh nứt nhỏ: chân tóc, hiện theo phần nứt đã lan, mờ đi khi hàn
+    const darkLine = (pts: Pt[], w: number, a: number) => {
+        if (a <= 0.01 || pts.length < 2) return
+        dark.lineWidth = w
+        dark.strokeColor = col(ABYSS, a)
+        dark.moveTo(pts[0].x, pts[0].y)
+        for (const p of pts) dark.lineTo(p.x, p.y)
+        dark.stroke()
+    }
+    const fade = 1 - seal
+    // nhánh nứt: rãnh tối mảnh bên dưới, chỉ sáng bên trên; nứt chân tóc chỉ là nét tối và ánh hồng rất mờ
     for (const f of c.forks) {
         const base = c.pts[f.from]
         const d = Math.abs(base.u - c.hitU) / far
         if (d > reach) continue
-        const grow = Math.min(1, (reach - d) * 4)
+        const grow = Math.min(1, (reach - d) * (f.level === 3 ? 2.5 : 4))
         const k = Math.max(1, Math.round((f.pts.length - 1) * grow))
         const fp = f.pts.slice(0, k + 1)
-        line(fp, 2.4, MAGENTA, 0.3 * bright * (1 - seal))
-        line(fp, 1, PINK, Math.min(1, bright) * (1 - seal))
+        if (f.level === 3) {
+            darkLine(fp, 1, 0.55 * fade * Math.min(1, open * 2 + 0.3))
+            line(fp, 0.5, PINK, 0.35 * Math.min(1, bright) * fade)
+            continue
+        }
+        darkLine(fp, f.level === 1 ? 2 : 1.4, 0.8 * fade)
+        if (f.level === 1) line(fp, 2.2, MAGENTA, 0.25 * bright * fade)
+        line(fp, f.level === 1 ? 0.9 : 0.6, PINK, Math.min(1, bright) * fade * (f.level === 1 ? 1 : 0.75))
     }
-    const top = vis.map((p, i) => ({ x: p.x, y: p.y + ws[i] * 0.45 }))
-    const bot = vis.map((p, i) => ({ x: p.x, y: p.y - ws[i] * 0.55 }))
+    const top = vis.map((p, i) => ({ x: p.x, y: p.y + ws[i] * 0.45 * p.jt }))
+    const bot = vis.map((p, i) => ({ x: p.x, y: p.y - ws[i] * 0.55 * p.jb }))
     const poly = (g: Graphics, up: Pt[], down: Pt[], color: Color) => {
         g.fillColor = color
         g.moveTo(up[0].x, up[0].y)
@@ -705,35 +740,43 @@ function drawCrack(dark: Graphics, glow: Graphics, c: Crack, max: number, reach:
     }
     const wide = ws.some((w) => w > 1.2)
     if (wide) {
-        // đất sẫm quanh miệng khe: vết nứt nằm trên mặt đất chứ không lơ lửng
+        // đất sẫm quanh miệng khe, hai lớp loang không đều
         poly(dark,
-            vis.map((p, i) => ({ x: p.x, y: p.y + ws[i] * 0.45 + 3 + ws[i] * 0.5 })),
-            vis.map((p, i) => ({ x: p.x, y: p.y - ws[i] * 0.55 - 3 - ws[i] * 0.4 })),
-            col(ABYSS, 0.28 * Math.min(1, open)))
+            vis.map((p, i) => ({ x: p.x, y: p.y + ws[i] * (0.9 + p.jb * 0.4) + 4 })),
+            vis.map((p, i) => ({ x: p.x, y: p.y - ws[i] * (0.9 + p.jt * 0.4) - 4 })),
+            col(ABYSS, 0.16 * Math.min(1, open)))
+        poly(dark,
+            vis.map((p, i) => ({ x: p.x, y: p.y + ws[i] * 0.7 * p.jt + 2 })),
+            vis.map((p, i) => ({ x: p.x, y: p.y - ws[i] * 0.8 * p.jb - 2 })),
+            col(ABYSS, 0.3 * Math.min(1, open)))
         // lòng khe: đen sâu
-        poly(dark, top, bot, col(ABYSS, 0.96))
+        poly(dark, top, bot, col(ABYSS, 0.97))
         // bóng đổ của vách trên vào lòng khe
-        dark.lineWidth = 2
-        dark.strokeColor = col(0x05010a, 0.9)
-        dark.moveTo(top[0].x, top[0].y - 1)
-        for (const p of top) dark.lineTo(p.x, p.y - 1)
-        dark.stroke()
-        // ánh Hư Không dưới đáy: vệt hẹp nằm sâu, lệch về vách dưới
+        darkLine(top.map((p) => ({ x: p.x, y: p.y - 1 })), 2, 0.9)
+        // ánh Hư Không dưới đáy: vệt hẹp nằm sâu, đứt quãng theo độ mở
         const deep = vis.map((p, i) => ({ x: p.x, y: p.y - ws[i] * 0.3 }))
         poly(glow,
             deep.map((p, i) => ({ x: p.x, y: p.y + ws[i] * 0.1 })),
             deep.map((p, i) => ({ x: p.x, y: p.y - ws[i] * 0.1 })),
             col(VIOLET, 0.35 * bright))
         line(deep, 1, MAGENTA, 0.75 * Math.min(1.5, bright))
-        // vách dưới hướng lên, hứng sáng: viền hồng rõ; vách trên chỉ một chỉ mờ
-        line(bot, 3, MAGENTA, 0.4 * bright)
-        line(bot, 1.2, PINK, Math.min(1, 1.05 * bright))
+        // vách dưới hứng sáng: viền hồng, quầng, lấm tấm đốm sáng dọc mép (đá phản quang)
+        line(bot, 2.6, MAGENTA, 0.35 * bright)
+        line(bot, 1.1, PINK, Math.min(1, 1.05 * bright))
+        glow.fillColor = col(PINK, 0.55 * Math.min(1, bright))
+        for (let i = 1; i < bot.length - 1; i += 2) {
+            if (ws[i] < 2) continue
+            const r = 0.5 + (vis[i].jb - 0.7) * 1.2
+            glow.circle(bot[i].x, bot[i].y - 1.5 - vis[i].jt * 2, r)
+        }
+        glow.fill()
         line(top, 0.7, PINK, 0.35 * Math.min(1, bright))
     }
     // đường chân tóc / đường hàn: một chỉ sáng dọc lõi đường nứt
     const hair = Math.max(open < 0.15 ? 1 : 0.4, seam)
-    line(vis, 3, MAGENTA, 0.22 * hair * Math.max(bright, seam))
-    line(vis, 1, CORE, hair * Math.max(Math.min(1, bright), seam))
+    darkLine(vis, 2.2, 0.6 * Math.max(fade, seam))
+    line(vis, 2.4, MAGENTA, 0.2 * hair * Math.max(bright, seam))
+    line(vis, 0.9, CORE, hair * Math.max(Math.min(1, bright), seam))
 }
 
 /** Cột Hư Không phụt thẳng lên từ điểm `at` trên khe: cột thon sáng rồi tắt, mảnh tam giác bị hất tung */
@@ -833,7 +876,7 @@ registerSkillVfx("velkoz_e", async (ctx) => {
     await over(ctx.layer, 0.2, (t) => {
         const o = ease.out(t)
         drawCrack(dark.g, glow.g, crack, MAX, 1, 0.06 + 0.94 * o, 1, 0, 0)
-        crumbs(2, o)
+        crumbs(5, o)
     })
     ctx.onBeat?.(0)
     for (const v of victims) {
@@ -845,7 +888,7 @@ registerSkillVfx("velkoz_e", async (ctx) => {
     // 3) khe thở, sáng dần từ đáy
     await over(ctx.layer, 0.26, (t) => {
         drawCrack(dark.g, glow.g, crack, MAX, 1, 0.92 + 0.08 * Math.sin(t * Math.PI * 4), 0.8 + 0.6 * t, 0, 0)
-        crumbs(1, 1)
+        crumbs(3, 1)
     })
     // 4) phồng lên, vách trắng rực, NỔ dọc cả đường
     await over(ctx.layer, 0.1, (t) => {

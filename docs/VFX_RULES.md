@@ -62,6 +62,9 @@ Hiệu ứng là chất liệu thật đang xảy ra trên sân, không phải h
 - **Có chiều sâu và ánh sáng:** biết nguồn sáng ở đâu. Lòng khe tối, ánh hắt từ đáy; vách hướng về nguồn sáng thì sáng,
   vách kia tối; vật ở gần có quầng, vật ở xa mờ hơn. Chồng nhiều lớp (bóng tối, thân, viền sáng, lõi) thay vì một màu
   phẳng.
+- **Dày chi tiết như vật thật:** nhiều chi tiết nhỏ chồng lên nhau thay vì vài mảng trơn: đường nứt đoạn ngắn vài px có
+  nhánh, nhánh con và nứt chân tóc; mặt nước nhiều vân, hàng trăm đốm bọt, bụi nước mịn; giọt bắn là nhiều hạt nhỏ, ít hạt
+  lớn. Không dùng vài hạt to vón cục.
 - **Có nguyên nhân rõ:** hiệu ứng xuất phát từ đâu thì nhìn thấy được (tia cắm xuống rồi đất mới nứt; mắt tụ năng lượng
   rồi mới bắn). Không có gì tự dưng xuất hiện tại mục tiêu khi luật nói nó đến từ người dùng chiêu.
 - **Sáng tạo trong chất tướng:** lấy cảm hứng từ tướng gốc, nhưng được thêm chi tiết riêng hợp với bàn cờ thẻ bài, miễn

@@ -97,9 +97,18 @@ function blob(body: Graphics, shine: Graphics, at: Pt, r: number, t: number, dir
 function splash(layer: Node, at: Pt, k: number, from?: Pt) {
     const back = from ? angleOf(at, from) : UP
     const up = Math.abs(Math.sin(back)) < 0.3 ? UP : back
-    void burst(layer, at, Math.round(26 * k), {
-        color: SPRAY, kind: "dot", life: [0.35, 0.7], size: [6 * k, 2], alpha: 1, speed: [160, 420],
-        angle: [up - 0.9, up + 0.9], gravity: FALL, drag: 0.6, spread: 10
+    // vương miện: nhiều giọt nhỏ (mịn như bụi nước thật), vài giọt lớn hơn bay cao rồi rơi
+    void burst(layer, at, Math.round(60 * k), {
+        color: SPRAY, kind: "dot", life: [0.3, 0.65], size: [3 * k, 1], alpha: 0.95, speed: [120, 380],
+        angle: [up - 1, up + 1], gravity: FALL, drag: 0.7, spread: 12
+    })
+    void burst(layer, at, Math.round(8 * k), {
+        color: [FOAM, AQUA], kind: "dot", life: [0.45, 0.8], size: [4.5 * k, 2], alpha: 1, speed: [220, 440],
+        angle: [up - 0.6, up + 0.6], gravity: FALL, drag: 0.4, spread: 6
+    })
+    void burst(layer, at, Math.round(14 * k), {
+        color: [FOAM], kind: "glow", life: [0.3, 0.5], size: [14 * k, 30 * k], alpha: 0.18, speed: [20, 70],
+        angle: [up - 1.2, up + 1.2], spread: 16
     })
     void burst(layer, at, Math.round(8 * k), {
         color: [FOAM, AQUA], kind: "blade", life: [0.16, 0.3], size: [18 * k, 4], alpha: 0.9, speed: [220, 460],
@@ -158,6 +167,16 @@ async function stream(layer: Node, a: Pt, b: Pt, secs: number, w: number, bend: 
             taper(body.g, trail, 1, w * 1.1, col(DEEP, 0.5 * fade))
             taper(body.g, trail, 0.5, w * 0.7, col(AQUA, 0.6 * fade))
             polyline(shine.g, trail.slice(Math.floor(trail.length / 3)), 1, col(FOAM, 0.8 * fade))
+            // bọt khí li ti trong thân dòng nước
+            shine.g.fillColor = col(FOAM, 0.65 * fade)
+            const bub = seeded(trail.length * 31 + Math.floor(t * 40))
+            for (let s = 0; s < trail.length * 3; s++) {
+                const i = Math.floor(bub() * (trail.length - 1))
+                const p = mix(trail[i], trail[i + 1], bub())
+                const w0 = w * 0.35 * (i / trail.length)
+                shine.g.circle(p.x + (bub() - 0.5) * w0, p.y + (bub() - 0.5) * w0, 0.4 + bub() * 1.1)
+            }
+            shine.g.fill()
         }
         if (fade > 0.5) blob(body.g, shine.g, head, w * 0.75, t, dir, 1.35, fade)
     }
@@ -365,54 +384,88 @@ registerSkillVfx("nami_bless", async (ctx) => {
 // ---------- R Sóng Thần ----------
 
 /**
- * Bức tường nước ngang từ x0 tới x1, chân ở `base`, đỉnh cao `h` về phía `dir` (+1 lên, -1 xuống). Đỉnh lởm chởm có bọt,
- * thân tối ở chân sáng dần lên đỉnh; `seed` giữ hình đỉnh sóng, `t` cho gợn chạy.
+ * Bức tường nước ngang từ x0 tới x1, chân ở `base`, đỉnh cao `h` về phía `dir` (+1 lên, -1 xuống), dày chi tiết như sóng
+ * thật: đỉnh gồ ghề 4 tầng (160 điểm), thân trong nhiều lớp, 7 vân nước chồng, hàng trăm đốm bọt và vệt bọt trôi trên
+ * mặt sóng (vị trí theo `seed`, trôi theo `t`), mép cuộn có răng bọt, quầng bọt mịn ở đỉnh.
  */
 function drawWave(body: Graphics, shine: Graphics, x0: number, x1: number, base: number, h: number, dir: number, t: number, seed: number) {
     if (h <= 1) { body.clear(); shine.clear(); return }
     const rnd = seeded(seed)
-    const n = 40
-    const ph = [rnd() * 6, rnd() * 6, rnd() * 6]
+    const n = 160
+    const ph = [rnd() * 6, rnd() * 6, rnd() * 6, rnd() * 6]
     const crest: Pt[] = []
     for (let i = 0; i <= n; i++) {
         const u = i / n
         const x = lerp(x0, x1, u)
         const edge = Math.min(1, u * 5, (1 - u) * 5)
-        const lump = 1 + Math.sin(u * 9 + ph[0] + t * 3) * 0.12 + Math.sin(u * 23 + ph[1] - t * 5) * 0.06 + Math.sin(u * 51 + ph[2] + t * 9) * 0.03
+        const lump = 1 + Math.sin(u * 9 + ph[0] + t * 3) * 0.12 + Math.sin(u * 23 + ph[1] - t * 5) * 0.06
+            + Math.sin(u * 61 + ph[2] + t * 9) * 0.035 + Math.sin(u * 143 + ph[3] - t * 14) * 0.018
         crest.push({ x, y: base + dir * h * lump * (0.35 + 0.65 * edge) })
     }
+    const at = (i: number, f: number) => ({ x: crest[i].x, y: base + (crest[i].y - base) * f })
     const band = (from: number, to: number, c: number, a: number) => {
         body.fillColor = col(c, a)
-        body.moveTo(crest[0].x, base + dir * h * from)
-        for (const p of crest) body.lineTo(p.x, base + (p.y - base) * to)
-        for (let i = crest.length - 1; i >= 0; i--) body.lineTo(crest[i].x, base + (crest[i].y - base) * from)
+        body.moveTo(at(0, from).x, at(0, from).y)
+        for (let i = 0; i <= n; i++) { const p = at(i, to); body.lineTo(p.x, p.y) }
+        for (let i = n; i >= 0; i--) { const p = at(i, from); body.lineTo(p.x, p.y) }
         body.close()
         body.fill()
     }
     body.clear()
     shine.clear()
-    // thân trong: chân tối nhạt, giữa lam, gần đỉnh xanh nước; đủ trong để còn thấy lá bên dưới
-    band(-0.1, 1, NAVY, 0.28)
-    band(0.3, 1, DEEP, 0.3)
-    band(0.7, 1, AQUA, 0.32)
-    // mép cuộn: dải mỏng vượt lên trước đỉnh rồi quặp xuống, như sóng sắp đổ
-    const lip = crest.map((p, i) => ({ x: p.x + Math.sin(i * 0.5 + t * 4) * 3, y: p.y + dir * h * 0.16 }))
-    const lipDown = crest.map((p) => ({ x: p.x, y: p.y + dir * h * 0.02 }))
-    body.fillColor = col(AQUA, 0.35)
+    // thân trong nhiều lớp: chân tối nhạt, lam, xanh nước, gần đỉnh sáng
+    band(-0.1, 1, NAVY, 0.22)
+    band(0.2, 1, DEEP, 0.2)
+    band(0.45, 1, DEEP, 0.16)
+    band(0.68, 1, AQUA, 0.22)
+    band(0.86, 1, AQUA, 0.2)
+    // mép cuộn: dải vượt trước đỉnh rồi quặp xuống, có răng bọt
+    const lip = crest.map((p, i) => ({ x: p.x + Math.sin(i * 0.5 + t * 4) * 3, y: p.y + dir * h * (0.14 + Math.sin(i * 1.7 + ph[1]) * 0.025) }))
+    body.fillColor = col(AQUA, 0.32)
     body.moveTo(lip[0].x, lip[0].y)
     for (const p of lip) body.lineTo(p.x, p.y)
-    for (let i = lipDown.length - 1; i >= 0; i--) body.lineTo(lipDown[i].x, lipDown[i].y)
+    for (let i = n; i >= 0; i--) body.lineTo(crest[i].x, crest[i].y + dir * h * 0.02)
     body.close()
     body.fill()
-    // bọt: chỉ mảnh trên mép cuộn và đỉnh, quầng nhẹ
-    polyline(shine, lip, 3, col(AQUA, 0.3))
-    polyline(shine, lip, 1.2, col(FOAM, 0.95))
-    polyline(shine, crest, 0.8, col(FOAM, 0.55))
-    // vân nước dọc thân
-    for (let j = 1; j <= 2; j++) {
-        const line = crest.map((p, i) => ({ x: p.x, y: base + (p.y - base) * (0.35 * j) + Math.sin(i * 0.7 + t * 6 + j) * 2 }))
-        polyline(shine, line, 0.8, col(FOAM, 0.22))
+    // 7 vân nước chồng dọc thân, gợn chạy lệch pha nhau
+    for (let j = 1; j <= 7; j++) {
+        const f = j / 8
+        const line: Pt[] = []
+        for (let i = 0; i <= n; i += 2) {
+            const p = at(i, f)
+            line.push({ x: p.x, y: p.y + Math.sin(i * 0.31 + t * (5 + j) + j * 1.7) * (1 + j * 0.25) })
+        }
+        polyline(shine, line, 0.7, col(FOAM, 0.08 + f * 0.16))
     }
+    // đốm bọt và vệt bọt trôi trên mặt sóng: dày dần lên đỉnh
+    const specks = seeded(seed + 17)
+    shine.fillColor = col(FOAM, 0.7)
+    for (let s = 0; s < 260; s++) {
+        const u = specks(), v = Math.pow(specks(), 0.45)
+        const i = Math.min(n, Math.floor(((u + t * 0.06 * (0.5 + v)) % 1) * n))
+        const p = at(i, v * 0.98)
+        const r = 0.4 + specks() * 1.3 * v
+        shine.circle(p.x + Math.sin(t * 3 + s) * 1.5, p.y, r)
+    }
+    shine.fill()
+    shine.fillColor = col(FOAM, 0.35)
+    for (let s = 0; s < 40; s++) {
+        const u = specks(), v = 0.55 + specks() * 0.4
+        const i = Math.min(n - 6, Math.floor(((u + t * 0.05) % 1) * (n - 6)))
+        const p = at(i, v), q = at(i + 4 + Math.floor(specks() * 3), v)
+        shine.ellipse((p.x + q.x) / 2, p.y, Math.abs(q.x - p.x) / 2 + 1, 0.9)
+    }
+    shine.fill()
+    // bọt đỉnh: quầng mịn, chỉ trắng trên mép cuộn, răng bọt nhỏ lởm chởm
+    polyline(shine, lip, 4, col(AQUA, 0.25))
+    polyline(shine, lip, 1.1, col(FOAM, 0.95))
+    polyline(shine, crest, 0.7, col(FOAM, 0.5))
+    shine.fillColor = col(FOAM, 0.85)
+    for (let i = 0; i <= n; i += 3) {
+        const p = lip[i]
+        shine.circle(p.x + Math.sin(i * 2.3 + t * 11), p.y + dir * (1 + Math.abs(Math.sin(i * 1.3 + t * 7)) * 2.5), 0.6 + Math.abs(Math.sin(i * 0.9 + ph[2])) * 0.9)
+    }
+    shine.fill()
 }
 
 /**
@@ -448,7 +501,7 @@ registerSkillVfx("nami_r", async (ctx) => {
         const base = lerp(river - dir * 10, rowY - dir * 40 * k, ease.in(t))
         const h = H * (0.7 + 0.3 * t)
         drawWave(body.g, shine.g, x0, x1, base, h, dir, time, seed)
-        for (let i = 0; i < 3; i++) emit(ctx.layer, { x: rand(x0 + 30, x1 - 30), y: base + dir * h * 0.95 }, {
+        for (let i = 0; i < 12; i++) emit(ctx.layer, { x: rand(x0 + 20, x1 - 20), y: base + dir * h * rand(0.85, 1.1) }, {
             color: SPRAY, kind: "dot", life: [0.3, 0.6], size: [5, 1.5], alpha: 0.9, speed: [40, 140],
             angle: dir > 0 ? [UP - 0.8 + Math.PI * 0.1, UP + 0.8] : [-UP - 0.8, -UP + 0.8], gravity: FALL * 0.4 * dir
         })
