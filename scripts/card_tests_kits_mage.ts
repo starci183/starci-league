@@ -1825,65 +1825,106 @@ const seedGrave = (s: St) => {
             "Q"],
         ["nami",
             "E"],
-        ["ahri",
-            "Q"],
         ["lux",
-            "R"],
-        ["garen",
-            "E"]] as [string, cg.SkillKey][]) s.players.A.grave.push(g.skillCard(h,
+            "R"]] as [string, cg.SkillKey][]) s.players.A.grave.push(g.skillCard(h,
         "A",
         k))
 }
-const picks = (s: St) => s.players.A.hand.filter((c) => c.id === "rumble_pick")
-test("nội tại: khi dùng chiêu, chọn lá không phải R trong mộ; phát lựa chọn id khác nhau, không có R",
+/** Đặt lên tay A một lá chiêu của tướng `hero` */
+const giveSkill = (s: St, hero: string, key: cg.SkillKey) => {
+    const c = gm(s).skillCard(hero,
+        "A",
+        key)
+    s.players.A.hand.push(c)
+    return c
+}
+const recycleActs = (s: St) => cg.legalActions(s,
+    "A").filter((a) => a.t === "ability" && a.id === "rumble_recycle") as Extract<Act, { t: "ability" }>[]
+const graveIdOf = (s: St, uid?: string) => s.players.A.grave.find((c) => c.uid === uid)?.id
+test("nội tại: vứt Q/E của đồng minh thì chỉ lấy được Q hoặc E trong mộ, không lấy R",
     () => {
-        let s = mk({
+        const s = mk({
             A: {
-                rumble: 2
+                rumble: 2, ahri: 1
             }, B: {
                 garen: 2
             }
         })
+        s.players.A.hand = []
         seedGrave(s)
-        s = cast(s,
-            "A",
-            sk(s,
-                "A",
-                "rumble",
-                "Q")).s
-        const ps = picks(s)
-        assert.equal(ps.length,
-            4,
-            "4 lá không phải R")
-        assert.ok(ps.length <= kr.num("pickOffer"))
-        const ids = ps.map((c) => s.players.A.grave.find((g) => g.uid === String(c.data?.uid))?.id)
-        assert.equal(new Set(ids).size,
-            ids.length)
-        assert.ok(!ids.includes("lux_r"))
-        assert.ok(ps.every((c) => c.temp && Number(c.data?.left) === 1))
+        const d = giveSkill(s,
+            "ahri",
+            "Q")
+        const acts = recycleActs(s)
+        assert.ok(acts.length > 0)
+        assert.ok(acts.every((a) => a.args?.discard?.[0] === d.uid))
+        const ids = acts.map((a) => graveIdOf(s,
+            a.args?.pick))
+        assert.deepEqual([...new Set(ids)].sort(),
+            ["darius_q",
+                "nami_e"])
     })
-test("nội tại: chọn 1 lá thì lá mộ mất, Rumble nhận Lá Tái Chế, các lá chọn khác biến mất",
+test("nội tại: vứt R của đồng minh thì lấy được cả R, Q, E",
     () => {
-        let s = mk({
+        const s = mk({
+            A: {
+                rumble: 2, ahri: 1
+            }, B: {
+                garen: 2
+            }
+        })
+        s.players.A.hand = []
+        seedGrave(s)
+        giveSkill(s,
+            "ahri",
+            "R")
+        const ids = recycleActs(s).map((a) => graveIdOf(s,
+            a.args?.pick))
+        assert.deepEqual([...new Set(ids)].sort(),
+            ["darius_q",
+                "lux_r",
+                "nami_e"])
+    })
+test("nội tại: không vứt được lá của chính Rumble; không có lá đồng minh thì nút tắt",
+    () => {
+        const s = mk({
             A: {
                 rumble: 2
             }, B: {
                 garen: 2
             }
         })
+        s.players.A.hand = []
         seedGrave(s)
-        s = cast(s,
-            "A",
-            sk(s,
-                "A",
-                "rumble",
-                "Q")).s
-        const pick = picks(s).find((c) => s.players.A.grave.find((g) => g.uid === String(c.data?.uid))?.id === "darius_q")!
-        const graveUid = String(pick.data?.uid)
+        giveSkill(s,
+            "rumble",
+            "Q")
+        assert.equal(recycleActs(s).length,
+            0)
+    })
+test("nội tại: lá vứt vào mộ, lá mộ mất, Rumble nhận Lá Tái Chế (AD sang AP, không khống chế, giảm p1 mana)",
+    () => {
+        let s = mk({
+            A: {
+                rumble: 2, ahri: 1
+            }, B: {
+                garen: 2
+            }
+        })
+        s.players.A.hand = []
+        seedGrave(s)
+        const d = giveSkill(s,
+            "ahri",
+            "E")
+        const a = recycleActs(s).find((x) => graveIdOf(s,
+            x.args?.pick) === "darius_q")!
+        const graveUid = a.args!.pick
         s = act(s,
-playOpts(s,
-    "A",
-    "rumble_pick").find((a) => a.uid === pick.uid)!).s
+            a).s
+        assert.ok(!s.players.A.hand.some((c) => c.uid === d.uid),
+            "lá đồng minh rời tay")
+        assert.ok(s.players.A.grave.some((c) => c.uid === d.uid),
+            "lá vứt vào mộ")
         assert.ok(!s.players.A.grave.some((c) => c.uid === graveUid),
             "lá mộ bị lấy")
         const rec = s.players.A.hand.find((c) => c.id === "darius_q")!
@@ -1899,174 +1940,58 @@ playOpts(s,
             kr.p.p1)
         assert.equal(rec.data?.apPerAd,
             kr.p.p2)
-        assert.equal(picks(s).length,
-            0,
-            "left về 0 thì các lá còn lại biến mất")
     })
 test("nội tại: một lần mỗi lượt, lượt sau lại được",
     () => {
         let s = mk({
             A: {
-                rumble: 2
+                rumble: 2, ahri: 1
             }, B: {
                 garen: 2
             }
         })
+        s.players.A.hand = []
         seedGrave(s)
-        s = cast(s,
-            "A",
-            sk(s,
-                "A",
-                "rumble",
-                "Q")).s
-        const n1 = picks(s).length
-        s.players.A.hand = s.players.A.hand.filter((c) => c.id !== "rumble_pick")
-        s = cast(s,
-            "A",
-            sk(s,
-                "A",
-                "rumble",
-                "E"),
-            {
-                target: "B:garen"
-            }).s
-        assert.equal(picks(s).length,
-            0,
-            "dùng chiêu thứ hai cùng lượt không phát thêm")
-        s = endTurn(endTurn(s).s).s
-        s = cast(s,
-            "A",
-            sk(s,
-                "A",
-                "rumble",
-                "Q")).s
-        assert.ok(picks(s).length >= n1,
-            "lượt sau lại phát")
-    })
-test("nội tại: mộ chỉ có R thì không phát lựa chọn và không tiêu lượt dùng",
-    () => {
-        let s = mk({
-            A: {
-                rumble: 2
-            }, B: {
-                garen: 2
-            }
-        })
-        s.players.A.grave.push(gm(s).skillCard("lux",
-            "A",
-            "R"))
-        s = cast(s,
-            "A",
-            sk(s,
-                "A",
-                "rumble",
-                "Q")).s
-        assert.equal(picks(s).length,
-            0)
-        s.players.A.grave.push(gm(s).skillCard("darius",
-            "A",
-            "Q"))
-        s = cast(s,
-            "A",
-            sk(s,
-                "A",
-                "rumble",
-                "E"),
-            {
-                target: "B:garen"
-            }).s
-        assert.ok(picks(s).length > 0,
-            "lần dùng chiêu kế vẫn được vì chưa tiêu")
-    })
-test("nội tại: lựa chọn không quá flag pickOffer và các lá tạm hết lượt thì biến mất",
-    () => {
-        let s = mk({
-            A: {
-                rumble: 2
-            }, B: {
-                garen: 2
-            }
-        })
-        const g = gm(s)
-        const heroes = ["darius",
-            "nami",
+        giveSkill(s,
             "ahri",
-            "garen",
-            "zed",
-            "teemo",
-            "braum",
-            "leona",
-            "ornn",
-            "janna"]
-        for (const h of heroes) s.players.A.grave.push(g.skillCard(h,
-            "A",
-            "Q"))
-        s = cast(s,
-            "A",
-            sk(s,
-                "A",
-                "rumble",
-                "Q")).s
-        assert.equal(picks(s).length,
-            Math.min(heroes.length,
-                kr.num("pickOffer")))
-        s = endTurn(s).s
-        s = endTurn(s).s
-        assert.equal(picks(s).length,
+            "Q")
+        giveSkill(s,
+            "ahri",
+            "E")
+        s = act(s,
+            recycleActs(s)[0]).s
+        assert.equal(recycleActs(s).length,
             0,
-            "hết lượt đối phương thì mất")
+            "đã dùng trong lượt")
+        s.turnNo += 1 // sang lượt sau của A (mốc một lần mỗi lượt tính theo turnNo)
+        assert.ok(recycleActs(s).length > 0,
+            "lượt sau dùng lại được")
     })
-test("R: mọi địch nhận sát thương rồi chọn tối đa r4 lá chiêu không phải R trong mộ",
+test("R: mọi địch nhận sát thương, không còn tái chế",
     () => {
-        let s = mk({
+        const s = mk({
             A: {
                 rumble: 2
             }, B: {
-                garen: 1, ornn: 2
+                garen: 1, ornn: 2, leona: 3
             }
         })
-        boost(s,
-            "A",
-            "rumble",
-            100)
         seedGrave(s)
-        const hp0 = u(s,
-            "B",
-            "ornn").hp
-        s = cast(s,
+        const hand0 = s.players.A.hand.length
+        const r = cast(s,
             "A",
             sk(s,
                 "A",
                 "rumble",
-                "R")).s
-        near(hp0 - u(s,
-            "B",
-            "ornn").hp,
-        mit(val(s,
-            "A",
-            "rumble",
-            "r1 + r2·AP"),
-        mr(s,
-            "B",
-            "ornn")),
-        2)
-        const group = picks(s).filter((c) => Number(c.data?.left) === kr.p.r4)
-        assert.equal(group.length,
-            4,
-            "4 lá không phải R trong mộ")
-        // chọn r4 lá thì các lá còn lại biến mất
-        for (let i = 0; i < kr.p.r4; i++) {
-            const p = picks(s).find((c) => Number(c.data?.left) === kr.p.r4 - i)
-            if (!p) break
-            s = act(s,
-playOpts(s,
-    "A",
-    "rumble_pick").find((a) => a.uid === p.uid)!).s
-        }
-        assert.equal(s.players.A.hand.filter((c) => c.temp && c.data?.recycled).length,
-            kr.p.r4)
-        assert.equal(picks(s).filter((c) => Number(c.data?.left) === kr.p.r4).length,
-            0)
+                "R"))
+        for (const h of ["garen",
+            "ornn",
+            "leona"]) assert.ok(dmgOn(r.ev,
+            `B:${h}`) > 0,
+        `${h} trúng`)
+        assert.ok(r.s.players.A.hand.length <= hand0,
+            "không có lá chọn hay Lá Tái Chế mới")
+        assert.ok(!r.s.players.A.hand.some((c) => c.data?.recycled))
     })
 test("Lá Tái Chế: Rumble tung chiêu gốc, giảm p1 mana, không áp khống chế, dùng xong biến mất",
     () => {
@@ -2186,28 +2111,16 @@ test("Lá Tái Chế: AD của Rumble = AP / p2 khi tung",
         assert.equal(g.atk(rum),
             ad0)
     })
-test("cardInfo: lá Tái Chế và lá chọn có tên dễ hiểu",
+test("cardInfo: lá Tái Chế có tên dễ hiểu",
     () => {
-        let s = mk({
+        const s = mk({
             A: {
                 rumble: 2
             }, B: {
                 garen: 2
             }
         })
-        seedGrave(s)
-        s = cast(s,
-            "A",
-            sk(s,
-                "A",
-                "rumble",
-                "Q")).s
-        const pick = picks(s)[0]
         const g = gm(s)
-        const pi = cg.cardInfo(g,
-            pick)
-        assert.ok(pi.name.startsWith(cg.getSpecialCard("rumble_pick")!.name) && pi.name.length > cg.getSpecialCard("rumble_pick")!.name.length + 2,
-            `tên lá chọn: ${pi.name}`)
         const rec = g.tempSkillCard("rumble",
             "A",
             "Q",

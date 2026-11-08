@@ -30,6 +30,9 @@ import {
     hasCustom
 } from "../vfx/keys"
 import {
+    rumbleGroups
+} from "../vfx/rumble"
+import {
     mfWaves
 } from "../vfx/missfortune"
 import {
@@ -492,6 +495,13 @@ export function buildHeroGallery(root: Node, nav: Nav, start?: string): () => vo
             const groups = mfWaves(list)
             const hops = list.map((h) => ({ from, to: foePos(h.lane), kind: "damage" as const, crit: h.crit }))
             await playSkill(fx, keyOf(k), style, from, hops.map((h) => h.to), { hops, onBeat: (i) => { for (const h of groups[i] ?? []) showSimHit(h) } })
+        } else if (hero.id === "rumble" && (k === "q" || k === "e" || k === "r")) {
+            // Rumble: mỗi cú (sát thương, Khiên) đi đúng đích engine báo; Q một nhịp, E và R mỗi cú một nhịp
+            const list = sim.hits.filter((h) => h.phase === 0 && (h.kind === "shield" || h.tag === "skill"))
+            const groups = rumbleGroups(k.toUpperCase(), list)
+            const at = (p: { side: "A" | "B"; lane: number }) => p.side === "A" ? { x: LANE_X[p.lane], y: ROW.mine } : foePos(p.lane)
+            const hops = groups.flat().map((h) => ({ from, to: at(h), kind: h.kind }))
+            await playSkill(fx, keyOf(k), style, from, hops.filter((h) => h.kind === "damage").map((h) => h.to), { hops, onBeat: (i) => { for (const h of groups[i] ?? []) showSimHit(h) } })
         } else if (hero.id === "nami" && (k === "q" || k === "e" || k === "r")) {
             // Nami: VFX đi đúng các chặng engine báo (via), mỗi nhịp hiện số của chặng đó (hồi máu, khiên, sát thương)
             const groups = namiGroups(k.toUpperCase(), sim.hits.filter((h) => h.phase === 0))

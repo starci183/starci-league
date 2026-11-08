@@ -5,6 +5,13 @@ Mục tiêu: nhìn hiệu ứng là biết engine vừa làm gì. Không có hi�
 một nẻo, hoặc số sát thương bật lệch lúc hình chạm. Cách ánh xạ sự kiện sang hiệu ứng xem thêm
 [VFX_ACTION_MAPPING.md](VFX_ACTION_MAPPING.md).
 
+## 0. Nghiên cứu trước khi vẽ
+
+- Trước khi vẽ một tướng: xem icon từng chiêu (`cocos/assets/resources/art/skills/<tướng>_<p|q|e|r>.png`) và tra chiêu gốc
+  trên mạng (hình dạng, chất liệu, màu, chuyển động). VFX phải bám sát icon và chiêu gốc: icon vòi lửa thì là lửa phun, icon
+  khiên đồng điện xanh thì là khiên đồng có điện.
+- Ghi ngắn trong đầu file VFX: mỗi ô lấy ý từ icon / chiêu gốc nào.
+
 ## 1. Hình ảnh diễn đúng luật
 
 - Diễn đúng điều engine làm: đúng số mục tiêu, đúng đường, đúng thứ tự, đúng số nhịp. Chiêu đánh 3 đường thì hình phủ

@@ -114,11 +114,11 @@ Tham số: `balance/heroes/velkoz.json`.
 - **R Tia Phân Rã Sự Sống** `r0`: 1 địch `r1` tia, mỗi tia `r2 + r3·AP`.
 
 ### Rumble · phế liệu (tướng mới)
-Tham số: `balance/heroes/rumble.json`. Cờ `pickOffer` (6): số lựa chọn Tái Chế tối đa mỗi lần (id lá khác nhau). Lựa chọn là lá tạm `rumble_pick` (data `group, uid, left`), Lá Tái Chế mang id lá gốc (`darius_q`), `data.recycled` = tướng gốc.
-- **Nội tại Tái Chế** `p1, p2`: Một lần mỗi lượt (chỉ tiêu khi có lá để chọn): Khi dùng chiêu, chọn 1 lá chiêu không phải R trong mộ; lên tay thành [Lá Tái Chế]: Rumble dùng như chiêu của mình, hệ số theo AP (AD đổi theo `p2`, mặc định 2 AP = 1 AD), không áp khống chế, giảm `p1` mana, tồn tại tới hết lượt đối phương, dùng xong biến mất.
+Tham số: `balance/heroes/rumble.json`. Nút hành động `rumble_recycle` (args `discard` = uid lá vứt, `pick` = uid lá mộ). Lá Tái Chế mang id lá gốc (`darius_q`), `data.recycled` = tướng gốc.
+- **Nội tại Tái Chế** `p1, p2`: Nút hành động ở Main, một lần mỗi lượt: vứt 1 lá chiêu của đồng minh khác trên tay để lấy 1 lá chiêu trong mộ phe mình. Vứt Q/E: lấy Q hoặc E. Vứt R: lấy R, Q hoặc E. Lá lấy lên tay thành [Lá Tái Chế]: Rumble dùng như chiêu của mình, không áp khống chế, AD đổi sang AP (`p2` AP = 1 AD), giảm `p1` mana, tồn tại tới hết lượt đối phương, dùng xong biến mất.
 - **Q Súng Phun Lửa** `q0`: Địch đối diện và 2 đường kề `q1 + q2·AP` phép.
 - **E Khiên Phế Liệu** `e0`: Quick. 1 địch `e1 + e2·AP`, nhận `e3 + e4·AP` Khiên. Khi địch nhắm đúng Rumble; mục tiêu là kẻ đó.
-- **R Mưa Tên Lửa** `r0`: Mọi địch `r1 + r2·AP`. Sau đó, chọn tối đa `r4` lá chiêu không phải R trong mộ thành Lá Tái Chế.
+- **R Mưa Tên Lửa** `r0`: Mọi địch `r1 + r2·AP`.
 
 ### Sylas · xích cổ thạch (tướng mới)
 Tham số: `balance/heroes/sylas.json`. Cờ `keepCC` (1): Chiêu Đoạt giữ khống chế, khác Rumble. Chiêu Đoạt dùng lại cơ chế Lá Tái Chế: mang id lá gốc, `data.recycled` = tướng gốc, `data.stolen` = 1, `data.apPerAd` = `p4`.

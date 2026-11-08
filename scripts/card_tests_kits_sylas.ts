@@ -891,7 +891,7 @@ test("Sylas chết khi còn Chiêu Đoạt: lá không đánh được, hết h�
         s = endTurn(s).s
         assert.ok(!s.players.A.hand.some((c) => c.uid === st.card.uid))
     })
-test("Rumble R: sát thương theo AP, lựa chọn Tái Chế về tay và về Sylas",
+test("Rumble R: Sylas đoạt dùng thì gây sát thương theo AP, không sinh lá Tái Chế",
     () => {
         const s0 = mk({
             A: {
@@ -910,26 +910,12 @@ test("Rumble R: sát thương theo AP, lựa chọn Tái Chế về tay và về
         const st = steal(s0,
             "rumble",
             "R")
-        let r = play(st.s,
+        const r = play(st.s,
             st.card)
         assert.ok(dmgOn(r.ev,
             "B:rumble") > 0)
-        const pick = r.s.players.A.hand.find((c) => c.id === "rumble_pick")
-        assert.equal(pick?.hero,
-            "sylas",
-            "lá chọn thuộc Sylas nên chơi được")
-        r = play(r.s,
-            pick!,
-            {
-            })
-        const rec = r.s.players.A.hand.find((c) => c.id === "darius_q")
-        assert.equal(rec?.hero,
-            "sylas")
-        assert.equal(rec?.data?.recycled,
-            "darius")
-        assert.equal(rec?.data?.keepCC,
-            undefined,
-            "lá Tái Chế vẫn theo luật Rumble")
+        assert.ok(!r.s.players.A.hand.some((c) => c.data?.recycled),
+            "R không còn tái chế")
     })
 test("Gangplank: R và E không hiện (cần Thùng của chủ), Q hiện và không sinh lá Gangplank",
     () => {

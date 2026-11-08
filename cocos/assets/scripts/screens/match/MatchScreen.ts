@@ -33,6 +33,9 @@ import {
     skillArt, slot
 } from "../../ui/slot"
 import {
+    rumbleGroups
+} from "../../vfx/rumble"
+import {
     mfWaves
 } from "../../vfx/missfortune"
 import {
@@ -1499,16 +1502,18 @@ export function buildMatch(root: Node, nav: Nav): () => void {
                     for (const d of riftDmg) beatShown.add(d)
                     // Nami Q/E/R: VFX đi đúng các chặng engine báo (via) và hiện số hồi máu / khiên / sát thương theo từng nhịp
                     type HitEv = Extract<cg.GameEvent, { t: "damage" | "heal" | "shield" }>
-                    const namiSkill = u.hero === "nami" && (e.skill === "Q" || e.skill === "E" || e.skill === "R")
+                    // Rumble dùng chung đường này: Khiên và sát thương theo nhịp của rumbleGroups, mọi cú đều là một chặng
+                    const namiSkill = (u.hero === "nami" || u.hero === "rumble") && (e.skill === "Q" || e.skill === "E" || e.skill === "R")
+                    const isRumble = u.hero === "rumble"
                     const namiEv = namiSkill ? (nextCast < 0 ? rest : rest.slice(0,
                         nextCast)).filter((x): x is HitEv => (x.t === "damage" || x.t === "heal" || x.t === "shield") && x.src === e.unit && (x.t !== "damage" || x.amount > 0)) : []
                     for (const x of namiEv) beatShown.add(x)
-                    const namiG = namiGroups(e.skill,
+                    const namiG = (isRumble ? rumbleGroups : namiGroups)(e.skill,
                         namiEv.map((x) => ({
                             kind: x.t, tag: x.t === "damage" ? x.tag : undefined, ev: x
                         })))
-                    const namiHops = namiPrimary(e.skill,
-                        namiG).map((h) => {
+                    const namiHops = (isRumble ? namiG.flat() : namiPrimary(e.skill,
+                        namiG)).map((h) => {
                         const x = h.ev
                         return {
                             from: posOf(cur,
@@ -1567,6 +1572,15 @@ export function buildMatch(root: Node, nav: Nav): () => void {
                             }
                         } : {
                         })
+                } else if (e.t === "ability" && e.id === "rumble_recycle") {
+                    // Rumble Tái Chế: phế liệu bị hút về Rumble
+                    if (settings().vfx) await playSkill(vfxLayer,
+                        "rumble_p",
+                        styleOf("rumble",
+                            "p"),
+                        posOf(cur,
+                            e.unit),
+                        [])
                 } else if (e.t === "move") {
                     // Mọi lần đổi chỗ: người chủ động bay lên dậm xuống ô kia, người kia trượt ngang sang ô của họ.
                     // Sylas Q đã tự diễn đổi chỗ trong hiệu ứng chiêu nên bỏ qua một sự kiện move.

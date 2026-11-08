@@ -561,6 +561,13 @@ export function colorDialog(root: Node, options: cg.Action[], onPick: Pick) {
 export function pickDialogFor(root: Node, view: CardView, options: cg.Action[], onPick: (a: cg.Action) => void): boolean {
     if (options.length < 2) return false
     if (options.some((a) => argsOf(a).pick?.startsWith("steal:"))) return false
+    if (options.every((a) => a.t === "ability" && a.id === "rumble_recycle")) {
+        recycleDialog(root,
+            view,
+            options,
+            onPick)
+        return true
+    }
     if (new Set(options.map((a) => argsOf(a).color)).size > 1) {
         colorDialog(root,
             options,
@@ -596,4 +603,112 @@ export function pickDialogFor(root: Node, view: CardView, options: cg.Action[], 
         }
     }
     return false
+}
+
+/**
+ * Lưới chọn đúng 1 lá theo uid (lá trên tay, trong mộ hoặc lá xem trước); `label` là chữ hiện dưới lá đang chọn.
+ * Xác nhận gọi onChoose(uid).
+ */
+function cardGridDialog(root: Node, view: CardView, uids: string[], title: string, subtitle: string, label: string, onChoose: (uid: string) => void) {
+    const cw = 180, ch = 260, gap = 18
+    const perRow = Math.min(7,
+        Math.max(1,
+            uids.length))
+    const rows = Math.max(1,
+        Math.ceil(uids.length / perRow))
+    const W = Math.max(900,
+        perRow * (cw + gap) + 120)
+    const H = 150 + 40 + rows * (ch + gap) + 170
+    const { body, close } = modal(root,
+        W,
+        H,
+        title,
+        subtitle)
+    let sel: string | null = null
+    const grid = box("Grid",
+        body,
+        W,
+        rows * (ch + gap),
+        0,
+        H / 2 - 150 - 20 - rows * (ch + gap) / 2)
+    const confirm = new Button(body,
+        "Xác nhận",
+        260,
+        60,
+        0,
+        -H / 2 + 66,
+        () => {
+            if (!sel) return
+            close()
+            onChoose(sel)
+        },
+        "primary",
+        30)
+    const paint = () => {
+        clear(grid)
+        uids.forEach((uid, i) => {
+            const r = Math.floor(i / perRow)
+            const inRow = Math.min(perRow,
+                uids.length - r * perRow)
+            const x = ((i % perRow) - (inRow - 1) / 2) * (cw + gap)
+            const y = (rows * (ch + gap)) / 2 - (r + 0.5) * (ch + gap)
+            const on = sel === uid
+            const choose = () => { sel = on ? null : uid; paint() }
+            const card = cardOfUid(view,
+                uid)
+            if (card) matchCard(grid,
+                view,
+                card,
+                cw,
+                ch,
+                x,
+                y,
+                {
+                    selected: on, onPick: choose
+                })
+            else cardBack(grid,
+                cw,
+                ch,
+                x,
+                y).on(Node.EventType.TOUCH_END,
+                choose)
+            if (on) text(grid,
+                label,
+                x,
+                y - ch / 2 - 4,
+                {
+                    font: "textMedium", bold: true, size: 26, width: cw, upper: false, color: C.goldLight
+                })
+        })
+        confirm.setEnabled(!!sel)
+    }
+    paint()
+}
+
+/**
+ * Rumble Tái Chế: bước 1 chọn 1 lá chiêu đồng minh trên tay để vứt; bước 2 chọn 1 lá chiêu trong mộ để lấy (chỉ các lá hợp lệ
+ * với lá vừa vứt: vứt Q/E lấy Q/E, vứt R lấy cả R).
+ */
+export function recycleDialog(root: Node, view: CardView, options: cg.Action[], onPick: Pick) {
+    const discards = [...new Set(options.map((a) => discardOf(a)[0]).filter((u): u is string => !!u))]
+    cardGridDialog(root,
+        view,
+        discards,
+        "Tái Chế · Vứt lá",
+        "Chọn 1 lá chiêu của đồng minh để vứt",
+        "Vứt",
+        (d) => {
+            const rest = options.filter((a) => discardOf(a)[0] === d)
+            const picks = [...new Set(rest.map((a) => argsOf(a).pick ?? ""))]
+            cardGridDialog(root,
+                view,
+                picks,
+                "Tái Chế · Lấy lá",
+                "Chọn 1 lá chiêu trong mộ để Rumble dùng như của mình",
+                "Lấy",
+                (g) => {
+                    const a = rest.find((x) => argsOf(x).pick === g)
+                    if (a) onPick(a)
+                })
+        })
 }

@@ -132,9 +132,6 @@ export const SPECIAL_KITS_MAGE: Record<string, Txt> = {
     tf_fate: {
         name: "Destiny", desc: "The top card of your deck: play this card to put that card on the bottom of the deck. Temporary."
     },
-    rumble_pick: {
-        name: "Recycle", desc: "Take this skill card out of the graveyard; Rumble receives a Recycled card of it. When the picks run out, the remaining pick cards vanish. Temporary."
-    },
 }
 
 /** Từ khoá của nhóm (khoá = id), ghi đè bản cũ cùng id để tên hiển thị không trùng */
