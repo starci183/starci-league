@@ -1133,7 +1133,7 @@ registerSkillVfx("velkoz_p",
     async (ctx) => {
         const at = ctx.to[0] ?? ctx.from
         const c = canvas(ctx.layer)
-        const R0 = 92
+        const R0 = 104
         await over(ctx.layer,
             0.9,
             (t) => {
@@ -1154,24 +1154,24 @@ registerSkillVfx("velkoz_p",
                         at,
                         a,
                         r,
-                        -34,
-                        16,
+                        -58,
+                        28,
                         col(VIOLET,
                             0.4 * show))
                     shard(c.g,
                         at,
                         a,
                         r,
-                        -28,
-                        10,
+                        -48,
+                        17,
                         col(MAGENTA,
                             0.9 * show * glow))
                     shard(c.g,
                         at,
                         a,
                         r - 2,
-                        -18,
-                        4,
+                        -30,
+                        7,
                         col(CORE,
                             show * glow))
                     if (Math.random() < 0.5) emit(ctx.layer,
@@ -1206,8 +1206,8 @@ registerSkillVfx("velkoz_p",
                     at,
                     i * TAU / 3 + 4.5,
                     r,
-                    -28,
-                    10,
+                    -48,
+                    17,
                     col(CORE,
                         1))
             })
