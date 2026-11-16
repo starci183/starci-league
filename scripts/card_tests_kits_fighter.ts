@@ -1107,7 +1107,6 @@ test("R khác đường: Darius dời sang đường địch",
 // ===================================================================================================
 G("Aatrox")
 const ap = cg.kit("aatrox").p
-const ak = cg.kit("aatrox")
 const aUnit = "A:aatrox"
 const aState = () => mk({
     A: {
@@ -1116,53 +1115,77 @@ const aState = () => mk({
         kt_dummy: 2, kt_dummy2: 1, kt_dummy3: 3
     }
 })
-/** Hệ số nội tại ở mức Máu hiện tại (mult = 1 thường, r5 khi biến hình) */
-const mult = (s: St, m = 1) => 1 + ap.p1 * (s.units[aUnit].maxHp - s.units[aUnit].hp) / s.units[aUnit].maxHp * m
+/** Tỉ lệ Máu đã mất và hút máu (p3 → p4) */
+const miss = (s: St) => (s.units[aUnit].maxHp - s.units[aUnit].hp) / s.units[aUnit].maxHp
+const near = (got: number, want: number, tol = 2, msg = "") => assert.ok(Math.abs(got - want) <= tol,
+    `${msg} ${got} vs ${want}`)
 
-test("nội tại: thêm p1% sát thương mỗi 1% Máu đã mất, hồi p2% sát thương",
+test("nội tại: Máu thấp, Công cao (+p1 × Công gốc × tỉ lệ Máu đã mất)",
     () => {
         const s = aState()
-        s.units[aUnit].hp = Math.round(s.units[aUnit].maxHp / 2)
-        const hp0 = s.units[aUnit].hp
-        const m = mult(s)
+        const me = s.units[aUnit]
+        const base = gm(s).atk(me)
+        me.hp = Math.round(me.maxHp / 2)
+        near(gm(s).atk(me),
+            base + ap.p1 * cg.kit("aatrox").base.atk * miss(s),
+            1,
+            "Công")
+    })
+
+test("đánh thường: trả p2 Máu hiện tại rồi hút p3 → p4 sát thương theo Máu đã mất",
+    () => {
+        const s = aState()
+        const me = s.units[aUnit]
+        me.hp = Math.round(me.maxHp / 2)
+        const hp0 = me.hp
         const r = basic(s,
             "A",
             "aatrox",
             D1)
-        const raw = gm(s).atk(s.units[aUnit]) * m
+        const paid = r.ev.find((e) => e.t === "damage" && e.target === aUnit && e.tag === "effect")
+        assert.ok(paid && paid.t === "damage",
+            "trả Máu")
+        near(paid.t === "damage" ? paid.amount : 0,
+            hp0 * ap.p2,
+            1,
+            "trả")
         const dealt = dmgOn(r.ev,
             D1)
-        assert.equal(dealt,
-            takenPhys(r.s,
-                D1,
-                raw))
-        assert.equal(r.s.units[aUnit].hp,
-            hp0 + Math.round(dealt * ap.p2 / 100))
+        assert.ok(dealt > 0)
+        const heal = r.ev.find((e) => e.t === "heal" && e.target === aUnit)
+        assert.ok(heal && heal.t === "heal",
+            "hút máu")
+        const hpAfterPay = hp0 - (paid.t === "damage" ? paid.amount : 0)
+        const ls = ap.p3 + (ap.p4 - ap.p3) * (me.maxHp - hpAfterPay) / me.maxHp
+        near(heal.t === "heal" ? heal.amount : 0,
+            dealt * ls,
+            2,
+            "hút")
     })
 
-test("nội tại: đủ Máu thì không thêm sát thương",
+test("hút máu tăng theo Máu đã mất: thấp Máu hút nhiều hơn",
     () => {
-        const s = aState()
-        const r = basic(s,
-            "A",
-            "aatrox",
-            D1)
-        assert.equal(dmgOn(r.ev,
-            D1),
-        takenPhys(r.s,
-            D1,
-            gm(s).atk(s.units[aUnit])))
+        const heal = (frac: number) => {
+            const s = aState()
+            s.units[D1].maxHp = s.units[D1].hp = 5000
+            s.units[aUnit].hp = Math.round(s.units[aUnit].maxHp * frac)
+            const r = basic(s,
+                "A",
+                "aatrox",
+                D1)
+            const h = r.ev.find((e) => e.t === "heal" && e.target === aUnit)
+            return (h && h.t === "heal" ? h.amount : 0) / dmgOn(r.ev,
+                D1)
+        }
+        assert.ok(heal(0.2) > heal(0.9) + 0.3)
     })
 
-test("Q: mất q1% Máu hiện tại, chỉ chém tướng đối diện (q2 + q3·AD + q4·Máu tối đa)",
+test("Q: trả q1 Máu hiện tại, chém tướng đối diện (q2 + q3·AD + q4·Máu tối đa), hút theo Máu đã mất",
     () => {
         const s = aState()
         s.units[D1].maxHp = s.units[D1].hp = 5000
-        const hp0 = s.units[aUnit].hp, paid = Math.round(hp0 * ap.q1 / 100)
-        const after = hp0 - paid
-        const raw = f(s,
-            aUnit,
-            ak.x("q2 + q3·AD + q4·Máu tối đa"))
+        const me = s.units[aUnit]
+        const hp0 = me.hp
         const mana = s.teamMana.A
         const r = cast(s,
             "A",
@@ -1170,14 +1193,16 @@ test("Q: mất q1% Máu hiện tại, chỉ chém tướng đối diện (q2 + q
                 "aatrox",
                 "A",
                 "Q"))
+        const paid = r.ev.find((e) => e.t === "damage" && e.target === aUnit && e.tag === "effect")
+        near(paid && paid.t === "damage" ? paid.amount : 0,
+            hp0 * ap.q1,
+            1,
+            "trả")
         const hits = r.ev.filter((e) => e.t === "damage" && e.src === aUnit && e.tag === "skill")
         assert.deepEqual(hits.map((e) => e.t === "damage" && e.target),
             [D1])
-        const first = hits[0]
-        assert.equal(first.t === "damage" && first.amount,
-            takenPhys(r.s,
-                D1,
-                raw * (1 + ap.p1 * (s.units[aUnit].maxHp - after) / s.units[aUnit].maxHp)))
+        assert.ok(r.ev.some((e) => e.t === "heal" && e.target === aUnit),
+            "hút máu")
         assert.equal(mana - r.s.teamMana.A,
             ap.q0)
     })
@@ -1209,44 +1234,32 @@ test("Q: không dùng được khi chỉ còn 1 Máu hoặc không có tướng 
         0)
     })
 
-test("E: đối diện nhận đủ, 2 đường kề nhận e7; Khiên e4% tổng sát thương",
+test("E: trả e5 Máu hiện tại, chỉ chém tướng đối diện, nhận Khiên e4 sát thương",
     () => {
         const s = aState()
-        s.units[aUnit].hp = 200
-        const m = mult(s)
-        const raw = f(s,
-            aUnit,
-            ak.x("e1 + e2·AD + e3·Máu tối đa")) * m
-        const mana = s.teamMana.A
+        const me = s.units[aUnit]
+        const hp0 = me.hp
         const r = cast(s,
             "A",
             skill(s,
                 "aatrox",
                 "A",
                 "E"))
+        const paid = r.ev.find((e) => e.t === "damage" && e.target === aUnit && e.tag === "effect")
+        near(paid && paid.t === "damage" ? paid.amount : 0,
+            hp0 * ap.e5,
+            1,
+            "trả")
         const d1 = dmgOn(r.ev,
-                D1), d2 = dmgOn(r.ev,
-                D2), d3 = dmgOn(r.ev,
-                D3)
-        assert.equal(d1,
-            takenPhys(r.s,
-                D1,
-                raw))
-        // đường kề đánh sau đòn đối diện: hút máu của đòn trước làm Máu đã mất giảm chút, lệch tối đa vài điểm
-        for (const [d,
-            id] of [[d2,
-                D2],
-            [d3,
-                D3]] as const) assert.ok(Math.abs(d - takenPhys(r.s,
-            id,
-            raw * ap.e7)) <= 3,
-        `${id}: ${d}`)
-        assert.ok(d1 > d2,
-            "đối diện bị hút nhiều hơn")
-        assert.ok(r.ev.some((e) => e.t === "shield" && e.target === aUnit && e.amount === Math.round((d1 + d2 + d3) * ap.e4 / 100)),
-            "Khiên theo tổng sát thương")
-        assert.equal(mana - r.s.teamMana.A,
-            ap.e0)
+            D1)
+        assert.ok(d1 > 0)
+        assert.equal(dmgOn(r.ev,
+            D2) + dmgOn(r.ev,
+            D3),
+        0,
+        "không chạm đường kề")
+        assert.ok(r.ev.some((e) => e.t === "shield" && e.target === aUnit && e.amount === Math.round(d1 * ap.e4)),
+            "Khiên theo sát thương")
     })
 
 /** Đặt lá chiêu lên tay để thử nối Chuỗi */
@@ -1269,54 +1282,61 @@ const aAttackOpen = (s: St, from: string, to: string) => {
 const aChainOpts = (s: St, id: string) => cg.legalActions(s,
     "A").filter((a) => a.t === "chain" && s.players.A.hand.find((c) => c.uid === a.uid)?.id === id)
 
-test("E, R: Quick khi địch nhắm đúng Aatrox",
-    () => {
-        for (const key of ["E",
-            "R"] as const) {
-            const s = aState()
-            aCard(s,
-                "aatrox",
-                key)
-            const open = aAttackOpen(s,
-                D1,
-                aUnit)
-            assert.equal(open.s.phase,
-                "chain",
-                key)
-            assert.ok(aChainOpts(open.s,
-                `aatrox_${key.toLowerCase()}`).length >= 1,
-            key)
-        }
-    })
-
-test("R: không gây sát thương, chỉ hoá quỷ r1 đơn vị (+r2 AD, +r3% Máu tối đa)",
+test("E Quick khi địch nhắm đúng Aatrox; R không phải Quick",
     () => {
         const s = aState()
-        const me = s.units[aUnit], maxHp0 = me.maxHp, ad0 = gm(s).atk(me)
-        const mana = s.teamMana.A
+        aCard(s,
+            "aatrox",
+            "E")
+        aCard(s,
+            "aatrox",
+            "R")
+        const open = aAttackOpen(s,
+            D1,
+            aUnit)
+        assert.equal(open.s.phase,
+            "chain")
+        assert.ok(aChainOpts(open.s,
+            "aatrox_e").length >= 1,
+        "E")
+        assert.equal(aChainOpts(open.s,
+            "aatrox_r").length,
+        0,
+        "R")
+    })
+
+test("R: trả r5 Máu hiện tại, không gây sát thương, hoá quỷ r1 đơn vị (+r2 Công)",
+    () => {
+        const s = aState()
+        const me = s.units[aUnit], hp0 = me.hp
         const r = cast(s,
             "A",
             skill(s,
                 "aatrox",
                 "A",
                 "R"))
-        assert.equal(r.ev.filter((e) => e.t === "damage").length,
+        assert.equal(r.ev.filter((e) => e.t === "damage" && e.target !== aUnit).length,
             0,
             "R không chém")
         const m = r.s.units[aUnit]
-        const bonus = Math.round(maxHp0 * ap.r3 / 100)
+        near(m.hp,
+            hp0 - hp0 * ap.r5,
+            1,
+            "trả nửa Máu")
         assert.equal(m.transform!.id,
             "aatrox_r")
-        assert.equal(m.maxHp,
-            maxHp0 + bonus)
-        assert.equal(gm(r.s).atk(m),
-            ad0 + ap.r2)
+        assert.ok(m.transform!.bonus.atk! > 0)
+        // Công khi hoá quỷ = Công (đã tính nội tại ở Máu sau khi trả) × (1 + r2)
+        const g = gm(r.s)
+        const atkNoForm = g.atk(m) - m.transform!.bonus.atk!
+        near(m.transform!.bonus.atk!,
+            atkNoForm * ap.r2,
+            2,
+            "+Công")
         assert.equal(m.transform!.until,
-            gm(r.s).unitsUntil(m,
+            g.unitsUntil(m,
                 ap.r1))
-        assert.equal(mana - r.s.teamMana.A,
-            ap.r0)
-        assert.equal(cg.playOptions(gm(r.s),
+        assert.equal(cg.playOptions(g,
             "A",
             skill(r.s,
                 "aatrox",
@@ -1326,18 +1346,15 @@ test("R: không gây sát thương, chỉ hoá quỷ r1 đơn vị (+r2 AD, +r3%
         "đang hoá quỷ không dùng lại")
     })
 
-test("R: lần đầu về 0 thì hồi sinh với r4% Máu (thứ tự cứu chết \"transform\"), hết dạng, lần sau chết thật",
+test("R: lần đầu về 0 thì hồi sinh với r4 Máu (thứ tự cứu chết \"transform\"), hết dạng, lần sau chết thật",
     () => {
         assert(cg.RULES.lethalOrder.includes("transform"))
-        const s0 = aState()
-        const maxHp0 = s0.units[aUnit].maxHp
-        const s = cast(s0,
+        const s = cast(aState(),
             "A",
-            skill(s0,
+            skill(aState(),
                 "aatrox",
                 "A",
                 "R")).s
-        const bonus = Math.round(maxHp0 * ap.r3 / 100)
         const g = gm(s), me = s.units[aUnit]
         g.damage(s.units[D1],
             me,
@@ -1350,11 +1367,10 @@ test("R: lần đầu về 0 thì hồi sinh với r4% Máu (thứ tự cứu ch
             "board")
         assert.equal(me.transform,
             undefined)
-        assert.equal(me.maxHp,
-            maxHp0)
-        assert.equal(me.hp,
-            Math.min(maxHp0,
-                Math.round((maxHp0 + bonus) * ap.r4 / 100)))
+        near(me.hp,
+            me.maxHp * ap.r4,
+            1,
+            "hồi sinh")
         g.damage(s.units[D1],
             me,
             99999,
@@ -1394,6 +1410,14 @@ const yState = () => mk({
         kt_dummy: 2, kt_dummy2: 1
     }
 })
+const souls = (s: St) => s.units[yUnit].stacks.yorick_soul ?? 0
+/** Đặt các lá đầu bộ bài B: true = lá chiêu, false = lá thường */
+const topKinds = (s: St, kinds: boolean[]) => kinds.forEach((sk, i) => {
+    s.players.B.deck[i].kind = sk ? "skill" : "support"
+})
+const rCount = (s: St) => count(s,
+    "A",
+    (c) => c.id === "yorick_r")
 
 test("cờ deckOutWinUsesEngineRule bật: cạn bộ bài thua theo luật engine",
     () => {
@@ -1406,15 +1430,16 @@ test("cờ deckOutWinUsesEngineRule bật: cạn bộ bài thua theo luật engi
             "over")
         assert.equal(r.s.winner,
             "A")
-        assert.equal(r.s.endReason,
-            "deck")
     })
 
-test("nội tại: đòn trúng đốt p1 lá bộ đối thủ, +1 Hồn Ma, mỗi tầng p2 Máu tối đa và p3 Giáp",
+test("nội tại: đòn trúng đối diện đốt p1 lá, mỗi lá 1 Hồn (lá chiêu thêm p5); Hồn cho +p2 Công, +p3 Máu tối đa",
     () => {
         const s = yState()
-        const deck0 = s.players.B.deck.length, grave0 = s.players.B.grave.length
-        const maxHp0 = s.units[yUnit].maxHp, armor0 = gm(s).armor(s.units[yUnit])
+        topKinds(s,
+            [false,
+                true])
+        const deck0 = s.players.B.deck.length
+        const maxHp0 = s.units[yUnit].maxHp, atk0 = gm(s).atk(s.units[yUnit])
         const r = basic(basic(s,
             "A",
             "yorick",
@@ -1424,71 +1449,72 @@ test("nội tại: đòn trúng đốt p1 lá bộ đối thủ, +1 Hồn Ma, m�
         D1)
         assert.equal(r.s.players.B.deck.length,
             deck0 - 2 * yp.p1)
-        assert.equal(r.s.players.B.grave.length,
-            grave0 + 2 * yp.p1)
-        assert.equal(r.s.units[yUnit].stacks.yorick_soul,
-            2)
+        const n = 2 + yp.p5
+        assert.equal(souls(r.s),
+            n)
         assert.equal(r.s.units[yUnit].maxHp,
-            maxHp0 + 2 * yp.p2)
-        assert.equal(gm(r.s).armor(r.s.units[yUnit]),
-            armor0 + 2 * yp.p3)
+            maxHp0 + n * yp.p3)
+        assert.equal(gm(r.s).atk(r.s.units[yUnit]),
+            atk0 + n * yp.p2)
     })
 
-test("nội tại: mỗi bội số p4 Hồn Ma tạo 1 lá R",
+test("nội tại: mốc p6 Hồn tạo 1 lá R, mỗi mốc chỉ một lần (chết rồi tích lại không tặng lại)",
     () => {
         const s = yState()
-        s.units[yUnit].stacks.yorick_soul = yp.p4 - 1
-        const r0 = count(s,
+        topKinds(s,
+            [false,
+                false,
+                false])
+        s.units[yUnit].stacks.yorick_soul = yp.p6 - 1
+        const r0 = rCount(s)
+        let r = basic(s,
             "A",
-            (c) => c.id === "yorick_r")
+            "yorick",
+            D1)
+        assert.equal(rCount(r.s),
+            r0 + 1)
+        r = basic(r.s,
+            "A",
+            "yorick",
+            D1)
+        assert.equal(rCount(r.s),
+            r0 + 1,
+            "chưa tới mốc kế")
+        gm(r.s).kill(r.s.units[yUnit],
+            r.s.units[D1])
+        assert.equal(souls(r.s),
+            Math.floor((yp.p6 + 1) / 2))
+        assert.equal(r.s.units[yUnit].stacks.yorick_gift,
+            1,
+            "mốc đã tặng vẫn nhớ")
+    })
+
+test("nội tại: tối đa p7 mốc",
+    () => {
+        const s = yState()
+        topKinds(s,
+            [false])
+        s.units[yUnit].stacks.yorick_soul = yp.p6 * (yp.p7 + 1) - 1
+        s.units[yUnit].stacks.yorick_gift = yp.p7
+        const r0 = rCount(s)
         const r = basic(s,
             "A",
             "yorick",
             D1)
-        assert.equal(r.s.units[yUnit].stacks.yorick_soul,
-            yp.p4)
-        assert.equal(count(r.s,
-            "A",
-            (c) => c.id === "yorick_r"),
-        r0 + 1)
-        const r2 = basic(r.s,
-            "A",
-            "yorick",
-            D1)
-        assert.equal(count(r2.s,
-            "A",
-            (c) => c.id === "yorick_r"),
-        r0 + 1,
-        "chưa tới bội kế")
+        assert.equal(rCount(r.s),
+            r0)
     })
 
-test("Hồn Ma mất một nửa khi Yorick chết, Máu tối đa theo kịp",
-    () => {
-        let s = yState()
-        for (let i = 0; i < 4; i++) s = basic(s,
-            "A",
-            "yorick",
-            D1).s
-        assert.equal(s.units[yUnit].stacks.yorick_soul,
-            4)
-        gm(s).kill(s.units[yUnit],
-            s.units[D1])
-        assert.equal(s.units[yUnit].stacks.yorick_soul,
-            2)
-        assert.equal(s.units[yUnit].maxHp,
-cg.getHero("yorick")!.hp + 2 * yp.p2)
-    })
-
-test("Q: q1 + q2·Máu tối đa sát thương đối diện, hồi q3 + q4·Máu tối đa",
+test("Q: q1 + q2·AD + q3·Máu tối đa vào đối diện, đốt q4 lá, hồi q5 mỗi Hồn nhận được",
     () => {
         const s = yState()
-        s.units[yUnit].hp = 50
+        topKinds(s,
+            [true])
+        s.units[yUnit].hp = 100
         const raw = f(s,
-                yUnit,
-                yk.x("q1 + q2·Máu tối đa")), heal = Math.round(f(s,
-                yUnit,
-                yk.x("q3 + q4·Máu tối đa")))
-        const mana = s.teamMana.A
+            yUnit,
+            yk.x("q1 + q2·AD + q3·Máu tối đa"))
+        const deck0 = s.players.B.deck.length
         const r = cast(s,
             "A",
             skill(s,
@@ -1497,197 +1523,103 @@ test("Q: q1 + q2·Máu tối đa sát thương đối diện, hồi q3 + q4·Má
                 "Q"))
         assert.equal(dmgOn(r.ev,
             D1),
-        takenPhys(r.s,
+        takenPhys(s,
             D1,
             raw))
-        assert.equal(r.s.units[yUnit].hp,
-            50 + heal)
-        assert.equal(mana - r.s.teamMana.A,
-            yp.q0)
+        assert.equal(dmgOn(r.ev,
+            D2),
+        0,
+        "chỉ đối diện")
+        assert.equal(r.s.players.B.deck.length,
+            deck0 - yp.q4)
+        const gained = souls(r.s)
+        assert.equal(gained,
+            1 + yp.p5)
+        assert.ok(r.ev.some((e) => e.t === "heal" && e.target === yUnit && e.amount === gained * yp.q5),
+            "hồi theo Hồn")
+        assert.equal(yp.q0 + yp.e0 + yp.r0,
+            0,
+            "0 mana")
     })
 
-test("E: đốt e1 lá, e2 + e3·Giáp sát thương, Rã Giáp e4 đơn vị",
+test("E: chỉ đối diện, Rã Giáp, đốt e4 lá, Khiên e6 mỗi lá; là Quick",
     () => {
         const s = yState()
-        const deck0 = s.players.B.deck.length, raw = f(s,
+        const raw = f(s,
             yUnit,
-            yk.x("e2 + e3·Giáp"))
-        const mana = s.teamMana.A
+            yk.x("e1 + e2·AD + e3·Máu tối đa"))
+        const deck0 = s.players.B.deck.length
         const r = cast(s,
             "A",
             skill(s,
                 "yorick",
                 "A",
-                "E"),
-            {
-                target: D2
-            })
+                "E"))
+        assert.equal(dmgOn(r.ev,
+            D1),
+        takenPhys(s,
+            D1,
+            raw))
         assert.equal(dmgOn(r.ev,
             D2),
-        takenPhys(s,
-            D2,
-            raw),
-        "tính Giáp trước khi Rã Giáp")
+        0)
         assert.equal(r.s.players.B.deck.length,
-            deck0 - yp.e1)
-        assert.equal(r.s.units[D2].statuses.shred.until,
-            gm(r.s).unitsUntil(r.s.units[yUnit],
-                yp.e4))
-        assert.equal(mana - r.s.teamMana.A,
-            yp.e0)
+            deck0 - yp.e4)
+        assert.ok(r.s.units[D1].statuses.shred,
+            "Rã Giáp")
+        assert.ok(r.ev.some((e) => e.t === "shield" && e.target === yUnit && e.amount === yp.e4 * yp.e6))
+        assert.equal(cg.getHero("yorick")!.skills.E.quick,
+            true)
     })
 
-test("R: gọi Ma Sương ô phụ với Máu r1 + r2·Máu tối đa, Giáp r3 + r4·Giáp",
+test("R: đốt r1 lá rồi chém đối diện vật lý + r5 chuẩn mỗi Hồn",
     () => {
         const s = yState()
-        const hpExp = Math.round(f(s,
-                yUnit,
-                yk.x("r1 + r2·Máu tối đa"))), armExp = Math.round(f(s,
-                yUnit,
-                yk.x("r3 + r4·Giáp")))
-        const mana = s.teamMana.A
+        s.units[D1].maxHp = s.units[D1].hp = 9000
+        topKinds(s,
+            [false,
+                false,
+                false])
+        s.units[yUnit].stacks.yorick_soul = 10
+        const deck0 = s.players.B.deck.length
         const r = cast(s,
             "A",
             skill(s,
                 "yorick",
                 "A",
                 "R"))
-        const mist = r.s.units[r.s.extra.A!]
-        assert.equal(mist.token!.id,
-            "yorick_mist")
-        assert.equal(mist.token!.ownerId,
-            yUnit)
-        assert.equal(mist.maxHp,
-            hpExp)
-        assert.equal(mist.token!.armor,
-            armExp)
-        assert.equal(mana - r.s.teamMana.A,
-            yp.r0)
+        assert.equal(r.s.players.B.deck.length,
+            deck0 - yp.r1)
+        const tru = r.ev.filter((e) => e.t === "damage" && e.target === D1 && e.kind === "true")
+        assert.equal(tru.reduce((x, e) => x + (e.t === "damage" ? e.amount : 0),
+            0),
+        yp.r5 * (10 + yp.r1))
+        assert.equal(dmgOn(r.ev,
+            D2),
+        0,
+        "chỉ đối diện")
     })
 
-test("R lần hai khi đã có Ma Sương: hồi đầy và nhận 1 Tiến Hoá",
+test("Hồn mất một nửa khi Yorick chết, Máu tối đa theo kịp",
     () => {
-        let s = cast(yState(),
-            "A",
-            skill(yState(),
-                "yorick",
-                "A",
-                "R")).s
-        const mist0 = s.units[s.extra.A!], maxHp0 = mist0.maxHp, armor0 = mist0.token!.armor
-        mist0.hp = 10
-        s = cast(s,
-            "A",
-            skill(s,
-                "yorick",
-                "A",
-                "R")).s
-        const mist = s.units[s.extra.A!]
-        assert.equal(mist.id,
-            mist0.id,
-            "cùng một Ma Sương")
-        assert.equal(mist.maxHp,
-            maxHp0 + yp.r8)
-        assert.equal(mist.hp,
-            mist.maxHp)
-        assert.equal(mist.token!.armor,
-            armor0 + yp.r9)
-        assert.equal(mist.stacks.mist_evo,
-            1)
-    })
-
-test("Ma Sương đầu lượt: đánh đối diện r5 + r6·Hồn Ma + r10·Tiến Hoá và đốt r7 lá",
-    () => {
-        let s = cast(yState(),
-            "A",
-            skill(yState(),
-                "yorick",
-                "A",
-                "R")).s
-        s.units[yUnit].stacks.yorick_soul = 3
-        s.units[s.extra.A!].stacks.mist_evo = 2
-        const deck0 = s.players.B.deck.length
-        s = endTurn(s).s // lượt B
-        s = endTurn(s).s // đầu lượt A
-        const exp = takenPhys(s,
-            D1,
-            yp.r5 + yp.r6 * 3 + yp.r10 * 2)
-        assert.equal(s.players.B.deck.length,
-            deck0 - yp.r7 - 1 /* B rút 1 lá đầu lượt */)
-        const ev = endTurn(endTurn(cast(yState(),
-            "A",
-            skill(yState(),
-                "yorick",
-                "A",
-                "R")).s).s)
-        assert(ev.ev.some((e) => e.t === "damage" && e.src === yUnit && e.target === D1 && e.tag === "effect"))
-        assert(exp > 0)
-    })
-
-test("Ma Sương đánh theo mỗi đòn của Yorick, E nhắm đúng tướng của E",
-    () => {
-        const s0 = cast(yState(),
-            "A",
-            skill(yState(),
-                "yorick",
-                "A",
-                "R")).s
-        s0.units[yUnit].stacks.yorick_soul = 0
-        const strike = takenPhys(s0,
-            D1,
-            yp.r5 + yp.r6 * 1) // đòn này cho Hồn Ma trước rồi Ma Sương đánh: 1 Hồn Ma
-        const r = basic(s0,
+        let s = yState()
+        topKinds(s,
+            [false,
+                false,
+                false,
+                false])
+        for (let i = 0; i < 4; i++) s = basic(s,
             "A",
             "yorick",
-            D1)
-        const effect = r.ev.filter((e) => e.t === "damage" && e.src === yUnit && e.tag === "effect" && e.target === D1)
-        assert.equal(effect.length,
-            1)
-        assert.equal(effect[0].t === "damage" && effect[0].amount,
-            strike)
-        const e = cast(r.s,
-            "A",
-            skill(r.s,
-                "yorick",
-                "A",
-                "E"),
-            {
-                target: D2
-            })
-        assert(e.ev.some((x) => x.t === "damage" && x.tag === "effect" && x.target === D2),
-            "Ma Sương đánh tướng của E")
-    })
-
-test("Ma Sương biến mất khi Yorick chết",
-    () => {
-        const s = cast(yState(),
-            "A",
-            skill(yState(),
-                "yorick",
-                "A",
-                "R")).s
-        assert(s.extra.A)
+            D1).s
+        assert.equal(souls(s),
+            4)
         gm(s).kill(s.units[yUnit],
             s.units[D1])
-        assert.equal(s.extra.A,
-            null)
-    })
-
-test("đốt cạn bộ bài đối thủ thì đối thủ thua đầu lượt kế",
-    () => {
-        const s = yState()
-        s.players.B.deck = s.players.B.deck.slice(0,
-            yp.p1)
-        const r = basic(s,
-            "A",
-            "yorick",
-            D1)
-        assert.equal(r.s.players.B.deck.length,
-            0)
-        const e = endTurn(r.s)
-        assert.equal(e.s.winner,
-            "A")
-        assert.equal(e.s.endReason,
-            "deck")
+        assert.equal(souls(s),
+            2)
+        assert.equal(s.units[yUnit].maxHp,
+            cg.getHero("yorick")!.hp + 2 * yp.p3)
     })
 
 // ===================================================================================================

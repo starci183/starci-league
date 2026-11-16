@@ -709,7 +709,7 @@ test("copy skill gọi token: Annie R gọi Tibbers cho Sylas, Sylas chết thì
         assert.equal(gm(r.s).tokenOf("A"),
             undefined)
     })
-test("copy skill gọi token: Yorick R, Ma Sương đánh đầu lượt phe Sylas",
+test("copy skill Yorick R: Sylas đốt bộ bài phe Yorick và chém Yorick đối diện",
     () => {
         const s0 = mk({
             A: {
@@ -721,19 +721,17 @@ test("copy skill gọi token: Yorick R, Ma Sương đánh đầu lượt phe Syl
         tank(s0,
             "B",
             "yorick")
+        const deck0 = s0.players.B.deck.length
         const st = steal(s0,
             "yorick",
             "R")
         const r = play(st.s,
             st.card)
-        assert.equal(gm(r.s).tokenOf("A")?.token?.ownerId,
-            "A:sylas")
-        let s = endTurn(r.s).s
-        const e = endTurn(s)
-        s = e.s
-        assert.ok(dmgOn(e.ev,
+        assert.ok(dmgOn(r.ev,
             "B:yorick") > 0,
-        "Ma Sương đánh đối diện")
+        "chém đối diện")
+        assert.ok(r.s.players.B.deck.length < deck0,
+            "đốt bộ bài phe B")
     })
 test("card expires: hết lượt đối phương thì Chiêu Đoạt biến mất, không vào mộ",
     () => {

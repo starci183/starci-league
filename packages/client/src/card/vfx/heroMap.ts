@@ -877,7 +877,7 @@ Object.assign(HEROES.yorick,
                 0x4dffd2), extra: "yorickShred"
         },
         r: ult("none",
-            "yorickMaidenRise",
+            "yorickEulogyCleave",
             0x4dffd2,
             0xd2fff2,
             "yorickEulogyCast"),

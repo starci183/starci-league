@@ -1,8 +1,7 @@
-// Aatrox (Đấu sĩ, vật lý). Thầy chốt lại 2026-11-16, số liệu ở balance/heroes/aatrox.json. Cả 3 chiêu 0 mana.
-// CHẤT: "Máu càng yếu càng mạnh". Càng mất nhiều Máu, mọi sát thương Aatrox gây càng nặng và hút lại một phần.
-// Q trả máu để chém kẻ đối diện; E (Quick) chém 3 đường trước mặt (đối diện nặng nhất) và nhận Khiên theo sát thương;
-// R (Quick) không gây sát thương, chỉ tăng chỉ số: hoá quỷ r1 đơn vị (+r2 AD, +r3% Máu tối đa); lần đầu về 0 Máu thì hồi sinh
-// với r4% Máu và chơi tiếp (g.transform reviveHp, thứ tự cứu chết "transform"). Q, E scale theo Công + Máu tối đa.
+// Aatrox (Đấu sĩ, vật lý). Thầy chốt lại 2026-11-16, số liệu ở balance/heroes/aatrox.json. Chiêu không tốn mana: trả bằng Máu hiện tại.
+// CHẤT: "Đổi máu lấy máu". Máu càng thấp, Công càng cao (nội tại). Đánh thường và Q trả Máu rồi hút lại p3→p4 sát thương gây ra
+// tuỳ Máu đã mất; E trả Máu, chém tướng đối diện và nhận Khiên theo sát thương; R trả nửa Máu hiện tại, hoá quỷ tăng mạnh Công và hồi
+// sinh một lần (g.transform reviveHp, thứ tự cứu chết "transform").
 import {
     kit, when
 } from "../balance"
@@ -15,132 +14,135 @@ import type {
 import type {
     Unit
 } from "../types"
-import {
-    otherSide
-} from "../types"
 
 const k = kit("aatrox"), { p } = k
 export const FORM = "aatrox_r"
-const LANES = 5
 export const F_Q = k.x("q2 + q3·AD + q4·Máu tối đa"), EN_Q = k.xe("q2 + q3·AD + q4·Máu tối đa")
 export const F_E = k.x("e1 + e2·AD + e3·Máu tối đa"), EN_E = k.xe("e1 + e2·AD + e3·Máu tối đa")
+const pct = (v: number) => `${Math.round(v * 1000) / 10}%`
 
 /** Tỉ lệ Máu đã mất của Aatrox (0..1) */
 export const missingFrac = (me: Unit) => (me.maxHp > 0 ? Math.max(0,
     me.maxHp - me.hp) / me.maxHp : 0)
-/** Hệ số sát thương nội tại: 1 + p1% cho mỗi 1% Máu đã mất */
-export const damageMult = (g: Game, me: Unit) => { void g; return 1 + p.p1 * 100 * missingFrac(me) / 100 }
-/** Phần trăm sát thương hồi lại của nội tại */
-export const lifestealPct = (g: Game, me: Unit) => { void g; void me; return p.p2 / 100 }
+/** Tỉ lệ hút máu: p3 khi đầy Máu → p4 khi cạn Máu, tuyến tính theo Máu đã mất */
+export const lifestealFrac = (me: Unit) => p.p3 + (p.p4 - p.p3) * missingFrac(me)
+/** Trả `frac` Máu hiện tại (còn ít nhất 1) */
+const payCurrent = (g: Game, me: Unit, frac: number) => g.payHp(me,
+    me.hp * frac,
+    1)
 
 export default defineHero({
     id: "aatrox", name: "Aatrox", role: "fighter", damage: "physical", ...k.base,
-    desc: "Kẻ Diệt Thế, máu càng yếu càng mạnh: trả máu để chém, hút máu cả hàng trước mặt, hoá quỷ và chết đi sống lại.",
+    desc: "Kẻ Diệt Thế đổi máu lấy máu: mỗi đòn trả Máu, Máu càng thấp Công càng cao và hút lại càng nhiều; hoá quỷ để kết thúc trận đánh.",
     passive: {
         name: "Cái Giá Bằng Máu",
-        desc: `Aatrox gây thêm ${p.p1}% sát thương cho mỗi 1% Máu đã mất và hồi ${p.p2}% sát thương gây ra lên tướng địch.`,
+        desc: `Aatrox có thêm Công bằng ${pct(p.p1)} Công gốc nhân tỉ lệ Máu đã mất (Máu càng thấp Công càng cao). Mỗi đòn đánh thường trả ${pct(p.p2)} Máu hiện tại, rồi hút lại ${pct(p.p3)} → ${pct(p.p4)} sát thương gây ra, tăng dần theo Máu đã mất.`,
     },
     en: {
-        desc: "World Ender who grows stronger the lower his HP: pays blood to strike, drains the whole row in front, becomes a demon and comes back from death.",
+        desc: "World Ender who trades blood for blood: every blow costs HP, the lower his HP the higher his AD and the more he drains; becomes a demon to end the fight.",
         passive: {
             name: "Blood Price",
-            desc: `Aatrox deals ${p.p1}% more damage for every 1% missing HP and heals ${p.p2}% of the damage he deals to enemy champions.`,
+            desc: `Aatrox gains AD equal to ${pct(p.p1)} of his base AD times his missing HP fraction (lower HP, higher AD). Each attack costs ${pct(p.p2)} of his current HP, then drains ${pct(p.p3)} → ${pct(p.p4)} of the damage dealt, rising with missing HP.`,
         },
         skills: {
             Q: {
                 name: "The Darkin Blade",
-                desc: `Lose ${p.q1}% of current HP (never below 1); the enemy opposite takes {${EN_Q}} physical damage.`,
+                desc: `Pay ${pct(p.q1)} of current HP (never below 1); the enemy opposite takes {${EN_Q}} physical damage. Aatrox drains ${pct(p.p3)} → ${pct(p.p4)} of the damage dealt, rising with missing HP.`,
             },
             E: {
                 name: "Blood Ward",
-                desc: `Quick. When the enemy targets exactly Aatrox, you may play this card (it can also be played proactively): the enemy opposite takes {${EN_E}} physical damage and the enemies in the 2 adjacent lanes take ${p.e7 * 100}% of that. Aatrox gains a Shield equal to ${p.e4}% of the total damage dealt.`,
+                desc: `Quick. When the enemy targets exactly Aatrox, you may play this card (it can also be played proactively): pay ${pct(p.e5)} of current HP; the enemy opposite takes {${EN_E}} physical damage and Aatrox gains a Shield equal to ${pct(p.e4)} of the damage dealt.`,
             },
             R: {
                 name: "World Ender",
-                desc: `Quick. When the enemy targets exactly Aatrox, you may play this card (it can also be played proactively): Aatrox becomes a demon for ${p.r1} units: +${p.r2} AD and +${p.r3}% max HP. The first time he would fall to 0 HP he revives with ${p.r4}% HP and keeps playing; the form ends.`,
+                desc: `Pay ${pct(p.r5)} of current HP; Aatrox becomes a demon for ${p.r1} units: +${pct(p.r2)} AD. The first time he would fall to 0 HP he revives with ${pct(p.r4)} HP and keeps playing; the form ends.`,
             },
         },
     },
-    modifyDamage(g, me, d) {
-        if (d.src?.id !== me.id || d.target.side === me.side || d.target.token) return 1
-        if (d.tag !== "attack" && d.tag !== "skill") return 1
-        return damageMult(g,
-            me)
+    // Máu thấp, Công cao: + p1 × Công gốc × tỉ lệ Máu đã mất
+    bonusStats(g, me) {
+        void g
+        return {
+            atk: p.p1 * k.base.atk * missingFrac(me)
+        }
     },
     hooks: {
-        onDamage(g, me, d) {
-            if (d.src?.id !== me.id || d.target.side === me.side || d.target.token) return
-            if (d.tag !== "attack" && d.tag !== "skill") return
-            const dealt = d.hpLost + d.absorbed
-            if (dealt > 0) g.heal(me,
+        onAttack(g, me, d) {
+            if (d.attacker.id !== me.id) return
+            payCurrent(g,
                 me,
-                dealt * lifestealPct(g,
-                    me))
+                p.p2)
+        },
+        onDamage(g, me, d) {
+            if (d.src?.id !== me.id || d.target.side === me.side || d.target.token || d.tag !== "attack") return
+            const dealt = d.hpLost + d.absorbed
+            if (dealt > 0 && me.status === "board") g.heal(me,
+                me,
+                dealt * lifestealFrac(me))
         },
     },
     skills: {
         Q: {
             key: "Q", mana: p.q0, name: "Lưỡi Gươm Darkin", target: "opposite",
-            desc: `Mất ${p.q1}% Máu hiện tại (còn ít nhất 1); tướng địch đối diện nhận {${F_Q}} sát thương vật lý.`,
+            desc: `Trả ${pct(p.q1)} Máu hiện tại (còn ít nhất 1); tướng địch đối diện nhận {${F_Q}} sát thương vật lý. Aatrox hút lại ${pct(p.p3)} → ${pct(p.p4)} sát thương gây ra, tăng dần theo Máu đã mất.`,
             canPlay: (c) => c.self.hp >= 2 && !!c.g.opposite(c.self),
             resolve(c) {
                 const g = c.g, me = c.self
-                g.payHp(me,
-                    me.hp * p.q1 / 100,
-                    1)
-                g.damage(me,
+                payCurrent(g,
+                    me,
+                    p.q1)
+                const dealt = g.damage(me,
                     c.target!,
                     c.f(F_Q),
                     "physical",
                     {
                         tag: "skill"
                     })
+                if (dealt > 0 && me.status === "board") g.heal(me,
+                    me,
+                    dealt * lifestealFrac(me))
             },
         },
         E: {
-            key: "E", mana: p.e0, name: "Huyết Thuẫn", target: "none", quick: true,
+            key: "E", mana: p.e0, name: "Huyết Thuẫn", target: "opposite", quick: true,
             quickWhen: when.targetsSelf,
-            desc: `Quick. Khi địch nhắm đúng Aatrox, bạn có thể dùng lá này (dùng chủ động cũng được): tướng địch đối diện nhận {${F_E}} sát thương vật lý, tướng ở 2 đường kề nhận ${p.e7 * 100}% mức đó. Aatrox nhận Khiên bằng ${p.e4}% tổng sát thương đã gây.`,
+            desc: `Quick. Khi địch nhắm đúng Aatrox, bạn có thể dùng lá này (dùng chủ động cũng được): trả ${pct(p.e5)} Máu hiện tại; tướng địch đối diện nhận {${F_E}} sát thương vật lý, Aatrox nhận Khiên bằng ${pct(p.e4)} sát thương đã gây.`,
+            canPlay: (c) => c.self.hp >= 2 && !!c.g.opposite(c.self),
             resolve(c) {
                 const g = c.g, me = c.self
-                const raw = c.f(F_E)
-                const foe = otherSide(c.side)
-                let total = 0
-                for (const lane of [me.lane,
-                    me.lane - 1,
-                    me.lane + 1]) {
-                    const t = lane >= 0 && lane < LANES ? g.at(foe,
-                        lane) : undefined
-                    if (t && !t.token) total += g.damage(me,
-                        t,
-                        lane === me.lane ? raw : raw * p.e7,
-                        "physical",
-                        {
-                            tag: "skill"
-                        })
-                }
-                if (me.status === "board" && total > 0) g.shield(me,
+                payCurrent(g,
                     me,
-                    total * p.e4 / 100)
+                    p.e5)
+                const dealt = g.damage(me,
+                    c.target!,
+                    c.f(F_E),
+                    "physical",
+                    {
+                        tag: "skill"
+                    })
+                if (dealt > 0 && me.status === "board") g.shield(me,
+                    me,
+                    dealt * p.e4)
             },
         },
         R: {
-            key: "R", mana: p.r0, name: "Kẻ Diệt Thế", target: "none", quick: true,
-            quickWhen: when.targetsSelf,
-            desc: `Quick. Khi địch nhắm đúng Aatrox, bạn có thể dùng lá này (dùng chủ động cũng được): Aatrox hoá quỷ ${p.r1} đơn vị: +${p.r2} AD, +${p.r3}% Máu tối đa. Lần đầu về 0 Máu, Aatrox hồi sinh với ${p.r4}% Máu và chơi tiếp, hết dạng quỷ.`,
-            canPlay: (c) => !c.g.isTransformed(c.self,
+            key: "R", mana: p.r0, name: "Kẻ Diệt Thế", target: "none",
+            desc: `Trả ${pct(p.r5)} Máu hiện tại; Aatrox hoá quỷ ${p.r1} đơn vị: +${pct(p.r2)} Công. Lần đầu về 0 Máu, Aatrox hồi sinh với ${pct(p.r4)} Máu và chơi tiếp, hết dạng quỷ.`,
+            canPlay: (c) => c.self.hp >= 2 && !c.g.isTransformed(c.self,
                 FORM),
             resolve(c) {
                 const g = c.g, me = c.self
                 if (me.status !== "board") return
-                const hpBonus = Math.round(me.maxHp * p.r3 / 100)
+                payCurrent(g,
+                    me,
+                    p.r5)
                 if (!g.transform(me,
                     FORM,
                     p.r1,
                     {
                         bonus: {
-                            atk: p.r2
-                        }, maxHp: hpBonus, reviveHp: (me.maxHp + hpBonus) * p.r4 / 100,
+                            atk: Math.round(g.atk(me) * p.r2)
+                        }, reviveHp: me.maxHp * p.r4, heal: false,
                     })) return
                 me.transform!.until = g.unitsUntil(me,
                     p.r1)

@@ -59,6 +59,95 @@ export function buildTutorialMatch(root: Node, nav: Nav, hero: string, slot: Slo
             highlightCard: (c) => sc.focus.includes(c.id), highlightBadge: "Thử lá này"
         })
 
+    // Móc dev: window.__tut cho kiểm thử tự động bằng trình duyệt (đọc trạng thái, đánh lá, bước, kết thúc lượt, đổi tình huống)
+    type Act = ReturnType<typeof cg.legalActions>[number]
+    const legal = (): Act[] => cg.legalActions(room.state,
+        "A")
+    const send = (a: Act | undefined) => { if (a) room.send("cg:action",
+        {
+            action: a
+        }); return !!a }
+    const cardOf = (uid?: string) => room.state.players.A.hand.find((c) => c.uid === uid)?.id
+    ;(globalThis as unknown as { __tut?: unknown }).__tut = {
+        hero, slot, variant, scenario: sc, room,
+        state: () => room.state,
+        legal: () => legal().map((a) => ({
+            t: a.t, card: "uid" in a ? cardOf(a.uid as string) : undefined, args: "args" in a ? a.args : undefined
+        })),
+        play: (id: string, target?: string) => send(legal().find((a) => (a.t === "play" || a.t === "chain") && cardOf((a as { uid?: string }).uid) === id
+            && (!target || (a as { args?: { target?: string } }).args?.target === target))),
+        attack: (target?: string) => send(legal().find((a) => a.t === "attack" && (!target || (a as { target?: string }).target === target))),
+        step: () => send(legal().find((a) => a.t === "step")),
+        end: () => send(legal().find((a) => a.t === "end")),
+        pass: () => send(legal().find((a) => a.t === "pass")),
+        go: (h: string, sl: SlotKey, v = 0) => nav.startTutorial(h,
+            sl,
+            v),
+    }
+    ;(globalThis as unknown as { __goTut?: unknown }).__goTut = (h: string, sl: SlotKey, v = 0) => nav.startTutorial(h,
+        sl,
+        v)
+
+    // Trận kết thúc trong tình huống (vd Yorick làm đối thủ cạn bài): hiện bảng kết quả giữa bàn, Làm lại hoặc Chiêu sau
+    room.onMessage("cg:end",
+        ((end: { winner: cg.Side | null; reason: string }) => {
+            const win = end.winner === "A"
+            const why = end.reason === "deck" ? (win ? "Đối thủ cạn bộ bài: đầu lượt không còn lá để rút" : "Bạn cạn bộ bài")
+                : (win ? "Đối thủ hết mạng" : "Bạn hết mạng")
+            const box = new Frame(root,
+                560,
+                170,
+                -60,
+                60,
+                {
+                    fill: withAlpha(C.panel,
+                        245), stroke: win ? C.goldLight : C.teal, glow: C.tealDark, inner: null, chamfer: 10,
+                })
+            box.node.name = "TutorialEnd"
+            box.node.addComponent(BlockInputEvents)
+            text(box.node,
+                win ? "THẮNG" : "THUA",
+                0,
+                48,
+                {
+                    font: "title", size: 34, width: 520, color: win ? C.goldLight : C.text
+                })
+            text(box.node,
+                why,
+                0,
+                8,
+                {
+                    size: 15, width: 520, upper: false, color: C.text
+                })
+            new Button(box.node,
+                "Làm lại",
+                160,
+                34,
+                -90,
+                -48,
+                () => nav.startTutorial(hero,
+                    slot,
+                    sc.variant),
+                "primary",
+                15)
+            new Button(box.node,
+                "Chiêu sau ›",
+                160,
+                34,
+                90,
+                -48,
+                () => {
+                    const order = allScenarios()
+                    const i = order.findIndex((o) => o.hero === hero && o.slot === slot && o.variant === sc.variant)
+                    const o = order[(i + 1) % order.length]
+                    nav.startTutorial(o.hero,
+                        o.slot,
+                        o.variant)
+                },
+                "gold",
+                15)
+        }) as never)
+
     // ---- khung Hướng dẫn ----
     const f = new Frame(root,
         PANEL.w,

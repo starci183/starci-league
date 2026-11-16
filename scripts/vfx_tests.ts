@@ -165,7 +165,7 @@ test("Lux Q, Yorick R và miễn sát thương Janna R có hình ảnh đúng lo
         "luxPrism")
         assert.equal(skillVfx("yorick",
             "r").impact,
-        "yorickMaidenRise")
+        "yorickEulogyCleave")
         assert.notEqual(skillVfx("yorick",
             "r").impact,
         "summonToken")

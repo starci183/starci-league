@@ -48,10 +48,10 @@ export const STACK_KITS_FIGHTER: Record<string, Bi> = {
     },
     yorick_soul: {
         vi: {
-            name: "Hồn Ma", desc: "Mỗi đòn trúng cho 1 Hồn Ma, không giới hạn. Mỗi tầng cho Máu tối đa và Giáp; mỗi bội số cố định tạo 1 lá R. Yorick chết mất một nửa."
+            name: "Hồn", desc: "Mỗi lá Yorick đốt khỏi bộ bài đối thủ cho 1 Hồn (lá chiêu thêm 1), không giới hạn. Mỗi Hồn cho Công và Máu tối đa; mốc 25/50/75 Hồn mỗi mốc tạo 1 lá R. Yorick chết mất một nửa."
         },
         en: {
-            name: "Wraith", desc: "Each hit gives 1 Wraith, no limit. Each stack gives max HP and Armor; at every fixed multiple you create 1 R card. Yorick loses half when he dies."
+            name: "Soul", desc: "Each card Yorick burns from the opponent's deck gives 1 Soul (skill cards 1 more), no limit. Each Soul gives AD and max HP; the 25/50/75 Soul milestones each create 1 R card. Yorick loses half when he dies."
         },
     },
     mist_evo: {
@@ -105,10 +105,10 @@ export const KEYWORDS_KITS_FIGHTER: Record<string, Keyword> = {
         descEn: "Darius's mark on the carrier, stacks without limit, expires some units after the last one was added. At the start of the carrier's turn it deals physical damage per stack. The carrier loses half when it dies.",
     },
     yorick_soul: {
-        vi: "Hồn Ma",
-        en: "Wraith",
-        descVi: "Bộ đếm của Yorick: mỗi đòn trúng cho 1 Hồn Ma, không giới hạn. Mỗi tầng cho Máu tối đa và Giáp; mỗi bội số cố định tạo 1 lá R. Yorick chết mất một nửa.",
-        descEn: "Yorick's counter: each hit gives 1 Wraith, no limit. Each stack gives max HP and Armor; at every fixed multiple you create 1 R card. Yorick loses half when he dies.",
+        vi: "Hồn",
+        en: "Soul",
+        descVi: "Bộ đếm của Yorick: mỗi lá Yorick đốt khỏi bộ bài đối thủ cho 1 Hồn (lá chiêu thêm 1), không giới hạn. Mỗi Hồn cho Công và Máu tối đa; mốc 25/50/75 Hồn mỗi mốc tạo 1 lá R. Yorick chết mất một nửa.",
+        descEn: "Yorick's counter: each card Yorick burns from the opponent's deck gives 1 Soul (skill cards 1 more), no limit. Each Soul gives AD and max HP; the 25/50/75 Soul milestones each create 1 R card. Yorick loses half when he dies.",
     },
     yorick_mist: {
         vi: "Ma Sương",

@@ -164,7 +164,7 @@ for (const hero of TUTORIAL_HEROES) {
     }
 }
 G("Hướng dẫn · biến thể")
-test("Garen, Darius, Aatrox: mỗi ô có ít nhất 2 biến thể; 3 tướng còn lại giữ 1 kịch bản mỗi ô",
+test("Garen, Darius, Aatrox: mỗi ô có ít nhất 2 biến thể; Yorick 2+ trừ đánh thường; Braum, Blitzcrank giữ 1 kịch bản mỗi ô",
     () => {
         for (const hero of TUTORIAL_HEROES) for (const slot of SLOT_KEYS) {
             const n = variantsOf(hero,
@@ -172,6 +172,8 @@ test("Garen, Darius, Aatrox: mỗi ô có ít nhất 2 biến thể; 3 tướng 
             if (["garen",
                 "darius",
                 "aatrox"].includes(hero)) assert.ok(n >= 2,
+                `${hero}:${slot} chỉ có ${n}`)
+            else if (hero === "yorick") assert.ok(n >= (slot === "basic" ? 1 : 2),
                 `${hero}:${slot} chỉ có ${n}`)
             else assert.equal(n,
                 1,
@@ -205,7 +207,7 @@ test("scenarioOf mặc định biến thể đầu, parseVariant đếm từ 1, 
                 k).length,
             0),
             0))
-        assert.equal(scenarioOf("yorick",
+        assert.equal(scenarioOf("braum",
             "q")?.title,
         "")
     })
@@ -231,15 +233,11 @@ test("Darius R hạ Lux có 4 Chảy Máu: lá R về tay",
         assert.ok(handOf(msgs).some((c) => c.id === "darius_r"),
             "lá R chưa về tay")
     })
-test("Yorick nội tại: Ma Sương có sẵn, đòn trúng đủ 20 Hồn Ma cho lá R",
+test("Yorick nội tại: 24 Hồn, đòn trúng đủ 25 Hồn thì nhận lá R",
     async () => {
         const sc = scenarioOf("yorick",
-            "p")!
-        const s = buildScenarioState(sc)
-        assert.ok(s.extra.A,
-            "Ma Sương chưa ở ô phụ")
-        assert.equal(s.step,
-            "battle")
+            "p",
+            1)!
         let done = false
         const msgs = await run(sc,
             (legal) => {
@@ -305,12 +303,42 @@ test("Braum E đỡ thay Garen",
             "e")
         assert.ok(events.some((e) => e.t === "shield" && e.target === "A:braum"))
     })
-test("Yorick R: ô phụ trống trước khi dùng",
-    () => {
-        const s = buildScenarioState(scenarioOf("yorick",
-            "r")!)
-        assert.equal(s.extra.A,
-            null)
+test("Yorick R 30 Hồn kết liễu Ahri",
+    async () => {
+        const { events } = await playScenario("yorick",
+            "r",
+            1)
+        assert.ok(events.some((e) => e.t === "kill" && e.target === "B:ahri"))
+    })
+test("Yorick cạn bài: E đốt 2 lá cuối, hết lượt thì đối thủ thua",
+    async () => {
+        const sc = scenarioOf("yorick",
+            "p",
+            2)!
+        assert.equal(buildScenarioState(sc).players.B.deck.length,
+            2)
+        let played = false, ended = false
+        const msgs = await run(sc,
+            (legal, _v, hand) => {
+                if (!played) {
+                    const a = legal.find((x) => x.t === "play" && hand.find((c) => c.uid === x.uid)?.id === "yorick_e")
+                    if (!a) return legal.length ? undefined : "wait"
+                    played = true
+                    return a
+                }
+                const pass = legal.find((x) => x.t === "pass")
+                if (pass) return pass
+                if (!ended) {
+                    const e = legal.find((x) => x.t === "end")
+                    if (e) { ended = true; return e }
+                }
+                return legal.length ? undefined : "wait"
+            })
+        const end = msgs.find((m) => m.type === "cg:end")?.payload as { winner?: string; reason?: string } | undefined
+        assert.equal(end?.winner,
+            "A")
+        assert.equal(end?.reason,
+            "deck")
     })
 test("Braum nội tại: Darius đánh Braum, Braum nhận Song Giáp",
     async () => {
@@ -377,22 +405,26 @@ const dmgOn = (ev: cg.GameEvent[], target: string, src?: string) => ev.filter((e
 const sum = (xs: { amount: number }[]) => xs.reduce((n, x) => n + x.amount,
     0)
 
-test("Aatrox R (Quick): không có R thì Tàn Sát của Darius hạ Aatrox; nối R thì về 0 Máu rồi hồi sinh 30%",
+test("Aatrox R: không có R thì Tàn Sát của Darius hạ Aatrox; có R thì về 0 Máu rồi hồi sinh 30%",
     () => {
         const base = stateOf("aatrox",
             "r",
             0)
-        const noR = settle(cast(structuredClone(base),
+        const noR = then(endTurn(structuredClone(base),
+            "A"),
+        (s) => settle(cast(s,
             "B",
-            "darius_q"))
+            "darius_q")))
         assert.ok(noR.events.some((e) => e.t === "kill" && e.target === "A:aatrox"),
             "đòn của Darius chưa đủ hạ Aatrox")
-        const r = settle(then(cast(base,
-            "B",
-            "darius_q"),
-        (s) => cast(s,
+        const r = then(then(settle(cast(base,
             "A",
-            "aatrox_r")))
+            "aatrox_r")),
+        (s) => endTurn(s,
+            "A")),
+        (s) => settle(cast(s,
+            "B",
+            "darius_q")))
         const hits = dmgOn(r.events,
             "A:aatrox",
             "B:darius")
@@ -441,7 +473,7 @@ test("Aatrox Q: Máu thấp chém mạnh hơn Đầy Máu",
         "aatrox_q"))
         assert.ok(sum(dmgOn(low.events,
             "B:ahri")) > sum(dmgOn(full.events,
-            "B:ahri")) * 1.25)
+            "B:ahri")) * 1.15)
     })
 test("Aatrox E (Quick) nối chuỗi Darius Q: Aatrox nhận Khiên",
     () => {

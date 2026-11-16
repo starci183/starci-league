@@ -55,49 +55,49 @@ Chỉ số gốc: 430 Máu, 74 Công, 31 Giáp, 29 Kháng phép. Giới hạn m�
 
 ---
 
-## 3. Aatrox: Máu càng yếu càng mạnh
+## 3. Aatrox: Đổi máu lấy máu
 
-**Concept.** Kẻ Diệt Thế trả máu lấy sát thương: càng thấp Máu đòn càng nặng và hút lại càng nhiều. E và R là Quick để phản đòn khi bị nhắm. R hoá quỷ chỉ tăng Công và Máu, chết thì hồi sinh chơi tiếp. Cả 3 chiêu 0 mana.
+**Concept.** Kẻ Diệt Thế trả Máu cho mọi đòn. Máu càng thấp Công càng cao và hút lại càng nhiều, nên Aatrox tự đứng vững ở vùng Máu thấp. E tạo Khiên, R hoá quỷ tăng mạnh Công và hồi sinh một lần. Chiêu không tốn mana.
 
 Chỉ số gốc: 420 Máu, 74 Công, 30 Giáp, 29 Kháng phép. Giới hạn mỗi lượt: Q 2, E 1, R 1.
 
 | Chiêu | Tham số | Scale |
 |---|---|---|
-| **P Cái Giá Bằng Máu** | p1 = +0,5% sát thương mỗi 1% Máu đã mất · hút p2 = 8% sát thương lên tướng | Máu đã mất |
-| **Q Lưỡi Gươm Darkin** (0 mana) | Tự mất q1 = 10% Máu hiện tại; tướng đối diện nhận q2 = 20 + q3 = 90% Công + q4 = 8% Máu tối đa | Công + Máu |
-| **E Huyết Thuẫn** (0 mana, Quick khi bị nhắm) | Đối diện nhận e1 = 30 + e2 = 100% Công + e3 = 5% Máu tối đa; 2 đường kề nhận e7 = 50%; nhận Khiên e4 = 40% tổng sát thương | Công + Máu |
-| **R Kẻ Diệt Thế** (0 mana, Quick khi bị nhắm) | Không gây sát thương. Hoá quỷ r1 = 2 đơn vị: +r2 = 20 Công, +r3 = 25% Máu tối đa; lần đầu về 0 Máu hồi sinh với r4 = 30% | Chỉ số |
+| **P Cái Giá Bằng Máu** | Công thêm p1 = 100% Công gốc × tỉ lệ Máu đã mất; đánh thường trả p2 = 10% Máu hiện tại, hút p3 = 10% → p4 = 100% sát thương theo Máu đã mất | Máu đã mất |
+| **Q Lưỡi Gươm Darkin** (0 mana) | Trả q1 = 20% Máu hiện tại; đối diện nhận q2 = 20 + q3 = 90% Công + q4 = 8% Máu tối đa; hút như nội tại | Công + Máu |
+| **E Huyết Thuẫn** (0 mana, Quick khi bị nhắm) | Trả e5 = 20% Máu hiện tại; đối diện nhận e1 = 30 + e2 = 100% Công + e3 = 5% Máu tối đa; Khiên e4 = 50% sát thương | Công + Máu |
+| **R Kẻ Diệt Thế** (0 mana) | Trả r5 = 50% Máu hiện tại; hoá quỷ r1 = 2 đơn vị +r2 = 50% Công; lần đầu về 0 Máu hồi sinh với r4 = 30% | Công |
 
-**Lối chơi.** Q hạ Máu mình xuống để mạnh lên, E chém và tạo Khiên khi bị nhắm, R làm phản ứng khi bị dồn chiêu để có mạng phụ.
+**Lối chơi.** Dùng Q, đánh thường để tự hạ Máu xuống vùng thấp: Công tăng, hút máu tăng, đòn nào cũng hồi lại phần lớn. E làm Khiên khi bị dồn. R lúc đã thấp Máu để Công cao nhất và có mạng phụ.
 
-**Lên đồ.** Công kèm Máu: Móng Vuốt Sterak. Máu: Giáp Máu Warmog. Công: Kiếm Tử Thần.
+**Lên đồ.** Công: Kiếm Tử Thần. Công kèm Máu: Móng Vuốt Sterak.
 
-**Mạnh.** Giao tranh kéo dài; phản đòn bằng Quick; khó chết khi có R.
+**Mạnh.** Giao tranh kéo dài; tự hồi; khó chết khi có R.
 
-**Yếu.** Bị dồn chiêu khi chưa có R; giảm hồi máu.
+**Yếu.** Bị dồn sát thương lớn một lúc; giảm hồi máu.
 
 ---
 
-## 4. Yorick: Người Chăn Hồn, đốt bộ bài
+## 4. Yorick: Người Đào Mộ, đốt bài để mạnh lên
 
-**Concept.** Đánh để đốt bộ bài đối thủ và nuôi Hồn Ma. Ma Sương đi cạnh đánh và đốt thêm. Bộ bài đối thủ cạn là thắng.
+**Concept.** Đấu sĩ thuần, chỉ chạm tướng đối diện, không triệu hồi. Mỗi lá Yorick đốt khỏi bộ bài đối thủ thành 1 Hồn, làm Yorick to dần. Hai đường thắng: đối thủ cạn bộ bài (luật engine), hoặc nuôi Hồn rồi R chém kết liễu. Cả 3 chiêu 0 mana.
 
 Chỉ số gốc: 380 Máu, 64 Công, 31 Giáp, 30 Kháng phép. Giới hạn mỗi lượt: Q 2, E 1, R 1.
 
 | Chiêu | Tham số | Scale |
 |---|---|---|
-| **P Người Đào Mộ** | Đòn trúng đốt p1 = 1 lá, +1 Hồn Ma; mỗi Hồn Ma +p2 = 6 Máu, +p3 = 1 Giáp; mỗi p4 = 20 Hồn Ma tạo 1 lá R | Số Hồn Ma |
-| **Q Nghi Thức Cuối** (20 mana) | Sát thương q1 = 25 + q2 = 5% Máu tối đa; hồi q3 = 20 + q4 = 4% Máu tối đa | Máu |
-| **E Sương Sầu** (25 mana) | Đốt e1 = 2 lá; e2 = 30 + e3 = 60% Giáp sát thương; Rã Giáp e4 = 2 đơn vị | Giáp |
-| **R Khúc Ai Ca** (50 mana) | Ma Sương: Máu r1 = 80 + r2 = 25% Máu tối đa, Giáp r3 = 15 + r4 = 50% Giáp; mỗi đòn r5 = 20 + r6 = 3 mỗi Hồn Ma, đốt r7 = 1 lá. Gọi lại thì Tiến Hoá: +r8 = 40 Máu, +r9 = 5 Giáp, +r10 = 8 sát thương | Máu, Giáp, Hồn Ma |
+| **P Người Đào Mộ** | Đòn trúng đối diện đốt p1 = 1 lá. Mỗi lá Yorick đốt = 1 Hồn, lá chiêu thêm p5 = 1. Mỗi Hồn +p2 = 2 Công, +p3 = 10 Máu tối đa. Mốc p6 = 25 Hồn (25/50/75, tối đa p7 = 3 mốc) mỗi mốc tạo 1 lá R, chỉ một lần. Chết mất nửa Hồn | Số Hồn |
+| **Q Nghi Thức Cuối** | Đối diện nhận q1 = 20 + q2 = 80% Công + q3 = 5% Máu tối đa vật lý; đốt q4 = 1 lá; hồi q5 = 15 Máu mỗi Hồn nhận được | Công, Máu |
+| **E Sương Sầu** (Quick khi bị nhắm) | Đối diện nhận e1 = 25 + e2 = 60% Công + e3 = 4% Máu tối đa vật lý, Rã Giáp e5 = 2 đơn vị; đốt e4 = 2 lá; Khiên e6 = 20 mỗi lá đốt | Công, Máu |
+| **R Khúc Ai Ca** | Đốt r1 = 3 lá, rồi đối diện nhận r2 = 40 + r3 = 80% Công + r4 = 5% Máu tối đa vật lý, cộng r5 = 4 sát thương chuẩn mỗi Hồn | Công, Máu, Hồn |
 
-**Lối chơi.** Đánh thường đều để nuôi Hồn Ma và đốt bài. Gọi Ma Sương sớm. Đánh kéo dài trận để thắng bằng cạn bộ bài.
+**Lối chơi.** Đầu trận đánh thường và Q để tích Hồn. Bị nhắm thì nối E Quick: vừa đỡ bằng Khiên vừa đốt 2 lá. Cuối trận R với 20–30 Hồn chém rất đau, hoặc tiếp tục ép đối thủ cạn bài.
 
-**Lên đồ.** Máu: Giáp Máu Warmog. Máu kèm Giáp: Áo Choàng Lửa. Giáp: Giáp Gai.
+**Lên đồ.** Công kèm Máu; đồ tăng số đòn để đốt nhiều lá hơn.
 
-**Mạnh.** Trận dài; điều kiện thắng riêng.
+**Mạnh.** Trận dài; càng đánh càng to; hai đường thắng.
 
-**Yếu.** Sát thương trực tiếp thấp; bị hạ thì mất nửa Hồn Ma và Ma Sương.
+**Yếu.** Chỉ đánh đối diện; đầu trận yếu; chết mất nửa Hồn.
 
 ---
 

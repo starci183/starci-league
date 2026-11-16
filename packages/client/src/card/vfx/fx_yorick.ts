@@ -1128,7 +1128,7 @@ registerVfx("yorickEulogyCast",
     })
 
 /** R: sương đen dâng ở ô phụ, Ma Sương đứng dậy từ dưới lên; thành hình là báo, cùng lúc lá hiện. ctx.amount = bậc Tiến Hoá */
-registerVfx("yorickMaidenRise",
+registerVfx("yorickEulogyCleave",
     async (ctx) => {
         const base = maidenFeet(ctx.from)
         const top = maidenHeight(tierOf(ctx))

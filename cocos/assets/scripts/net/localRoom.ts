@@ -126,6 +126,9 @@ export class LocalRoom {
         this.pace = o.pace ?? 1100
     }
 
+    /** Trạng thái trận hiện tại (móc dev / kiểm thử tự động) */
+    get state(): cg.GameState { return this.gs }
+
     // ---- giao diện phòng mà net/game.ts dùng ----
     onMessage(type: string, cb: Handler) {
         const list = this.handlers.get(type) ?? []

@@ -495,7 +495,7 @@ const SCENARIOS: Record<string, Record<SlotKey, Def | VariantDef[]>> = {
     aatrox: {
         p: [
             {
-                title: "Máu thấp",
+                title: "Máu thấp: Công cao, hút nhiều",
                 teamA: team("aatrox"), teamB: ENEMIES,
                 stage: {
                     board: {
@@ -504,10 +504,10 @@ const SCENARIOS: Record<string, Record<SlotKey, Def | VariantDef[]>> = {
                         aatrox: ["basic"]
                     }, first: "aatrox", step: "battle",
                     hpPct: {
-                        aatrox: 0.35
+                        aatrox: 0.3
                     },
                 },
-                hint: "Aatrox đang mất 65% Máu: mọi sát thương mạnh thêm khoảng 33% và hút lại 8%. Kéo lá Đánh Thường vào Ahri đối diện (hoặc chọn Aatrox bấm Đánh) để thấy số to và Máu hồi.",
+                hint: "Aatrox còn 30% Máu nên Công cao hơn hẳn (xem ô AD). Kéo lá Đánh Thường vào Ahri: Aatrox trả 10% Máu hiện tại rồi hút lại phần lớn sát thương gây ra (càng ít Máu hút càng nhiều, tới 100%).",
                 focus: ["basic"],
             },
             {
@@ -523,7 +523,7 @@ const SCENARIOS: Record<string, Record<SlotKey, Def | VariantDef[]>> = {
                         aatrox: 0.9
                     },
                 },
-                hint: "So sánh: Aatrox chỉ mất 10% Máu nên chỉ mạnh thêm 5%. Kéo lá Đánh Thường vào Ahri rồi so với tình huống Máu thấp: Aatrox càng bị đánh càng nguy hiểm.",
+                hint: "So sánh: Aatrox gần đầy Máu nên Công gần như gốc và chỉ hút khoảng 20% sát thương. Kéo lá Đánh Thường vào Ahri rồi so với tình huống Máu thấp.",
                 focus: ["basic"],
             },
         ],
@@ -538,7 +538,7 @@ const SCENARIOS: Record<string, Record<SlotKey, Def | VariantDef[]>> = {
                         aatrox: ["aatrox_q", "aatrox_q"]
                     }, first: "aatrox",
                 },
-                hint: "Aatrox đầy Máu, tay có 2 lá Q. Kéo lá Q (Lưỡi Gươm Darkin, 0 mana): trả 10% Máu hiện tại rồi chém Ahri đối diện. Kéo Q lần 2: Máu đã thấp hơn nên nhát chém nặng hơn một chút.",
+                hint: "Aatrox đầy Máu, tay có 2 lá Q. Kéo lá Q (Lưỡi Gươm Darkin): trả 20% Máu hiện tại, chém Ahri đối diện rồi hút lại một phần. Kéo Q lần 2: Máu đã thấp hơn nên Công cao hơn, chém nặng hơn và hút nhiều hơn.",
                 focus: ["aatrox_q"],
             },
             {
@@ -554,7 +554,7 @@ const SCENARIOS: Record<string, Record<SlotKey, Def | VariantDef[]>> = {
                         aatrox: 0.25
                     },
                 },
-                hint: "Aatrox chỉ còn 25% Máu. Kéo lá Q: giá 10% Máu hiện tại giờ rất rẻ, còn nhát chém mạnh thêm gần 40% và hút lại 8%. So với tình huống Đầy Máu.",
+                hint: "Aatrox chỉ còn 25% Máu. Kéo lá Q: giá 20% Máu hiện tại giờ rất rẻ, Công rất cao nên chém mạnh hơn hẳn, và hút lại gần hết sát thương. So với tình huống Đầy Máu.",
                 focus: ["aatrox_q"],
             },
         ],
@@ -573,7 +573,7 @@ const SCENARIOS: Record<string, Record<SlotKey, Def | VariantDef[]>> = {
                     },
                 },
                 enemyPlan: [enemyPlays("darius_q")],
-                hint: "Lượt đối thủ: Darius sắp dùng Tàn Sát nhắm Aatrox. Khi khung phản ứng hiện, kéo lá E (Quick): Aatrox chém Darius đối diện (nặng nhất) và Lux, Annie ở 2 đường kề, rồi nhận Khiên 40% tổng sát thương, kịp đỡ đòn của Darius.",
+                hint: "Lượt đối thủ: Darius sắp dùng Tàn Sát nhắm Aatrox. Khi khung phản ứng hiện, kéo lá E (Quick): Aatrox trả 20% Máu hiện tại, chém Darius đối diện rồi nhận Khiên bằng một nửa sát thương, kịp đỡ đòn của Darius.",
                 focus: ["aatrox_e"],
             },
             {
@@ -589,30 +589,30 @@ const SCENARIOS: Record<string, Record<SlotKey, Def | VariantDef[]>> = {
                         aatrox: 0.4
                     },
                 },
-                hint: "Lượt của bạn, Aatrox còn 40% Máu. Kéo lá E (Huyết Thuẫn) vào sân như lá thường: chém Ahri đối diện, Lux và Annie ở 2 bên nhận 50%, hút máu từng nhát rồi nhận Khiên theo tổng.",
+                hint: "Lượt của bạn, Aatrox còn 40% Máu. Kéo lá E (Huyết Thuẫn) vào sân như lá thường: trả 20% Máu hiện tại, chém Ahri đối diện (Công cao vì Máu thấp) rồi nhận Khiên theo sát thương gây ra.",
                 focus: ["aatrox_e"],
             },
         ],
         r: [
             {
-                title: "Nối chuỗi: hồi sinh",
+                title: "Hoá quỷ rồi bị hạ: hồi sinh",
                 teamA: teamNoDarius("aatrox"), teamB: WITH_DARIUS,
                 stage: {
                     board: {
                         aatrox: 2, darius: 2, lux: 1, annie: 3
                     }, hands: {
                         aatrox: ["aatrox_r"], darius: ["darius_q"]
-                    }, first: "darius",
+                    }, first: "aatrox",
                     hpPct: {
-                        aatrox: 0.12
+                        aatrox: 0.4
                     },
-                    // Darius đủ đồ để Tàn Sát hạ được cả Aatrox đã hoá quỷ (R cộng Máu): thấy rõ hồi sinh
+                    // Darius đủ đồ để Tàn Sát chắc chắn hạ Aatrox: thấy rõ hồi sinh
                     items: {
                         darius: ["kiem_tu_than", "vo_cuc_kiem"]
                     },
                 },
                 enemyPlan: [enemyPlays("darius_q")],
-                hint: "Aatrox chỉ còn 12% Máu. Lượt đối thủ: Darius đủ đồ sắp dùng Tàn Sát nhắm Aatrox, đủ để hạ Aatrox. Khi khung phản ứng hiện, kéo lá R (Quick): Aatrox hoá quỷ trước khi đòn kịp giải quyết; đòn hạ về 0 Máu thì Aatrox hồi sinh với 30% Máu và chơi tiếp.",
+                hint: "Lượt của bạn. Kéo lá R (Kẻ Diệt Thế): Aatrox trả 50% Máu hiện tại, hoá quỷ 2 đơn vị và tăng mạnh Công. Bấm Kết thúc lượt: Darius đủ đồ dùng Tàn Sát hạ Aatrox về 0 Máu, Aatrox hồi sinh với 30% Máu và chơi tiếp.",
                 focus: ["aatrox_r"],
             },
             {
@@ -628,7 +628,7 @@ const SCENARIOS: Record<string, Record<SlotKey, Def | VariantDef[]>> = {
                         aatrox: 0.6
                     },
                 },
-                hint: "Lượt của bạn. Kéo lá R (Kẻ Diệt Thế) trước: Aatrox hoá quỷ 2 đơn vị, +20 Công và +25% Máu tối đa. Rồi kéo lá Q chém Ahri: nhát chém mang thêm Công của dạng quỷ, còn lá chắn chết vẫn giữ cho đòn của địch.",
+                hint: "Lượt của bạn. Kéo lá R (Kẻ Diệt Thế) trước: Aatrox trả 50% Máu hiện tại, hoá quỷ 2 đơn vị, Công tăng mạnh (cộng thêm cả phần Công do Máu thấp). Rồi kéo lá Q chém Ahri: nhát chém rất nặng và hút lại nhiều Máu.",
                 focus: ["aatrox_r", "aatrox_q"],
             },
         ],
@@ -658,7 +658,7 @@ const SCENARIOS: Record<string, Record<SlotKey, Def | VariantDef[]>> = {
                         aatrox: 0.5
                     },
                 },
-                hint: "Tay trống, Aatrox còn nửa Máu. Chọn Aatrox trên sân rồi bấm Đánh vào Ahri (đòn không cần lá của Đấu sĩ): vẫn được Cái Giá Bằng Máu cộng sát thương và hút máu.",
+                hint: "Tay trống, Aatrox còn nửa Máu. Chọn Aatrox trên sân rồi bấm Đánh vào Ahri (đòn không cần lá của Đấu sĩ): vẫn trả 10% Máu và hút máu theo Máu đã mất.",
                 focus: [],
                 act: "attack",
             },
@@ -666,71 +666,183 @@ const SCENARIOS: Record<string, Record<SlotKey, Def | VariantDef[]>> = {
     },
     // ======================= YORICK =======================
     yorick: {
-        p: {
-            teamA: team("yorick"), teamB: ENEMIES,
-            stage: {
-                board: {
-                    yorick: 2, ahri: 2, lux: 3
-                }, hands: {
-                    yorick: ["basic"]
-                }, first: "yorick",
-                stacks: {
-                    yorick: {
-                        yorick_soul: 19
+        p: [
+            {
+                title: "Đốt bài nuôi Hồn",
+                teamA: team("yorick"), teamB: ENEMIES,
+                stage: {
+                    board: {
+                        yorick: 2, ahri: 2, lux: 3
+                    }, hands: {
+                        yorick: ["basic"]
+                    }, first: "yorick", step: "battle",
+                    stacks: {
+                        yorick: {
+                            yorick_soul: 4
+                        }
+                    },
+                    deckTop: {
+                        ahri: ["ahri_q"]
+                    },
+                },
+                hint: "Yorick có 4 Hồn. Kéo lá Đánh Thường vào Ahri đối diện: đòn trúng đốt lá trên cùng bộ bài đối thủ. Lá đó là lá chiêu nên Yorick nhận 2 Hồn, Công và Máu tối đa tăng ngay.",
+                focus: ["basic"],
+            },
+            {
+                title: "Mốc 25 Hồn: thêm lá R",
+                teamA: team("yorick"), teamB: ENEMIES,
+                stage: {
+                    board: {
+                        yorick: 2, ahri: 2, lux: 3
+                    }, hands: {
+                        yorick: ["basic"]
+                    }, first: "yorick", step: "battle",
+                    stacks: {
+                        yorick: {
+                            yorick_soul: 24
+                        }
+                    },
+                },
+                hint: "Yorick có 24 Hồn. Kéo lá Đánh Thường vào Ahri: đốt 1 lá, đủ 25 Hồn thì nhận 1 lá R (Khúc Ai Ca) lên tay. Mốc 50 và 75 cũng cho thêm lá R, mỗi mốc một lần.",
+                focus: ["basic"],
+            },
+            {
+                title: "Thắng bằng cạn bài",
+                teamA: team("yorick"), teamB: ENEMIES,
+                stage: {
+                    board: {
+                        yorick: 2, ahri: 2, lux: 3
+                    }, hands: {
+                        yorick: ["yorick_e"]
+                    }, first: "yorick",
+                },
+                setup: (s) => {
+                    s.players.B.deck = s.players.B.deck.slice(0,
+                        2)
+                    // giữa trận: lượt kế của đối thủ phải rút bài (lượt đầu mỗi phe không rút)
+                    s.firstTurnDone = {
+                        A: true, B: true
                     }
                 },
+                hint: "Bộ bài đối thủ chỉ còn 2 lá. Kéo lá E (Sương Sầu): chém Ahri và đốt 2 lá, bộ bài đối thủ cạn. Bấm Kết thúc lượt: đầu lượt đối thủ không còn bài để rút nên thua.",
+                focus: ["yorick_e"],
             },
-            setup: (s0) => {
-                const s = castFirst("yorick",
-                    "R")(s0)
-                s.step = "battle"
-                return s
-            },
-            hint: "Yorick có 19 Hồn Ma, Ma Sương đứng ở ô phụ. Kéo lá Đánh Thường vào Ahri: đốt 1 lá bộ địch, đủ 20 Hồn Ma thì nhận 1 lá R lên tay, Ma Sương đánh theo.",
-            focus: ["basic"],
-        },
-        q: {
-            teamA: team("yorick"), teamB: ENEMIES,
-            stage: {
-                board: {
-                    yorick: 2, ahri: 2, lux: 3
-                }, hands: {
-                    yorick: ["yorick_q"]
-                }, first: "yorick",
-                hpPct: {
-                    yorick: 0.6
+        ],
+        q: [
+            {
+                title: "Đốt trúng lá chiêu",
+                teamA: team("yorick"), teamB: ENEMIES,
+                stage: {
+                    board: {
+                        yorick: 2, ahri: 2, lux: 3
+                    }, hands: {
+                        yorick: ["yorick_q"]
+                    }, first: "yorick",
+                    hpPct: {
+                        yorick: 0.6
+                    },
+                    deckTop: {
+                        ahri: ["ahri_r"]
+                    },
                 },
+                hint: "Kéo lá Q (Nghi Thức Cuối): chém Ahri đối diện rồi đốt 1 lá trên cùng bộ bài đối thủ. Lá đó là lá chiêu nên Yorick nhận 2 Hồn và hồi 15 Máu cho mỗi Hồn.",
+                focus: ["yorick_q"],
             },
-            hint: "Kéo lá Q (Nghi Thức Cuối): Yorick nện xẻng vào Ahri đối diện và hồi Máu theo Máu tối đa.",
-            focus: ["yorick_q"],
-        },
-        e: {
-            teamA: team("yorick"), teamB: ENEMIES,
-            stage: {
-                board: {
-                    yorick: 2, ahri: 2, lux: 4
-                }, hands: {
-                    yorick: ["yorick_e"]
-                }, first: "yorick",
+            {
+                title: "Hai lá Q liên tiếp",
+                teamA: team("yorick"), teamB: ENEMIES,
+                stage: {
+                    board: {
+                        yorick: 2, ahri: 2, lux: 3
+                    }, hands: {
+                        yorick: ["yorick_q", "yorick_q"]
+                    }, first: "yorick",
+                    hpPct: {
+                        yorick: 0.5
+                    },
+                    stacks: {
+                        yorick: {
+                            yorick_soul: 10
+                        }
+                    },
+                },
+                hint: "Yorick có 10 Hồn. Kéo 2 lá Q liên tiếp vào Ahri: mỗi nhát đốt thêm bài, Hồn tăng nên nhát sau chém nặng hơn nhát trước.",
+                focus: ["yorick_q", "yorick_q"],
             },
-            setup: castFirst("yorick",
-                "R"),
-            hint: "Ma Sương đã ở ô phụ. Kéo lá E (Sương Sầu) chọn Lux ở đường 5: đốt 2 lá bộ địch, Lux nhận sát thương và bị Rã Giáp, Ma Sương lao tới đánh cùng.",
-            focus: ["yorick_e"],
-            target: "B:lux",
-        },
-        r: {
-            teamA: team("yorick"), teamB: ENEMIES,
-            stage: {
-                board: {
-                    yorick: 2, ahri: 2, lux: 3
-                }, hands: {
-                    yorick: ["yorick_r", "basic"]
-                }, first: "yorick",
+        ],
+        e: [
+            {
+                title: "Nối chuỗi (Quick)",
+                teamA: teamNoDarius("yorick"), teamB: WITH_DARIUS,
+                stage: {
+                    board: {
+                        yorick: 2, darius: 2, lux: 1, annie: 3
+                    }, hands: {
+                        yorick: ["yorick_e"], darius: ["darius_q"]
+                    }, first: "darius",
+                    hpPct: {
+                        yorick: 0.6
+                    },
+                },
+                enemyPlan: [enemyPlays("darius_q")],
+                hint: "Lượt đối thủ: Darius sắp dùng Tàn Sát nhắm Yorick. Khi khung phản ứng hiện, kéo lá E (Quick): Yorick chém Darius đối diện, Rã Giáp nó, đốt 2 lá và nhận Khiên 20 mỗi lá, kịp đỡ đòn của Darius.",
+                focus: ["yorick_e"],
             },
-            hint: "Ô phụ đang trống. Kéo lá R (Khúc Ai Ca): Ma Sương hiện ở ô phụ. Sau đó bấm Bước tiếp sang Battle và đánh thường để thấy Ma Sương đánh theo.",
-            focus: ["yorick_r"],
-        },
+            {
+                title: "Dùng chủ động",
+                teamA: team("yorick"), teamB: ENEMIES,
+                stage: {
+                    board: {
+                        yorick: 2, ahri: 2, lux: 3
+                    }, hands: {
+                        yorick: ["yorick_e", "basic"]
+                    }, first: "yorick",
+                },
+                hint: "Lượt của bạn. Kéo lá E (Sương Sầu) vào sân như lá thường: chém Ahri, Rã Giáp nó, đốt 2 lá và nhận Khiên. Sau đó đánh thường vào Ahri: Giáp đã bị Rã nên đòn đau hơn.",
+                focus: ["yorick_e"],
+            },
+        ],
+        r: [
+            {
+                title: "Ít Hồn",
+                teamA: team("yorick"), teamB: ENEMIES,
+                stage: {
+                    board: {
+                        yorick: 2, ahri: 2, lux: 3
+                    }, hands: {
+                        yorick: ["yorick_r"]
+                    }, first: "yorick",
+                    stacks: {
+                        yorick: {
+                            yorick_soul: 2
+                        }
+                    },
+                },
+                hint: "Yorick mới có 2 Hồn. Kéo lá R (Khúc Ai Ca): đốt 3 lá rồi chém Ahri, cộng 4 sát thương chuẩn mỗi Hồn. Ít Hồn nên R chưa đau, so với tình huống 30 Hồn.",
+                focus: ["yorick_r"],
+            },
+            {
+                title: "30 Hồn: kết liễu",
+                teamA: team("yorick"), teamB: ENEMIES,
+                stage: {
+                    board: {
+                        yorick: 2, ahri: 2, lux: 3
+                    }, hands: {
+                        yorick: ["yorick_r"]
+                    }, first: "yorick",
+                    hpPct: {
+                        ahri: 0.6
+                    },
+                    stacks: {
+                        yorick: {
+                            yorick_soul: 30
+                        }
+                    },
+                },
+                hint: "Yorick đã có 30 Hồn (Công, Máu cao). Kéo lá R: đốt 3 lá thành thêm Hồn, rồi chém Ahri (còn 60% Máu) cộng 4 sát thương chuẩn mỗi Hồn, đủ kết liễu.",
+                focus: ["yorick_r"],
+            },
+        ],
         basic: {
             teamA: team("yorick"), teamB: ENEMIES,
             stage: {
@@ -740,7 +852,7 @@ const SCENARIOS: Record<string, Record<SlotKey, Def | VariantDef[]>> = {
                     yorick: ["basic"]
                 }, first: "yorick", step: "battle",
             },
-            hint: "Đang ở bước Battle. Kéo lá Đánh Thường vào Ahri đối diện (mỗi đòn trúng đốt 1 lá bộ địch, nuôi Hồn Ma); hoặc chọn Yorick rồi bấm Đánh.",
+            hint: "Đang ở bước Battle. Kéo lá Đánh Thường vào Ahri đối diện (đòn trúng đốt 1 lá bộ bài đối thủ, mỗi lá 1 Hồn); hoặc chọn Yorick rồi bấm Đánh.",
             focus: ["basic"],
         },
     },
