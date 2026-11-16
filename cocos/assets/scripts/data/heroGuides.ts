@@ -119,27 +119,27 @@ export const HERO_GUIDES: Record<string, HeroGuide> = {
         ],
     },
     gangplank: {
-        role: "Đấu sĩ trụ đường bằng Cam và Thùng Thuốc Súng",
-        howToPlay: "Úp lá thành Thùng ở ô phụ bằng E hoặc nút Úp Lá (15 mana); Thùng thêm 1 Thuốc Súng mỗi đầu lượt. Thùng chứa lá chiêu: địch phá thì kẻ phá ăn nổ, Gangplank tự đánh Thùng thì nổ vào mọi địch. R Lệnh Truy Nã kích nổ Thùng dồn vào một địch bất kỳ đường; Q hồi Máu, Giáp và tìm lá E.",
+        role: "Đấu sĩ bịp: úp lá thành Thùng Thuốc Súng, nổ vào tướng đối diện",
+        howToPlay: "Mọi sát thương chỉ vào tướng đối diện, cả 3 chiêu và nút Úp Lá 0 mana. Úp 1 lá thành Thùng ở ô phụ (nút Úp Lá hoặc E); Thùng thêm 1 Thuốc Súng mỗi đầu lượt. Thùng chứa lá chiêu vỡ hay bị Gangplank tự đánh đều nổ vào tướng đối diện Gangplank. Q bắn đối diện, hạ được thì nhận Vàng, và tìm lá E. E Ăn Cam (Quick khi bị nhắm) hồi Máu, giải khống chế, cộng Giáp. R Truy Nã đối diện, chém rồi kích nổ Thùng: lá gì cũng nổ, mạnh hơn 50%.",
         strengths: [
-            "Thùng úp nên địch phải đoán: phá nhầm Thùng lá chiêu là ăn nổ.",
-            "Sát thương nổ tăng vọt theo Thuốc Súng, không trần.",
-            "R làm lá gì trong Thùng cũng nổ, 120% vào một mục tiêu; hạ được nhận 2 lá Vàng.",
-            "Q hồi Máu, cộng Giáp và tìm lá E: trụ đường bền.",
+            "Thùng úp nên địch phải đoán: phá nhầm Thùng lá chiêu là tướng đứng trước Gangplank ăn nổ.",
+            "Sát thương nổ tăng theo Thuốc Súng, không trần, scale Công và Máu tối đa.",
+            "Cả 3 chiêu 0 mana; E là Quick để hồi máu và úp Thùng ngay trong lượt địch.",
+            "R làm lá gì trong Thùng cũng nổ; hạ được tướng bị Truy Nã nhận 2 lá Vàng.",
         ],
         weaknesses: [
+            "Chỉ đánh tướng đối diện: đường trước mặt trống thì Thùng nổ không trúng ai.",
             "Chỉ có tối đa 1 Thùng, cần ô phụ trống để úp.",
             "Thùng 1 Máu, mọi vai địch đánh được; bị phá sớm thì nổ nhỏ.",
-            "Cần thời gian cho Thuốc Súng lớn; trận dồn nhanh thì thiếu sát thương.",
         ],
         strategies: [
             "Úp lá chiêu thừa làm bẫy; úp lá đồ hoặc Vàng khi muốn lấy lại tài nguyên.",
-            "Ornn tăng chỉ số đồ; Twisted Fate xếp bài (gợi ý combo của game).",
-            "Đồ: Móng Vuốt Sterak, Giáp Máu Warmog để đứng lâu chờ Thùng to.",
+            "Để Thùng lớn vài lượt rồi R: chém và kích nổ cùng lúc.",
+            "Đồ Công kèm Máu để cả đòn chém lẫn vụ nổ đều đau.",
         ],
         counters: [
-            "Đánh vỡ Thùng khi còn ít Thuốc Súng, bằng tướng chịu được một cú nổ nhỏ.",
-            "Sát thủ cơ động (Katarina) hoặc Vayne dồn Gangplank trước khi Thùng to.",
+            "Đánh vỡ Thùng khi còn ít Thuốc Súng.",
+            "Né đường đối diện Gangplank để Thùng nổ hụt.",
         ],
     },
     jayce: {

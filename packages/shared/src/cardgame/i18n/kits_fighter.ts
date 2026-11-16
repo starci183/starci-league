@@ -12,10 +12,10 @@ type Bi = { vi: Txt; en: Txt }
 export const STATUS_KITS_FIGHTER: Record<string, Bi> = {
     gp_wanted: {
         vi: {
-            name: "Truy Nã", desc: "Gangplank đã đặt Truy Nã: mọi Thùng nổ trong hạn chỉ đánh tướng này, lá gì cũng nổ theo Thuốc Súng. Bị hạ trong hạn thì Gangplank nhận Vàng."
+            name: "Truy Nã", desc: "Gangplank đã đặt Truy Nã: trong hạn, khi đứng đối diện Gangplank, Thùng lá gì cũng nổ vào tướng này và nổ mạnh hơn. Bị hạ trong hạn thì Gangplank nhận Vàng."
         },
         en: {
-            name: "Wanted", desc: "Gangplank has placed a bounty: every Keg explosion while it lasts hits only this champion, whatever card the Keg holds. If it is taken down meanwhile, Gangplank gains Gold."
+            name: "Wanted", desc: "Gangplank has placed a bounty: while it lasts and this champion stands opposite Gangplank, a Keg explodes on it whatever card it holds, and harder. If it is taken down meanwhile, Gangplank gains Gold."
         },
     },
     bleed_t: {
@@ -77,26 +77,26 @@ export const KEYWORDS_KITS_FIGHTER: Record<string, Keyword> = {
     keg: {
         vi: "Thùng",
         en: "Keg",
-        descVi: "Thùng của Gangplank: vật triệu hồi úp ở ô phụ, 1 Máu, tối đa 1; mọi vai địch đánh được. Úp từ một lá trên tay (nút Úp Lá, 0 Thuốc Súng) hoặc từ chính lá E (3 Thuốc Súng). Vỡ hoặc nổ thì lật: lá chiêu nổ theo Thuốc Súng, Vàng cho 2 lá Vàng, đồ về tay, lá khác hồi máu.",
-        descEn: "Gangplank's Keg: a face-down summon in the extra slot, 1 HP, max 1; every enemy role can attack it. Stashed from a hand card (Stash button, 0 Powder) or from the E card itself (3 Powder). When it breaks or explodes it flips: a skill card explodes by Powder, Gold gives 2 Gold cards, an item returns to hand, any other card heals.",
+        descVi: "Thùng của Gangplank: bẫy úp ở ô phụ, 1 Máu, tối đa 1; mọi vai địch đánh được. Úp từ một lá trên tay (nút Úp Lá, 0 Thuốc Súng) hoặc từ chính lá E (3 Thuốc Súng). Vỡ hoặc nổ thì lật: lá chiêu nổ vào tướng đối diện Gangplank theo Thuốc Súng, Vàng cho 2 lá Vàng, đồ về tay, lá khác hồi máu.",
+        descEn: "Gangplank's Keg: a face-down trap in the extra slot, 1 HP, max 1; every enemy role can attack it. Stashed from a hand card (Stash button, 0 Powder) or from the E card itself (3 Powder). When it breaks or explodes it flips: a skill card explodes on the enemy opposite Gangplank by Powder, Gold gives 2 Gold cards, an item returns to hand, any other card heals.",
     },
     powder: {
         vi: "Thuốc Súng",
         en: "Powder",
-        descVi: "Bộ đếm bí mật trên Thùng của Gangplank: +1 đầu mỗi lượt của bạn, không giới hạn. Thùng nổ gây sát thương tăng vọt theo Thuốc Súng. Lộ ra khi Thùng lật.",
-        descEn: "A hidden counter on Gangplank's Keg: +1 at the start of each of your turns, no cap. An exploding Keg deals escalating damage per Powder. Revealed when the Keg flips.",
+        descVi: "Bộ đếm bí mật trên Thùng của Gangplank: +1 đầu mỗi lượt của bạn, không giới hạn. Thùng nổ gây sát thương theo từng Thuốc Súng. Lộ ra khi Thùng lật.",
+        descEn: "A hidden counter on Gangplank's Keg: +1 at the start of each of your turns, no cap. An exploding Keg deals damage per Powder. Revealed when the Keg flips.",
     },
     keg_detonate: {
         vi: "Kích Nổ",
         en: "Detonate",
-        descVi: "Thùng của Gangplank nổ: lá chiêu bên trong nổ theo Thuốc Súng. Địch phá thì chỉ kẻ phá nhận sát thương; Gangplank tự kích thì mọi tướng địch nhận.",
-        descEn: "Gangplank's Keg explodes: a skill card inside explodes by Powder. If an enemy broke it only the breaker takes the damage; if Gangplank detonates it every enemy champion does.",
+        descVi: "Thùng của Gangplank nổ: lá chiêu bên trong nổ theo Thuốc Súng vào tướng địch đối diện Gangplank, dù địch phá hay Gangplank tự kích.",
+        descEn: "Gangplank's Keg explodes: a skill card inside explodes by Powder on the enemy opposite Gangplank, whether an enemy broke it or Gangplank detonated it.",
     },
     gp_wanted: {
         vi: "Truy Nã",
         en: "Wanted",
-        descVi: "Gangplank đặt lên 1 tướng địch bằng R: mọi Thùng nổ trong hạn chỉ đánh tướng này, lá gì cũng nổ theo Thuốc Súng. Nó bị hạ trong hạn thì Gangplank nhận Vàng.",
-        descEn: "Placed on 1 enemy champion by Gangplank's R: every Keg explosion while it lasts hits only this champion, whatever card the Keg holds. If it is taken down meanwhile, Gangplank gains Gold.",
+        descVi: "Gangplank đặt lên tướng địch đối diện bằng R: trong hạn, khi nó đứng đối diện Gangplank, Thùng lá gì cũng nổ vào nó và nổ mạnh hơn. Nó bị hạ trong hạn thì Gangplank nhận Vàng.",
+        descEn: "Placed on the opposite enemy by Gangplank's R: while it lasts and that champion stands opposite Gangplank, a Keg explodes on it whatever card it holds, and harder. If it is taken down meanwhile, Gangplank gains Gold.",
     },
     bleed: {
         vi: "Chảy Máu",

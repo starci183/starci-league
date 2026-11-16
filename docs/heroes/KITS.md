@@ -127,7 +127,7 @@ Tham số: `balance/heroes/sylas.json`. Cờ `keepCC` (1): Chiêu Đoạt giữ 
 - **E Thợ Săn Vua** `e0`: Quick. Chọn 1 địch; `e1 + e2·AP` phép, Sylas hồi `e3 + e4·AP` cộng `e5`% Máu đã mất. Khi địch nhắm đúng Sylas; mục tiêu là kẻ đó.
 - **R Đoạt Chiêu** `r0`: Chọn 1 địch trên sân, đoạt R của tướng đó (cờ `stealOnlyR`) và tung ngay, nhắm đúng tướng đó nếu được, không lên tay (cờ `stealToHand` tắt). Phải đủ mana cả `r0` lẫn mana gốc. Sylas dùng như chiêu của mình, trả mana gốc của lá đó, mọi hệ số AD đổi thành AP theo `p4` (2 AP = 1 AD, cùng tỉ lệ Rumble), giữ nguyên khống chế (`keepCC` = 1), giữ Quick nếu lá gốc là Quick, tồn tại tới hết lượt đối phương, dùng xong biến mất. Hệ số Máu, Giáp của lá gốc giữ nguyên chữ, tính theo Sylas.
 - **Không hiện trong lựa chọn:** chiêu có `canPlay`/`options` rỗng với Sylas lúc đó (Katarina R, Darius R khi chưa có Chảy Máu, Teemo R, Azir Q, R khi phe Sylas chưa có Lính trên sân) và danh sách `OWNER_BOUND` trong `heroes/sylas.ts`: Ashe Q, Kog'Maw E, Tristana Q, Tristana E, Vayne R, Jinx Q, Kha'Zix R, Gangplank E, Gangplank R, Sylas R (trận gương).
-- **Mất phần phụ nhưng vẫn đoạt được** (phần chính là sát thương, phần phụ nằm ở hook của chủ): Ahri R mất Say Mê, Zed Q mất đòn thêm, Brand mất Bỏng cháy đầu lượt nếu phe mình không có Brand, Braum Q mất Dấu Băng, Gangplank Q không tìm được lá E. Azir Q, E, R đoạt được: Sylas đặt Lính phe mình, Lính đâm theo đòn của Sylas, hết hạn và mất một nửa khi chết như Azir, Sylas không nhận Tốc Đánh theo Lính. Rumble R đoạt được: lá chọn Tái Chế và Lá Tái Chế về Sylas, theo luật Rumble (không khống chế). Zed R nhịp sau vẫn bắn nhờ `DelayedEffect.hookHero`; Vel'Koz E nổ ngay trong lúc dùng.
+- **Mất phần phụ nhưng vẫn đoạt được** (phần chính là sát thương, phần phụ nằm ở hook của chủ): Ahri R mất Say Mê, Zed Q mất đòn thêm, Brand mất Bỏng cháy đầu lượt nếu phe mình không có Brand, Braum Q mất Dấu Băng, Gangplank Q không tìm được lá E (vẫn bắn đối diện). Azir Q, E, R đoạt được: Sylas đặt Lính phe mình, Lính đâm theo đòn của Sylas, hết hạn và mất một nửa khi chết như Azir, Sylas không nhận Tốc Đánh theo Lính. Rumble R đoạt được: lá chọn Tái Chế và Lá Tái Chế về Sylas, theo luật Rumble (không khống chế). Zed R nhịp sau vẫn bắn nhờ `DelayedEffect.hookHero`; Vel'Koz E nổ ngay trong lúc dùng.
 
 ### Mel · ánh vàng (tướng mới)
 Tham số: `balance/heroes/mel.json`. Chói Lọi là carrier stack (`mel_glow`). Ngưỡng hạ đi qua `g.executeLethal`: không tính Khiên, Giáp nhưng vẫn qua cứu chết.
@@ -236,13 +236,13 @@ Mana `q0`, `e0`, `r0`. "AxB" = A mục tiêu × B phát. Đánh thường bình 
 
 Giữ đòn không cần lá 50%. Scale AD và Máu.
 
-### Gangplank
+### Gangplank · thầy chốt lại 2026-11-16: đấu sĩ chỉ chạm đối diện, 0 mana, scale Công và Máu tối đa
 - **Nội tại Thuốc Súng:** Đầu lượt [Thùng] +1 Thuốc Súng, không trần. Đòn của Gangplank vào Thùng mình kích nổ (`extraAttackTargets`).
-- **Nút Úp Lá** (`abilities` `gp_stash`, `p1` mana, 1 lần mỗi lượt): ô phụ trống: Úp 1 lá tay thành Thùng 0 Thuốc Súng, đối thủ không thấy. Sự kiện `ability` không mang lá; lá và Thuốc Súng nằm trong `token.card` / `token.secret`.
-- **Thùng:** Vật Triệu Hồi Úp ô phụ, 1 Máu, tối đa 1, mọi vai địch đánh được. Vỡ hoặc nổ thì lật. Lá chiêu: nổ `p2·n·(1 + n/p4)·(1 + p3·AD)` vật lý (n = Thuốc Súng); địch phá chỉ kẻ phá nhận, tự kích mọi địch nhận. Vàng: 2 lá Vàng. Đồ: lá về tay. Lá khác: hồi `p5 + p6·Máu tối đa`.
-- **Q Ăn Cam** `q0`: Hồi `q1 + q2·Máu tối đa`, `q3 + q4·Máu tối đa` Giáp `q5` đơn vị. Tìm 1 lá E.
-- **E Thùng Thuốc Súng** `e0`: Ô phụ trống: Úp lá này thành Thùng `e1` Thuốc Súng (3), đối thủ không thấy.
-- **R Lệnh Truy Nã** `r0`: 1 địch bất kỳ đường; đặt [Truy Nã] `r1` đơn vị, kích nổ Thùng: lá gì cũng nổ theo Thuốc Súng. Trong hạn, Thùng nổ chỉ đánh tướng này `r2`%. Nó bị hạ trong hạn: `r3` Vàng.
+- **Nút Úp Lá** (`abilities` `gp_stash`, `p1` = 0 mana, 1 lần mỗi lượt): ô phụ trống: Úp 1 lá tay thành Thùng 0 Thuốc Súng, đối thủ không thấy. Sự kiện `ability` không mang lá; lá và Thuốc Súng nằm trong `token.card` / `token.secret`.
+- **Thùng:** bẫy Úp ô phụ, 1 Máu, tối đa 1, mọi vai địch đánh được. Vỡ hoặc nổ thì lật. Lá chiêu: tướng địch **đối diện Gangplank** nhận `n·(p2 + p3·AD + p4·Máu tối đa)` vật lý (n = Thuốc Súng), dù ai phá. Vàng: `p7` lá Vàng. Đồ: lá về tay. Lá khác: hồi `p5 + p6·Máu tối đa`.
+- **Q Bắn Súng** (đối diện): `q1 + q2·AD + q3·Máu tối đa` vật lý; hạ được thì `q4` Vàng. Tìm 1 lá E.
+- **E Ăn Cam** (Quick khi bị nhắm): hồi `e1 + e2·Máu tối đa`, giải khống chế, `e5 + e6·Máu tối đa` Giáp `e3` đơn vị. Ô phụ trống: lá này úp thành Thùng `e4` Thuốc Súng.
+- **R Lệnh Truy Nã** (đối diện): đặt [Truy Nã] `r1` đơn vị, `r2 + r3·AD + r4·Máu tối đa` vật lý, rồi kích nổ Thùng: lá gì cũng nổ, thêm `r5`% lên tướng bị Truy Nã đối diện. Trong hạn, Thùng nổ vào tướng bị Truy Nã đứng đối diện cũng vậy. Nó bị hạ trong hạn: `r6` Vàng.
 
 ### Darius
 - **Nội tại Xuất Huyết:** Đòn trúng 1 [Chảy Máu], vô hạn, carrier stack trên tướng mang (kèm trạng thái song song `bleed_t` làm đồng hồ); đầu lượt tướng mang mỗi tầng `p1 + p2·AD` vật lý; hết sau `p3` đơn vị từ lần cộng cuối. Tướng mang chết mất một nửa; Darius chết không ảnh hưởng.

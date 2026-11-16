@@ -81,9 +81,9 @@ function stash(s: St, card: cg.Card, n = 0): St {
     }
     return r.s
 }
-const blast = (s: St, n: number) => cg.spike(gp.p2,
-    n,
-    gp.p4) * (1 + gp.p3 * gm(s).atk(s.units[gpUnit]))
+const blast = (s: St, n: number) => n * f(s,
+    gpUnit,
+    cg.kit("gangplank").x("p2 + p3·AD + p4·Máu tối đa"))
 /** Cho B phá Thùng: sang lượt B rồi đánh bằng kt_dummy */
 const breakKeg = (s: St, by = "kt_dummy") => { s.active = "B"; return basic(s,
     "B",
@@ -175,12 +175,9 @@ test("Úp Lá: mỗi loại lá một lựa chọn, bỏ lá tạm và lá băng
         assert.equal(cg.legalActions(s,
             "A").filter((a) => a.t === "ability").length,
         2)
-        s.teamMana.A = gp.p1 - 1
-        assert.equal(cg.legalActions(s,
-            "A").filter((a) => a.t === "ability").length,
-        0,
-        "thiếu mana")
-        s.teamMana.A = 200
+        assert.equal(gp.p1,
+            0,
+            "Úp Lá 0 mana")
         const r = stashAct(s,
             q1.uid)
         assert.equal(cg.legalActions(r.s,
@@ -256,7 +253,7 @@ test("Thuốc Súng không phát sự kiện stack (không lộ số)",
         assert(!r.ev.some((e) => e.t === "stack" && e.unit === s0.extra.A))
     })
 
-test("địch phá Thùng chứa lá chiêu: chỉ kẻ phá nhận nổ theo Thuốc Súng, lá lật vào mộ",
+test("địch phá Thùng chứa lá chiêu: tướng đối diện Gangplank nhận nổ theo Thuốc Súng, lá lật vào mộ",
     () => {
         const s0 = gpState()
         const card = gm(s0).skillCard("gangplank",
@@ -282,7 +279,28 @@ test("địch phá Thùng chứa lá chiêu: chỉ kẻ phá nhận nổ theo Th
         assert(r.s.players.A.grave.some((c) => c.uid === card.uid))
     })
 
-test("Thùng nổ tăng vọt theo công thức p2·n·(1 + n/p4)·(1 + p3·AD)",
+test("tướng đường khác phá Thùng: vẫn chỉ tướng đối diện Gangplank ăn nổ, kẻ phá không nhận",
+    () => {
+        const s0 = gpState()
+        const s1 = stash(s0,
+            gm(s0).skillCard("gangplank",
+                "A",
+                "Q"),
+            3)
+        const r = breakKeg(s1,
+            "kt_dummy2")
+        assert.equal(dmgOn(r.ev,
+            D1),
+        takenPhys(r.s,
+            D1,
+            blast(r.s,
+                3)))
+        assert.equal(dmgOn(r.ev,
+            D2),
+        0)
+    })
+
+test("Thùng nổ theo công thức n·(p2 + p3·AD + p4·Máu tối đa)",
     () => {
         for (const n of [0,
             1,
@@ -296,9 +314,10 @@ test("Thùng nổ tăng vọt theo công thức p2·n·(1 + n/p4)·(1 + p3·AD)"
             const r = breakKeg(s)
             assert.equal(dmgOn(r.ev,
                 D1),
-            takenPhys(r.s,
+            n ? takenPhys(r.s,
                 D1,
-                gp.p2 * n * (1 + n / gp.p4) * (1 + gp.p3 * gm(r.s).atk(r.s.units[gpUnit]))),
+                blast(r.s,
+                    n)) : 0,
             `n=${n}`)
         }
     })
@@ -352,7 +371,7 @@ test("Thùng chứa lá khác: Gangplank hồi p5 + p6·Máu tối đa, lá vào
         0)
     })
 
-test("Gangplank đánh Thùng mình kích nổ: mọi tướng địch nhận, kẻ đánh không nhận",
+test("Gangplank đánh Thùng mình kích nổ: chỉ tướng đối diện nhận, Gangplank không nhận",
     () => {
         const s0 = gpState()
         const s1 = stash(s0,
@@ -364,16 +383,15 @@ test("Gangplank đánh Thùng mình kích nổ: mọi tướng địch nhận, k
             "A",
             "gangplank",
 s1.extra.A!)
-        const exp = takenPhys(r.s,
-            D1,
-            blast(r.s,
-                2))
         assert.equal(dmgOn(r.ev,
             D1),
-        exp)
+        takenPhys(r.s,
+            D1,
+            blast(r.s,
+                2)))
         assert.equal(dmgOn(r.ev,
             D2),
-        exp)
+        0)
         assert.equal(dmgOn(r.ev,
             gpUnit),
         0)
@@ -446,165 +464,207 @@ test("mọi vai địch phá được Thùng",
         }
     })
 
-test("E: úp chính lá E thành Thùng e1 Thuốc Súng, lá không vào mộ, đối thủ phá thì nổ",
+test("E Ăn Cam: hồi, giải khống chế, Giáp e3 đơn vị; ô phụ trống thì úp thành Thùng e4 Thuốc Súng; là Quick",
     () => {
         const s = gpState()
+        const me = s.units[gpUnit]
+        me.hp = 100
+        gm(s).timed(s.units[D1],
+            me,
+            "root",
+            1)
+        const heal = Math.round(f(s,
+            gpUnit,
+            cg.kit("gangplank").x("e1 + e2·Máu tối đa")))
+        const armor = Math.round(f(s,
+            gpUnit,
+            cg.kit("gangplank").x("e5 + e6·Máu tối đa")))
         const e = skill(s,
             "gangplank",
             "A",
             "E")
-        const mana = s.teamMana.A
         const r = cast(s,
             "A",
             e)
+        const u2 = r.s.units[gpUnit]
+        assert.equal(u2.hp,
+            100 + heal)
+        assert.ok(!u2.statuses.root,
+            "giải Giữ Chân")
+        assert.equal(u2.statuses.armor_up.v,
+            armor)
+        assert.equal(u2.statuses.armor_up.until,
+            gm(r.s).unitsUntil(u2,
+                gp.e3))
         const keg = kegOf(r.s)
         assert.equal(keg.token!.hidden,
             true)
         assert.equal(keg.token!.secret!.powder,
-            gp.e1)
+            gp.e4)
         assert.equal(keg.token!.card!.uid,
             e.uid)
-        assert.equal(mana - r.s.teamMana.A,
-            gp.e0)
         assert(!r.s.players.A.grave.some((c) => c.uid === e.uid))
+        assert.equal(cg.getHero("gangplank")!.skills.E.quick,
+            true)
+        assert.equal(gp.q0 + gp.e0 + gp.r0 + gp.p1,
+            0,
+            "0 mana")
         const b = breakKeg(r.s)
         assert.equal(dmgOn(b.ev,
             D1),
         takenPhys(b.s,
             D1,
             blast(b.s,
-                gp.e1)))
-        assert(b.s.players.A.grave.some((c) => c.uid === e.uid))
+                gp.e4)))
     })
 
-test("E cần ô phụ trống",
+test("E Ăn Cam khi ô phụ đã có Thùng: vẫn hồi, lá vào mộ",
     () => {
         const s = stash(gpState(),
             gm(gpState()).skillCard("gangplank",
                 "A",
                 "Q"))
+        const keg0 = s.extra.A
+        s.units[gpUnit].hp = 100
         const e = skill(s,
             "gangplank",
             "A",
             "E")
-        s.players.A.hand.push(e)
-        assert.equal(cg.playOptions(gm(s),
+        const r = cast(s,
             "A",
-            e).length,
-        0)
+            e)
+        assert.ok(r.s.units[gpUnit].hp > 100)
+        assert.equal(r.s.extra.A,
+            keg0)
+        assert(r.s.players.A.grave.some((c) => c.uid === e.uid))
     })
 
-test("Q: hồi, Giáp q5 đơn vị, tìm 1 lá E trong bộ",
+test("Q Bắn Súng: chỉ đối diện q1 + q2·AD + q3·Máu tối đa, tìm 1 lá E; hạ được thì nhận q4 Vàng",
     () => {
         const s = gpState()
-        s.units[gpUnit].hp = 100
-        const q = skill(s,
-                "gangplank",
-                "A",
-                "Q"), mana = s.teamMana.A
-        const heal = Math.round(f(s,
+        const raw = f(s,
             gpUnit,
-            cg.kit("gangplank").x("q1 + q2·Máu tối đa")))
-        const armor = Math.round(f(s,
-            gpUnit,
-            cg.kit("gangplank").x("q3 + q4·Máu tối đa")))
+            cg.kit("gangplank").x("q1 + q2·AD + q3·Máu tối đa"))
         const eInDeck = s.players.A.deck.filter((c) => c.id === "gangplank_e").length
         const r = cast(s,
             "A",
-            q)
-        assert.equal(r.s.units[gpUnit].hp,
-            100 + heal)
-        const st = r.s.units[gpUnit].statuses.armor_up
-        assert.equal(st.v,
-            armor)
-        assert.equal(st.until,
-            gm(r.s).unitsUntil(r.s.units[gpUnit],
-                gp.q5))
-        assert.equal(mana - r.s.teamMana.A,
-            gp.q0)
+            skill(s,
+                "gangplank",
+                "A",
+                "Q"))
+        assert.equal(dmgOn(r.ev,
+            D1),
+        takenPhys(s,
+            D1,
+            raw))
+        assert.equal(dmgOn(r.ev,
+            D2),
+        0,
+        "chỉ đối diện")
         assert.equal(count(r.s,
             "A",
             (c) => c.id === "gangplank_e"),
         1)
         assert.equal(r.s.players.A.deck.filter((c) => c.id === "gangplank_e").length,
             eInDeck - 1)
+        assert.equal(count(r.s,
+            "A",
+            (c) => c.id === "gold"),
+        0)
+        const s2 = gpState()
+        s2.units[D1].hp = 1
+        const k = cast(s2,
+            "A",
+            skill(s2,
+                "gangplank",
+                "A",
+                "Q"))
+        assert.equal(k.s.units[D1].status,
+            "dead")
+        assert.equal(count(k.s,
+            "A",
+            (c) => c.id === "gold"),
+        gp.q4)
     })
 
-test("R Truy Nã: đặt r1 đơn vị, kích nổ Thùng chỉ đánh tướng bị truy nã r2%, lá gì cũng nổ",
+test("R Truy Nã: đối diện nhận r2 + r3·AD + r4·Máu tối đa, kích nổ Thùng (lá gì cũng nổ) thêm r5%",
     () => {
         const s0 = gpState()
+        s0.units[D1].maxHp = s0.units[D1].hp = 9000
         const gold = sup(s0,
             "gold")
         const s1 = stash(s0,
             gold,
             4)
+        const raw = f(s1,
+            gpUnit,
+            cg.kit("gangplank").x("r2 + r3·AD + r4·Máu tối đa"))
         const r = cast(s1,
             "A",
             skill(s1,
                 "gangplank",
                 "A",
-                "R"),
-            {
-                target: D2
-            })
-        assert.equal(r.s.units[D2].statuses.gp_wanted.until,
+                "R"))
+        assert.equal(r.s.units[D1].statuses.gp_wanted.until,
             gm(r.s).unitsUntil(r.s.units[gpUnit],
                 gp.r1))
         assert.equal(r.s.extra.A,
             null)
-        assert.equal(dmgOn(r.ev,
-            D2),
-        takenPhys(r.s,
-            D2,
-            blast(r.s,
-                4) * gp.r2 / 100))
+        const hits = r.ev.filter((e) => e.t === "damage" && e.target === D1)
+        assert.equal(hits.length,
+            2)
         assert.equal(dmgOn(r.ev,
             D1),
-        0)
+        takenPhys(s1,
+            D1,
+            raw) + takenPhys(s1,
+            D1,
+            blast(s1,
+                4) * (1 + gp.r5 / 100)))
+        assert.equal(dmgOn(r.ev,
+            D2),
+        0,
+        "chỉ đối diện")
         assert.equal(count(r.s,
             "A",
             (c) => c.id === "gold"),
         0,
         "Vàng nổ chứ không cho Vàng")
         assert(r.s.players.A.grave.some((c) => c.uid === gold.uid))
-        assert.equal(s1.teamMana.A - r.s.teamMana.A,
-            gp.r0)
     })
 
-test("R Truy Nã: trong hạn, Thùng địch phá chỉ đánh tướng bị truy nã (kẻ phá không nhận)",
+test("R Truy Nã: trong hạn, địch phá Thùng lá thường cũng nổ vào tướng bị truy nã đối diện (không hồi)",
     () => {
         const s0 = gpState()
+        s0.units[D1].maxHp = s0.units[D1].hp = 9000
         const mark = cast(s0,
             "A",
             skill(s0,
                 "gangplank",
                 "A",
-                "R"),
-            {
-                target: D2
-            })
+                "R"))
         const s1 = stash(mark.s,
             sup(mark.s,
                 "basic"),
             2)
         s1.units[gpUnit].hp = 100
         const r = breakKeg(s1,
-            "kt_dummy")
-        assert.equal(dmgOn(r.ev,
-            D2),
-        takenPhys(r.s,
-            D2,
-            blast(r.s,
-                2) * gp.r2 / 100))
+            "kt_dummy2")
         assert.equal(dmgOn(r.ev,
             D1),
+        takenPhys(r.s,
+            D1,
+            blast(r.s,
+                2) * (1 + gp.r5 / 100)))
+        assert.equal(dmgOn(r.ev,
+            D2),
         0)
         assert.equal(r.s.units[gpUnit].hp,
             100,
             "nổ chứ không hồi")
     })
 
-test("R Truy Nã: tướng bị truy nã bị hạ trong hạn cho r3 Vàng; hết hạn thì không",
+test("R Truy Nã: tướng bị truy nã bị hạ trong hạn cho r6 Vàng; hết hạn thì không",
     () => {
         const mk2 = () => mk({
             A: {
@@ -614,15 +674,13 @@ test("R Truy Nã: tướng bị truy nã bị hạ trong hạn cho r3 Vàng; h�
             }
         })
         const s0 = mk2()
+        s0.units[D2].maxHp = s0.units[D2].hp = 9000
         const mark = cast(s0,
             "A",
             skill(s0,
                 "gangplank",
                 "A",
-                "R"),
-            {
-                target: D2
-            })
+                "R"))
         mark.s.units[D2].hp = 1
         const kill = basic(mark.s,
             "A",
@@ -633,7 +691,7 @@ test("R Truy Nã: tướng bị truy nã bị hạ trong hạn cho r3 Vàng; h�
         assert.equal(count(kill.s,
             "A",
             (c) => c.id === "gold"),
-        gp.r3)
+        gp.r6)
         // hết hạn: r1 đơn vị = 2·r1 lượt
         let s = mark.s
         for (let i = 0; i < 2 * gp.r1; i++) s = endTurn(s).s

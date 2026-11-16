@@ -918,7 +918,7 @@ test("Rumble R: Sylas đoạt dùng thì gây sát thương theo AP, không sinh
         assert.ok(!r.s.players.A.hand.some((c) => c.data?.recycled),
             "R không còn tái chế")
     })
-test("Gangplank: R và E không hiện (cần Thùng của chủ), Q hiện và không sinh lá Gangplank",
+test("Gangplank: R và E không hiện (cần Thùng của chủ), Q bắn Gangplank đối diện và không sinh lá Gangplank",
     () => {
         const s0 = mk({
             A: {
@@ -938,14 +938,10 @@ test("Gangplank: R và E không hiện (cần Thùng của chủ), Q hiện và 
         const st = steal(s0,
             "gangplank",
             "Q")
-        u(st.s,
-            "A",
-            "sylas").hp -= 100
         const r = play(st.s,
             st.card)
-        assert.ok(u(r.s,
-            "A",
-            "sylas").statuses.armor_up)
+        assert.ok(dmgOn(r.ev,
+            "B:gangplank") > 0)
         assert.ok(!r.s.players.A.hand.some((c) => c.hero === "gangplank"))
     })
 test("Zed R: Dấu Ấn nổ cuối lượt dù hook nằm ở Zed, kể cả Sylas đã chết; lá không vào mộ",
