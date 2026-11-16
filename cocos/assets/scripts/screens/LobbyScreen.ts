@@ -118,10 +118,10 @@ interface Ctx {
     show(tab: LobbyTab): void;
 }
 
-const RAIL: { tab: LobbyTab | "heroes" | "decks"; label: string }[] = [
+const RAIL: { tab: LobbyTab | "heroes" | "decks" | "tutorial"; label: string }[] = [
     { tab: "play", label: "Chơi" },
     { tab: "ranked", label: "Xếp hạng" },
-    { tab: "heroes", label: "Tướng" },
+    { tab: "tutorial", label: "Tướng" },
     { tab: "items", label: "Kho đồ" },
     { tab: "decks", label: "Bộ bài" },
     { tab: "account", label: "Tài khoản" },
@@ -154,6 +154,7 @@ export async function buildLobby(root: Node, nav: Nav, message = "", tab: LobbyT
             const on = r.tab === current
             const b = new Button(railNode, r.label, 250, 64, 0, 290 - i * 84, () => {
                 if (r.tab === "heroes") return nav.showHeroes()
+                if (r.tab === "tutorial") return nav.showTutorial()
                 if (r.tab === "decks") return nav.showDecks()
                 showTab(r.tab)
             }, on ? "primary" : "gold", 26)

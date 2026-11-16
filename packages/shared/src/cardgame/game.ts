@@ -1085,6 +1085,10 @@ export class Game {
         if (u.status !== "board" || u.token || u.lane === lane || lane < 0 || lane > 4) return false
         const lanes = this.s.lanes[u.side]
         const old = u.lane, occ = this.unit(lanes[lane] ?? undefined)
+        // Giữ Chân (root): không tự di chuyển, không bị kéo, không bị đổi chỗ
+        if (this.has(u,
+            "root") || (occ && occ.status === "board" && this.has(occ,
+            "root"))) return false
         // Bàn luôn đầy: đổi chỗ là hoán đổi 2 người giữ ô. Tướng chết bị dời theo ô giữ chỗ (không hồi sinh, không mất mạng thêm); hồi sinh tại ô mới.
         lanes[old] = occ?.id ?? null
         if (occ) { occ.lane = old; if (occ.status === "dead") occ.homeLane = old }
@@ -1106,6 +1110,11 @@ export class Game {
     /** u dời sang đường của `enemy` để đứng đối diện nó (đổi chỗ với ai đang đứng đó) được không */
     canFace(u: Unit, enemy: Unit): boolean {
         if (u.status !== "board" || u.token || enemy.status !== "board" || enemy.token || u.lane === enemy.lane || enemy.side === u.side) return false
+        if (this.has(u,
+            "root")) return false
+        const occ = this.unit(this.s.lanes[u.side][enemy.lane] ?? undefined)
+        if (occ && occ.status === "board" && this.has(occ,
+            "root")) return false
         return true // ô đối diện luôn có người giữ (sống hoặc chết): hoán đổi được
     }
     /** u dời sang đường của `enemy` (đối diện nó). Trả false nếu không dời được. */
@@ -1869,6 +1878,18 @@ export class Game {
         else { p.deck.push(card); this.shuffle(p.deck) }
         this.emit({
             t: "create", side, card, zone
+        })
+    }
+    /** Đặt lá `card` vào một vị trí ngẫu nhiên trong `within` lá trên cùng bộ bài của `side` (Darius R trượt) */
+    putNearTop(side: Side, card: Card, within: number) {
+        const deck = this.player(side).deck
+        const pos = this.randInt(Math.min(within,
+            deck.length + 1))
+        deck.splice(pos,
+            0,
+            card)
+        this.emit({
+            t: "create", side, card, zone: "deck"
         })
     }
     /** Tìm 1 lá trong bộ bài (lục bộ) lên tay rồi xáo bộ */

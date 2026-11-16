@@ -10,67 +10,39 @@ import {
 import type {
     VfxCtx
 } from "./registry"
+import {
+    stdOpts, stdPower, VFX_STD
+} from "./tone"
 
-// ---- tiết chế (phản hồi của chủ 2026-11-04: nhã, không loè loẹt) ----
-// Mọi hạt của nhóm 1 đi qua lớp này: quầng nhỏ và mờ hơn, hạt văng bớt gần một nửa, cỡ có trần (không sprite khổng lồ),
-// thời lượng ngắn lại. Cường độ chiêu cuối (intensity 2) chỉ còn 1.35 lần thay vì gấp đôi.
-const TONE = {
-    count: 0.5, glow: 0.7, glowAlpha: 0.8, ring: 0.75, time: 0.85, drop: 0.45
-}
-const CAP: Record<string, number> = {
-    glow: 190, ring: 300, blade: 110, dot: 26
-}
-/** Phát một hạt đã tiết chế; `keep` = true thì không bị lược (hạt dựng hình vật thể) */
-function toned(layer: Node, at: Pt, o: EmitOpts, keep: boolean) {
-    const moving = (o.speed?.[1] ?? 0) > 0
-    if (!keep && moving && Math.random() < TONE.drop) return
-    const kind = o.kind ?? "glow"
-    let [s0, s1] = o.size ?? [8,
-        2]
-    let alpha = o.alpha ?? 1
-    if (kind === "glow") { s0 *= TONE.glow; s1 *= TONE.glow; alpha *= TONE.glowAlpha }
-    if (kind === "ring") { s0 *= TONE.ring; s1 *= TONE.ring; alpha *= 0.85 }
-    const cap = CAP[kind] ?? 200
-    rawEmit(layer,
-        at,
-        {
-            ...o, size: [Math.min(cap,
-                s0),
-            Math.min(cap,
-                s1)], alpha
-        })
-}
-export const emit = (layer: Node, at: Pt, o: EmitOpts) => toned(layer,
+// ---- chuẩn cường độ chung (tone.ts; chủ chốt 2026-11-16: mọi tướng đậm ngang Vel'Koz) ----
+// Trước đây nhóm 1 tự tiết chế (bớt nửa hạt, quầng 70%); giờ mọi hạt đi qua VFX_STD dùng chung cho mọi tướng.
+/** Phát một hạt theo chuẩn chung */
+export const emit = (layer: Node, at: Pt, o: EmitOpts) => rawEmit(layer,
     at,
-    o,
-    false)
-/** Nổ một loạt: số hạt giảm một nửa */
+    stdOpts(o))
+/** Nổ một loạt theo chuẩn chung */
 export function burst(layer: Node, at: Pt, count: number, o: EmitOpts): Promise<void> {
     const n = Math.max(1,
-        Math.round(count * TONE.count))
-    for (let i = 0; i < n; i++) toned(layer,
+        Math.round(count * VFX_STD.count))
+    const t = stdOpts(o)
+    for (let i = 0; i < n; i++) rawEmit(layer,
         at,
-        o,
-        true)
+        t)
     return rawWait(layer,
         (o.life?.[1] ?? 0.6))
 }
 export const over = (layer: Node, secs: number, fn: (t: number) => void) => rawOver(layer,
-    secs * TONE.time,
+    secs * VFX_STD.time,
     fn)
 export const wait = (layer: Node, secs: number) => rawWait(layer,
-    secs * TONE.time)
+    secs * VFX_STD.time)
 export const stream = (layer: Node, getPt: () => Pt, secs: number, perSec: number, o: EmitOpts) => rawStream(layer,
     getPt,
-    secs * TONE.time,
-    perSec * 0.55,
-    {
-        ...o, size: o.size ? [Math.min(CAP[o.kind ?? "glow"] ?? 200,
-            o.size[0] * (o.kind === "glow" || !o.kind ? TONE.glow : 1)),
-        o.size[1] * (o.kind === "glow" || !o.kind ? TONE.glow : 1)] : o.size
-    })
+    secs * VFX_STD.time,
+    perSec * VFX_STD.count,
+    stdOpts(o))
 
-export const power = (ctx: VfxCtx) => 1 + ((ctx.style.intensity ?? 1) - 1) * 0.35
+export const power = stdPower
 /** Mục tiêu chính; chiêu không mục tiêu thì là chính người dùng */
 export const mainOf = (ctx: VfxCtx): Pt => ctx.to[0] ?? ctx.from
 export const targetsOf = (ctx: VfxCtx): Pt[] => (ctx.to.length ? ctx.to : [ctx.from])

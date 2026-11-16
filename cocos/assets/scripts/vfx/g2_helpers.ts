@@ -10,32 +10,23 @@ import {
 import type {
     VfxCtx
 } from "./registry"
+import {
+    stdOpts, stdPower
+} from "./tone"
 
-/**
- * Phát một hạt theo TÔNG NHẸ của nhóm 2 (chủ chốt 2026-11-04: tinh tế, không loè loẹt). Mọi file nhóm 2 phát hạt qua hàm này:
- * hạt tung toé (có tốc độ hoặc rải) bỏ bớt gần một nửa, quầng sáng nhỏ lại và mờ hơn, vòng sóng nhỏ lại. Hạt đứng yên dựng
- * hình (thân dao, thùng, trái tim, mũi tên) giữ nguyên số để không vỡ dáng.
- */
+/** Phát một hạt theo chuẩn cường độ chung (tone.ts; chủ chốt 2026-11-16: mọi tướng đậm ngang Vel'Koz, thay tông nhẹ riêng của nhóm 2) */
 export function emit(layer: Node, at: Pt, o: EmitOpts) {
-    const loose = (o.speed?.[1] ?? 0) > 0 || (o.spread ?? 0) > 0
-    if (loose && Math.random() < 0.45) return
-    const kind = o.kind ?? "glow"
-    const k = kind === "glow" ? 0.7 : kind === "ring" ? 0.8 : 0.92
-    const a = kind === "glow" ? 0.7 : 0.9
     rawEmit(layer,
         at,
-        {
-            ...o, size: o.size ? [o.size[0] * k,
-                o.size[1] * k] : undefined, alpha: (o.alpha ?? 1) * a
-        })
+        stdOpts(o))
 }
 
 export const TAU = Math.PI * 2
 export const UP = Math.PI / 2
 export const DOWN = -Math.PI / 2
 
-/** Cường độ chiêu: thường 1, chiêu cuối (intensity 2) chỉ 1,3 để R to nhất nhưng vẫn tiết chế */
-export const pow = (ctx: VfxCtx) => 1 + ((ctx.style.intensity ?? 1) - 1) * 0.3
+/** Cường độ chiêu theo chuẩn chung (tone.ts) */
+export const pow = stdPower
 /** Mục tiêu chính; không có thì là chính người dùng */
 export const main = (ctx: VfxCtx): Pt => ctx.to[0] ?? ctx.from
 /** Mọi mục tiêu; rỗng thì lấy người dùng (chiêu tự thân, chiêu vùng) */

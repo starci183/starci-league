@@ -3,7 +3,7 @@
 // Mọi thao tác dựng từ cg:legal của server: gọi tướng, đánh lá, chọn mục tiêu, đòn không cần lá, ghép đồ, nối chuỗi.
 // VFX: mỗi chiêu một ô hiệu ứng riêng (vfx/registry.ts), tạm thời là một hạt.
 import {
-    Graphics, Node, Sprite, Tween, UIOpacity, Vec3, tween
+    Color, Graphics, Node, Sprite, Tween, UIOpacity, Vec3, tween
 } from "cc"
 import {
     C, at, withAlpha
@@ -117,7 +117,16 @@ interface Targeting { options: cg.Action[]; source: string; title: string; step?
 /** Tướng thực hiện của một hành động đánh (đòn đánh thường, đòn không cần lá, lá có args.actor) */
 const actorOfAction = (a: cg.Action): string | undefined => a.t === "attack" ? a.actor : a.t === "play" || a.t === "chain" ? a.args?.actor : undefined
 
-export function buildMatch(root: Node, nav: Nav): () => void {
+/** Tuỳ chọn thêm cho màn trận (màn Hướng dẫn); bỏ trống thì màn trận y như cũ */
+export interface MatchOptions {
+    /** Lá trên tay cần làm nổi (viền sáng + nhãn) khi dùng được */
+    highlightCard?: (card: cg.Card) => boolean;
+    /** Nhãn dưới lá được làm nổi */
+    highlightBadge?: string;
+}
+
+export function buildMatch(root: Node, nav: Nav, opts: MatchOptions = {
+}): () => void {
     // ---- khung tĩnh ----
     const inspectorPanel = panel(root,
         330,
@@ -1295,6 +1304,7 @@ export function buildMatch(root: Node, nav: Nav): () => void {
                 cards.length))
         cards.forEach((c, i) => {
             const x = (i - (cards.length - 1) / 2) * step + 60
+            const lit = !targeting && sigUsable(c) && !!opts.highlightCard?.(c)
             cardPos.set(c.uid,
                 {
                     x: HAND.x + x, y: HAND.y - 10
@@ -1308,9 +1318,9 @@ export function buildMatch(root: Node, nav: Nav): () => void {
                 -10,
                 {
                     usable: sigUsable(c),
-                    selected: targeting?.source === c.uid,
+                    selected: targeting?.source === c.uid || lit,
                     dim: !sigUsable(c) && v.toMove === you,
-                    badge: cg.skillOfCard(c)?.quick && sigUsable(c) ? "Quick play" : undefined,
+                    badge: lit ? opts.highlightBadge ?? "Dùng lá này" : cg.skillOfCard(c)?.quick && sigUsable(c) ? "Quick play" : undefined,
                     onPick: () => { zoom.hide(); onHandCard(c) },
                     onHover: (on) => (on && !targeting ? zoom.show(v,
                         c,
@@ -1410,6 +1420,11 @@ export function buildMatch(root: Node, nav: Nav): () => void {
 
     // ---- VFX theo sự kiện: mỗi chiêu một ô hiệu ứng (tạm một hạt), số sát thương / hồi máu bay lên ----
     let vfxQueue: Promise<void> = Promise.resolve()
+    /** Màu số sát thương theo loại (thầy chốt 2026-11-16): vật lý vàng, phép xanh dương, chuẩn trắng */
+    const DMG_COLOR = {
+        physical: new Color(255, 200, 60), magic: new Color(80, 170, 255), true: new Color(255, 255, 255)
+    } as const
+    const dmgColor = (kind?: string) => DMG_COLOR[(kind ?? "physical") as keyof typeof DMG_COLOR] ?? DMG_COLOR.physical
     function floatNumber(p: Pt, s: string, color = C.danger) {
         const n = box("Float",
             vfxLayer,
@@ -1486,8 +1501,13 @@ export function buildMatch(root: Node, nav: Nav): () => void {
                     const nextCast = rest.findIndex((x) => x.t === "cast")
                     const hits = (nextCast < 0 ? rest : rest.slice(0,
                         nextCast)).filter((x): x is Extract<cg.GameEvent, { t: "damage" }> => x.t === "damage" && x.src === e.unit && x.tag === "skill").map((x) => x.target)
-                    const multi = u.hero === "velkoz" && hits.length > 0
-                    const ids = !multi ? [] : e.skill === "R" ? hits : [...new Set([e.target ?? hits[0], ...hits])]
+                    // Aatrox E: chém đối diện rồi 2 đường kề, mỗi cú một nhịp theo đúng thứ tự engine (số bật lúc vệt chém chạm)
+                    const aatroxE = u.hero === "aatrox" && e.skill === "E"
+                    const multi = (u.hero === "velkoz" || aatroxE) && hits.length > 0
+                    const ids = !multi ? [] : e.skill === "R" || aatroxE ? hits : [...new Set([e.target ?? hits[0], ...hits])]
+                    const aatroxDmg = aatroxE ? (nextCast < 0 ? rest : rest.slice(0,
+                        nextCast)).filter((x): x is Extract<cg.GameEvent, { t: "damage" }> => x.t === "damage" && x.src === e.unit && x.tag === "skill") : []
+                    for (const d of aatroxDmg) beatShown.add(d)
                     const swapQ = u.hero === "sylas" && e.skill === "Q" && !!e.target
                     const allyLane = swapQ ? cur.lanes[u.side].indexOf(e.target!) : -1
                     const foeOfAlly = swapQ && allyLane >= 0 ? cur.lanes[u.side === "A" ? "B" : "A"][allyLane] : undefined
@@ -1524,7 +1544,7 @@ export function buildMatch(root: Node, nav: Nav): () => void {
                     const floatHit = (x: HitEv) => x.amount > 0 && floatNumber(posOf(lastView ?? cur,
                         x.target),
                     x.t === "damage" ? `-${x.amount}` : x.t === "heal" ? `+${x.amount}` : `+${x.amount} khiên`,
-                    x.t === "damage" ? undefined : x.t === "heal" ? C.teal : C.goldLight)
+                    x.t === "damage" ? dmgColor(x.kind) : x.t === "heal" ? C.teal : C.goldLight)
                     // Miss Fortune Q/E/R: mỗi phát đúng tướng engine báo, kèm chí mạng; số bật theo đợt / loạt (chí mạng màu vàng)
                     const mfSkill = u.hero === "missfortune" && (e.skill === "Q" || e.skill === "E" || e.skill === "R")
                     const mfEv = mfSkill ? (nextCast < 0 ? rest : rest.slice(0,
@@ -1559,16 +1579,25 @@ export function buildMatch(root: Node, nav: Nav): () => void {
                                 for (const x of mfG[i] ?? []) floatNumber(posOf(lastView ?? cur,
                                     x.target),
                                 `-${x.amount}`,
-                                x.crit ? C.goldLight : undefined)
+                                x.crit ? C.goldLight : dmgColor(x.kind))
                             }
                         } : namiSkill ? {
                             hops: namiHops,
                             onBeat: (i) => { for (const h of namiG[i] ?? []) floatHit(h.ev) }
+                        } : aatroxE ? {
+                            onBeat: (i) => {
+                                const d = aatroxDmg[i]
+                                if (d) floatNumber(posOf(lastView ?? cur,
+                                    d.target),
+                                `-${d.amount}`,
+                                dmgColor(d.kind))
+                            }
                         } : riftE || raysR ? {
                             onBeat: (i) => {
                                 for (const d of beats[i] ?? []) floatNumber(posOf(lastView ?? cur,
                                     d.target),
-                                `-${d.amount}`)
+                                `-${d.amount}`,
+                                dmgColor(d.kind))
                             }
                         } : {
                         })
@@ -1638,13 +1667,15 @@ export function buildMatch(root: Node, nav: Nav): () => void {
                             {
                                 onBeat: () => floatNumber(posOf(lastView ?? cur,
                                     e.target),
-                                `-${e.amount}`)
+                                `-${e.amount}`,
+                                dmgColor(e.kind))
                             })
                         return
                     }
                     floatNumber(posOf(cur,
                         e.target),
-                    `-${e.amount}`)
+                    `-${e.amount}`,
+                    dmgColor(e.kind))
                 } else if (e.t === "heal") {
                     if (beatShown.has(e)) return
                     floatNumber(posOf(cur,

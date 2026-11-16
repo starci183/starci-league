@@ -470,7 +470,7 @@ test("AD đổi thành AP theo p4 trên Darius Q (hệ số Máu giữ nguyên, 
                 "B",
                 "darius")))
     })
-test("AD đổi thành AP trên Garen Q, E, R; Khiên theo Máu tối đa của Sylas; Câm Lặng giữ",
+test("AD đổi thành AP trên Garen Q, E, R; Máu tối đa và Kiên Cường tính theo Sylas; Câm Lặng giữ",
     () => {
         const kg = cg.kit("garen")
         const setup = () => {
@@ -491,14 +491,18 @@ test("AD đổi thành AP trên Garen Q, E, R; Khiên theo Máu tối đa của 
             return s
         }
         const ad = Math.round(100 / kp.p4)
+        const amp = (s: St) => 1 + kg.p.p3 * (5 - gm(s).heroes("B").length)
         let st = steal(setup(),
             "garen",
             "Q")
         let r = play(st.s,
             st.card)
+        const syl = (x: St) => u(x,
+            "A",
+            "sylas")
         assert.equal(dmgOn(r.ev,
             "B:garen"),
-        mit(kg.p.q1 + kg.p.q2 * ad,
+        mit((kg.p.q1 + kg.p.q2 * ad + kg.p.q3 * syl(st.s).maxHp) * amp(st.s),
             armorOf(st.s,
                 "B",
                 "garen")))
@@ -509,21 +513,18 @@ test("AD đổi thành AP trên Garen Q, E, R; Khiên theo Máu tối đa của 
         st = steal(setup(),
             "garen",
             "E")
-        const shield = u(st.s,
-            "A",
-            "sylas").maxHp * kg.p.e2 + kg.p.e1
         r = play(st.s,
             st.card)
-        assert.equal(dmgOn(r.ev,
-            "B:garen"),
-        mit(kg.p.e3 + kg.p.e4 * ad,
-            armorOf(st.s,
-                "B",
-                "garen")))
-        assert.equal(gm(r.s).totalShield(u(r.s,
-            "A",
-            "sylas")),
-        Math.round(shield))
+        const eDmg = dmgOn(r.ev,
+            "B:garen")
+        assert.equal(eDmg,
+            mit((kg.p.e1 + kg.p.e2 * ad + kg.p.e3 * syl(st.s).maxHp) * amp(st.s),
+                armorOf(st.s,
+                    "B",
+                    "garen")))
+        assert.equal(gm(r.s).totalShield(syl(r.s)),
+            0,
+            "E mới không cho Khiên")
         st = steal(setup(),
             "garen",
             "R")
@@ -534,8 +535,10 @@ test("AD đổi thành AP trên Garen Q, E, R; Khiên theo Máu tối đa của 
             })
         assert.equal(dmgOn(r.ev,
             "B:garen"),
-        Math.round(kg.p.r1 + kg.p.r2 * ad),
-        "chuẩn, không giảm")
+        Math.round((kg.p.r1 + kg.p.r2 * u(st.s,
+            "B",
+            "garen").maxHp) * (1 + kg.p.r3)),
+        "chuẩn, không giảm, cùng đường thì gấp đôi")
     })
 test("copied Stun: Choáng của lá gốc giữ nguyên (khác Rumble)",
     () => {

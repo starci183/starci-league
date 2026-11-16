@@ -413,10 +413,11 @@ test("giảm đúng e1%: chiêu vẫn trúng, không huỷ",
         {
             zed: 2
         })
+        const gp = cg.kit("garen").p
         const raw = gm(s).f(u(s,
             "A",
             "garen"),
-        cg.kit("garen").x("q1 + q2·AD"))
+        cg.kit("garen").x("q1 + q2·AD + q3·Máu tối đa")) * (1 + gp.p3 * (5 - gm(s).heroes("B").length))
         const r = mirror(s,
             skill(s,
                 "garen",
@@ -639,7 +640,7 @@ test("Malphite Liên Kết: chỉ tính phần tướng được bảo vệ, gi�
         const raw = g.f(u(s,
             "A",
             "garen"),
-        cg.kit("garen").x("q1 + q2·AD"))
+        cg.kit("garen").x("q1 + q2·AD + q3·Máu tối đa")) * (1 + cg.kit("garen").p.p3 * (5 - g.heroes("B").length))
         const r = mirror(s,
             skill(s,
                 "garen",
@@ -1297,6 +1298,10 @@ test("Aatrox R: biến hình cứu chết trước ngưỡng hạ, lần sau m�
             "aatrox")
         t.maxHp = 9000
         t.hp = 8000
+        const mel = u(s,
+            "A",
+            "mel")
+        mel.maxHp = mel.hp = 5000 // R mới scale Máu tối đa của Aatrox (9000): đủ Máu để Mel còn đánh được
         s.active = "B"
         s.teamMana!.B = 200
         const c = skill(s,

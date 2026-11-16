@@ -1764,7 +1764,16 @@ test("R: nối được khi địch đánh hoặc dùng chiêu",
 
 // ======================================================================
 G("Garen")
-test("nội tại: mỗi đòn trúng hồi Máu và thêm 1 tầng Kiên Cường tăng Giáp; mất một nửa khi chết",
+/** Bỏ mọi tướng phe `side` khỏi sân trừ `keep` (để thử Kiên Cường theo số đường địch trống) */
+const onlyOn = (s: St, side: S, keep: string[]) => {
+    for (const x of Object.values(s.units)) if (x.side === side && x.status === "board" && !keep.includes(x.hero)) {
+        s.lanes[side][x.lane] = null; x.status = "reserve"; x.lane = -1
+    }
+}
+/** Hệ số Kiên Cường theo số tướng địch đang trên sân */
+const garenAmp = (s: St) => 1 + kg.p3 * (5 - gm(s).heroes("B").length)
+const garenHp = (items: number) => Math.round((kg.p1 + kg.p2 * (3 - items)) * 450)
+test("nội tại: Máu tối đa + (p1 + p2·ô đồ trống)·Máu gốc; đeo đồ thì phần thêm giảm",
     () => {
         const s = mk({
             A: {
@@ -1773,45 +1782,48 @@ test("nội tại: mỗi đòn trúng hồi Máu và thêm 1 tầng Kiên Cườ
                 leona: 1
             }
         })
-        const gar = u(s,
+        const g = gm(s), gar = u(s,
             "A",
             "garen")
-        gar.hp = 100
-        const a0 = armor(s,
-            "A",
-            "garen")
-        const r = basic(s,
-            "A",
-            "A:garen",
-            "B:leona")
-        const heal = Math.round(kg.p1 + kg.p2 * gar.maxHp)
-        assert.equal(u(r.s,
-            "A",
-            "garen").hp,
-        100 + heal)
-        assert.equal(u(r.s,
-            "A",
-            "garen").stacks.garen_steel,
-        1)
-        assert.equal(armor(r.s,
-            "A",
-            "garen"),
-        Math.round(a0 + kg.p3))
-        u(r.s,
-            "A",
-            "garen").stacks.garen_steel = 9
-        gm(r.s).kill(u(r.s,
-            "A",
-            "garen"),
-        u(r.s,
-            "B",
-            "leona"))
-        assert.equal(u(r.s,
-            "A",
-            "garen").stacks.garen_steel,
-        4)
+        assert.equal(gar.maxHp,
+            450 + garenHp(0))
+        g.equip(gar,
+            "kiem_tu_than")
+        assert.equal(gar.maxHp,
+            450 + garenHp(1))
+        assert.equal(gar.stacks.garen_steel,
+            undefined)
     })
-test("Q: sát thương vật lý theo AD lên đối diện, Câm Lặng q3 đơn vị",
+test("nội tại: Q, E gây thêm p3 cho mỗi đường địch trống (1v1 = +4·p3)",
+    () => {
+        const s = mk({
+            A: {
+                garen: 1
+            }, B: {
+                leona: 1
+            }
+        })
+        onlyOn(s,
+            "B",
+            ["leona"])
+        const r = cast(s,
+            "A",
+            skill(s,
+                "garen",
+                "A",
+                "Q"))
+        const g = gm(r.s), gar = u(r.s,
+            "A",
+            "garen")
+        const raw = (kg.q1 + kg.q2 * g.atk(gar) + kg.q3 * gar.maxHp) * (1 + 4 * kg.p3)
+        assert.equal(dmgOn(r.ev,
+            "B:leona"),
+        mit(raw,
+            armor(r.s,
+                "B",
+                "leona")))
+    })
+test("Q: sát thương vật lý theo AD + Máu tối đa lên đối diện, Câm Lặng q4 đơn vị",
     () => {
         const s = mk({
             A: {
@@ -1831,7 +1843,7 @@ test("Q: sát thương vật lý theo AD lên đối diện, Câm Lặng q3 đơ
             "garen")
         assert.equal(dmgOn(r.ev,
             "B:leona"),
-        mit(kg.q1 + kg.q2 * g.atk(gar),
+        mit((kg.q1 + kg.q2 * g.atk(gar) + kg.q3 * gar.maxHp) * garenAmp(r.s),
             armor(r.s,
                 "B",
                 "leona")))
@@ -1839,7 +1851,7 @@ test("Q: sát thương vật lý theo AD lên đối diện, Câm Lặng q3 đơ
             "B",
             "leona").statuses.silence.until,
         g.unitsUntil(gar,
-            kg.q3))
+            kg.q4))
     })
 test("Q: kẻ bị Câm Lặng không tung được chiêu (vẫn đánh thường)",
     () => {
@@ -1870,7 +1882,7 @@ test("Q: kẻ bị Câm Lặng không tung được chiêu (vẫn đánh thườ
             "leona")),
         true)
     })
-test("E: Quick, nối khi địch nhắm đúng Garen; Khiên theo Máu tối đa, đối diện và 2 đường kề nhận sát thương",
+test("E: Quick khi địch nhắm đúng Garen; đối diện nhận đủ, 2 đường kề nhận e4; Garen hồi e5 tổng sát thương",
     () => {
         const s = mk({
             A: {
@@ -1879,6 +1891,9 @@ test("E: Quick, nối khi địch nhắm đúng Garen; Khiên theo Máu tối đ
                 leona: 2, malphite: 1, blitzcrank: 3
             }
         })
+        u(s,
+            "A",
+            "garen").hp = 200
         card(s,
             "A",
             "garen",
@@ -1897,18 +1912,27 @@ test("E: Quick, nối khi địch nhắm đúng Garen; Khiên theo Máu tối đ
         const gar = u(r.s,
                 "A",
                 "garen"), g = gm(r.s)
-        const dmg = kg.e3 + kg.e4 * g.atk(gar)
-        for (const h of ["leona",
-            "malphite",
-            "blitzcrank"]) assert.equal(dmgOn(r.ev,
-            `B:${h}`),
-        mit(dmg,
-            armor(r.s,
-                "B",
-                h)),
-        h)
-        const shield = Math.round(kg.e1 + kg.e2 * gar.maxHp)
-        assert.ok(r.ev.some((e) => e.t === "shield" && e.target === gar.id && e.amount === shield))
+        const full = (kg.e1 + kg.e2 * g.atk(gar) + kg.e3 * gar.maxHp) * garenAmp(r.s)
+        let total = 0
+        for (const [h,
+            k] of [["leona",
+                1],
+            ["malphite",
+                kg.e4],
+            ["blitzcrank",
+                kg.e4]] as const) {
+            const d = dmgOn(r.ev,
+                `B:${h}`)
+            total += d
+            assert.equal(d,
+                mit(full * k,
+                    armor(r.s,
+                        "B",
+                        h)),
+                h)
+        }
+        assert.ok(r.ev.some((e) => e.t === "heal" && e.target === gar.id && e.amount === Math.round(total * kg.e5)))
+        assert.ok(!r.ev.some((e) => e.t === "shield" && e.target === gar.id))
     })
 test("E: không nối khi địch nhắm tướng khác của mình",
     () => {
@@ -1947,13 +1971,14 @@ test("E: chỉ chạm các đường tồn tại (Garen ở rìa)",
                 "A",
                 "E"))
         assert.ok(dmgOn(r.ev,
-            "B:leona") > 0 && dmgOn(r.ev,
+            "B:leona") > dmgOn(r.ev,
+            "B:malphite") && dmgOn(r.ev,
             "B:malphite") > 0)
         assert.equal(dmgOn(r.ev,
             "B:braum"),
         0)
     })
-test("R: sát thương chuẩn theo AD lên 1 địch ở bất kỳ đường",
+test("R: sát thương chuẩn theo % Máu tối đa mục tiêu; khác đường không tăng",
     () => {
         const s = mk({
             A: {
@@ -1973,9 +1998,33 @@ test("R: sát thương chuẩn theo AD lên 1 địch ở bất kỳ đường",
             })
         assert.equal(dmgOn(r.ev,
             "B:leona"),
-        Math.round(kg.r1 + kg.r2 * gm(r.s).atk(u(r.s,
+        Math.round(kg.r1 + kg.r2 * u(r.s,
+            "B",
+            "leona").maxHp))
+    })
+test("R: mục tiêu cùng đường với Garen nhận thêm r3 (gấp đôi)",
+    () => {
+        const s = mk({
+            A: {
+                garen: 1
+            }, B: {
+                leona: 1
+            }
+        })
+        const r = cast(s,
             "A",
-            "garen"))))
+            skill(s,
+                "garen",
+                "A",
+                "R"),
+            {
+                target: "B:leona"
+            })
+        assert.equal(dmgOn(r.ev,
+            "B:leona"),
+        Math.round((kg.r1 + kg.r2 * u(r.s,
+            "B",
+            "leona").maxHp) * (1 + kg.r3)))
     })
 
 report()

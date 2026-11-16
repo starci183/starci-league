@@ -10,43 +10,22 @@ import {
 import type {
     VfxCtx
 } from "./registry"
+import {
+    stdOpts, stdPower, VFX_STD
+} from "./tone"
 
-// ---- Hạ tông (chủ tướng góp ý 2026-11-04: nhã, không loè loẹt) ----
-// Mọi file nhóm 3 phát hạt qua emit/burst/stream/wait dưới đây thay vì gọi thẳng particles.ts: quầng sáng nhỏ và mờ hơn, có trần
-// để không loá cả màn, số hạt của burst và stream giảm một nửa, các nhịp chờ ngắn lại.
-const GLOW_SCALE = 0.72
-const GLOW_CAP = 190
-const GLOW_ALPHA = 0.75
-const RING_SCALE = 0.8
-const RING_CAP = 320
-
-/** Tuỳ chọn đã hạ tông. Dùng Object.create để giữ getter (hướng bay tính lại mỗi hạt) của tuỳ chọn gốc */
-function tone(o: EmitOpts): EmitOpts {
-    const kind = o.kind ?? "glow"
-    if (kind !== "glow" && kind !== "ring") return o
-    const t = Object.create(o) as EmitOpts
-    const sz = o.size ?? [8, 2]
-    if (kind === "glow") {
-        t.size = [Math.min(GLOW_CAP, sz[0] * GLOW_SCALE), Math.min(GLOW_CAP, sz[1] * GLOW_SCALE)]
-        t.alpha = (o.alpha ?? 1) * GLOW_ALPHA
-    } else {
-        t.size = [Math.min(RING_CAP, sz[0] * RING_SCALE), Math.min(RING_CAP, sz[1] * RING_SCALE)]
-        t.alpha = (o.alpha ?? 1) * 0.85
-    }
-    return t
-}
-
-export const emit = (layer: Node, at: Pt, o: EmitOpts) => P.emit(layer, at, tone(o))
-export const burst = (layer: Node, at: Pt, count: number, o: EmitOpts) => P.burst(layer, at, Math.max(1, Math.round(count * 0.5)), tone(o))
-export const stream = (layer: Node, getPt: () => Pt, secs: number, perSec: number, o: EmitOpts) => P.stream(layer, getPt, secs, perSec * 0.5, tone(o))
-export const wait = (layer: Node, secs: number) => P.wait(layer, secs * 0.75)
+// ---- chuẩn cường độ chung (tone.ts; chủ chốt 2026-11-16: mọi tướng đậm ngang Vel'Koz, thay lớp hạ tông riêng của nhóm 3) ----
+export const emit = (layer: Node, at: Pt, o: EmitOpts) => P.emit(layer, at, stdOpts(o))
+export const burst = (layer: Node, at: Pt, count: number, o: EmitOpts) => P.burst(layer, at, Math.max(1, Math.round(count * VFX_STD.count)), stdOpts(o))
+export const stream = (layer: Node, getPt: () => Pt, secs: number, perSec: number, o: EmitOpts) => P.stream(layer, getPt, secs * VFX_STD.time, perSec * VFX_STD.count, stdOpts(o))
+export const wait = (layer: Node, secs: number) => P.wait(layer, secs * VFX_STD.time)
 
 export const TAU = Math.PI * 2
 export const UP = Math.PI / 2
 export const DOWN = -Math.PI / 2
 
-/** Cường độ của chiêu (chiêu cuối > 1) */
-export const power = (ctx: VfxCtx) => ctx.style.intensity ?? 1
+/** Cường độ của chiêu theo chuẩn chung (tone.ts) */
+export const power = stdPower
 
 /** Điểm cách p một đoạn d theo hướng ang */
 export const offset = (p: Pt, ang: number, d: number): Pt => ({

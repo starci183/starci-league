@@ -1,4 +1,4 @@
-// Chữ cho trạng thái, bộ đếm và từ khoá của nhóm Đỡ đòn (Braum, Leona, Malphite, Blitzcrank, Ornn) và Garen.
+// Chữ cho trạng thái, bộ đếm và từ khoá của nhóm Đỡ đòn (Braum, Leona, Malphite, Blitzcrank, Ornn).
 // Gộp vào STATUS_V2 / STACK_V2 (i18n_en.ts) và KEYWORDS (keywords/index.ts) SAU các bảng V2, nên ghi đè khoá cũ cùng id (braum_dual, braum_mark, blitz_steal).
 import type {
     Keyword
@@ -35,14 +35,6 @@ export const STACK_KITS_TANK: Record<string, Bi> = {
         },
         en: {
             name: "Parts", desc: "Blitzcrank's counter: +1 for every card he steals, without limit. Each Part adds Armor and MR. Half is lost when Blitzcrank is taken down."
-        },
-    },
-    garen_steel: {
-        vi: {
-            name: "Kiên Cường", desc: "Bộ đếm của Garen: mỗi đòn đánh thường trúng thêm 1 tầng, vô hạn. Mỗi tầng tăng Giáp. Mất một nửa khi Garen bị hạ."
-        },
-        en: {
-            name: "Perseverance", desc: "Garen's counter: +1 for every attack that hits, without limit. Each stack adds Armor. Half is lost when Garen is taken down."
         },
     },
     ornn_mw: {
@@ -94,12 +86,6 @@ export const KEYWORDS_KITS_TANK: Record<string, Keyword> = {
         en: "Card-Steal",
         descVi: "Lấy 1 lá của đối thủ. Lá thường giữ nguyên; lá chiêu của địch vào mộ chủ lá, thay bằng 1 lá Q hoặc E ngẫu nhiên của tướng mình trên sân.",
         descEn: "Take 1 card from the opponent. An ordinary card stays as it is; an enemy skill card goes to its owner's graveyard and is replaced by a random Q or E card of one of your champions on the board.",
-    },
-    garen_steel: {
-        vi: "Kiên Cường",
-        en: "Perseverance",
-        descVi: "Bộ đếm của Garen: mỗi đòn đánh thường trúng thêm 1 tầng. Mỗi tầng tăng Giáp. Mất một nửa khi bị hạ.",
-        descEn: "Garen's counter: +1 for every attack that hits. Each stack adds Armor. Half is lost when he is taken down.",
     },
     ornn_mw: {
         vi: "Kiệt Tác",

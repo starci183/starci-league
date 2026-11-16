@@ -9,8 +9,8 @@ import {
 
 type Side = cg.Side
 
-/** Client Colyseus bản Cocos (plugin vendor/colyseus.js gắn vào globalThis) */
-interface ColyseusRoom {
+/** Client Colyseus bản Cocos (plugin vendor/colyseus.js gắn vào globalThis); phòng chạy trong máy (net/localRoom.ts) cũng theo giao diện này */
+export interface ColyseusRoom {
     /** Mã phòng (colyseus.js 0.16); `id` không có trên bản client này */
     roomId: string;
     sessionId: string;
@@ -212,6 +212,14 @@ export const gameActions = {
                 stage: "error", error: (e as Error).message || "Không vào được phòng"
             })
         }
+    },
+    /** Vào một phòng chạy ngay trong máy (màn Hướng dẫn: net/localRoom.ts) thay cho phòng server; trận online không đổi */
+    async connectLocal(r: ColyseusRoom) {
+        await gameActions.leave()
+        set({
+            ...EMPTY, stage: "connecting", startedAt: Date.now()
+        })
+        wire(r)
     },
     draftAct(hero: string) {
         room?.send("cg:draftAct",

@@ -48,8 +48,14 @@ import {
     buildVfxGallery
 } from "./screens/VfxGalleryScreen"
 import {
-    buildHeroGallery
-} from "./screens/HeroGalleryScreen"
+    buildTutorialSelect
+} from "./screens/TutorialSelectScreen"
+import {
+    buildTutorialMatch
+} from "./tutorial/TutorialMatch"
+import {
+    parseSlot, parseVariant
+} from "./tutorial/scenarios"
 import {
     settings
 } from "./net/settings"
@@ -99,7 +105,17 @@ export class App extends Component implements Nav {
             return this.swap((r) => buildVfxGallery(r,
                 () => { this.matchVeil.active = false; void this.start() }))
         }
-        // ?heroes=<mã tướng>: mở thẳng Thư viện tướng (không cần đăng nhập, mô phỏng chạy bằng engine trong máy)
+        // ?tutorial[=<mã tướng>[:<p|q|e|r|basic>[:<số biến thể, đếm từ 1>]]]: mở thẳng màn Hướng dẫn (chạy engine trong máy, không cần đăng nhập)
+        const tutorialParam = typeof location !== "undefined" ? new URLSearchParams(location.search).get("tutorial") : null
+        if (tutorialParam !== null) {
+            const [h, sl, vn] = tutorialParam.split(":")
+            const slot = parseSlot(sl)
+            if (h && slot) return this.startTutorial(h,
+                slot,
+                parseVariant(vn))
+            return this.showTutorial(h || undefined)
+        }
+        // ?heroes=<mã tướng>: đường dẫn cũ của Thư viện tướng (đã bỏ 2026-11-16), giờ mở màn Hướng dẫn
         const heroParam = typeof location !== "undefined" ? new URLSearchParams(location.search).get("heroes") : null
         if (heroParam !== null) return this.showHeroes(heroParam || undefined)
         text(this.screen,
@@ -151,10 +167,29 @@ export class App extends Component implements Nav {
         this.swap((r) => { void buildDeckList(r, this, message) })
     }
 
+    /** Thư viện tướng cũ đã bỏ (thầy chốt 2026-11-16): xem tướng và thử chiêu ở màn Hướng dẫn */
     showHeroes(hero?: string) {
-        this.swap((r) => buildHeroGallery(r,
+        this.showTutorial(hero)
+    }
+
+    showTutorial(hero?: string, slot?: string) {
+        void gameActions.leave()
+        this.swap((r) => buildTutorialSelect(r,
             this,
-            hero))
+            hero,
+            slot))
+    }
+
+    startTutorial(hero: string, slot: string, variant = 0) {
+        const key = parseSlot(slot)
+        if (!key) return this.showTutorial(hero)
+        // màn trận chạy trong máy: không đi theo stage của phòng đấu (matchScreen null), chỉ phủ nền tối như trận thật
+        this.swap((r) => buildTutorialMatch(r,
+            this,
+            hero,
+            key,
+            variant))
+        this.matchVeil.active = true
     }
 
     showBuilder(deck: DeckRow | null) {

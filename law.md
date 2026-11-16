@@ -209,6 +209,13 @@ Chốt ngày 31/10/2026.
 
 - Chiêu tạo Khiên là Quick, để đỡ bất ngờ trong lượt địch. Chiêu đó vẫn ghi rõ điều kiện nối Chuỗi theo mục 1.2.
 
+### 11e. Đấu sĩ đánh trước mặt (chốt 16/11/2026)
+
+- Chiêu của Đấu sĩ đánh **tướng đối diện** là chính. Hạn chế gây sát thương lên 2 đường kề: chỉ khi chiêu được thiết kế riêng
+  cho việc đó, và đường kề nhận **phần nhỏ** (hiện Garen E 30%, Aatrox E 50%), không bằng đối diện.
+- Không cho Đấu sĩ chiêu quét cả hàng hay đánh mọi tướng địch.
+- Chiêu của Đấu sĩ scale theo **Công + Máu tối đa** (Garen, Darius, Aatrox).
+
 ## 11c. Giới hạn đòn đánh
 
 Chốt ngày 31/10/2026: bỏ giới hạn 3 đòn mỗi lượt (`RULES.attackLimit`). Mỗi lượt đánh bao nhiêu tuỳ số lá Đánh Thường và quyền đánh.

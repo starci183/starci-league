@@ -11,6 +11,12 @@ export const KEYWORDS_GENERAL: Record<string, Keyword> = {
         descVi: "Không thể dùng lá chiêu hay đánh thường (kể cả tự đánh của Đấu Sĩ). Mắt xích của nó đang chờ trong Chuỗi bị huỷ.",
         descEn: "Can't use skill cards or attack (including a Fighter's automatic attack). Its pending Chain Link fizzles."
     },
+    root: {
+        vi: "Giữ Chân",
+        en: "Root",
+        descVi: "Không thể di chuyển: không đổi đường, không bị kéo hay bị đổi chỗ (vẫn đánh và dùng chiêu được).",
+        descEn: "Can't move: can't change lanes, be pulled or be swapped (can still attack and cast)."
+    },
     silence: {
         vi: "Câm Lặng",
         en: "Silence",

@@ -69,7 +69,7 @@ export const EVAL = {
 
 /** Giá trị mặc định mỗi điểm v của trạng thái chung (dương). Dấu: debuff có lợi cho phe gắn, buff có lợi cho phe mang. */
 const STATUS_DEBUFF: Record<string, number> = {
-    stun: 170, silence: 90, chill: 35, shred: 45, blind: 55, grievous: 25, exhaust: 60, ignite: 1.4, charm: 70, berserk: 40,
+    stun: 170, silence: 90, root: 30, chill: 35, shred: 45, blind: 55, grievous: 25, exhaust: 60, ignite: 1.4, charm: 70, berserk: 40,
 }
 const STATUS_BUFF: Record<string, number> = {
     empower: 45, stealth: 80, taunt: 15, see_hand: 20, armor_up: 3,

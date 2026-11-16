@@ -846,7 +846,7 @@ test("Q: q1 + q2·AD + q3·Máu tối đa + q6/tầng, gắn q4, hồi q5/tầng
             dp.q0)
     })
 
-test("E: hoán đổi địch khác đường với địch đối diện, e1 + e2·AD + e4/tầng, gắn e3",
+test("E: hoán đổi địch khác đường với địch đối diện, e1 + e2·AD + e4/tầng, Giữ Chân e3 đơn vị",
     () => {
         const s = dState()
         putBleed(s,
@@ -884,12 +884,76 @@ test("E: hoán đổi địch khác đường với địch đối diện, e1 + 
         0)
         assert.equal(bleed(r.s,
             D2),
-        2 + dp.e3)
+        2,
+        "E không cắm thêm Chảy Máu")
+        assert.equal(r.s.units[D2].statuses.root?.until,
+            gm(r.s).unitsUntil(r.s.units[dUnit],
+                dp.e3))
         assert.equal(mana - r.s.teamMana.A,
             dp.e0)
     })
 
-test("R: chỉ chọn địch có Chảy Máu, đổi chỗ sang đối diện, sát thương chuẩn r1 + r2·AD + r3/tầng, tiêu hết",
+test("Giữ Chân: không bị kéo, không bị đổi chỗ, không tự di chuyển",
+    () => {
+        const s = dState()
+        const g = gm(s)
+        g.timed(s.units[dUnit],
+            s.units[D2],
+            "root",
+            1)
+        assert.equal(g.moveTo(s.units[D2],
+            2),
+        false,
+        "kẻ bị Giữ Chân không di chuyển")
+        assert.equal(g.moveTo(s.units[D1],
+            0),
+        false,
+        "không đổi chỗ với kẻ bị Giữ Chân")
+        assert.equal(s.units[D2].lane,
+            0)
+        assert.equal(cg.playOptions(gm(s),
+            "A",
+            skill(s,
+                "darius",
+                "A",
+                "E")).some((o) => o.target === D2),
+        true,
+        "vẫn chọn được làm mục tiêu")
+        const r = cast(s,
+            "A",
+            skill(s,
+                "darius",
+                "A",
+                "E"),
+            {
+                target: D2
+            })
+        assert.equal(r.s.units[D2].lane,
+            0,
+            "E không kéo được kẻ bị Giữ Chân")
+    })
+
+test("nội tại: đánh thường gây thêm p4 mỗi Chảy Máu trên mục tiêu",
+    () => {
+        const s0 = dState()
+        const s1 = dState()
+        putBleed(s1,
+            D1,
+            4)
+        const hit = (s: St) => dmgOn(basicRaw(s,
+            "A",
+            dUnit,
+            D1).ev,
+        D1)
+        const d0 = hit(s0), d1 = hit(s1)
+        assert.equal(d1 - d0,
+            takenPhys(s1,
+                D1,
+                dp.p4 * 4),
+            "chênh đúng phần cộng theo dấu")
+    })
+
+test("R: chỉ chọn địch có Chảy Máu, đổi chỗ sang đối diện, sát thương chuẩn (r1 + r2·AD + r3·Máu + r5/tầng) × càng ít máu càng đau",
     () => {
         const s = dState()
         const r0 = skill(s,
@@ -904,14 +968,16 @@ test("R: chỉ chọn địch có Chảy Máu, đổi chỗ sang đối diện, 
         putBleed(s,
             D2,
             3)
+        const t = s.units[D2]
+        t.hp = Math.round(t.maxHp * 0.5)
         const opts = cg.playOptions(gm(s),
             "A",
             r0)
         assert.deepEqual(opts.map((o) => o.target),
             [D2])
-        const raw = f(s,
+        const raw = (f(s,
             dUnit,
-            dk.x("r1 + r2·AD")) + dp.r3 * 3
+            dk.x("r1 + r2·AD + r3·Máu tối đa")) + dp.r5 * 3) * (1 + dp.r4 * (1 - t.hp / t.maxHp))
         const r = cast(s,
             "A",
             r0,
@@ -922,7 +988,8 @@ test("R: chỉ chọn địch có Chảy Máu, đổi chỗ sang đối diện, 
             0)
         assert.equal(dmgOn(r.ev,
             D2),
-        Math.round(raw),
+        Math.min(Math.round(raw),
+            t.hp),
         "sát thương chuẩn bỏ qua Giáp")
         assert.equal(bleed(r.s,
             D2),
@@ -932,7 +999,30 @@ test("R: chỉ chọn địch có Chảy Máu, đổi chỗ sang đối diện, 
             dp.r0)
     })
 
-test("R hạ gục: lá về tay ngay (returnToHand), không hẹn giờ",
+test("R: mục tiêu càng ít máu càng đau",
+    () => {
+        const dmgAt = (pct: number) => {
+            const s = dState()
+            putBleed(s,
+                D1,
+                1)
+            s.units[D1].maxHp = 5000
+            s.units[D1].hp = Math.round(5000 * pct)
+            return dmgOn(cast(s,
+                "A",
+                skill(s,
+                    "darius",
+                    "A",
+                    "R"),
+                {
+                    target: D1
+                }).ev,
+            D1)
+        }
+        assert.ok(dmgAt(0.3) > dmgAt(0.6) && dmgAt(0.6) > dmgAt(1))
+    })
+
+test("R hạ gục: lá về tay ngay (returnToHand)",
     () => {
         const s = dState()
         putBleed(s,
@@ -953,79 +1043,44 @@ test("R hạ gục: lá về tay ngay (returnToHand), không hẹn giờ",
             "dead")
         assert(r.s.players.A.hand.some((c) => c.uid === r0.uid))
         assert(r.ev.some((e) => e.t === "returnToHand" && e.card.uid === r0.uid))
-        assert(!(r.s.delayed ?? []).some((d) => d.key === "r_return"))
+        assert(!r.s.players.A.deck.some((c) => c.uid === r0.uid))
     })
 
-test("R không hạ: lá biến mất, về tay (lá mới) sau r4 đơn vị tính từng đầu lượt của Darius",
+test("R không hạ: lá nằm ngẫu nhiên trong r6 lá trên cùng bộ bài, rút lại được",
     () => {
-        let s = dState()
-        putBleed(s,
-            D1,
-            1)
-        const r0 = skill(s,
-            "darius",
-            "A",
-            "R")
-        const c = cast(s,
-            "A",
-            r0,
-            {
-                target: D1
+        for (let seed = 0; seed < 12; seed++) {
+            const s = mk({
+                A: {
+                    darius: 2
+                }, B: {
+                    kt_dummy: 2, kt_dummy2: 0
+                }, seed: 20261116 + seed
             })
-        s = c.s
-        assert(!s.players.A.hand.some((x) => x.uid === r0.uid))
-        assert(!s.players.A.grave.some((x) => x.uid === r0.uid))
-        const d = (s.delayed ?? []).find((x) => x.key === "r_return")!
-        assert.equal(d.data!.left,
-            dp.r4)
-        assert.equal(d.surviveOwnerDeath,
-            true)
-        const returned = (evs: Ev) => evs.filter((e) => e.t === "returnToHand")
-        let evs: Ev = []
-        for (let i = 0; i < 2 * (dp.r4 - 1) + 1; i++) { const r = endTurn(s); s = r.s; evs = [...evs,
-            ...r.ev] }
-        assert.equal(returned(evs).length,
-            0,
-            "chưa tới hạn")
-        assert.equal(count(s,
-            "A",
-            (x) => x.id === "darius_r"),
-        0)
-        const r = endTurn(s)
-        assert.equal(returned(r.ev).length,
-            1)
-        const back = r.s.players.A.hand.filter((x) => x.id === "darius_r")
-        assert.equal(back.length,
-            1)
-        assert.notEqual(back[0].uid,
-            r0.uid,
-            "lá mới hoàn toàn")
-        assert.equal(back[0].hero,
-            "darius")
-    })
-
-test("lá R đã hẹn vẫn về tay khi Darius đã chết (surviveOwnerDeath)",
-    () => {
-        let s = dState()
-        putBleed(s,
-            D1,
-            1)
-        s = cast(s,
-            "A",
-            skill(s,
+            putBleed(s,
+                D1,
+                1)
+            const r0 = skill(s,
                 "darius",
                 "A",
-                "R"),
-            {
-                target: D1
-            }).s
-        gm(s).kill(s.units[dUnit],
-            s.units[D1])
-        for (let i = 0; i < 2 * dp.r4; i++) s = endTurn(s).s
-        assert.equal(count(s,
-            "A",
-            (x) => x.id === "darius_r"),
-        1)
+                "R")
+            const r = cast(s,
+                "A",
+                r0,
+                {
+                    target: D1
+                })
+            assert.equal(r.s.units[D1].status,
+                "board")
+            assert(!r.s.players.A.hand.some((x) => x.uid === r0.uid))
+            assert(!r.s.players.A.grave.some((x) => x.uid === r0.uid))
+            const pos = r.s.players.A.deck.findIndex((x) => x.uid === r0.uid)
+            assert.ok(pos >= 0 && pos < dp.r6,
+                `vị trí ${pos}`)
+            gm(r.s).draw("A",
+                pos + 1)
+            assert(r.s.players.A.hand.some((x) => x.uid === r0.uid),
+                "rút lại được lá R")
+        }
     })
 
 test("R khác đường: Darius dời sang đường địch",
@@ -1099,7 +1154,7 @@ test("nội tại: đủ Máu thì không thêm sát thương",
             gm(s).atk(s.units[aUnit])))
     })
 
-test("Q: mất q1% Máu hiện tại, chém đối diện và 2 đường kề (không chạm đường xa)",
+test("Q: mất q1% Máu hiện tại, chỉ chém tướng đối diện (q2 + q3·AD + q4·Máu tối đa)",
     () => {
         const s = aState()
         s.units[D1].maxHp = s.units[D1].hp = 5000
@@ -1107,7 +1162,7 @@ test("Q: mất q1% Máu hiện tại, chém đối diện và 2 đường kề (
         const after = hp0 - paid
         const raw = f(s,
             aUnit,
-            ak.x("q2 + q3·AD")) + ap.q4 * (s.units[aUnit].maxHp - after)
+            ak.x("q2 + q3·AD + q4·Máu tối đa"))
         const mana = s.teamMana.A
         const r = cast(s,
             "A",
@@ -1116,12 +1171,9 @@ test("Q: mất q1% Máu hiện tại, chém đối diện và 2 đường kề (
                 "A",
                 "Q"))
         const hits = r.ev.filter((e) => e.t === "damage" && e.src === aUnit && e.tag === "skill")
-        assert.deepEqual(hits.map((e) => e.t === "damage" && e.target).sort(),
-            [D1,
-                D2,
-                D3].sort())
+        assert.deepEqual(hits.map((e) => e.t === "damage" && e.target),
+            [D1])
         const first = hits[0]
-        assert(first.t === "damage" && first.target === D1)
         assert.equal(first.t === "damage" && first.amount,
             takenPhys(r.s,
                 D1,
@@ -1157,43 +1209,90 @@ test("Q: không dùng được khi chỉ còn 1 Máu hoặc không có tướng 
         0)
     })
 
-test("E: 1 địch e1 + e2·AD, hồi e3% sát thương (cộng nội tại)",
+test("E: đối diện nhận đủ, 2 đường kề nhận e7; Khiên e4% tổng sát thương",
     () => {
         const s = aState()
         s.units[aUnit].hp = 200
         const m = mult(s)
         const raw = f(s,
             aUnit,
-            ak.x("e1 + e2·AD")) * m
+            ak.x("e1 + e2·AD + e3·Máu tối đa")) * m
         const mana = s.teamMana.A
         const r = cast(s,
             "A",
             skill(s,
                 "aatrox",
                 "A",
-                "E"),
-            {
-                target: D3
-            })
-        const dealt = dmgOn(r.ev,
-            D3)
-        assert.equal(dealt,
+                "E"))
+        const d1 = dmgOn(r.ev,
+                D1), d2 = dmgOn(r.ev,
+                D2), d3 = dmgOn(r.ev,
+                D3)
+        assert.equal(d1,
             takenPhys(r.s,
-                D3,
+                D1,
                 raw))
-        assert.equal(r.s.units[aUnit].hp,
-            200 + Math.round(dealt * ap.p2 / 100) + Math.round(dealt * ap.e3 / 100))
+        // đường kề đánh sau đòn đối diện: hút máu của đòn trước làm Máu đã mất giảm chút, lệch tối đa vài điểm
+        for (const [d,
+            id] of [[d2,
+                D2],
+            [d3,
+                D3]] as const) assert.ok(Math.abs(d - takenPhys(r.s,
+            id,
+            raw * ap.e7)) <= 3,
+        `${id}: ${d}`)
+        assert.ok(d1 > d2,
+            "đối diện bị hút nhiều hơn")
+        assert.ok(r.ev.some((e) => e.t === "shield" && e.target === aUnit && e.amount === Math.round((d1 + d2 + d3) * ap.e4 / 100)),
+            "Khiên theo tổng sát thương")
         assert.equal(mana - r.s.teamMana.A,
             ap.e0)
     })
 
-test("R: mọi địch nhận r1 + r2·AD rồi biến hình r3 đơn vị (AD, Máu tối đa, Tốc Đánh)",
+/** Đặt lá chiêu lên tay để thử nối Chuỗi */
+const aCard = (s: St, hero: string, key: cg.SkillKey) => { const c = skill(s,
+    hero,
+    "A",
+    key); s.players.A.hand.push(c); return c }
+/** Địch (B) đánh thường nhắm `to` bằng lá đánh thường, mở Chuỗi cho A phản ứng */
+const aAttackOpen = (s: St, from: string, to: string) => {
+    s.active = "B"
+    return cast(s,
+        "B",
+        sup(s,
+            "basic"),
+        {
+            actor: from, target: to
+        },
+        false)
+}
+const aChainOpts = (s: St, id: string) => cg.legalActions(s,
+    "A").filter((a) => a.t === "chain" && s.players.A.hand.find((c) => c.uid === a.uid)?.id === id)
+
+test("E, R: Quick khi địch nhắm đúng Aatrox",
+    () => {
+        for (const key of ["E",
+            "R"] as const) {
+            const s = aState()
+            aCard(s,
+                "aatrox",
+                key)
+            const open = aAttackOpen(s,
+                D1,
+                aUnit)
+            assert.equal(open.s.phase,
+                "chain",
+                key)
+            assert.ok(aChainOpts(open.s,
+                `aatrox_${key.toLowerCase()}`).length >= 1,
+            key)
+        }
+    })
+
+test("R: không gây sát thương, chỉ hoá quỷ r1 đơn vị (+r2 AD, +r3% Máu tối đa)",
     () => {
         const s = aState()
-        const me = s.units[aUnit], maxHp0 = me.maxHp, ad0 = gm(s).atk(me), as0 = gm(s).attackSpeed(me)
-        const raw = f(s,
-            aUnit,
-            ak.x("r1 + r2·AD"))
+        const me = s.units[aUnit], maxHp0 = me.maxHp, ad0 = gm(s).atk(me)
         const mana = s.teamMana.A
         const r = cast(s,
             "A",
@@ -1201,28 +1300,20 @@ test("R: mọi địch nhận r1 + r2·AD rồi biến hình r3 đơn vị (AD, 
                 "aatrox",
                 "A",
                 "R"))
-        for (const d of [D1,
-            D2,
-            D3]) assert.equal(dmgOn(r.ev,
-            d),
-        takenPhys(r.s,
-            d,
-            raw))
+        assert.equal(r.ev.filter((e) => e.t === "damage").length,
+            0,
+            "R không chém")
         const m = r.s.units[aUnit]
-        const bonus = Math.round(maxHp0 * ap.r7 / 100)
+        const bonus = Math.round(maxHp0 * ap.r3 / 100)
         assert.equal(m.transform!.id,
             "aatrox_r")
         assert.equal(m.maxHp,
             maxHp0 + bonus)
-        assert.equal(m.hp,
-            maxHp0 + bonus)
         assert.equal(gm(r.s).atk(m),
-            ad0 + ap.r6)
-        assert.equal(gm(r.s).attackSpeed(m),
-            as0 + ap.r8)
+            ad0 + ap.r2)
         assert.equal(m.transform!.until,
             gm(r.s).unitsUntil(m,
-                ap.r3))
+                ap.r1))
         assert.equal(mana - r.s.teamMana.A,
             ap.r0)
         assert.equal(cg.playOptions(gm(r.s),
@@ -1232,37 +1323,10 @@ test("R: mọi địch nhận r1 + r2·AD rồi biến hình r3 đơn vị (AD, 
                 "A",
                 "R")).length,
         0,
-        "đang biến hình không dùng lại")
+        "đang hoá quỷ không dùng lại")
     })
 
-test("R: nội tại gấp r5 khi biến hình",
-    () => {
-        const s = cast(aState(),
-            "A",
-            skill(aState(),
-                "aatrox",
-                "A",
-                "R")).s
-        const me = s.units[aUnit]
-        me.hp = Math.round(me.maxHp / 2)
-        const m = mult(s,
-            ap.r5)
-        const hp0 = me.hp
-        const r = basic(s,
-            "A",
-            "aatrox",
-            D1)
-        const dealt = dmgOn(r.ev,
-            D1)
-        assert.equal(dealt,
-            takenPhys(r.s,
-                D1,
-                gm(s).atk(me) * m))
-        assert.equal(r.s.units[aUnit].hp,
-            hp0 + Math.round(dealt * ap.p2 * ap.r5 / 100))
-    })
-
-test("R: lần đầu về 0 còn r4% Máu (thứ tự cứu chết \"transform\"), hết dạng, lần sau chết thật",
+test("R: lần đầu về 0 thì hồi sinh với r4% Máu (thứ tự cứu chết \"transform\"), hết dạng, lần sau chết thật",
     () => {
         assert(cg.RULES.lethalOrder.includes("transform"))
         const s0 = aState()
@@ -1273,7 +1337,7 @@ test("R: lần đầu về 0 còn r4% Máu (thứ tự cứu chết \"transform\
                 "aatrox",
                 "A",
                 "R")).s
-        const bonus = Math.round(maxHp0 * ap.r7 / 100)
+        const bonus = Math.round(maxHp0 * ap.r3 / 100)
         const g = gm(s), me = s.units[aUnit]
         g.damage(s.units[D1],
             me,
@@ -1302,7 +1366,7 @@ test("R: lần đầu về 0 còn r4% Máu (thứ tự cứu chết \"transform\
             "dead")
     })
 
-test("R: biến hình hết sau r3 đơn vị",
+test("R: dạng quỷ hết sau r1 đơn vị",
     () => {
         let s = cast(aState(),
             "A",
@@ -1310,7 +1374,7 @@ test("R: biến hình hết sau r3 đơn vị",
                 "aatrox",
                 "A",
                 "R")).s
-        for (let i = 0; i < 2 * ap.r3 - 1; i++) s = endTurn(s).s
+        for (let i = 0; i < 2 * ap.r1 - 1; i++) s = endTurn(s).s
         assert(s.units[aUnit].transform,
             "chưa hết")
         s = endTurn(s).s

@@ -12,6 +12,26 @@ một nẻo, hoặc số sát thương bật lệch lúc hình chạm. Cách án
   khiên đồng điện xanh thì là khiên đồng có điện.
 - Ghi ngắn trong đầu file VFX: mỗi ô lấy ý từ icon / chiêu gốc nào.
 
+### 0.1 Vẽ hiệu ứng, không vẽ vũ khí (thầy chốt 2026-11-16)
+
+- **Không vẽ hình vũ khí hay đồ vật**: không vẽ cây kiếm, cây rìu, khẩu súng, viên đạn có hình đầu đạn, cây cung, mũi tên,
+  cây trượng, chiếc khiên... Chân dung trên lá đã có vũ khí của tướng; vẽ thêm hình vũ khí chỉ rối và trông như hình cắt dán.
+- **Chỉ vẽ dấu vết chuyển động của vũ khí / phép**: cái mắt thấy khi vũ khí lướt qua quá nhanh.
+  - Chém (kiếm, rìu, móng): **vệt chém** cong sáng, đầu vệt lõi trắng, đuôi mờ dần; chạm thì loé, tia lửa, vết chém đọng
+    lại trên mục tiêu rồi nguội. Hướng chém đúng chiêu gốc (ví dụ bổ từ trên xuống, quét ngang).
+  - Bắn (súng, cung, nỏ): **vệt đạn** (vệt sáng dài, đầu sáng), chớp nòng ở nguồn; chạm thì loé và văng tia. Không vẽ
+    khẩu súng, không vẽ viên đạn có hình dạng.
+  - Đâm, đấm, đập: **vệt lao** thẳng + sóng xung kích hình vòng / nứt đất ở điểm chạm.
+  - Nước, lửa, gió, băng, điện: vẽ **chất liệu đang chuyển động**: nước chảy, sóng tràn, bọt bắn; lửa phun, tàn bay; gió
+    xoáy thành vệt; băng kết tinh lan; điện nhảy thành tia gấp khúc.
+- Được phép vẽ vật thể **do chính phép tạo ra** khi nó là trọng tâm chiêu (quả cầu năng lượng, tường băng, khe nứt, cột
+  sáng), nhưng vẫn ưu tiên chất liệu (ánh sáng, khói, hạt) hơn hình khối cứng, và không vẽ hình người / sinh vật nhận ra được.
+- **Không dùng hình khối cứng** (thầy chốt 2026-11-16): không mảnh tam giác, không ô vuông đất vụn, không vết nứt màu tối vẽ
+  bằng đường gấp khúc. Chúng trông như "hình học" chứ không phải chất liệu. Thay bằng ánh sáng, tia lửa mảnh, bụi sáng, khói,
+  sóng sáng trên mặt đất.
+- Ví dụ Garen: đánh thường là vệt chém chéo nhỏ; Q một vệt chém lớn từ trên xuống qua mục tiêu; R một vệt chém dọc khổng lồ
+  bổ từ trời xuống. Không vẽ hình thanh kiếm ở cả ba.
+
 ## 1. Hình ảnh diễn đúng luật
 
 - Diễn đúng điều engine làm: đúng số mục tiêu, đúng đường, đúng thứ tự, đúng số nhịp. Chiêu đánh 3 đường thì hình phủ
@@ -19,23 +39,23 @@ một nẻo, hoặc số sát thương bật lệch lúc hình chạm. Cách án
 - Mục tiêu lấy từ sự kiện của engine (các sự kiện `damage`, `heal`, `move` ngay sau lá `cast`), không tự bịa, không chọn
   ngẫu nhiên trong VFX khi engine đã chọn.
 - Không vẽ trúng tướng không mất máu, không vẽ nhịp engine không có, không bỏ nhịp engine có.
-- Đổi luật chiêu thì đổi VFX trong cùng commit. Câu chữ trên màn Thư viện tướng cũng đổi theo.
+- Đổi luật chiêu thì đổi VFX trong cùng commit. Câu chữ trên màn Hướng dẫn (chọn tướng) cũng đổi theo.
 - Hiệu ứng chỉ để trình diễn: không đọc hay sửa trạng thái trận, không quyết định sát thương.
 
 ## 2. Số sát thương bật đúng lúc hình chạm
 
-- Mỗi cú trúng gọi `ctx.onBeat(i)` đúng khung hình nó chạm (i = 0, 1, 2...). Màn trận và Thư viện hiện số của nhịp i
+- Mỗi cú trúng gọi `ctx.onBeat(i)` đúng khung hình nó chạm (i = 0, 1, 2...). Màn trận (cả trận thật lẫn Hướng dẫn) hiện số của nhịp i
   ngay trong callback đó.
 - Cấm hẹn giờ đoán (`sleep(0.6)` rồi mới hiện số) để "khớp" với hiệu ứng. Đổi nhịp VFX là số lệch ngay.
 - Chia sự kiện sát thương thành nhịp bằng một hàm thuần đặt cạnh VFX (ví dụ `riftBeats`, `rayBeats` trong `velkoz.ts`),
-  dùng chung cho màn trận và Thư viện, để hai nơi không lệch nhau.
+  dùng chung cho mọi nơi phát VFX, để không lệch nhau.
 - Chiêu một nhịp không cần `onBeat` nhưng promise phải xong ngay lúc chạm: phần tan, khói, bụi chạy nền (`void`), không
   giữ hàng sự kiện.
 - Phần đuôi sau nhịp cuối không giữ hàng quá 0,3 giây.
 
 ## 3. Đúng cỡ sân thật
 
-- Kiểm trên Thư viện tướng, nơi có sân 5 đường như trận thật và mục tiêu lấy từ engine. Màn `?vfx` chỉ để thử nhanh,
+- Kiểm trên màn Hướng dẫn (`?tutorial=<tướng>:<ô>`): trận thật chạy trong máy, sân 5 đường, mục tiêu lấy từ engine. Thư viện tướng cũ đã bỏ (2026-11-16). Màn `?vfx` chỉ để thử nhanh,
   không đủ để duyệt.
 - Lá tướng trên sân khoảng 110 px, các đường cách nhau khoảng 130 px. Hiệu ứng không che chân dung quá 0,3 giây, không
   đè thanh máu hay số sát thương, không vượt khung bàn hay đè chữ hướng dẫn phía trên.
@@ -99,3 +119,17 @@ Hiệu ứng là chất liệu thật đang xảy ra trên sân, không phải h
 3. Chụp ở tốc độ thật. Đặt `window.__vfxScale = 0.2` chỉ để soi hình, không dùng để duyệt nhịp số.
 4. Kiểm lại từng mục trên: số bật đúng lúc chạm, không che, không vượt bàn, đúng số mục tiêu, có vòng đời và không trông như hình học máy móc.
 5. Nếu sửa luật: `npm test`, rồi `node scripts/sync-cocos.mjs` để Cocos nhận bản engine mới.
+
+## 9. Một chuẩn cho mọi tướng (chủ chốt 2026-11-16)
+
+Mọi tướng cùng một độ đậm và độ chi tiết, **mẫu là Vel'Koz** (`velkoz.ts`). Không tướng nào được "nhạt" hơn mẫu.
+
+- **Cường độ chung:** mọi hạt phát qua `vfx/tone.ts` (`VFX_STD`): cùng mật độ, độ sáng, trần kích thước và hệ số chiêu
+  cuối. Không file tướng hay bộ helper nào được tự tiết chế riêng (bớt hạt, thu quầng). Muốn chỉnh độ đậm của cả game thì
+  chỉnh một chỗ `VFX_STD`.
+- **Bộ công cụ chung:** `vfx/kit.ts` tách từ Vel'Koz, tham số theo bảng màu tướng (`Palette`: lõi, chính, sâu, nhấn, bụi):
+  lớp vẽ cộng sáng, tia mềm nhiều lớp, đốm sáng nhiều lớp, loé chạm có sóng xung kích, mảnh vỡ văng ngược hướng đánh, bụi tan,
+  tụ năng lượng, đạn bay có đuôi, sóng loang mặt đất, ngẫu nhiên có hạt giống. Phần sáng / chạm / vỡ / bụi / tia dùng kit;
+  hình riêng của tướng (kiếm, thùng, nấm, búa...) tự vẽ nhưng chồng lớp như Vel'Koz (tối, thân, viền sáng, lõi).
+- **Mức tối thiểu mỗi ô (Nội tại, Q, E, R, Đánh thường):** có tụ → bay/chém → chạm (loé + sóng + mảnh + bụi) → dư âm chạy
+  nền; R rõ ràng to nhất nhưng vẫn trong khung bàn. Đặt ô cạnh Vel'Koz trên màn Hướng dẫn mà thấy nhạt hơn là chưa đạt.

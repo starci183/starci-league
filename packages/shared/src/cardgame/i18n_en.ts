@@ -225,6 +225,9 @@ export const STATUS_EN: Record<string, { name: string; desc: string }> = {
     stun: {
         name: "Stun", desc: "Can't play skill cards, attack or be struck with Strike cards."
     },
+    root: {
+        name: "Root", desc: "Can't move: can't change lanes, be pulled or be swapped (can still attack and cast)."
+    },
     silence: {
         name: "Silence", desc: "Can't cast skill cards (can still attack)."
     },

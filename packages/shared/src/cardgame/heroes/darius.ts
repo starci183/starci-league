@@ -1,6 +1,7 @@
-// Darius (Đấu sĩ, vật lý). Bộ chiêu chốt 31/10 – 01/11/2026, số liệu ở balance/heroes/darius.json (docs/heroes/KITS.md).
-// CHẤT: "Xay một thằng". Mỗi đòn trúng cắm 1 Chảy Máu (carrier stack trên địch, mất một nửa khi nó chết); Q, E cắm thêm và đốt dấu thành sát thương;
-// R đổi chỗ sang đối diện kẻ có dấu, tiêu hết dấu thành sát thương chuẩn: hạ được thì lá về tay ngay, không hạ thì về sau r4 đơn vị.
+// Darius (Đấu sĩ, vật lý). Thầy chốt lại 2026-11-16, số liệu ở balance/heroes/darius.json. Cả 3 chiêu 0 mana.
+// CHẤT: "Càng chém càng thốn". Mỗi đòn trúng cắm 1 Chảy Máu (carrier stack trên địch, mất một nửa khi nó chết); đánh thường gây thêm theo
+// số dấu; Q cắm thêm và đốt dấu thành sát thương; E kéo địch về đối diện rồi Giữ Chân nó; R đổi chỗ sang đối diện kẻ có dấu, tiêu hết dấu
+// thành sát thương chuẩn (scale Công + Máu, càng ít máu càng đau): hạ được thì lá về tay, không hạ thì nằm vào r6 lá trên cùng bộ bài.
 // Chảy Máu = stack "bleed" trên tướng mang + trạng thái song song "bleed_t" (v = số tầng) làm đồng hồ p3 đơn vị kể từ lần cộng cuối.
 import {
     kit
@@ -24,11 +25,15 @@ import {
 const k = kit("darius"), { p } = k
 export const BLEED = "bleed"
 export const BLEED_TIMER = "bleed_t"
-export const R_RETURN = "r_return"
 export const F_TICK = k.x("p1 + p2·AD"), EN_TICK = k.xe("p1 + p2·AD")
 export const F_Q = k.x("q1 + q2·AD + q3·Máu tối đa"), EN_Q = k.xe("q1 + q2·AD + q3·Máu tối đa")
 export const F_E = k.x("e1 + e2·AD"), EN_E = k.xe("e1 + e2·AD")
-export const F_R = k.x("r1 + r2·AD"), EN_R = k.xe("r1 + r2·AD")
+export const F_R = k.x("r1 + r2·AD + r3·Máu tối đa"), EN_R = k.xe("r1 + r2·AD + r3·Máu tối đa")
+const pct = (v: number) => `${Math.round(v * 1000) / 10}%`
+/** Hệ số "càng ít máu càng đau" của R: 1 + r4 × % Máu đã mất của mục tiêu */
+export const rExecute = (t: Unit) => 1 + p.r4 * Math.max(0,
+    1 - t.hp / Math.max(1,
+        t.maxHp))
 
 /** Số Chảy Máu hiệu lực trên `t` (stack chỉ có nghĩa khi đồng hồ còn) */
 export const bleedOf = (g: Game, t: Unit) => (g.has(t,
@@ -69,16 +74,16 @@ export default defineHero({
     offBoardHooks: ["onTurnStart",
         "onTurnEnd",
         "onRespawn"],
-    desc: "Đao phủ Noxus: mỗi đòn đánh cắm thêm Chảy Máu, Q và E đốt dấu thành sát thương, Máy Chém xả hết dấu thành sát thương chuẩn rồi quay về tay.",
+    desc: "Đao phủ Noxus, càng chém càng thốn: mỗi đòn cắm thêm Chảy Máu và đánh đau hơn, E giữ chân con mồi, Máy Chém kết liễu kẻ thấp máu rồi quay về chém tiếp.",
     passive: {
         name: "Xuất Huyết",
-        desc: `Đòn trúng cho 1 Chảy Máu, cộng dồn không giới hạn. Đầu lượt của tướng mang, mỗi tầng gây {${F_TICK}} sát thương vật lý. Chảy Máu hết sau ${p.p3} đơn vị kể từ lần cộng cuối. Tướng mang chết thì mất một nửa.`,
+        desc: `Đòn trúng cho 1 Chảy Máu, cộng dồn không giới hạn. Đầu lượt của tướng mang, mỗi tầng gây {${F_TICK}} sát thương vật lý. Đòn đánh thường của Darius gây thêm ${p.p4} sát thương vật lý mỗi Chảy Máu trên mục tiêu. Chảy Máu hết sau ${p.p3} đơn vị kể từ lần cộng cuối. Tướng mang chết thì mất một nửa.`,
     },
     en: {
-        desc: "Noxian executioner: every hit adds Bleed, Q and E cash the marks in as damage, Guillotine burns all marks as true damage and returns to hand.",
+        desc: "Noxian executioner whose blows hurt more and more: every hit adds Bleed and lands harder, Apprehend roots the prey, Guillotine executes the wounded and comes back for more.",
         passive: {
             name: "Hemorrhage",
-            desc: `A hit adds 1 Bleed, stacking without limit. At the start of the carrier's turn, each stack deals {${EN_TICK}} physical damage. Bleed expires ${p.p3} units after the last one was added. When the carrier dies it loses half.`,
+            desc: `A hit adds 1 Bleed, stacking without limit. At the start of the carrier's turn, each stack deals {${EN_TICK}} physical damage. Darius's attacks deal ${p.p4} bonus physical damage per Bleed on the target. Bleed expires ${p.p3} units after the last one was added. When the carrier dies it loses half.`,
         },
         skills: {
             Q: {
@@ -87,15 +92,23 @@ export default defineHero({
             },
             E: {
                 name: "Apprehend",
-                desc: `Choose 1 enemy in another lane; it swaps with the enemy opposite Darius. It then takes {${EN_E}} + ${p.e4} per Bleed physical damage and gains ${p.e3} Bleed.`,
+                desc: `Choose 1 enemy in another lane; it swaps with the enemy opposite Darius. It then takes {${EN_E}} + ${p.e4} per Bleed physical damage and is Rooted for ${p.e3} units (can't move, be pulled or be swapped).`,
             },
             R: {
                 name: "Noxian Guillotine",
-                desc: `Choose 1 enemy with Bleed in any lane; Darius swaps to face it. It takes {${EN_R}} + ${p.r3} per Bleed true damage and loses all Bleed. If it is taken down, this card returns to hand at once; otherwise it returns after ${p.r4} units.`,
+                desc: `Choose 1 enemy with Bleed in any lane; Darius swaps to face it. It takes ({${EN_R}} + ${p.r5} per Bleed) true damage, increased by ${pct(p.r4)} of its missing HP %, and loses all Bleed. If it is taken down, this card returns to hand; otherwise it is placed at random among the top ${p.r6} cards of your deck.`,
             },
         },
     },
     hooks: {
+        onAttack(g, me, d) {
+            if (d.attacker.id !== me.id || d.target.side === me.side || d.target.token) return
+            const n = bleedOf(g,
+                d.target)
+            if (n > 0) d.info.bonus.push({
+                raw: p.p4 * n, kind: "physical"
+            })
+        },
         onAttackHit(g, me, d) {
             if (d.attacker.id !== me.id || d.info.miss || d.target.side === me.side || d.target.token) return
             addBleed(g,
@@ -142,29 +155,6 @@ export default defineHero({
                         BLEED)
                 })
         },
-        onDelayed(g, me, d) {
-            if (d.key !== R_RETURN) return
-            const left = Number(d.data?.left ?? 0) - 1
-            if (left > 0) { g.delay(me,
-                R_RETURN,
-                "turnStart",
-                me.side,
-                {
-                    left
-                },
-                {
-                    surviveOwnerDeath: true
-                }); return }
-            const card = g.skillCard("darius",
-                me.side,
-                "R")
-            g.emit({
-                t: "returnToHand", side: me.side, card
-            })
-            g.giveCard(me.side,
-                card,
-                "hand")
-        },
     },
     skills: {
         Q: {
@@ -192,7 +182,7 @@ export default defineHero({
         },
         E: {
             key: "E", mana: p.e0, name: "Bắt Giữ", target: "enemy",
-            desc: `Chọn 1 địch ở đường khác; hoán đổi nó với địch đối diện Darius. Nó nhận {${F_E}} + ${p.e4} mỗi Chảy Máu sát thương vật lý và ${p.e3} Chảy Máu.`,
+            desc: `Chọn 1 địch ở đường khác; hoán đổi nó với địch đối diện Darius. Nó nhận {${F_E}} + ${p.e4} mỗi Chảy Máu sát thương vật lý và bị Giữ Chân ${p.e3} đơn vị (không di chuyển, không bị kéo hay đổi chỗ).`,
             options: (c) => skillArgs(c.g,
                 c.side,
                 c.self,
@@ -214,15 +204,15 @@ export default defineHero({
                     {
                         tag: "skill"
                     })
-                addBleed(c.g,
-                    c.self,
+                if (t.status === "board") c.g.timed(c.self,
                     t,
+                    "root",
                     p.e3)
             },
         },
         R: {
             key: "R", mana: p.r0, name: "Máy Chém Noxus", target: "enemy",
-            desc: `Chọn 1 địch có Chảy Máu ở đường bất kỳ; Darius đổi chỗ sang đối diện nó. Nó nhận {${F_R}} + ${p.r3} mỗi Chảy Máu sát thương chuẩn và mất hết Chảy Máu. Hạ được: lá về tay ngay. Không hạ: lá về tay sau ${p.r4} đơn vị.`,
+            desc: `Chọn 1 địch có Chảy Máu ở đường bất kỳ; Darius đổi chỗ sang đối diện nó. Nó nhận ({${F_R}} + ${p.r5} mỗi Chảy Máu) sát thương chuẩn, tăng thêm ${pct(p.r4)} theo % Máu đã mất của nó, rồi mất hết Chảy Máu. Hạ được: lá về tay. Không hạ: lá nằm ngẫu nhiên trong ${p.r6} lá trên cùng bộ bài của bạn.`,
             options: (c) => skillArgs(c.g,
                 c.side,
                 c.self,
@@ -243,9 +233,10 @@ export default defineHero({
                 clearBleed(c.g,
                     t)
                 const before = c.g.events.length
+                const amp = rExecute(t)
                 c.g.damage(c.self,
                     t,
-                    c.f(F_R) + p.r3 * n,
+                    (c.f(F_R) + p.r5 * n) * amp,
                     "true",
                     {
                         tag: "skill"
@@ -254,16 +245,10 @@ export default defineHero({
                 if (killed) c.toHand()
                 else {
                     c.vanish()
-                    if (!c.card.data?.recycled) c.g.delay(c.self, // Chiêu Đoạt của Sylas dùng xong biến mất, không về tay
-                        R_RETURN,
-                        "turnStart",
-                        c.side,
-                        {
-                            left: p.r4
-                        },
-                        {
-                            surviveOwnerDeath: true
-                        })
+                    // Chiêu Đoạt của Sylas dùng xong biến mất, không vào bộ bài
+                    if (!c.card.data?.recycled && !c.card.copyOf) c.g.putNearTop(c.side,
+                        c.card,
+                        p.r6)
                 }
             },
         },
